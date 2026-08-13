@@ -4,7 +4,16 @@ rules_version = '2';
 // Assumed Data Model
 // ===============================================================
 //
-// Collection: users/{userId}/bookingRequests/{requestId}
+// Collection: bookingIntents/{intentId} (server-owned)
+//   - renterId: string (required, immutable, owner-scoped reads)
+//   - all prices, state, timestamps, and version snapshots: server-owned
+// Collection: bookings/{bookingId} (server-owned)
+//   - renterId: string (required, immutable, owner-scoped reads)
+//   - payment evidence, prices, state, and timeline: server-owned
+// Collections bookingBlocks, vehicleAvailability, payments, auditEvents,
+// idempotencyKeys, and systemConfig are trusted-backend-only.
+//
+// Deprecated compatibility collection: users/{userId}/bookingRequests/{requestId}
 // Fields (all required):
 //   - userId: string (1-128 chars, immutable, must equal authenticated UID)
 //   - vehicleId: string (1-128 chars, immutable)
@@ -61,6 +70,14 @@ service cloud.firestore {
         time <= request.time;
     }
 
+    function isRenterRecord() {
+      return isAuthenticated() &&
+        resource.data.renterId is string &&
+        resource.data.renterId.size() >= 1 &&
+        resource.data.renterId.size() <= 128 &&
+        resource.data.renterId == request.auth.uid;
+    }
+
     // =============================================================
     // Domain validators
     // =============================================================
@@ -104,6 +121,8 @@ service cloud.firestore {
     }
 
     match /users/{userId}/bookingRequests/{requestId} {
+      // Deprecated Phase 2 compatibility path. Remove after mobile switches to
+      // the createBookingIntent callable. No client status update is allowed.
       // Path ownership supports both direct document reads and collection
       // listeners; every client-created document is separately UID-validated.
       allow read: if isOwner(userId);
@@ -126,6 +145,35 @@ service cloud.firestore {
         false;
 
       // Client deletes are intentionally absent.
+    }
+
+    match /bookingIntents/{intentId} {
+      allow read: if isRenterRecord();
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isRenterRecord();
+    }
+
+    // Explicit server-owned collection declarations aid review. With no allow
+    // statements, every client create/read/update/delete remains denied.
+    match /bookingBlocks/{blockId} {
+      allow read, write: if false;
+    }
+    match /vehicleAvailability/{vehicleId} {
+      allow read, write: if false;
+    }
+    match /payments/{paymentId} {
+      allow read, write: if false;
+    }
+    match /auditEvents/{eventId} {
+      allow read, write: if false;
+    }
+    match /idempotencyKeys/{idempotencyId} {
+      allow read, write: if false;
+    }
+    match /systemConfig/{configId} {
+      allow read, write: if false;
     }
 
     // Default deny protects all current and future paths unless explicitly

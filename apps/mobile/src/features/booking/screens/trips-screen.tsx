@@ -1,75 +1,54 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import type { BookingRequest, BookingRequestStatus } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Animated, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
-import { getPreviewVehicleById } from '@/features/discovery/data/preview-discovery-gateway';
+import { useReducedMotion } from '@/components/use-reduced-motion';
 import { vehicleImages } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
+import { groupTripsForDisplay, tripStateCopy, type RenterTrip } from '../domain/renter-trip';
 
-const statusPresentation: Record<
-  BookingRequestStatus,
-  { color: string; icon: keyof typeof Ionicons.glyphMap; label: string }
-> = {
-  availability_requested: {
-    color: colors.goldStrong,
-    icon: 'time-outline',
-    label: 'AVAILABILITY REQUESTED',
-  },
-  booked: {
-    color: colors.success,
-    icon: 'checkmark-done-outline',
-    label: 'BOOKED',
-  },
-  confirmed: {
-    color: colors.success,
-    icon: 'checkmark-circle-outline',
-    label: 'VEHICLE CONFIRMED',
-  },
-  payment_required: {
-    color: colors.goldStrong,
-    icon: 'card-outline',
-    label: 'PAYMENT REQUIRED',
-  },
-};
-
-function formatTripDate(dateValue: string) {
+function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-NG', {
     day: 'numeric',
     month: 'short',
     weekday: 'short',
-  }).format(new Date(dateValue));
+    timeZone: 'Africa/Lagos',
+  }).format(new Date(`${value}T12:00:00+01:00`));
+}
+
+function syncLabel(syncState: 'local-only' | 'syncing' | 'synced' | 'offline', isPreview: boolean) {
+  if (isPreview) return 'STATE PREVIEW';
+  if (syncState === 'offline') return 'OFFLINE CACHE';
+  if (syncState === 'syncing') return 'SYNCING';
+  if (syncState === 'synced') return 'LIVE UPDATES';
+  return 'TRIP DESK';
 }
 
 export default function TripsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { initializing, requests, syncState } = useBookings();
-  const [entrance] = useState(() => new Animated.Value(0));
+  const reduceMotion = useReducedMotion();
+  const { initializing, syncError, syncState, trips } = useBookings();
+  const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
+  const isPreview = trips.some((trip) => trip.source === 'preview');
+  const groups = groupTripsForDisplay(trips);
 
   useEffect(() => {
-    Animated.timing(entrance, {
-      duration: 420,
-      toValue: 1,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start();
-  }, [entrance]);
+    if (reduceMotion) {
+      entrance.setValue(1);
+      return;
+    }
+    Animated.timing(entrance, { duration: 420, toValue: 1, useNativeDriver: Platform.OS !== 'web' }).start();
+  }, [entrance, reduceMotion]);
 
   return (
     <View style={styles.screen}>
@@ -78,173 +57,113 @@ export default function TripsScreen() {
         showsVerticalScrollIndicator={false}
         style={{
           opacity: entrance,
-          transform: [
-            {
-              translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }),
-            },
-          ],
+          transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
         }}
       >
         <View style={styles.topBar}>
           <BrandWordmark />
           <View style={styles.statusPill}>
-            <View
-              style={[
-                styles.statusDot,
-                syncState === 'offline' && styles.statusDotOffline,
-              ]}
-            />
-            <Text style={styles.statusPillText}>
-              {syncState === 'offline'
-                ? 'OFFLINE CACHE'
-                : syncState === 'syncing'
-                  ? 'SYNCING'
-                  : syncState === 'synced'
-                    ? 'LIVE UPDATES'
-                    : 'TRIP DESK'}
-            </Text>
+            <View style={[styles.statusDot, (syncState === 'offline' || isPreview) && styles.statusDotOffline]} />
+            <Text style={styles.statusPillText}>{syncLabel(syncState, isPreview)}</Text>
           </View>
         </View>
-
         <View style={styles.intro}>
           <Text style={styles.eyebrow}>YOUR JOURNEYS</Text>
-          <Text style={styles.title}>Trips</Text>
+          <Text accessibilityRole="header" style={styles.title}>Trips</Text>
           <Text style={styles.subtitle}>
-            Availability, confirmation, and concierge updates in one place.
+            Payment, confirmation, concierge intervention, and arrival details in one truthful timeline.
           </Text>
         </View>
-
+        {isPreview ? (
+          <View accessibilityLiveRegion="polite" style={styles.previewNotice}>
+            <Ionicons color={colors.goldStrong} name="flask-outline" size={16} />
+            <Text style={styles.previewNoticeText}>DEVELOPMENT STATE PREVIEW · NO LIVE ACTIONS</Text>
+          </View>
+        ) : null}
+        {syncError ? (
+          <View accessibilityLiveRegion="polite" style={styles.syncNotice}>
+            <Ionicons color={colors.goldStrong} name="cloud-offline-outline" size={16} />
+            <Text style={styles.syncNoticeText}>{syncError}</Text>
+          </View>
+        ) : null}
         {initializing ? (
-          <View style={styles.loadingState}>
+          <View accessibilityLiveRegion="polite" style={styles.loading}>
             <ActivityIndicator color={colors.goldStrong} />
             <Text style={styles.loadingText}>Loading your journeys…</Text>
           </View>
-        ) : requests.length ? (
-          <>
-            <View style={styles.summaryRow}>
-              <View>
-                <Text style={styles.sectionLabel}>ACTIVE REQUESTS</Text>
-                <Text style={styles.summaryTitle}>
-                  {requests.length} {requests.length === 1 ? 'journey' : 'journeys'} in review
-                </Text>
+        ) : groups.length ? (
+          groups.map((section) => (
+            <View key={section.group} style={styles.section}>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionLabel}>{section.label}</Text>
+                <Text style={styles.sectionCount}>{section.trips.length}</Text>
               </View>
-              <View style={styles.summaryIcon}>
-                <Ionicons color={colors.goldStrong} name="time-outline" size={19} />
+              <View style={styles.tripList}>
+                {section.trips.map((item) => <TripRow key={item.id} trip={item} />)}
               </View>
             </View>
-
-            <View style={styles.tripList}>
-              {requests.map((request) => (
-                <TripRequestRow key={request.id} request={request} />
-              ))}
-            </View>
-
-            <View style={styles.conciergeNote}>
-              <Ionicons color={colors.goldStrong} name="headset-outline" size={20} />
-              <View style={styles.conciergeCopy}>
-                <Text style={styles.conciergeTitle}>What happens next</Text>
-                <Text style={styles.conciergeBody}>
-                  MMG checks the vehicle and chauffeur, then moves your request to payment and confirmation.
-                </Text>
-              </View>
-            </View>
-          </>
+          ))
         ) : (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyVisual}>
-              <Image
-                accessibilityLabel="MMG chauffeur-ready vehicle"
-                contentFit="cover"
-                source={vehicleImages['graphite-sedan']}
-                style={StyleSheet.absoluteFill}
-              />
-              <LinearGradient
-                colors={['rgba(4,4,4,0.04)', 'rgba(4,4,4,0.9)']}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={styles.emptyBadge}>
-                <Ionicons color={colors.goldStrong} name="calendar-clear-outline" size={18} />
-              </View>
-              <Text style={styles.emptyVisualText}>YOUR NEXT ARRIVAL</Text>
-            </View>
-            <Text style={styles.emptyTitle}>No trips yet.</Text>
-            <Text style={styles.emptyBody}>
-              Choose a chauffeur-ready vehicle and your availability request will appear here.
-            </Text>
-            <PressableScale
-              accessibilityRole="button"
-              onPress={() => router.push('/(renter)/browse')}
-            >
-              <View style={styles.emptyAction}>
-                <Text style={styles.emptyActionText}>EXPLORE THE FLEET</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={17} />
-              </View>
-            </PressableScale>
-          </View>
+          <EmptyTrips onExplore={() => router.push('/(renter)/browse')} />
         )}
       </Animated.ScrollView>
     </View>
   );
 }
 
-function TripRequestRow({ request }: { request: BookingRequest }) {
+function TripRow({ trip }: { trip: RenterTrip }) {
   const router = useRouter();
-  const vehicle = getPreviewVehicleById(request.vehicleId);
-  const presentation = statusPresentation[request.status];
-
-  if (!vehicle) return null;
-
+  const vehicle = trip.vehicleSnapshot;
+  const vehicleImage = vehicle.imageUrl
+    ? { uri: vehicle.imageUrl }
+    : vehicleImages[vehicle.imageKey ?? 'hero-suv'];
+  const copy = tripStateCopy(trip.state);
+  const attention = trip.group === 'intervention';
   return (
     <PressableScale
-      accessibilityLabel={`View ${vehicle.displayName} request`}
+      accessibilityHint="Opens the journey timeline and current actions"
+      accessibilityLabel={`View ${vehicle.displayName}: ${copy.label}`}
       accessibilityRole="button"
-      onPress={() =>
-        router.push({
-          pathname: '/vehicle/[vehicleId]',
-          params: { vehicleId: vehicle.id },
-        })
-      }
+      onPress={() => router.push(`/trip/${trip.id}` as Href)}
     >
       <View style={styles.tripRow}>
-        <View style={styles.tripImageFrame}>
-          <Image
-            contentFit="cover"
-            source={vehicleImages[vehicle.imageKey]}
-            style={StyleSheet.absoluteFill}
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(4,4,4,0.68)']}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.pendingPill}>
-            <Ionicons color={presentation.color} name={presentation.icon} size={12} />
-            <Text style={styles.pendingText}>{presentation.label}</Text>
+        <View style={styles.imageFrame}>
+          <Image accessibilityLabel={vehicle.displayName} contentFit="cover" source={vehicleImage} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={['transparent', 'rgba(4,4,4,.86)']} style={StyleSheet.absoluteFill} />
+          <View style={[styles.statePill, attention && styles.statePillAttention]}>
+            <Ionicons color={attention ? colors.danger : colors.goldStrong} name={attention ? 'alert-circle-outline' : 'time-outline'} size={13} />
+            <Text style={styles.statePillText}>{copy.label}</Text>
+          </View>
+          <View style={styles.imageCopy}>
+            <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
+            <Text style={styles.area}>{vehicle.areaLabel} · Chauffeur included</Text>
           </View>
         </View>
-        <View style={styles.tripCopy}>
-          <View style={styles.tripHeading}>
-            <View style={styles.tripHeadingCopy}>
-              <Text style={styles.tripName}>{vehicle.displayName}</Text>
-              <Text style={styles.tripArea}>{vehicle.areaLabel} · Chauffeur included</Text>
-            </View>
-            <Ionicons color={colors.muted} name="arrow-forward-outline" size={18} />
-          </View>
-          <View style={styles.dateStrip}>
+        <View style={styles.tripBody}>
+          <View style={styles.dateRow}>
             <View>
               <Text style={styles.dateLabel}>PICKUP</Text>
-              <Text style={styles.dateValue}>{formatTripDate(request.pickupAt)}</Text>
+              <Text style={styles.dateValue}>{formatDate(trip.startDate)}</Text>
             </View>
             <View style={styles.dateLine} />
             <Ionicons color={colors.gold} name="arrow-forward" size={14} />
             <View style={styles.dateLine} />
             <View>
               <Text style={styles.dateLabel}>RETURN</Text>
-              <Text style={styles.dateValue}>{formatTripDate(request.returnAt)}</Text>
+              <Text style={styles.dateValue}>{formatDate(trip.endDate)}</Text>
             </View>
           </View>
-          <View style={styles.tripFooter}>
-            <Text style={styles.durationText}>{request.durationDays}-day journey</Text>
-            <Text style={styles.totalText}>{formatNairaFromKobo(request.totalKobo)}</Text>
+          <View style={styles.footer}>
+            <View>
+              <Text style={styles.total}>{formatNairaFromKobo(trip.priceSnapshot.renterTotalKobo)}</Text>
+              <Text style={styles.totalNote}>
+                {trip.source === 'legacy' ? 'EARLIER ESTIMATE' : trip.source === 'preview' ? 'PREVIEW SNAPSHOT' : 'VERIFIED SNAPSHOT'}
+              </Text>
+            </View>
+            <View style={styles.viewAction}>
+              <Text style={styles.viewText}>VIEW JOURNEY</Text>
+              <Ionicons color={colors.black} name="arrow-forward" size={15} />
+            </View>
           </View>
         </View>
       </View>
@@ -252,51 +171,74 @@ function TripRequestRow({ request }: { request: BookingRequest }) {
   );
 }
 
+function EmptyTrips({ onExplore }: { onExplore: () => void }) {
+  return (
+    <View style={styles.empty}>
+      <View style={styles.emptyVisual}>
+        <Image accessibilityLabel="MMG chauffeur-ready vehicle" contentFit="cover" source={vehicleImages['graphite-sedan']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['transparent', 'rgba(4,4,4,.9)']} style={StyleSheet.absoluteFill} />
+        <Text style={styles.emptyVisualText}>YOUR NEXT ARRIVAL</Text>
+      </View>
+      <Text style={styles.emptyTitle}>No journeys yet.</Text>
+      <Text style={styles.emptyBody}>
+        Choose a chauffeur-ready vehicle and start with a current, server-verified booking intent.
+      </Text>
+      <PressableScale accessibilityRole="button" onPress={onExplore}>
+        <View style={styles.emptyAction}>
+          <Text style={styles.emptyActionText}>EXPLORE THE FLEET</Text>
+          <Ionicons color={colors.black} name="arrow-forward" size={17} />
+        </View>
+      </PressableScale>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  conciergeBody: { color: colors.muted, fontFamily: typography.body, fontSize: 10, lineHeight: 16, marginTop: 4 },
-  conciergeCopy: { flex: 1 },
-  conciergeNote: { alignItems: 'flex-start', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl, paddingTop: spacing.lg },
-  conciergeTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
+  area: { color: colors.muted, fontFamily: typography.body, fontSize: 9, marginTop: 4 },
   content: { paddingBottom: 120, paddingHorizontal: spacing.lg },
   dateLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.2 },
   dateLine: { backgroundColor: colors.lineStrong, flex: 1, height: StyleSheet.hairlineWidth },
-  dateStrip: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.lg },
+  dateRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   dateValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 10, marginTop: 4 },
-  durationText: { color: colors.muted, fontFamily: typography.body, fontSize: 9 },
+  empty: { marginTop: spacing.lg },
   emptyAction: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, minHeight: 50, paddingHorizontal: spacing.lg },
   emptyActionText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.3 },
-  emptyBadge: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,0.74)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 40, justifyContent: 'center', left: spacing.md, position: 'absolute', top: spacing.md, width: 40 },
-  emptyBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm, maxWidth: 330 },
-  emptyState: { marginTop: spacing.xl },
+  emptyBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm },
   emptyTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 31, marginTop: spacing.lg },
   emptyVisual: { borderRadius: radii.lg, height: 224, justifyContent: 'flex-end', overflow: 'hidden', padding: spacing.lg },
   emptyVisualText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.8 },
   eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.8 },
-  intro: { marginBottom: spacing.xl, marginTop: spacing.xl },
-  loadingState: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.section },
+  footer: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between', marginTop: spacing.lg, paddingTop: spacing.md },
+  imageCopy: { bottom: spacing.md, left: spacing.md, position: 'absolute', right: spacing.md },
+  imageFrame: { height: 192, position: 'relative' },
+  intro: { marginBottom: spacing.lg, marginTop: spacing.xl },
+  loading: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.section },
   loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  pendingPill: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,0.78)', borderRadius: radii.pill, bottom: spacing.sm, flexDirection: 'row', gap: 7, left: spacing.sm, paddingHorizontal: 10, paddingVertical: 7, position: 'absolute' },
-  pendingText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.1 },
+  previewNotice: { alignItems: 'center', borderBottomColor: colors.line, borderTopColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xl, paddingVertical: spacing.md },
+  previewNoticeText: { color: colors.goldStrong, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.2 },
   screen: { backgroundColor: colors.black, flex: 1 },
+  section: { marginBottom: spacing.xl },
+  sectionCount: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 9 },
+  sectionHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.7 },
+  statePill: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,.82)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 7, left: spacing.md, paddingHorizontal: 10, paddingVertical: 8, position: 'absolute', top: spacing.md },
+  statePillAttention: { borderColor: 'rgba(209,133,120,.45)' },
+  statePillText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.1 },
   statusDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 6, width: 6 },
   statusDotOffline: { backgroundColor: colors.goldStrong },
   statusPill: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 7, paddingHorizontal: 11, paddingVertical: 8 },
   statusPillText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.3 },
   subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm },
-  summaryIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 42, justifyContent: 'center', width: 42 },
-  summaryRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  summaryTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 24, marginTop: 5 },
+  syncNotice: { alignItems: 'center', backgroundColor: 'rgba(227,195,101,.08)', borderColor: 'rgba(227,195,101,.28)', borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
+  syncNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 45, letterSpacing: -1, marginTop: 5 },
   topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  totalText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  tripArea: { color: colors.muted, fontFamily: typography.body, fontSize: 9, marginTop: 4 },
-  tripCopy: { padding: spacing.md },
-  tripFooter: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.lg, paddingTop: spacing.md },
-  tripHeading: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
-  tripHeadingCopy: { flex: 1 },
-  tripImageFrame: { height: 176 },
-  tripList: { gap: spacing.lg, marginTop: spacing.lg },
-  tripName: { color: colors.ivory, fontFamily: typography.display, fontSize: 22 },
+  total: { color: colors.goldStrong, fontFamily: typography.display, fontSize: 20 },
+  totalNote: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 6, letterSpacing: 1.1, marginTop: 3 },
+  tripBody: { padding: spacing.md },
+  tripList: { gap: spacing.lg },
   tripRow: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  vehicleName: { color: colors.ivory, fontFamily: typography.display, fontSize: 24 },
+  viewAction: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: 6, minHeight: 44, minWidth: 44, paddingHorizontal: spacing.md },
+  viewText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.1 },
 });

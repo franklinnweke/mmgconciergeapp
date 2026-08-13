@@ -34,17 +34,47 @@ Completion baseline (August 12, 2026):
 - The renter home is visually checked at a 390 × 844 mobile viewport.
 - Native Firebase authentication remains isolated from deterministic web previews.
 
-## Phase 2 — Renter journey — next
+## Phase 2 — Renter journey and trusted booking foundation — complete for Sequences 1–3
 
-- Lagos search, filters, map/list presentation, and permission-denied states.
-- Vehicle detail, dates, quote presentation, and checkout handoff states.
-- Trips, payment-return messaging, intervention states, and renter profile UI.
-- Contract, interaction, loading, empty, error, and offline coverage.
+Trusted foundation and Sequence 3 checkpoint (August 13, 2026):
 
-## Phase 3 — Owner operations and admin shell — planned
+- Versioned booking command, error, state, date-only, price, and renter-visible
+  `bookingIntents` / `bookings` contracts.
+- Pure charged-day, safe integer-kobo pricing, overlap, and transition rules.
+- Firebase Functions v2 `createBookingIntent` foundation with App Check,
+  server-owned pricing/configuration, idempotency, held blocks, audit events,
+  and an availability transaction sentinel.
+- Owner-scoped trusted-record reads and default-deny client writes verified by
+  negative Firestore Emulator tests. Client writes to `bookingIntents` and
+  `bookings` remain denied. Renter list reads use `where('renterId', '==', uid)`
+  and the existing automatic single-field indexes.
+- A fail-closed Next.js admin queue/inspector with fixture-only visual mode.
+- Renter Trips grouping (`ACTIVE REQUESTS`, `UPCOMING`, `NEEDS ATTENTION`,
+  `PAST`) and a trip-detail route with one primary action, confirmation for
+  cancellation, and unavailable-adapter copy that never claims a charge,
+  message, or journey change.
+- Native read-only subscriptions to trusted records plus a labelled legacy
+  estimate fallback. Web development uses deterministic preview journeys only.
+- Paystack remains deliberately unavailable; no client path can confirm a
+  booking or claim payment success.
+
+Validation rerun for this checkpoint:
+
+- `npm test`, `npm run typecheck`, and `npm run lint` passed.
+- Functions and admin typecheck, test, and build commands passed.
+- `npm run test:rules` and `npm run test:functions:emulator` passed on Java 25.
+- Expo web export and iOS/Android Hermes `.hbc` bundles passed.
+- Browser fixture review at 390 × 844 and 1280 × 800 is stored under
+  `/private/tmp/mmg-seq3-browser/`.
+
+The deprecated availability request remains an estimate only: it holds no
+dates, takes no payment, and creates no confirmation.
+
+## Phase 3 — Owner workflows and live integrations — next
 
 - Owner onboarding, verification, vehicle creation, and moderation status.
 - Owner bookings, confirmation/rejection, lifecycle, and earnings surfaces.
-- Next.js admin navigation and review queues needed to operate these journeys.
-- Replace preview adapters with authenticated Firebase implementations when
-  backend prerequisites are ready.
+- Admin session-cookie authentication and privileged confirm/reject commands.
+- Real Paystack initialization, webhook verification, charging, and refunds.
+- Replace remaining preview adapters when App Check and the trusted create-intent
+  callable are operational in a native development build.

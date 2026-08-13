@@ -85,10 +85,10 @@ export default function BookingReviewScreen({ durationDays, vehicleId }: Booking
         </View>
 
         <View style={styles.intro}>
-          <Text style={styles.eyebrow}>BEFORE WE CONFIRM</Text>
-          <Text style={styles.title}>Review your arrival.</Text>
+          <Text style={styles.eyebrow}>EARLIER REQUEST FLOW</Text>
+          <Text style={styles.title}>Review your availability request.</Text>
           <Text style={styles.subtitle}>
-            We’ll check the vehicle and chauffeur before asking you to complete payment.
+            This development path saves an estimate only. It does not hold dates, take payment, or confirm a booking.
           </Text>
         </View>
 
@@ -152,7 +152,7 @@ export default function BookingReviewScreen({ durationDays, vehicleId }: Booking
             <View style={styles.successCopy}>
               <Text style={styles.successTitle}>Availability requested.</Text>
               <Text style={styles.successBody}>
-                Your request is saved in Trips. MMG will confirm the vehicle and chauffeur next.
+                Your estimate is saved in Trips. It remains unconfirmed until the trusted payment-first flow is connected.
               </Text>
             </View>
           </View>

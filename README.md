@@ -4,8 +4,9 @@ Firebase-backed React Native marketplace for chauffeured luxury rentals in Lagos
 
 ## Current implementation
 
-The repository now contains the completed Phase 1 experience foundation plus
-parallel Firebase authentication groundwork:
+The repository contains the completed Phase 1 experience foundation, Firebase
+identity groundwork, the trusted booking-operations foundation, a fail-closed
+admin booking queue, and a renter trip desk:
 
 - Expo Router mobile app with custom development builds
 - Premium, image-led renter discovery home with mobile navigation, branded
@@ -20,9 +21,25 @@ parallel Firebase authentication groundwork:
 - Standard/Native Firestore in `africa-south1`
 - Deny-by-default Firestore Rules and negative Emulator Suite tests
 - Shared Zod authentication contracts and MMG brand tokens
+- Versioned booking-intent contracts, Lagos date-only pricing, legal state
+  transitions, and safe integer-kobo calculations
+- A Node 22 Firebase Functions v2 workspace with an App Check-enforced
+  `createBookingIntent` callable and sentinel-backed Firestore transaction
+- Owner-scoped trusted booking reads, default-deny client writes, and negative
+  Emulator Suite coverage
+- A private Next.js admin queue and inspector. Local visual review uses
+  labelled development fixtures; live mode stays fail-closed until session-cookie
+  authentication and privileged commands exist
+- A renter Trips list and trip-detail route with grouped states, verified price
+  snapshots, timelines, and honest payment, support, and cancellation notices.
+  Web development uses deterministic preview journeys. Native reads subscribe to
+  `bookingIntents` and `bookings` by `renterId` and keep the deprecated
+  availability-request path only as a labelled estimate fallback
 
-The next UI milestone is Phase 2: browse/search, vehicle details, date and quote
-selection, checkout handoff states, trips, and renter profile surfaces.
+Paystack initialization, charging, webhooks, and refunds are not implemented.
+Admin session-cookie authentication is not implemented. The deprecated
+availability-request path holds no dates, takes no payment, and creates no
+confirmation. Do not treat those surfaces as live integrations.
 
 `mmg-concierge` is treated as the current development project. The architecture requires physically separate staging and production Firebase projects before launch.
 
@@ -76,7 +93,10 @@ npm run firebase:deploy:auth
 npm run firebase:deploy:firestore
 ```
 
-Email/password and Google providers are enabled. Anonymous authentication is disabled. The initial Firestore rules deny every client operation until a versioned collection schema, query contract, and rules test are implemented.
+Email/password and Google providers are enabled. Anonymous authentication is
+disabled. Firestore preserves a deprecated client-created availability request
+path while the mobile prototype migrates. All authoritative booking, payment,
+availability, audit, idempotency, and configuration writes are server-only.
 
 Firebase mobile configuration files contain client identifiers and Firebase API keys intended to ship in apps. They are not server secrets. Paystack keys, Admin SDK credentials, and service credentials must never be committed.
 

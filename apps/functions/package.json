@@ -1,0 +1,25 @@
+{
+  "name": "@mmg/functions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0",
+    "firebase-functions": "^6.4.0",
+    "zod": "4.1.10"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0",
+    "typescript": "~6.0.3",
+    "vitest": "4.1.10"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=lib/index.js --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/*",
+    "test": "vitest run src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

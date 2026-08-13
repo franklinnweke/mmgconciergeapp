@@ -5,10 +5,16 @@ node_modules/
 .turbo/
 coverage/
 dist/
+lib/
 *.log
 .env
 .env.*
 !.env.example
 apps/mobile/ios/
 apps/mobile/android/
+apps/admin/.next/
+apps/admin/tsconfig.tsbuildinfo
+.playwright-mcp/
+output/
+.idea/
 tmp/

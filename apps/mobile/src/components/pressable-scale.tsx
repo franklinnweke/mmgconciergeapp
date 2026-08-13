@@ -16,8 +16,17 @@ type PressableScaleProps = PropsWithChildren<
   }
 >;
 
-export function PressableScale({ children, onPressIn, onPressOut, style, ...props }: PressableScaleProps) {
+export function PressableScale({
+  children,
+  onBlur,
+  onFocus,
+  onPressIn,
+  onPressOut,
+  style,
+  ...props
+}: PressableScaleProps) {
   const [scale] = useState(() => new Animated.Value(1));
+  const [focused, setFocused] = useState(false);
 
   function animateTo(value: number) {
     Animated.spring(scale, {
@@ -41,8 +50,28 @@ export function PressableScale({ children, onPressIn, onPressOut, style, ...prop
   }
 
   return (
-    <Animated.View style={[style, { transform: [{ scale }] }]}>
-      <Pressable {...props} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+    <Animated.View
+      style={[
+        style,
+        { transform: [{ scale }] },
+        Platform.OS === 'web' && focused
+          ? { outlineColor: '#E3C365', outlineOffset: 3, outlineStyle: 'solid', outlineWidth: 2 }
+          : null,
+      ]}
+    >
+      <Pressable
+        {...props}
+        onBlur={(event) => {
+          setFocused(false);
+          onBlur?.(event);
+        }}
+        onFocus={(event) => {
+          setFocused(true);
+          onFocus?.(event);
+        }}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
         {children}
       </Pressable>
     </Animated.View>
