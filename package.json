@@ -1,0 +1,29 @@
+{
+  "name": "mmg-concierge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MMG Concierge marketplace monorepo",
+  "packageManager": "npm@10.9.8",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace @mmg/mobile",
+    "mobile:ios": "npm run ios --workspace @mmg/mobile",
+    "mobile:android": "npm run android --workspace @mmg/mobile",
+    "mobile:web": "npm run web --workspace @mmg/mobile",
+    "typecheck": "npm run typecheck --workspace @mmg/mobile",
+    "lint": "npm run lint --workspace @mmg/mobile",
+    "test": "vitest run",
+    "test:rules": "cd firebase && npx -y firebase-tools@latest emulators:exec --only firestore \"npm exec vitest -- --run firestore.rules.test.ts\"",
+    "firebase:deploy:auth": "cd firebase && npx -y firebase-tools@latest deploy --only auth",
+    "firebase:deploy:firestore": "cd firebase && npx -y firebase-tools@latest deploy --only firestore"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.1",
+    "firebase": "12.3.0",
+    "typescript": "~6.0.3",
+    "vitest": "4.1.10"
+  }
+}

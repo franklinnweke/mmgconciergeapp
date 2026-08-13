@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "MMG Concierge",
+    "slug": "mmg-concierge",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mmgconcierge",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "bundleIdentifier": "com.mmgconcierge.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "icon": "./assets/expo.icon",
+      "supportsTablet": false
+    },
+    "android": {
+      "googleServicesFile": "./google-services.json",
+      "package": "com.mmgconcierge.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#040404",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "dynamic"
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#040404",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 88
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

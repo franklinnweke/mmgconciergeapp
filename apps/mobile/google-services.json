@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "78068107398",
+    "project_id": "mmg-concierge",
+    "storage_bucket": "mmg-concierge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:78068107398:android:caed173bb99658b297e907",
+        "android_client_info": {
+          "package_name": "com.mmgconcierge.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "78068107398-hfeg0ulpfal6hml31k13ji1258jip85m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mmgconcierge.app",
+            "certificate_hash": "f55d5e42524a38692202f6a623d1b0caa104d457"
+          }
+        },
+        {
+          "client_id": "78068107398-scr9stknfvcan7jf412vuqbki8hptn8b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmTs38PC1krvQJngcDFDM3GzxqQgYa-YA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "78068107398-scr9stknfvcan7jf412vuqbki8hptn8b.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "78068107398-un65cpvfe4p0vg1imtuosb82ptkbr99a.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mmgconcierge.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

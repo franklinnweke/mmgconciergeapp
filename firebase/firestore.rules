@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+// Phase 0/1 deliberately exposes no Firestore document shape to clients.
+// Authentication is available, but profile, role, verification, booking,
+// payment, wallet, and admin writes remain server-authoritative and are not
+// enabled until their versioned schemas and callable contracts are delivered.
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny is intentional. Future vertical slices must add narrow,
+    // schema-validated access plus positive and negative emulator tests.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
