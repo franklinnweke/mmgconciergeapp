@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import { VehicleCategory } from '@mmg/contracts';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
@@ -48,6 +48,7 @@ function getDateLabel(offset: number) {
 
 export default function BrowseFleetScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const params = useLocalSearchParams<{ area?: string }>();
   const routeArea = areas.includes(params.area as AreaFilter)
     ? (params.area as AreaFilter)
@@ -269,7 +270,18 @@ export default function BrowseFleetScreen() {
               <View style={styles.loadingCard} />
             </>
           ) : vehicles.length ? (
-            vehicles.map((vehicle) => <BrowseVehicleCard key={vehicle.id} vehicle={vehicle} />)
+            vehicles.map((vehicle) => (
+              <BrowseVehicleCard
+                key={vehicle.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/vehicle/[vehicleId]',
+                    params: { vehicleId: vehicle.id },
+                  })
+                }
+                vehicle={vehicle}
+              />
+            ))
           ) : (
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>

@@ -69,6 +69,10 @@ export function filterPreviewVehicles(criteria: VehicleSearchCriteria) {
   return vehicles.filter((vehicle) => matchesCriteria(vehicle, criteria));
 }
 
+export function getPreviewVehicleById(vehicleId: string) {
+  return vehicles.find((vehicle) => vehicle.id === vehicleId) ?? null;
+}
+
 export const previewDiscoveryGateway: DiscoveryGateway = {
   async getFeaturedVehicles() {
     return vehicles.slice(0, 2);

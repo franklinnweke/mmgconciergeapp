@@ -11,15 +11,17 @@ import { PressableScale } from '@/components/pressable-scale';
 import { vehicleImages } from '../data/vehicle-images';
 
 type BrowseVehicleCardProps = {
+  onPress(): void;
   vehicle: VehicleSummary;
 };
 
-export function BrowseVehicleCard({ vehicle }: BrowseVehicleCardProps) {
+export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) {
   return (
     <PressableScale
       accessibilityHint="Opens vehicle details"
       accessibilityLabel={`View ${vehicle.displayName}`}
       accessibilityRole="button"
+      onPress={onPress}
     >
       <View style={styles.card}>
         <View style={styles.imageFrame}>
