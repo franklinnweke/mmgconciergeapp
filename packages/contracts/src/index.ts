@@ -32,3 +32,22 @@ export interface DiscoveryGateway {
   getFeaturedVehicles(): Promise<readonly VehicleSummary[]>;
   searchVehicles(criteria: VehicleSearchCriteria): Promise<readonly VehicleSummary[]>;
 }
+
+export type BookingRequestStatus = 'availability_requested';
+export type BookingRequest = {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  durationDays: number;
+  pickupAt: string;
+  returnAt: string;
+  dailyRateKobo: number;
+  totalKobo: number;
+  status: BookingRequestStatus;
+  createdAt: string;
+};
+
+export type CreateBookingRequestInput = Omit<
+  BookingRequest,
+  'createdAt' | 'id' | 'status' | 'userId'
+>;

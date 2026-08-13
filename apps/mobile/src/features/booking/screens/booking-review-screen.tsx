@@ -12,14 +12,21 @@ import { PressableScale } from '@/components/pressable-scale';
 import { getPreviewVehicleById } from '@/features/discovery/data/preview-discovery-gateway';
 import { vehicleImages } from '@/features/discovery/data/vehicle-images';
 
+import { useBookings } from '../booking-context';
+
 type BookingReviewScreenProps = {
   durationDays: number;
   vehicleId: string;
 };
 
-function formatJourneyDate(offset: number) {
+function getJourneyDate(offset: number) {
   const date = new Date();
+  date.setHours(10, 0, 0, 0);
   date.setDate(date.getDate() + offset);
+  return date;
+}
+
+function formatJourneyDate(date: Date) {
   return new Intl.DateTimeFormat('en-NG', {
     day: 'numeric',
     month: 'short',
@@ -30,9 +37,17 @@ function formatJourneyDate(offset: number) {
 export default function BookingReviewScreen({ durationDays, vehicleId }: BookingReviewScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { requestAvailability } = useBookings();
   const vehicle = getPreviewVehicleById(vehicleId);
   const validDuration = Number.isSafeInteger(durationDays) && durationDays > 0 ? durationDays : 1;
   const [requested, setRequested] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const journey = useMemo(() => {
+    const pickup = getJourneyDate(1);
+    const returnDate = getJourneyDate(1 + validDuration);
+    return { pickup, returnDate };
+  }, [validDuration]);
   const quote = useMemo(
     () => vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, validDuration) : null,
     [validDuration, vehicle],
@@ -99,11 +114,11 @@ export default function BookingReviewScreen({ durationDays, vehicleId }: Booking
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>JOURNEY</Text>
           <View style={styles.journeyRow}>
-            <JourneyPoint label="PICKUP" value={formatJourneyDate(1)} />
+            <JourneyPoint label="PICKUP" value={formatJourneyDate(journey.pickup)} />
             <View style={styles.journeyLine} />
             <Ionicons color={colors.goldStrong} name="arrow-forward" size={16} />
             <View style={styles.journeyLine} />
-            <JourneyPoint label="RETURN" value={formatJourneyDate(1 + validDuration)} />
+            <JourneyPoint label="RETURN" value={formatJourneyDate(journey.returnDate)} />
           </View>
           <View style={styles.deliveryRow}>
             <View style={styles.deliveryIcon}>
@@ -135,9 +150,9 @@ export default function BookingReviewScreen({ durationDays, vehicleId }: Booking
               <Ionicons color={colors.black} name="checkmark" size={20} />
             </View>
             <View style={styles.successCopy}>
-              <Text style={styles.successTitle}>Availability request prepared.</Text>
+              <Text style={styles.successTitle}>Availability requested.</Text>
               <Text style={styles.successBody}>
-                This preview keeps the request on-device until the booking backend is connected.
+                Your request is saved in Trips. MMG will confirm the vehicle and chauffeur next.
               </Text>
             </View>
           </View>
@@ -150,12 +165,45 @@ export default function BookingReviewScreen({ durationDays, vehicleId }: Booking
           </View>
         )}
 
-        <PressableScale accessibilityRole="button" onPress={() => setRequested(true)}>
+        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+        <PressableScale
+          accessibilityRole="button"
+          disabled={submitting}
+          onPress={async () => {
+            if (requested) {
+              router.replace('/(renter)/trips');
+              return;
+            }
+
+            setSubmitting(true);
+            setErrorMessage(null);
+            try {
+              await requestAvailability({
+                dailyRateKobo: vehicle.dailyRateKobo,
+                durationDays: validDuration,
+                pickupAt: journey.pickup.toISOString(),
+                returnAt: journey.returnDate.toISOString(),
+                totalKobo: quote.totalKobo,
+                vehicleId: vehicle.id,
+              });
+              setRequested(true);
+            } catch {
+              setErrorMessage('We could not save this request. Please try again.');
+            } finally {
+              setSubmitting(false);
+            }
+          }}
+        >
           <View style={[styles.primaryButton, requested && styles.primaryButtonRequested]}>
             <Text style={styles.primaryText}>
-              {requested ? 'REQUEST PREPARED' : 'REQUEST AVAILABILITY'}
+              {submitting ? 'SAVING REQUEST…' : requested ? 'VIEW IN TRIPS' : 'REQUEST AVAILABILITY'}
             </Text>
-            <Ionicons color={colors.black} name={requested ? 'checkmark' : 'arrow-forward'} size={18} />
+            <Ionicons
+              color={colors.black}
+              name={requested ? 'calendar-clear-outline' : 'arrow-forward'}
+              size={18}
+            />
           </View>
         </PressableScale>
       </ScrollView>
@@ -192,6 +240,7 @@ const styles = StyleSheet.create({
   deliveryRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, paddingTop: spacing.lg },
   deliveryValue: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 11, lineHeight: 17, marginTop: 4 },
   eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.8 },
+  errorText: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 10, textAlign: 'center' },
   intro: { marginBottom: spacing.xl, marginTop: spacing.xl },
   journeyLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.3 },
   journeyLine: { backgroundColor: colors.lineStrong, flex: 1, height: StyleSheet.hairlineWidth },

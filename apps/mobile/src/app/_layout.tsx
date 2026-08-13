@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { AuthProvider } from '@/core/auth/auth-context';
+import { BookingProvider } from '@/features/booking/booking-context';
 
 import 'react-native-reanimated';
 
@@ -60,8 +61,10 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={mmgNavigationTheme}>
       <AuthProvider>
-        <StatusBar style="light" />
-        <Stack screenOptions={{ contentStyle: { backgroundColor: colors.black }, headerShown: false }} />
+        <BookingProvider>
+          <StatusBar style="light" />
+          <Stack screenOptions={{ contentStyle: { backgroundColor: colors.black }, headerShown: false }} />
+        </BookingProvider>
       </AuthProvider>
     </ThemeProvider>
   );
