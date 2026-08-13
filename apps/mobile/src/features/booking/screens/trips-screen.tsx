@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import type { BookingRequest } from '@mmg/contracts';
+import type { BookingRequest, BookingRequestStatus } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +23,32 @@ import { vehicleImages } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 
+const statusPresentation: Record<
+  BookingRequestStatus,
+  { color: string; icon: keyof typeof Ionicons.glyphMap; label: string }
+> = {
+  availability_requested: {
+    color: colors.goldStrong,
+    icon: 'time-outline',
+    label: 'AVAILABILITY REQUESTED',
+  },
+  booked: {
+    color: colors.success,
+    icon: 'checkmark-done-outline',
+    label: 'BOOKED',
+  },
+  confirmed: {
+    color: colors.success,
+    icon: 'checkmark-circle-outline',
+    label: 'VEHICLE CONFIRMED',
+  },
+  payment_required: {
+    color: colors.goldStrong,
+    icon: 'card-outline',
+    label: 'PAYMENT REQUIRED',
+  },
+};
+
 function formatTripDate(dateValue: string) {
   return new Intl.DateTimeFormat('en-NG', {
     day: 'numeric',
@@ -34,7 +60,7 @@ function formatTripDate(dateValue: string) {
 export default function TripsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { initializing, requests } = useBookings();
+  const { initializing, requests, syncState } = useBookings();
   const [entrance] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -62,8 +88,21 @@ export default function TripsScreen() {
         <View style={styles.topBar}>
           <BrandWordmark />
           <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusPillText}>TRIP DESK</Text>
+            <View
+              style={[
+                styles.statusDot,
+                syncState === 'offline' && styles.statusDotOffline,
+              ]}
+            />
+            <Text style={styles.statusPillText}>
+              {syncState === 'offline'
+                ? 'OFFLINE CACHE'
+                : syncState === 'syncing'
+                  ? 'SYNCING'
+                  : syncState === 'synced'
+                    ? 'LIVE UPDATES'
+                    : 'TRIP DESK'}
+            </Text>
           </View>
         </View>
 
@@ -151,6 +190,7 @@ export default function TripsScreen() {
 function TripRequestRow({ request }: { request: BookingRequest }) {
   const router = useRouter();
   const vehicle = getPreviewVehicleById(request.vehicleId);
+  const presentation = statusPresentation[request.status];
 
   if (!vehicle) return null;
 
@@ -177,8 +217,8 @@ function TripRequestRow({ request }: { request: BookingRequest }) {
             style={StyleSheet.absoluteFill}
           />
           <View style={styles.pendingPill}>
-            <View style={styles.pendingDot} />
-            <Text style={styles.pendingText}>AVAILABILITY REQUESTED</Text>
+            <Ionicons color={presentation.color} name={presentation.icon} size={12} />
+            <Text style={styles.pendingText}>{presentation.label}</Text>
           </View>
         </View>
         <View style={styles.tripCopy}>
@@ -235,12 +275,12 @@ const styles = StyleSheet.create({
   intro: { marginBottom: spacing.xl, marginTop: spacing.xl },
   loadingState: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.section },
   loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  pendingDot: { backgroundColor: colors.goldStrong, borderRadius: radii.pill, height: 6, width: 6 },
   pendingPill: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,0.78)', borderRadius: radii.pill, bottom: spacing.sm, flexDirection: 'row', gap: 7, left: spacing.sm, paddingHorizontal: 10, paddingVertical: 7, position: 'absolute' },
   pendingText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.1 },
   screen: { backgroundColor: colors.black, flex: 1 },
   sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.7 },
   statusDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 6, width: 6 },
+  statusDotOffline: { backgroundColor: colors.goldStrong },
   statusPill: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 7, paddingHorizontal: 11, paddingVertical: 8 },
   statusPillText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.3 },
   subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm },

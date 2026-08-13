@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { BookingRequest } from '@mmg/contracts';
+import type { BookingRequest, BookingRequestStatus } from '@mmg/contracts';
 
 const storageKeyPrefix = '@mmg/booking-requests/v1/';
 
@@ -7,11 +7,18 @@ function getStorageKey(userId: string) {
   return `${storageKeyPrefix}${userId}`;
 }
 
-function isBookingRequest(value: unknown): value is BookingRequest {
-  if (!value || typeof value !== 'object') return false;
+const bookingStatuses: readonly BookingRequestStatus[] = [
+  'availability_requested',
+  'confirmed',
+  'payment_required',
+  'booked',
+];
+
+function decodeBookingRequest(value: unknown): BookingRequest | null {
+  if (!value || typeof value !== 'object') return null;
   const request = value as Partial<BookingRequest>;
 
-  return (
+  const isValid =
     typeof request.id === 'string' &&
     typeof request.userId === 'string' &&
     typeof request.vehicleId === 'string' &&
@@ -20,9 +27,15 @@ function isBookingRequest(value: unknown): value is BookingRequest {
     typeof request.returnAt === 'string' &&
     Number.isSafeInteger(request.dailyRateKobo) &&
     Number.isSafeInteger(request.totalKobo) &&
-    request.status === 'availability_requested' &&
+    bookingStatuses.includes(request.status as BookingRequestStatus) &&
     typeof request.createdAt === 'string'
-  );
+  ;
+
+  if (!isValid) return null;
+  return {
+    ...(request as BookingRequest),
+    updatedAt: typeof request.updatedAt === 'string' ? request.updatedAt : request.createdAt!,
+  };
 }
 
 export async function loadLocalBookingRequests(userId: string): Promise<BookingRequest[]> {
@@ -31,7 +44,10 @@ export async function loadLocalBookingRequests(userId: string): Promise<BookingR
 
   try {
     const parsed: unknown = JSON.parse(storedValue);
-    return Array.isArray(parsed) ? parsed.filter(isBookingRequest) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(decodeBookingRequest)
+      .filter((request): request is BookingRequest => request !== null);
   } catch {
     return [];
   }

@@ -33,7 +33,11 @@ export interface DiscoveryGateway {
   searchVehicles(criteria: VehicleSearchCriteria): Promise<readonly VehicleSummary[]>;
 }
 
-export type BookingRequestStatus = 'availability_requested';
+export type BookingRequestStatus =
+  | 'availability_requested'
+  | 'confirmed'
+  | 'payment_required'
+  | 'booked';
 export type BookingRequest = {
   id: string;
   userId: string;
@@ -45,9 +49,10 @@ export type BookingRequest = {
   totalKobo: number;
   status: BookingRequestStatus;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type CreateBookingRequestInput = Omit<
   BookingRequest,
-  'createdAt' | 'id' | 'status' | 'userId'
+  'createdAt' | 'id' | 'status' | 'updatedAt' | 'userId'
 >;

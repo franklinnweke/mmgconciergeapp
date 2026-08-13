@@ -3,16 +3,133 @@ rules_version = '2';
 // ===============================================================
 // Assumed Data Model
 // ===============================================================
-// Phase 0/1 deliberately exposes no Firestore document shape to clients.
-// Authentication is available, but profile, role, verification, booking,
-// payment, wallet, and admin writes remain server-authoritative and are not
-// enabled until their versioned schemas and callable contracts are delivered.
+//
+// Collection: users/{userId}/bookingRequests/{requestId}
+// Fields (all required):
+//   - userId: string (1-128 chars, immutable, must equal authenticated UID)
+//   - vehicleId: string (1-128 chars, immutable)
+//   - durationDays: integer (1-30, immutable)
+//   - pickupAt: timestamp (future at creation, immutable)
+//   - returnAt: timestamp (after pickupAt, immutable)
+//   - dailyRateKobo: integer (1-1,000,000,000, immutable estimate)
+//   - totalKobo: integer (1-50,000,000,000, immutable estimate)
+//   - status: availability_requested | confirmed | payment_required | booked
+//   - createdAt: timestamp (server time, immutable)
+//   - updatedAt: timestamp (server time; backend-managed after creation)
+//
+// Renters may create availability_requested documents and read their own
+// subcollection. Client update/delete is denied. Status progression and
+// authoritative repricing are reserved for trusted Admin SDK code.
 // ===============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny is intentional. Future vertical slices must add narrow,
-    // schema-validated access plus positive and negative emulator tests.
+    // =============================================================
+    // Common helpers
+    // =============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function uidUnchanged() {
+      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function isRecent(time) {
+      return time is timestamp &&
+        time > request.time - duration.value(5, 'm') &&
+        time <= request.time;
+    }
+
+    // =============================================================
+    // Domain validators
+    // =============================================================
+    function isValidBookingRequest(data) {
+      let fields = [
+        'userId',
+        'vehicleId',
+        'durationDays',
+        'pickupAt',
+        'returnAt',
+        'dailyRateKobo',
+        'totalKobo',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ];
+
+      return hasRequiredFields(data, fields) &&
+        hasOnlyAllowedFields(data, fields) &&
+        data.userId is string &&
+        data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.vehicleId is string &&
+        data.vehicleId.size() >= 1 && data.vehicleId.size() <= 128 &&
+        data.durationDays is int &&
+        data.durationDays >= 1 && data.durationDays <= 30 &&
+        data.pickupAt is timestamp &&
+        data.returnAt is timestamp &&
+        data.returnAt > data.pickupAt &&
+        data.dailyRateKobo is int &&
+        data.dailyRateKobo >= 1 && data.dailyRateKobo <= 1000000000 &&
+        data.totalKobo is int &&
+        data.totalKobo >= 1 && data.totalKobo <= 50000000000 &&
+        data.status in [
+          'availability_requested',
+          'confirmed',
+          'payment_required',
+          'booked'
+        ] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    match /users/{userId}/bookingRequests/{requestId} {
+      // Path ownership supports both direct document reads and collection
+      // listeners; every client-created document is separately UID-validated.
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+        uidUnchanged() &&
+        isValidBookingRequest(request.resource.data) &&
+        request.resource.data.status == 'availability_requested' &&
+        request.resource.data.pickupAt > request.time &&
+        isRecent(request.resource.data.createdAt) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+
+      // Explicitly exercise the full update validator and ownership guards,
+      // then deny. Trusted Admin SDK code owns all status progression.
+      allow update: if isOwner(userId) &&
+        isDocOwner() &&
+        uidNotModified() &&
+        isValidBookingRequest(request.resource.data) &&
+        false;
+
+      // Client deletes are intentionally absent.
+    }
+
+    // Default deny protects all current and future paths unless explicitly
+    // opened by a reviewed vertical slice.
     match /{document=**} {
       allow read, write: if false;
     }
