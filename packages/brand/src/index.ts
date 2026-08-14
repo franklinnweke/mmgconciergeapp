@@ -39,3 +39,23 @@ export const typography = {
   bodyMedium: 'Inter_500Medium',
   bodySemiBold: 'Inter_600SemiBold',
 } as const;
+
+export const fontSizes = {
+  xs: 11,
+  sm: 13,
+  base: 15,
+  md: 17,
+  lg: 20,
+  xl: 24,
+  display: 32,
+} as const;
+
+export const elevation = {
+  card: {
+    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { height: 10, width: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+  },
+} as const;

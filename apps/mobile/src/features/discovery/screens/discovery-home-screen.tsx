@@ -1,316 +1,456 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
-import { formatNairaFromKobo } from '@mmg/domain';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
+import { type VehicleCategory } from '@mmg/contracts';
+import { type Href, useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { BookingControl } from '@/components/ui/booking-control';
+import { LuxuryCard } from '@/components/ui/luxury-card';
+import { SectionHeader } from '@/components/ui/section-header';
+import { useAuth } from '@/core/auth/auth-context';
+import { useBookings } from '@/features/booking/booking-context';
+import {
+  firstNameFromDisplayName,
+  formatLagosClock,
+  greetingForLagos,
+  selectHomeJourney,
+} from '@/features/booking/domain/home-journey';
 
-import { vehicleImages } from '../data/vehicle-images';
+import { FeaturedVehicleCard } from '../components/featured-vehicle-card';
+import { LiveJourneyCard } from '../components/live-journey-card';
+import {
+  fleetCategories,
+  getLagosDateLabel,
+  journeyDates,
+  journeyOptions,
+  pickupDestinations,
+  type JourneyOption,
+} from '../data/lagos-destinations';
 import { useFeaturedVehicles } from '../hooks/use-featured-vehicles';
 
-const popularAreas = [
-  { icon: 'business-outline', label: 'Victoria Island' },
-  { icon: 'restaurant-outline', label: 'Ikoyi' },
-  { icon: 'water-outline', label: 'Lekki' },
-] as const;
+const carouselGap = spacing.md;
 
 export default function DiscoveryHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
+  const { trips } = useBookings();
   const { isLoading, vehicles } = useFeaturedVehicles();
-  const [entrance] = useState(() => new Animated.Value(0));
-  const [scrollY] = useState(() => new Animated.Value(0));
+  const [area, setArea] = useState(pickupDestinations[0].area);
+  const [journey, setJourney] = useState<JourneyOption>(journeyOptions[1]);
+  const [category, setCategory] = useState<VehicleCategory | undefined>();
+  const [destinationsOpen, setDestinationsOpen] = useState(false);
+  const liveTrip = useMemo(() => selectHomeJourney(trips), [trips]);
+  const firstName = firstNameFromDisplayName(user?.displayName);
+  const featuredVehicles = useMemo(
+    () => (category ? vehicles.filter((vehicle) => vehicle.category === category) : vehicles),
+    [category, vehicles],
+  );
+  const { width: windowWidth } = useWindowDimensions();
+  const cardWidth = Math.min(328, Math.max(260, windowWidth - 56));
 
-  useEffect(() => {
-    Animated.timing(entrance, {
-      duration: 620,
-      toValue: 1,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start();
-  }, [entrance]);
-
-  const openArea = (area: (typeof popularAreas)[number]['label']) => {
-    router.push({ pathname: '/(renter)/browse', params: { area } });
-  };
+  function openFleet(nextArea = area, nextCategory = category) {
+    router.push({
+      pathname: '/(renter)/browse',
+      params: {
+        area: nextArea,
+        journey: journey.label,
+        ...(nextCategory ? { category: nextCategory } : {}),
+      },
+    });
+  }
 
   return (
     <View style={styles.screen}>
-      <Animated.ScrollView
-        contentContainerStyle={styles.content}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: Platform.OS !== 'web',
-        })}
-        scrollEventThrottle={16}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                transform: [
-                  {
-                    translateY: scrollY.interpolate({
-                      extrapolate: 'clamp',
-                      inputRange: [0, 420],
-                      outputRange: [0, 78],
-                    }),
-                  },
-                  {
-                    scale: scrollY.interpolate({
-                      extrapolate: 'clamp',
-                      inputRange: [-100, 0],
-                      outputRange: [1.12, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <Image
-              accessibilityLabel="A chauffeur-ready luxury SUV arriving in Lagos"
-              contentFit="cover"
-              source={vehicleImages['hero-suv']}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
-          <LinearGradient
-            colors={['rgba(4,4,4,0.48)', 'rgba(4,4,4,0.04)', 'rgba(4,4,4,0.96)']}
-            locations={[0, 0.42, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-
-          <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
-            <BrandWordmark />
-            <View style={styles.locationPill}>
-              <View style={styles.liveDot} />
-              <Text style={styles.locationText}>LAGOS</Text>
-            </View>
-          </View>
-
-          <Animated.View
-            style={[
-              styles.heroCopy,
-              {
-                opacity: entrance,
-                transform: [
-                  {
-                    translateY: entrance.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [24, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.eyebrowRow}>
-              <View style={styles.goldRule} />
-              <Text style={styles.eyebrow}>PRIVATE MOBILITY · LAGOS</Text>
-            </View>
-            <Text style={styles.title}>Arrive like it was all arranged.</Text>
-            <Text style={styles.subtitle}>
-              A considered vehicle, professional chauffeur, and a concierge already thinking ahead.
-            </Text>
-            <PressableScale
-              accessibilityLabel="Explore the chauffeur-ready fleet"
-              accessibilityRole="button"
-              onPress={() => router.push('/(renter)/browse')}
-            >
-              <View style={styles.primaryButton}>
-                <Text style={styles.primaryText}>EXPLORE THE FLEET</Text>
-                <View style={styles.buttonIcon}>
-                  <Ionicons color={colors.black} name="arrow-forward" size={17} />
-                </View>
+        <View style={styles.topBar}>
+          <View style={styles.topRow}>
+            <Text style={styles.kicker}>{formatLagosClock()}</Text>
+            <View style={styles.topActions}>
+              <View style={styles.cityPill}>
+                <View style={styles.liveDot} />
+                <Text style={styles.cityText}>Lagos</Text>
               </View>
-            </PressableScale>
-            <View style={styles.heroAssurance}>
-              <Ionicons color={colors.goldStrong} name="shield-checkmark-outline" size={16} />
-              <Text style={styles.heroAssuranceText}>VETTED VEHICLES · PROFESSIONAL CHAUFFEURS</Text>
-            </View>
-          </Animated.View>
-        </View>
-
-        <View style={styles.body}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionEyebrow}>START WITH WHERE</Text>
-              <Text style={styles.sectionTitle}>Your Lagos, closer.</Text>
-            </View>
-            <Ionicons color={colors.gold} name="compass-outline" size={23} />
-          </View>
-          <View style={styles.areaList}>
-            {popularAreas.map((area, index) => (
               <PressableScale
-                accessibilityLabel={`Browse vehicles in ${area.label}`}
+                accessibilityLabel="Open account"
                 accessibilityRole="button"
-                key={area.label}
-                onPress={() => openArea(area.label)}
+                onPress={() => router.push('/(renter)/account')}
+                style={styles.avatarPress}
               >
-                <View style={styles.areaRow}>
-                  <View style={styles.areaLeading}>
-                    <View style={styles.areaIcon}>
-                      <Ionicons color={colors.goldStrong} name={area.icon} size={18} />
-                    </View>
-                    <View>
-                      <Text style={styles.areaIndex}>0{index + 1}</Text>
-                      <Text style={styles.areaName}>{area.label}</Text>
-                    </View>
-                  </View>
-                  <Ionicons color={colors.muted} name="arrow-forward-outline" size={18} />
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
                 </View>
               </PressableScale>
-            ))}
-          </View>
-
-          <View style={styles.featuredHeader}>
-            <View>
-              <Text style={styles.sectionEyebrow}>CHAUFFEUR-READY</Text>
-              <Text style={styles.sectionTitle}>The fleet, curated.</Text>
             </View>
-            <PressableScale
-              accessibilityLabel="View all vehicles"
-              accessibilityRole="button"
-              onPress={() => router.push('/(renter)/browse')}
-            >
-              <Text style={styles.linkText}>VIEW ALL</Text>
-            </PressableScale>
           </View>
+          <Text accessibilityRole="header" style={styles.greeting}>
+            {greetingForLagos()}, {firstName}
+          </Text>
+        </View>
 
-          {isLoading ? (
-            <ActivityIndicator color={colors.gold} style={styles.loader} />
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.rail}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            >
-              {vehicles.map((vehicle) => (
+        {liveTrip ? (
+          <LiveJourneyCard
+            onPress={() => router.push(`/trip/${liveTrip.id}` as Href)}
+            trip={liveTrip}
+          />
+        ) : null}
+
+        <BookingControl
+          areaLabel={area}
+          journeyOptions={journeyOptions}
+          onFind={() => openFleet()}
+          onPressArea={() => setDestinationsOpen((open) => !open)}
+          onSelectJourney={(label) => setJourney(journeyOptions.find((option) => option.label === label) ?? journey)}
+          pickupLabel={getLagosDateLabel(journey.pickupOffset)}
+          returnLabel={getLagosDateLabel(journey.returnOffset)}
+          selectedJourney={journey.label}
+        />
+
+        {destinationsOpen ? (
+          <ScrollView
+            contentContainerStyle={styles.destinationRail}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalClip}
+          >
+            {pickupDestinations.map((destination) => {
+              const selected = destination.area === area;
+              return (
                 <PressableScale
-                  accessibilityLabel={`View ${vehicle.displayName}`}
                   accessibilityRole="button"
-                  key={vehicle.id}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/vehicle/[vehicleId]',
-                      params: { vehicleId: vehicle.id },
-                    })
-                  }
+                  accessibilityState={{ selected }}
+                  key={destination.area}
+                  onPress={() => {
+                    setArea(destination.area);
+                    setDestinationsOpen(false);
+                  }}
                 >
-                  <View style={styles.card}>
-                    <View style={styles.imageFrame}>
-                      <Image
-                        contentFit="cover"
-                        source={vehicleImages[vehicle.imageKey]}
-                        style={StyleSheet.absoluteFill}
-                      />
-                      <LinearGradient
-                        colors={['transparent', 'rgba(4,4,4,0.66)']}
-                        style={StyleSheet.absoluteFill}
-                      />
-                      <View style={styles.distance}>
-                        <Ionicons color={colors.ivory} name="navigate" size={11} />
-                        <Text style={styles.distanceText}>{vehicle.distanceKm.toFixed(1)} km</Text>
-                      </View>
-                      <View style={styles.cardCategory}>
-                        <Text style={styles.cardCategoryText}>
-                          {vehicle.category === 'executive_suv' ? 'EXECUTIVE SUV' : 'EXECUTIVE SALOON'}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
-                    <View style={styles.vehicleMetaRow}>
-                      <Text style={styles.meta}>{vehicle.areaLabel} · {vehicle.seats} seats</Text>
-                      <Text style={styles.price}>
-                        {formatNairaFromKobo(vehicle.dailyRateKobo)} <Text style={styles.perDay}>/ day</Text>
-                      </Text>
-                    </View>
+                  <View style={[styles.destinationChip, selected && styles.destinationChipSelected]}>
+                    <Ionicons
+                      color={selected ? colors.black : colors.goldStrong}
+                      name={destination.icon}
+                      size={16}
+                    />
+                    <Text style={[styles.destinationText, selected && styles.destinationTextSelected]}>
+                      {destination.label}
+                    </Text>
                   </View>
                 </PressableScale>
-              ))}
-            </ScrollView>
-          )}
+              );
+            })}
+          </ScrollView>
+        ) : null}
 
-          <View style={styles.note}>
-            <View style={styles.noteIcon}>
-              <Ionicons color={colors.goldStrong} name="headset-outline" size={21} />
-            </View>
-            <View style={styles.noteCopy}>
-              <Text style={styles.noteEyebrow}>THE MMG STANDARD</Text>
-              <Text style={styles.noteTitle}>One booking. Everything considered.</Text>
-              <Text style={styles.noteBody}>
-                Vehicle, chauffeur, Lagos delivery, and human support are reviewed before confirmation.
-              </Text>
-            </View>
+        <ScrollView
+          contentContainerStyle={styles.categoryRail}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.horizontalClip}
+        >
+          {fleetCategories.map((option) => {
+            const selected = category === option.value;
+            return (
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                key={option.label}
+                onPress={() => setCategory(option.value)}
+              >
+                <View style={[styles.categoryChip, selected && styles.categoryChipSelected]}>
+                  <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>
+                    {option.label}
+                  </Text>
+                </View>
+              </PressableScale>
+            );
+          })}
+        </ScrollView>
+
+        <SectionHeader
+          actionLabel="See all"
+          eyebrow="Chauffeur-ready"
+          onAction={() => openFleet()}
+          title="The fleet"
+        />
+
+        {isLoading ? (
+          <ActivityIndicator color={colors.gold} style={styles.loader} />
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.carousel}
+            decelerationRate="fast"
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToAlignment="start"
+            snapToInterval={cardWidth + carouselGap}
+            style={styles.horizontalClip}
+          >
+            {featuredVehicles.map((vehicle) => (
+              <FeaturedVehicleCard
+                key={vehicle.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/vehicle/[vehicleId]',
+                    params: {
+                      ...journeyDates(journey),
+                      vehicleId: vehicle.id,
+                    },
+                  })
+                }
+                vehicle={vehicle}
+                width={cardWidth}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        <SectionHeader eyebrow="Lagos pickup" title="Districts & airport" />
+        <ScrollView
+          contentContainerStyle={styles.districtRail}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.horizontalClip}
+        >
+          {pickupDestinations.map((destination) => (
+            <PressableScale
+              accessibilityLabel={`Find cars for ${destination.label}`}
+              accessibilityRole="button"
+              key={destination.area}
+              onPress={() => {
+                setArea(destination.area);
+                openFleet(destination.area);
+              }}
+            >
+              <View style={styles.districtCard}>
+                <View style={styles.districtIcon}>
+                  <Ionicons color={colors.goldStrong} name={destination.icon} size={18} />
+                </View>
+                <Text style={styles.districtLabel}>{destination.label}</Text>
+                <Text style={styles.districtHint}>Pickup here</Text>
+              </View>
+            </PressableScale>
+          ))}
+        </ScrollView>
+
+        <LuxuryCard style={styles.assurance}>
+          <View style={styles.assuranceIcon}>
+            <Ionicons color={colors.goldStrong} name="shield-checkmark-outline" size={20} />
           </View>
-        </View>
-      </Animated.ScrollView>
+          <View style={styles.assuranceCopy}>
+            <Text style={styles.assuranceEyebrow}>The MMG standard</Text>
+            <Text style={styles.assuranceTitle}>Vetted cars, professional chauffeurs, Lagos delivery.</Text>
+            <Text style={styles.assuranceBody}>
+              Vehicle, chauffeur, and human concierge support are reviewed before confirmation.
+            </Text>
+          </View>
+        </LuxuryCard>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  areaIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 42, justifyContent: 'center', width: 42 },
-  areaIndex: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.3 },
-  areaLeading: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-  areaList: { marginTop: spacing.lg },
-  areaName: { color: colors.ivory, fontFamily: typography.display, fontSize: 20, marginTop: 2 },
-  areaRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 72 },
-  body: { paddingBottom: 120, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
-  buttonIcon: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,0.1)', borderRadius: radii.pill, height: 30, justifyContent: 'center', width: 30 },
-  card: { width: 292 },
-  cardCategory: { bottom: spacing.sm, left: spacing.sm, position: 'absolute' },
-  cardCategoryText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.4 },
-  content: { backgroundColor: colors.black },
-  distance: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,0.76)', borderRadius: radii.pill, flexDirection: 'row', gap: 5, left: spacing.sm, paddingHorizontal: 10, paddingVertical: 7, position: 'absolute', top: spacing.sm },
-  distanceText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 9 },
-  eyebrow: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.8 },
-  eyebrowRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  featuredHeader: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.section },
-  goldRule: { backgroundColor: colors.goldStrong, height: 1, width: 24 },
-  hero: { height: 650, justifyContent: 'space-between', overflow: 'hidden' },
-  heroAssurance: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  heroAssuranceText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 7, letterSpacing: 1.25 },
-  heroCopy: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  imageFrame: { borderRadius: radii.lg, height: 202, overflow: 'hidden' },
-  linkText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.2, paddingVertical: spacing.sm },
-  liveDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 6, width: 6 },
-  loader: { marginVertical: spacing.xxl },
-  locationPill: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,0.58)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 7, paddingHorizontal: 12, paddingVertical: 8 },
-  locationText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.5 },
-  meta: { color: colors.muted, fontFamily: typography.body, fontSize: 10 },
-  note: { alignItems: 'flex-start', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, marginTop: spacing.section, padding: spacing.lg },
-  noteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 11, lineHeight: 18, marginTop: spacing.sm },
-  noteCopy: { flex: 1 },
-  noteEyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.5 },
-  noteIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 44, justifyContent: 'center', width: 44 },
-  noteTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 19, lineHeight: 25, marginTop: 4 },
-  perDay: { color: colors.muted, fontFamily: typography.body, fontSize: 9 },
-  price: { color: colors.silver, fontFamily: typography.bodySemiBold, fontSize: 11 },
-  primaryButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, paddingBottom: 7, paddingLeft: spacing.lg, paddingRight: 8, paddingTop: 7 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.3 },
-  rail: { flexDirection: 'row', gap: spacing.md, paddingRight: spacing.lg, paddingTop: spacing.lg },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  sectionEyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.8 },
-  sectionHeader: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 29, letterSpacing: -0.4, marginTop: 5 },
-  subtitle: { color: colors.silver, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: spacing.md, maxWidth: 330 },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 47, letterSpacing: -1.2, lineHeight: 51, marginTop: spacing.md, maxWidth: 350 },
-  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
-  vehicleMetaRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
-  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15, marginTop: spacing.md },
+  assurance: { flexDirection: 'row', gap: spacing.md },
+  assuranceBody: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.sm,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  assuranceCopy: { flex: 1 },
+  assuranceEyebrow: {
+    color: colors.gold,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.8,
+  },
+  assuranceIcon: {
+    alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  assuranceTitle: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.base,
+    marginTop: 4,
+  },
+  avatar: {
+    alignItems: 'center',
+    backgroundColor: colors.goldStrong,
+    borderRadius: radii.pill,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  avatarPress: {
+    flexShrink: 0,
+    height: 40,
+    width: 40,
+  },
+  avatarText: {
+    color: colors.black,
+    fontFamily: typography.display,
+    fontSize: fontSizes.lg,
+  },
+  carousel: {
+    gap: carouselGap,
+    paddingRight: spacing.lg,
+  },
+  categoryChip: {
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  categoryChipSelected: {
+    backgroundColor: colors.ivory,
+    borderColor: colors.ivory,
+  },
+  categoryRail: {
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  },
+  categoryText: {
+    color: colors.silver,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.sm,
+  },
+  categoryTextSelected: {
+    color: colors.black,
+    fontFamily: typography.bodySemiBold,
+  },
+  cityPill: {
+    alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: 7,
+    minHeight: 40,
+    paddingHorizontal: 12,
+  },
+  cityText: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.xs,
+  },
+  content: {
+    gap: spacing.lg,
+    paddingBottom: 120,
+    paddingHorizontal: spacing.lg,
+  },
+  destinationChip: {
+    alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  destinationChipSelected: {
+    backgroundColor: colors.ivory,
+    borderColor: colors.ivory,
+  },
+  destinationRail: {
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  },
+  destinationText: {
+    color: colors.silver,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.sm,
+  },
+  destinationTextSelected: {
+    color: colors.black,
+    fontFamily: typography.bodySemiBold,
+  },
+  districtCard: {
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: spacing.sm,
+    padding: spacing.md,
+    width: 148,
+  },
+  districtHint: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
+  },
+  districtIcon: {
+    alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  districtLabel: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.sm,
+  },
+  districtRail: {
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  },
+  horizontalClip: {
+    alignSelf: 'stretch',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  greeting: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: fontSizes.display,
+    letterSpacing: -0.6,
+    marginTop: spacing.sm,
+  },
+  kicker: {
+    color: colors.gold,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.6,
+  },
+  liveDot: {
+    backgroundColor: colors.success,
+    borderRadius: radii.pill,
+    height: 6,
+    width: 6,
+  },
+  loader: { marginVertical: spacing.xl },
+  screen: { backgroundColor: colors.black, flex: 1, maxWidth: '100%', overflow: 'hidden', width: '100%' },
+  topActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  topBar: { gap: spacing.xs },
+  topRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
 });

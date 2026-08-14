@@ -6,10 +6,20 @@ import VehicleDetailScreen from '@/features/discovery/screens/vehicle-detail-scr
 
 export default function VehicleDetailRoute() {
   const { initializing, user } = useAuth();
-  const { vehicleId } = useLocalSearchParams<{ vehicleId: string }>();
+  const { endDate, startDate, vehicleId } = useLocalSearchParams<{
+    endDate?: string;
+    startDate?: string;
+    vehicleId: string;
+  }>();
 
   if (initializing) return <AuthLoadingScreen />;
   if (!user || !user.emailVerified) return <Redirect href="/" />;
 
-  return <VehicleDetailScreen vehicleId={vehicleId} />;
+  return (
+    <VehicleDetailScreen
+      endDate={Array.isArray(endDate) ? endDate[0] : endDate}
+      startDate={Array.isArray(startDate) ? startDate[0] : startDate}
+      vehicleId={Array.isArray(vehicleId) ? vehicleId[0] : vehicleId}
+    />
+  );
 }

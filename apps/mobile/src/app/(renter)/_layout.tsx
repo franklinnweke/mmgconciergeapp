@@ -22,7 +22,7 @@ export default function RenterTabsLayout() {
     <Tabs
       screenOptions={({ route }) => ({
         headerShown: false,
-        sceneStyle: { backgroundColor: colors.black },
+        sceneStyle: { backgroundColor: colors.black, overflow: 'hidden' },
         tabBarActiveTintColor: colors.goldStrong,
         tabBarInactiveTintColor: colors.muted,
         tabBarHideOnKeyboard: true,
@@ -33,8 +33,8 @@ export default function RenterTabsLayout() {
         tabBarItemStyle: { paddingTop: 8 },
         tabBarLabelStyle: {
           fontFamily: typography.bodyMedium,
-          fontSize: 10,
-          letterSpacing: 0.3,
+          fontSize: 11,
+          letterSpacing: 0.2,
           marginTop: 2,
         },
         tabBarStyle: {

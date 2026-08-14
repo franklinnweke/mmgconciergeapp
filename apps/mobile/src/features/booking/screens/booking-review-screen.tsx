@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
+import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -9,45 +9,51 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import {
+  addDaysToDateOnly,
+  formatLagosDateOnly,
+  parseDateOnly,
+  todayLagosDateOnly,
+} from '@/features/discovery/data/lagos-destinations';
 import { getPreviewVehicleById } from '@/features/discovery/data/preview-discovery-gateway';
 import { vehicleImages } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 
 type BookingReviewScreenProps = {
-  durationDays: number;
+  endDate?: string;
+  startDate?: string;
   vehicleId: string;
 };
 
-function getJourneyDate(offset: number) {
-  const date = new Date();
-  date.setHours(10, 0, 0, 0);
-  date.setDate(date.getDate() + offset);
-  return date;
+function resolveJourney(startDate?: string, endDate?: string) {
+  const start = parseDateOnly(startDate) ?? todayLagosDateOnly();
+  try {
+    const end = parseDateOnly(endDate) ?? addDaysToDateOnly(start, 1);
+    return {
+      durationDays: calculateChargedDays(start, end),
+      endDate: end,
+      startDate: start,
+    };
+  } catch {
+    return {
+      durationDays: 1,
+      endDate: addDaysToDateOnly(start, 1),
+      startDate: start,
+    };
+  }
 }
 
-function formatJourneyDate(date: Date) {
-  return new Intl.DateTimeFormat('en-NG', {
-    day: 'numeric',
-    month: 'short',
-    weekday: 'short',
-  }).format(date);
-}
-
-export default function BookingReviewScreen({ durationDays, vehicleId }: BookingReviewScreenProps) {
+export default function BookingReviewScreen({ endDate, startDate, vehicleId }: BookingReviewScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { requestAvailability } = useBookings();
   const vehicle = getPreviewVehicleById(vehicleId);
-  const validDuration = Number.isSafeInteger(durationDays) && durationDays > 0 ? durationDays : 1;
+  const journey = useMemo(() => resolveJourney(startDate, endDate), [endDate, startDate]);
+  const validDuration = journey.durationDays;
   const [requested, setRequested] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const journey = useMemo(() => {
-    const pickup = getJourneyDate(1);
-    const returnDate = getJourneyDate(1 + validDuration);
-    return { pickup, returnDate };
-  }, [validDuration]);
   const quote = useMemo(
     () => vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, validDuration) : null,
     [validDuration, vehicle],
@@ -114,11 +120,11 @@ export default function BookingReviewScreen({ durationDays, vehicleId }: Booking
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>JOURNEY</Text>
           <View style={styles.journeyRow}>
-            <JourneyPoint label="PICKUP" value={formatJourneyDate(journey.pickup)} />
+            <JourneyPoint label="PICKUP" value={formatLagosDateOnly(journey.startDate)} />
             <View style={styles.journeyLine} />
             <Ionicons color={colors.goldStrong} name="arrow-forward" size={16} />
             <View style={styles.journeyLine} />
-            <JourneyPoint label="RETURN" value={formatJourneyDate(journey.returnDate)} />
+            <JourneyPoint label="RETURN" value={formatLagosDateOnly(journey.endDate)} />
           </View>
           <View style={styles.deliveryRow}>
             <View style={styles.deliveryIcon}>
@@ -182,8 +188,8 @@ export default function BookingReviewScreen({ durationDays, vehicleId }: Booking
               await requestAvailability({
                 dailyRateKobo: vehicle.dailyRateKobo,
                 durationDays: validDuration,
-                pickupAt: journey.pickup.toISOString(),
-                returnAt: journey.returnDate.toISOString(),
+                pickupAt: `${journey.startDate}T10:00:00+01:00`,
+                returnAt: `${journey.endDate}T10:00:00+01:00`,
                 totalKobo: quote.totalKobo,
                 vehicleId: vehicle.id,
               });

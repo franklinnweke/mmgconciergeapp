@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
 import { VehicleSummary } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
@@ -38,8 +38,7 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
           />
           <View style={styles.topRow}>
             <View style={styles.availabilityPill}>
-              <View style={styles.availabilityDot} />
-              <Text style={styles.availabilityText}>AVAILABLE</Text>
+              <Text style={styles.availabilityText}>IN FLEET</Text>
             </View>
             <View style={styles.distancePill}>
               <Ionicons color={colors.ivory} name="navigate" size={11} />
@@ -108,8 +107,8 @@ const styles = StyleSheet.create({
   availabilityText: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
-    fontSize: 8,
-    letterSpacing: 1.1,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.7,
   },
   card: {
     backgroundColor: colors.graphite,
@@ -121,8 +120,8 @@ const styles = StyleSheet.create({
   category: {
     color: colors.goldStrong,
     fontFamily: typography.bodySemiBold,
-    fontSize: 8,
-    letterSpacing: 1.6,
+    fontSize: fontSizes.xs,
+    letterSpacing: 1,
     marginBottom: 5,
   },
   detailRow: {
@@ -146,7 +145,7 @@ const styles = StyleSheet.create({
   distanceText: {
     color: colors.ivory,
     fontFamily: typography.bodyMedium,
-    fontSize: 9,
+    fontSize: fontSizes.xs,
   },
   imageCopy: {
     bottom: spacing.md,
@@ -173,12 +172,12 @@ const styles = StyleSheet.create({
   inclusionText: {
     color: colors.muted,
     fontFamily: typography.bodyMedium,
-    fontSize: 9,
+    fontSize: fontSizes.xs,
   },
   location: {
     color: colors.silver,
     fontFamily: typography.bodyMedium,
-    fontSize: 10,
+    fontSize: fontSizes.sm,
   },
   locationBlock: {
     alignItems: 'center',
@@ -204,12 +203,12 @@ const styles = StyleSheet.create({
   perDay: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 9,
+    fontSize: fontSizes.xs,
   },
   price: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
-    fontSize: 12,
+    fontSize: fontSizes.base,
   },
   priceBlock: {
     alignItems: 'baseline',
@@ -218,13 +217,13 @@ const styles = StyleSheet.create({
   seats: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 9,
+    fontSize: fontSizes.sm,
   },
   title: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 26,
-    letterSpacing: -0.5,
+    fontSize: fontSizes.xl,
+    letterSpacing: -0.4,
   },
   topRow: {
     flexDirection: 'row',

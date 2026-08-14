@@ -6,8 +6,9 @@ import BookingReviewScreen from '@/features/booking/screens/booking-review-scree
 
 export default function BookingReviewRoute() {
   const { initializing, user } = useAuth();
-  const { durationDays, vehicleId } = useLocalSearchParams<{
-    durationDays: string;
+  const { endDate, startDate, vehicleId } = useLocalSearchParams<{
+    endDate?: string;
+    startDate?: string;
     vehicleId: string;
   }>();
 
@@ -16,8 +17,9 @@ export default function BookingReviewRoute() {
 
   return (
     <BookingReviewScreen
-      durationDays={Number.parseInt(durationDays, 10)}
-      vehicleId={vehicleId}
+      endDate={Array.isArray(endDate) ? endDate[0] : endDate}
+      startDate={Array.isArray(startDate) ? startDate[0] : startDate}
+      vehicleId={Array.isArray(vehicleId) ? vehicleId[0] : vehicleId}
     />
   );
 }

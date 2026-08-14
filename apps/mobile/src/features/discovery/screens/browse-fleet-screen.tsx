@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
 import { VehicleCategory } from '@mmg/contracts';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Animated,
   Platform,
@@ -14,78 +14,93 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { useReducedMotion } from '@/components/use-reduced-motion';
 
 import { BrowseVehicleCard } from '../components/browse-vehicle-card';
+import {
+  areaFilters,
+  cycleJourneyOption,
+  firstRouteParam,
+  fleetCategories,
+  getLagosDateLabel,
+  journeyDates,
+  journeyOptions,
+  parseFleetCategory,
+  parseJourneyLabel,
+  pickupDestinations,
+  vehicleAreaForPickup,
+  type JourneyOption,
+} from '../data/lagos-destinations';
 import { useVehicleSearch } from '../hooks/use-vehicle-search';
 
-const areas = ['All Lagos', 'Ikoyi', 'Victoria Island', 'Lekki', 'Lagos Island'] as const;
-const journeyOptions = [
-  { label: 'Today', pickupOffset: 0, returnOffset: 1 },
-  { label: 'Tomorrow', pickupOffset: 1, returnOffset: 2 },
-  { label: 'Weekend', pickupOffset: 3, returnOffset: 5 },
-] as const;
-
-type AreaFilter = (typeof areas)[number];
-type JourneyOption = (typeof journeyOptions)[number];
-
-const vehicleClasses: readonly { label: string; value?: VehicleCategory }[] = [
-  { label: 'All vehicles' },
-  { label: 'Executive SUVs', value: 'executive_suv' },
-  { label: 'Executive saloons', value: 'executive_sedan' },
+const pickupChoices = [
+  ...areaFilters,
+  ...pickupDestinations
+    .map((destination) => destination.area)
+    .filter((area) => !areaFilters.includes(area as (typeof areaFilters)[number])),
 ];
-
-function getDateLabel(offset: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  return new Intl.DateTimeFormat('en-NG', {
-    day: 'numeric',
-    month: 'short',
-    weekday: 'short',
-  }).format(date);
-}
 
 export default function BrowseFleetScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ area?: string }>();
-  const routeArea = areas.includes(params.area as AreaFilter)
-    ? (params.area as AreaFilter)
-    : 'All Lagos';
+  const params = useLocalSearchParams<{ area?: string | string[]; category?: string | string[]; journey?: string | string[] }>();
+  const routeArea = firstRouteParam(params.area);
+  const resolvedRouteArea = routeArea && pickupChoices.includes(routeArea) ? routeArea : 'All Lagos';
   const [areaSelection, setAreaSelection] = useState<{
     routeValue?: string;
-    value: AreaFilter;
+    value: string;
   } | null>(null);
   const area =
-    areaSelection && areaSelection.routeValue === params.area
+    areaSelection && areaSelection.routeValue === routeArea
       ? areaSelection.value
-      : routeArea;
-  const [category, setCategory] = useState<VehicleCategory | undefined>();
-  const [journey, setJourney] = useState<JourneyOption>(journeyOptions[1]);
+      : resolvedRouteArea;
+  const routeCategory = parseFleetCategory(firstRouteParam(params.category));
+  const routeJourney = firstRouteParam(params.journey);
+  const [categorySelection, setCategorySelection] = useState<{
+    routeValue?: string;
+    value: VehicleCategory | undefined;
+  } | null>(null);
+  const category =
+    categorySelection && categorySelection.routeValue === routeCategory
+      ? categorySelection.value
+      : routeCategory;
+  const [journeySelection, setJourneySelection] = useState<{
+    routeValue?: string;
+    value: JourneyOption;
+  } | null>(null);
+  const journey =
+    journeySelection && journeySelection.routeValue === routeJourney
+      ? journeySelection.value
+      : parseJourneyLabel(routeJourney);
   const [query, setQuery] = useState('');
-  const [entrance] = useState(() => new Animated.Value(0));
+  const reduceMotion = useReducedMotion();
+  const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
   const { isLoading, vehicles } = useVehicleSearch({
-    areaLabel: area === 'All Lagos' ? undefined : area,
+    areaLabel: vehicleAreaForPickup(area),
     category,
     query,
   });
 
   useEffect(() => {
+    if (reduceMotion) {
+      entrance.setValue(1);
+      return;
+    }
     Animated.timing(entrance, {
       duration: 420,
       toValue: 1,
       useNativeDriver: Platform.OS !== 'web',
     }).start();
-  }, [entrance]);
+  }, [entrance, reduceMotion]);
 
-  const pickupLabel = useMemo(() => getDateLabel(journey.pickupOffset), [journey]);
-  const returnLabel = useMemo(() => getDateLabel(journey.returnOffset), [journey]);
+  const pickupLabel = getLagosDateLabel(journey.pickupOffset);
+  const returnLabel = getLagosDateLabel(journey.returnOffset);
   const hasFilters = area !== 'All Lagos' || category !== undefined || query.trim().length > 0;
 
   const clearFilters = () => {
-    setAreaSelection({ routeValue: params.area, value: 'All Lagos' });
-    setCategory(undefined);
+    setAreaSelection({ routeValue: routeArea, value: 'All Lagos' });
+    setCategorySelection({ routeValue: routeCategory, value: undefined });
     setQuery('');
   };
 
@@ -108,19 +123,14 @@ export default function BrowseFleetScreen() {
         }}
       >
         <View style={styles.topBar}>
-          <BrandWordmark />
+          <View>
+            <Text style={styles.eyebrow}>Lagos fleet</Text>
+            <Text accessibilityRole="header" style={styles.title}>Find a car</Text>
+          </View>
           <View style={styles.livePill}>
             <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LAGOS FLEET</Text>
+            <Text style={styles.liveText}>{pickupLabel}</Text>
           </View>
-        </View>
-
-        <View style={styles.intro}>
-          <Text style={styles.eyebrow}>FIND YOUR ARRIVAL</Text>
-          <Text style={styles.title}>The right car, already considered.</Text>
-          <Text style={styles.subtitle}>
-            Every result includes a professional chauffeur and delivery within Lagos.
-          </Text>
         </View>
 
         <View style={styles.searchBox}>
@@ -163,9 +173,16 @@ export default function BrowseFleetScreen() {
               <Text style={styles.dateLabel}>RETURN</Text>
               <Text style={styles.dateValue}>{returnLabel}</Text>
             </View>
-            <View style={styles.calendarButton}>
-              <Ionicons color={colors.black} name="calendar-clear-outline" size={17} />
-            </View>
+            <PressableScale
+              accessibilityHint="Cycles Today, Tomorrow, and Weekend"
+              accessibilityLabel="Change journey dates"
+              accessibilityRole="button"
+              onPress={() => setJourneySelection({ routeValue: routeJourney, value: cycleJourneyOption(journey) })}
+            >
+              <View style={styles.calendarButton}>
+                <Ionicons color={colors.black} name="calendar-clear-outline" size={17} />
+              </View>
+            </PressableScale>
           </View>
           <View style={styles.journeyOptions}>
             {journeyOptions.map((option) => {
@@ -175,7 +192,7 @@ export default function BrowseFleetScreen() {
                   accessibilityRole="button"
                   accessibilityState={{ selected: isActive }}
                   key={option.label}
-                  onPress={() => setJourney(option)}
+                  onPress={() => setJourneySelection({ routeValue: routeJourney, value: option })}
                   style={styles.flexChip}
                 >
                   <View style={[styles.journeyChip, isActive && styles.journeyChipActive]}>
@@ -195,15 +212,16 @@ export default function BrowseFleetScreen() {
             contentContainerStyle={styles.chipRail}
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.horizontalClip}
           >
-            {areas.map((option) => {
+            {pickupChoices.map((option) => {
               const isActive = area === option;
               return (
                 <PressableScale
                   accessibilityRole="button"
                   accessibilityState={{ selected: isActive }}
                   key={option}
-                  onPress={() => setAreaSelection({ routeValue: params.area, value: option })}
+                  onPress={() => setAreaSelection({ routeValue: routeArea, value: option })}
                 >
                   <View style={[styles.filterChip, isActive && styles.filterChipActive]}>
                     {isActive ? <View style={styles.selectedDot} /> : null}
@@ -223,15 +241,16 @@ export default function BrowseFleetScreen() {
             contentContainerStyle={styles.chipRail}
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.horizontalClip}
           >
-            {vehicleClasses.map((option) => {
+            {fleetCategories.map((option) => {
               const isActive = category === option.value;
               return (
                 <PressableScale
                   accessibilityRole="button"
                   accessibilityState={{ selected: isActive }}
                   key={option.label}
-                  onPress={() => setCategory(option.value)}
+                  onPress={() => setCategorySelection({ routeValue: routeCategory, value: option.value })}
                 >
                   <View style={[styles.filterChip, isActive && styles.filterChipActive]}>
                     <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
@@ -246,7 +265,7 @@ export default function BrowseFleetScreen() {
 
         <View style={styles.resultsHeader}>
           <View>
-            <Text style={styles.resultsEyebrow}>CHAUFFEUR-READY</Text>
+            <Text style={styles.resultsEyebrow}>Chauffeur-ready</Text>
             <Text style={styles.resultsTitle}>
               {isLoading ? 'Finding the fleet…' : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle' : 'vehicles'}`}
             </Text>
@@ -276,7 +295,10 @@ export default function BrowseFleetScreen() {
                 onPress={() =>
                   router.push({
                     pathname: '/vehicle/[vehicleId]',
-                    params: { vehicleId: vehicle.id },
+                    params: {
+                      ...journeyDates(journey),
+                      vehicleId: vehicle.id,
+                    },
                   })
                 }
                 vehicle={vehicle}
@@ -379,8 +401,8 @@ const styles = StyleSheet.create({
   dateLabel: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 8,
-    letterSpacing: 1.2,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.6,
   },
   dateRow: {
     alignItems: 'center',
@@ -389,7 +411,7 @@ const styles = StyleSheet.create({
   dateValue: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
-    fontSize: 12,
+    fontSize: fontSizes.sm,
     marginTop: 5,
   },
   emptyAction: {
@@ -403,8 +425,8 @@ const styles = StyleSheet.create({
   emptyActionText: {
     color: colors.goldStrong,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 1.2,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.8,
   },
   emptyBody: {
     color: colors.muted,
@@ -435,13 +457,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 27,
+    fontSize: fontSizes.xl,
   },
   eyebrow: {
     color: colors.goldStrong,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 2,
+    fontSize: fontSizes.xs,
+    letterSpacing: 1.1,
   },
   filterChip: {
     alignItems: 'center',
@@ -460,19 +482,20 @@ const styles = StyleSheet.create({
   filterLabel: {
     color: colors.muted,
     fontFamily: typography.bodySemiBold,
-    fontSize: 8,
-    letterSpacing: 1.5,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.8,
     marginBottom: spacing.sm,
   },
   filterSection: { marginTop: spacing.lg },
+  horizontalClip: { alignSelf: 'stretch', overflow: 'hidden', width: '100%' },
   filterText: {
     color: colors.silver,
     fontFamily: typography.bodyMedium,
-    fontSize: 10,
+    fontSize: fontSizes.sm,
   },
   filterTextActive: { color: colors.black },
   flexChip: { flex: 1 },
-  intro: { marginTop: spacing.xl },
+  intro: { marginTop: spacing.md },
   journeyCard: {
     backgroundColor: colors.graphite,
     borderColor: colors.line,
@@ -498,7 +521,7 @@ const styles = StyleSheet.create({
   journeyText: {
     color: colors.muted,
     fontFamily: typography.bodyMedium,
-    fontSize: 9,
+    fontSize: fontSizes.sm,
   },
   journeyTextActive: { color: colors.goldStrong },
   liveDot: {
@@ -520,8 +543,8 @@ const styles = StyleSheet.create({
   liveText: {
     color: colors.silver,
     fontFamily: typography.bodySemiBold,
-    fontSize: 8,
-    letterSpacing: 1.1,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.4,
   },
   loadingCard: {
     backgroundColor: colors.graphite,
@@ -537,8 +560,8 @@ const styles = StyleSheet.create({
   resultsEyebrow: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 8,
-    letterSpacing: 1.5,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.8,
   },
   resultsHeader: {
     alignItems: 'flex-end',
@@ -553,8 +576,8 @@ const styles = StyleSheet.create({
   resultsTitle: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 30,
-    letterSpacing: -0.5,
+    fontSize: fontSizes.xl,
+    letterSpacing: -0.4,
     marginTop: 3,
   },
   screen: { backgroundColor: colors.black, flex: 1 },
@@ -562,20 +585,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.graphite,
     borderColor: colors.lineStrong,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.xl,
-    minHeight: 54,
+    marginTop: spacing.lg,
+    minHeight: 52,
     paddingHorizontal: spacing.md,
   },
   searchInput: {
     color: colors.ivory,
     flex: 1,
     fontFamily: typography.bodyMedium,
-    fontSize: 13,
-    minHeight: 52,
+    fontSize: fontSizes.base,
+    minHeight: 48,
   },
   selectedDot: {
     backgroundColor: colors.gold,
@@ -596,12 +619,12 @@ const styles = StyleSheet.create({
   sortText: {
     color: colors.silver,
     fontFamily: typography.bodyMedium,
-    fontSize: 9,
+    fontSize: fontSizes.xs,
   },
   subtitle: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 13,
+    fontSize: fontSizes.sm,
     lineHeight: 20,
     marginTop: spacing.sm,
     maxWidth: 340,
@@ -609,11 +632,10 @@ const styles = StyleSheet.create({
   title: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 39,
-    letterSpacing: -1,
-    lineHeight: 42,
-    marginTop: spacing.sm,
-    maxWidth: 350,
+    fontSize: fontSizes.display,
+    letterSpacing: -0.6,
+    lineHeight: 36,
+    marginTop: 4,
   },
   topBar: {
     alignItems: 'center',

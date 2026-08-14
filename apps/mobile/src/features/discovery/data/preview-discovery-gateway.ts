@@ -66,7 +66,10 @@ function matchesCriteria(vehicle: VehicleSummary, criteria: VehicleSearchCriteri
 }
 
 export function filterPreviewVehicles(criteria: VehicleSearchCriteria) {
-  return vehicles.filter((vehicle) => matchesCriteria(vehicle, criteria));
+  return vehicles
+    .filter((vehicle) => matchesCriteria(vehicle, criteria))
+    .slice()
+    .sort((left, right) => left.distanceKm - right.distanceKm);
 }
 
 export function getPreviewVehicleById(vehicleId: string) {
@@ -75,7 +78,7 @@ export function getPreviewVehicleById(vehicleId: string) {
 
 export const previewDiscoveryGateway: DiscoveryGateway = {
   async getFeaturedVehicles() {
-    return vehicles.slice(0, 2);
+    return [...vehicles].sort((left, right) => left.distanceKm - right.distanceKm);
   },
   async searchVehicles(criteria) {
     return filterPreviewVehicles(criteria);

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
+import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 
+import {
+  addDaysToDateOnly,
+  parseDateOnly,
+  todayLagosDateOnly,
+} from '../data/lagos-destinations';
 import { getPreviewVehicleById } from '../data/preview-discovery-gateway';
 import { vehicleImages } from '../data/vehicle-images';
 
@@ -20,14 +25,37 @@ const durationOptions = [
 ] as const;
 
 type VehicleDetailScreenProps = {
+  endDate?: string;
+  startDate?: string;
   vehicleId: string;
 };
 
-export default function VehicleDetailScreen({ vehicleId }: VehicleDetailScreenProps) {
+function initialJourney(startDate?: string, endDate?: string) {
+  const start = parseDateOnly(startDate) ?? todayLagosDateOnly();
+  try {
+    const parsedEnd = parseDateOnly(endDate);
+    const durationDays = parsedEnd ? calculateChargedDays(start, parsedEnd) : 1;
+    return {
+      durationDays: durationOptions.some((option) => option.days === durationDays) ? durationDays : 1,
+      startDate: start,
+    };
+  } catch {
+    return { durationDays: 1, startDate: start };
+  }
+}
+
+export default function VehicleDetailScreen({
+  endDate,
+  startDate,
+  vehicleId,
+}: VehicleDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const vehicle = getPreviewVehicleById(vehicleId);
-  const [durationDays, setDurationDays] = useState(1);
+  const [{ durationDays, startDate: pickupDate }, setJourney] = useState(() =>
+    initialJourney(startDate, endDate),
+  );
+  const returnDate = addDaysToDateOnly(pickupDate, durationDays);
 
   const quote = useMemo(() => {
     if (!vehicle) return null;
@@ -68,8 +96,7 @@ export default function VehicleDetailScreen({ vehicleId }: VehicleDetailScreenPr
               </View>
             </PressableScale>
             <View style={styles.availablePill}>
-              <View style={styles.availableDot} />
-              <Text style={styles.availableText}>AVAILABLE</Text>
+              <Text style={styles.availableText}>IN FLEET</Text>
             </View>
           </View>
           <View style={styles.heroCopy}>
@@ -117,7 +144,7 @@ export default function VehicleDetailScreen({ vehicleId }: VehicleDetailScreenPr
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                     key={option.label}
-                    onPress={() => setDurationDays(option.days)}
+                    onPress={() => setJourney({ durationDays: option.days, startDate: pickupDate })}
                     style={styles.durationFlex}
                   >
                     <View style={[styles.durationButton, selected && styles.durationButtonSelected]}>
@@ -146,7 +173,9 @@ export default function VehicleDetailScreen({ vehicleId }: VehicleDetailScreenPr
               <Text style={styles.totalLabel}>Estimated total</Text>
               <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
             </View>
-            <Text style={styles.quoteNote}>Final availability is confirmed before payment.</Text>
+            <Text style={styles.quoteNote}>
+              This is a pre-payment estimate. You pay first; the owner then confirms the vehicle and chauffeur.
+            </Text>
           </View>
 
           <PressableScale
@@ -154,7 +183,7 @@ export default function VehicleDetailScreen({ vehicleId }: VehicleDetailScreenPr
             onPress={() =>
               router.push({
                 pathname: '/booking/review',
-                params: { durationDays, vehicleId: vehicle.id },
+                params: { endDate: returnDate, startDate: pickupDate, vehicleId: vehicle.id },
               })
             }
           >
