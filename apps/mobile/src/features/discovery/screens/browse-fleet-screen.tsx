@@ -23,7 +23,7 @@ import {
   cycleJourneyOption,
   firstRouteParam,
   fleetCategories,
-  getLagosDateLabel,
+  formatLagosDateOnly,
   journeyDates,
   journeyOptions,
   parseFleetCategory,
@@ -94,8 +94,9 @@ export default function BrowseFleetScreen() {
     }).start();
   }, [entrance, reduceMotion]);
 
-  const pickupLabel = getLagosDateLabel(journey.pickupOffset);
-  const returnLabel = getLagosDateLabel(journey.returnOffset);
+  const selectedJourneyDates = journeyDates(journey);
+  const pickupLabel = formatLagosDateOnly(selectedJourneyDates.startDate);
+  const returnLabel = formatLagosDateOnly(selectedJourneyDates.endDate);
   const hasFilters = area !== 'All Lagos' || category !== undefined || query.trim().length > 0;
 
   const clearFilters = () => {
@@ -296,7 +297,7 @@ export default function BrowseFleetScreen() {
                   router.push({
                     pathname: '/vehicle/[vehicleId]',
                     params: {
-                      ...journeyDates(journey),
+                      ...selectedJourneyDates,
                       vehicleId: vehicle.id,
                     },
                   })

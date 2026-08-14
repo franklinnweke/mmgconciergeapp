@@ -21,7 +21,7 @@ import { vehicleImages } from '../data/vehicle-images';
 const durationOptions = [
   { days: 1, label: '1 day' },
   { days: 2, label: '2 days' },
-  { days: 3, label: 'Weekend' },
+  { days: 3, label: '3 days' },
 ] as const;
 
 type VehicleDetailScreenProps = {

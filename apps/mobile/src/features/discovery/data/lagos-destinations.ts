@@ -20,9 +20,9 @@ export const pickupDestinations: readonly PickupDestination[] = [
 ];
 
 export const journeyOptions = [
-  { label: 'Today', pickupOffset: 0, returnOffset: 1 },
-  { label: 'Tomorrow', pickupOffset: 1, returnOffset: 2 },
-  { label: 'Weekend', pickupOffset: 3, returnOffset: 5 },
+  { kind: 'offset', label: 'Today', pickupOffset: 0, returnOffset: 1 },
+  { kind: 'offset', label: 'Tomorrow', pickupOffset: 1, returnOffset: 2 },
+  { kind: 'weekend', label: 'Weekend' },
 ] as const;
 
 export type JourneyOption = (typeof journeyOptions)[number];
@@ -53,10 +53,6 @@ export function addDaysToDateOnly(dateOnly: string, days: number) {
   return next.toISOString().slice(0, 10);
 }
 
-export function lagosDateFromOffset(offset: number, now = new Date()) {
-  return addDaysToDateOnly(todayLagosDateOnly(now), offset);
-}
-
 export function parseDateOnly(value?: string) {
   const parsed = dateOnlySchema.safeParse(value);
   return parsed.success ? parsed.data : undefined;
@@ -72,14 +68,21 @@ export function formatLagosDateOnly(dateOnly: string) {
   }).format(new Date(`${parsed}T12:00:00+01:00`));
 }
 
-export function getLagosDateLabel(offset: number) {
-  return formatLagosDateOnly(lagosDateFromOffset(offset));
-}
+export function journeyDates(option: JourneyOption, now = new Date()) {
+  const today = todayLagosDateOnly(now);
+  if (option.kind === 'weekend') {
+    const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+    const daysUntilSaturday = (6 - weekday + 7) % 7;
+    const startDate = addDaysToDateOnly(today, daysUntilSaturday);
+    return {
+      endDate: addDaysToDateOnly(startDate, 2),
+      startDate,
+    };
+  }
 
-export function journeyDates(option: JourneyOption) {
   return {
-    endDate: lagosDateFromOffset(option.returnOffset),
-    startDate: lagosDateFromOffset(option.pickupOffset),
+    endDate: addDaysToDateOnly(today, option.returnOffset),
+    startDate: addDaysToDateOnly(today, option.pickupOffset),
   };
 }
 

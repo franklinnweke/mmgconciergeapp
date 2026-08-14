@@ -20,25 +20,41 @@ describe('Lagos destination helpers', () => {
   });
 
   it('parses home reservation params into fleet filters', () => {
-    expect(parseJourneyLabel('Today').pickupOffset).toBe(0);
-    expect(parseJourneyLabel('Weekend').returnOffset).toBe(5);
+    const today = parseJourneyLabel('Today');
+    expect(today.kind).toBe('offset');
+    if (today.kind === 'offset') expect(today.pickupOffset).toBe(0);
     expect(parseJourneyLabel('unknown').label).toBe('Tomorrow');
     expect(parseFleetCategory('executive_suv')).toBe('executive_suv');
     expect(parseFleetCategory('airport')).toBeUndefined();
   });
 
-  it('keeps Today, Tomorrow, and Weekend on distinct Lagos calendar dates', () => {
-    const today = journeyDates(parseJourneyLabel('Today'));
-    const tomorrow = journeyDates(parseJourneyLabel('Tomorrow'));
-    const weekend = journeyDates(parseJourneyLabel('Weekend'));
+  it('keeps Today and Tomorrow on distinct Lagos calendar dates', () => {
+    const now = new Date('2026-08-14T12:00:00+01:00');
+    const today = journeyDates(parseJourneyLabel('Today'), now);
+    const tomorrow = journeyDates(parseJourneyLabel('Tomorrow'), now);
     expect(today.startDate).not.toBe(tomorrow.startDate);
     expect(tomorrow.startDate).toBe(addDaysToDateOnly(today.startDate, 1));
-    expect(weekend.startDate).toBe(addDaysToDateOnly(today.startDate, 3));
-    expect(weekend.endDate).toBe(addDaysToDateOnly(today.startDate, 5));
     expect(parseDateOnly('2026-08-15')).toBe('2026-08-15');
     expect(parseDateOnly('15/08/2026')).toBeUndefined();
     expect(cycleJourneyOption(parseJourneyLabel('Today')).label).toBe('Tomorrow');
     expect(cycleJourneyOption(parseJourneyLabel('Weekend')).label).toBe('Today');
+  });
+
+  it('resolves Weekend to the next complete Saturday-to-Monday Lagos window', () => {
+    const weekend = parseJourneyLabel('Weekend');
+
+    expect(journeyDates(weekend, new Date('2026-08-14T12:00:00+01:00'))).toEqual({
+      endDate: '2026-08-17',
+      startDate: '2026-08-15',
+    });
+    expect(journeyDates(weekend, new Date('2026-08-15T12:00:00+01:00'))).toEqual({
+      endDate: '2026-08-17',
+      startDate: '2026-08-15',
+    });
+    expect(journeyDates(weekend, new Date('2026-08-16T12:00:00+01:00'))).toEqual({
+      endDate: '2026-08-24',
+      startDate: '2026-08-22',
+    });
   });
 
   it('orders search results by nearest distance', () => {

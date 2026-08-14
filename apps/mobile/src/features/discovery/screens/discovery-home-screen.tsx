@@ -30,7 +30,7 @@ import { FeaturedVehicleCard } from '../components/featured-vehicle-card';
 import { LiveJourneyCard } from '../components/live-journey-card';
 import {
   fleetCategories,
-  getLagosDateLabel,
+  formatLagosDateOnly,
   journeyDates,
   journeyOptions,
   pickupDestinations,
@@ -58,6 +58,7 @@ export default function DiscoveryHomeScreen() {
   );
   const { width: windowWidth } = useWindowDimensions();
   const cardWidth = Math.min(328, Math.max(260, windowWidth - 56));
+  const selectedJourneyDates = journeyDates(journey);
 
   function openFleet(nextArea = area, nextCategory = category) {
     router.push({
@@ -114,8 +115,8 @@ export default function DiscoveryHomeScreen() {
           onFind={() => openFleet()}
           onPressArea={() => setDestinationsOpen((open) => !open)}
           onSelectJourney={(label) => setJourney(journeyOptions.find((option) => option.label === label) ?? journey)}
-          pickupLabel={getLagosDateLabel(journey.pickupOffset)}
-          returnLabel={getLagosDateLabel(journey.returnOffset)}
+          pickupLabel={formatLagosDateOnly(selectedJourneyDates.startDate)}
+          returnLabel={formatLagosDateOnly(selectedJourneyDates.endDate)}
           selectedJourney={journey.label}
         />
 
@@ -205,7 +206,7 @@ export default function DiscoveryHomeScreen() {
                   router.push({
                     pathname: '/vehicle/[vehicleId]',
                     params: {
-                      ...journeyDates(journey),
+                      ...selectedJourneyDates,
                       vehicleId: vehicle.id,
                     },
                   })
