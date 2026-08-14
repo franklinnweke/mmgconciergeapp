@@ -12,6 +12,11 @@ rules_version = '2';
 //   - payment evidence, prices, state, and timeline: server-owned
 // Collections bookingBlocks, vehicleAvailability, payments, auditEvents,
 // idempotencyKeys, and systemConfig are trusted-backend-only.
+// Collection: users/{userId} (client-created once, then immutable)
+//   - uid: authenticated UID
+//   - accountType: renter | owner (admin is never a public account type)
+//   - displayName, email: bounded identity fields
+//   - createdAt, updatedAt: server timestamps
 //
 // Deprecated compatibility collection: users/{userId}/bookingRequests/{requestId}
 // Fields (all required):
@@ -118,6 +123,46 @@ service cloud.firestore {
         ] &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
+    }
+
+    function isValidAccountProfile(data) {
+      let fields = [
+        'uid',
+        'accountType',
+        'displayName',
+        'email',
+        'createdAt',
+        'updatedAt'
+      ];
+
+      return hasRequiredFields(data, fields) &&
+        hasOnlyAllowedFields(data, fields) &&
+        data.uid is string &&
+        data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.accountType in ['renter', 'owner'] &&
+        data.displayName is string &&
+        data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+        data.email is string &&
+        data.email.size() >= 3 && data.email.size() <= 254 &&
+        request.auth.token.email is string &&
+        data.email == request.auth.token.email &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == userId &&
+        isValidAccountProfile(request.resource.data) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+
+      // Account type is immutable from the client. Support can migrate an
+      // identity through reviewed Admin SDK tooling when required.
+      allow update, delete: if false;
     }
 
     match /users/{userId}/bookingRequests/{requestId} {

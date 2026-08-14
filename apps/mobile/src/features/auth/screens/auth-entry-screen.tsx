@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
 type Mode = 'sign-in' | 'register';
@@ -27,6 +28,7 @@ const heroImage = require('../../../../assets/images/fleet/lagos-arrival-hero.pn
 export function AuthEntryScreen() {
   const insets = useSafeAreaInsets();
   const auth = useAuth();
+  const reduceMotion = useReducedMotion();
   const [mode, setMode] = useState<Mode>('sign-in');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,6 +41,11 @@ export function AuthEntryScreen() {
   const [formOpacity] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
+    if (reduceMotion) {
+      entranceOpacity.setValue(1);
+      entranceTranslate.setValue(0);
+      return;
+    }
     Animated.parallel([
       Animated.timing(entranceOpacity, {
         duration: 560,
@@ -52,12 +59,18 @@ export function AuthEntryScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [entranceOpacity, entranceTranslate]);
+  }, [entranceOpacity, entranceTranslate, reduceMotion]);
 
   function changeMode(nextMode: Mode) {
     if (nextMode === mode || busy) return;
     setError(null);
     setNotice(null);
+
+    if (reduceMotion) {
+      setMode(nextMode);
+      formOpacity.setValue(1);
+      return;
+    }
 
     Animated.timing(formOpacity, {
       duration: 120,

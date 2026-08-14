@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  accountProfileSchema,
+  accountTypeSchema,
   createBookingIntentCommandSchema,
   dateOnlySchema,
   emailPasswordRegistrationSchema,
@@ -11,6 +13,23 @@ import {
 } from './index';
 
 describe('authentication contracts', () => {
+  it('accepts only public renter and owner account types', () => {
+    expect(accountTypeSchema.parse('renter')).toBe('renter');
+    expect(accountTypeSchema.parse('owner')).toBe('owner');
+    expect(accountTypeSchema.safeParse('admin').success).toBe(false);
+  });
+
+  it('validates a strict account profile without privilege fields', () => {
+    const profile = {
+      uid: 'renter-one',
+      accountType: 'renter',
+      displayName: 'Ada Okafor',
+      email: 'ADA@example.com',
+    };
+    expect(accountProfileSchema.parse(profile).email).toBe('ada@example.com');
+    expect(accountProfileSchema.safeParse({ ...profile, isAdmin: true }).success).toBe(false);
+  });
+
   it('normalizes a valid email/password sign-in request', () => {
     expect(
       emailPasswordSignInSchema.parse({

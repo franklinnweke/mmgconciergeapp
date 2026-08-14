@@ -1,5 +1,12 @@
+import type {
+  AccountProfile,
+  AccountType,
+  EmailPasswordRegistration,
+  EmailPasswordSignIn,
+} from '@mmg/contracts';
 import { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
 
+import { createAccountProfile, loadAccountProfile } from './account-profile';
 import {
   getFriendlyAuthError,
   refreshCurrentUser,
@@ -13,12 +20,15 @@ import {
   type GoogleSignInResult,
   type User,
 } from './firebase-auth';
-import type { EmailPasswordRegistration, EmailPasswordSignIn } from '@mmg/contracts';
 
 type AuthContextValue = {
+  completeAccountSetup(accountType: AccountType): Promise<void>;
   errorMessage(error: unknown): string;
   initializing: boolean;
+  profile: AccountProfile | null;
+  profileLoadFailed: boolean;
   refreshUser(): Promise<void>;
+  retryProfile(): Promise<void>;
   register(input: EmailPasswordRegistration): Promise<void>;
   requestReset(email: string): Promise<void>;
   resendVerification(): Promise<void>;
@@ -31,22 +41,61 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [initializing, setInitializing] = useState(true);
+  const [authInitializing, setAuthInitializing] = useState(true);
+  const [profileInitializing, setProfileInitializing] = useState(false);
+  const [profileLoadFailed, setProfileLoadFailed] = useState(false);
+  const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [, setRefreshVersion] = useState(0);
 
-  useEffect(
-    () =>
-      subscribeToAuthState((nextUser) => {
-        setUser(nextUser);
-        setInitializing(false);
-      }),
-    [],
-  );
+  useEffect(() => {
+    let active = true;
+    let requestVersion = 0;
+    const unsubscribe = subscribeToAuthState((nextUser) => {
+      const currentRequest = ++requestVersion;
+      if (!active) return;
+
+      setUser(nextUser);
+      setAuthInitializing(false);
+      if (!nextUser) {
+        setProfile(null);
+        setProfileLoadFailed(false);
+        setProfileInitializing(false);
+        return;
+      }
+
+      setProfileLoadFailed(false);
+      setProfileInitializing(true);
+      void loadAccountProfile(nextUser.uid)
+        .then((nextProfile) => {
+          if (active && currentRequest === requestVersion) setProfile(nextProfile);
+        })
+        .catch(() => {
+          if (active && currentRequest === requestVersion) {
+            setProfile(null);
+            setProfileLoadFailed(true);
+          }
+        })
+        .finally(() => {
+          if (active && currentRequest === requestVersion) setProfileInitializing(false);
+        });
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   const value: AuthContextValue = {
+    async completeAccountSetup(accountType) {
+      if (!user) throw new Error('Sign in before choosing an account type.');
+      setProfile(await createAccountProfile(user, accountType));
+    },
     errorMessage: getFriendlyAuthError,
-    initializing,
+    initializing: authInitializing || profileInitializing,
+    profile,
+    profileLoadFailed,
     async refreshUser() {
       const nextUser = await refreshCurrentUser();
       setUser(nextUser);
@@ -55,6 +104,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
     register: registerWithEmailPassword,
     requestReset: requestPasswordReset,
     resendVerification: resendVerificationEmail,
+    async retryProfile() {
+      if (!user) return;
+      setProfileInitializing(true);
+      setProfileLoadFailed(false);
+      try {
+        setProfile(await loadAccountProfile(user.uid));
+      } catch {
+        setProfileLoadFailed(true);
+      } finally {
+        setProfileInitializing(false);
+      }
+    },
     signIn: signInWithEmailPassword,
     signInGoogle: signInWithGoogle,
     signOut: signOutCurrentUser,

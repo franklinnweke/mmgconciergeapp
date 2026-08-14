@@ -42,6 +42,17 @@ function validBookingRequest(userId: string) {
   };
 }
 
+function validAccountProfile(userId: string, accountType: 'renter' | 'owner' = 'renter') {
+  return {
+    uid: userId,
+    accountType,
+    displayName: 'Ada Okafor',
+    email: 'ada@example.com',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
 describeWithEmulator('booking request Firestore rules', () => {
   let environment: RulesTestEnvironment;
 
@@ -63,7 +74,10 @@ describeWithEmulator('booking request Firestore rules', () => {
   });
 
   it('allows an authenticated renter to create, read, and list an owned request', async () => {
-    const database = environment.authenticatedContext('renter-one').firestore();
+    const database = environment.authenticatedContext(
+      'renter-one',
+      { email: 'ada@example.com' },
+    ).firestore();
     const reference = doc(database, 'users/renter-one/bookingRequests/request-one');
 
     await assertSucceeds(setDoc(reference, validBookingRequest('renter-one')));
@@ -170,12 +184,55 @@ describeWithEmulator('booking request Firestore rules', () => {
     await assertFails(deleteDoc(reference));
   });
 
-  it('keeps unrelated user documents denied', async () => {
-    const database = environment.authenticatedContext('renter-one').firestore();
+  it('allows a signed-in user to create and read one safe account profile', async () => {
+    const database = environment.authenticatedContext(
+      'renter-one',
+      { email: 'ada@example.com' },
+    ).firestore();
     const profile = doc(database, 'users/renter-one');
 
-    await assertFails(getDoc(profile));
-    await assertFails(setDoc(profile, { role: 'admin' }));
+    await assertSucceeds(setDoc(profile, validAccountProfile('renter-one')));
+    await assertSucceeds(getDoc(profile));
+  });
+
+  it('accepts an owner profile but rejects admin and schema pollution', async () => {
+    const database = environment.authenticatedContext('owner-one', { email: 'ada@example.com' }).firestore();
+    const adminDatabase = environment.authenticatedContext('admin-one', { email: 'ada@example.com' }).firestore();
+    const pollutedDatabase = environment.authenticatedContext('polluted-one', { email: 'ada@example.com' }).firestore();
+    await assertSucceeds(
+      setDoc(doc(database, 'users/owner-one'), validAccountProfile('owner-one', 'owner')),
+    );
+    await assertFails(setDoc(doc(adminDatabase, 'users/admin-one'), {
+      ...validAccountProfile('admin-one'),
+      accountType: 'admin',
+    }));
+    await assertFails(setDoc(doc(pollutedDatabase, 'users/polluted-one'), {
+      ...validAccountProfile('polluted-one'),
+      isAdmin: true,
+    }));
+    await assertFails(setDoc(
+      doc(environment.authenticatedContext('email-one', { email: 'real@example.com' }).firestore(), 'users/email-one'),
+      validAccountProfile('email-one'),
+    ));
+  });
+
+  it('prevents cross-user access and all client profile mutations', async () => {
+    const ownerDatabase = environment.authenticatedContext(
+      'renter-one',
+      { email: 'ada@example.com' },
+    ).firestore();
+    const attackerDatabase = environment.authenticatedContext('renter-two').firestore();
+    const profile = doc(ownerDatabase, 'users/renter-one');
+    await assertSucceeds(setDoc(profile, validAccountProfile('renter-one')));
+
+    await assertFails(getDoc(doc(attackerDatabase, profile.path)));
+    await assertFails(setDoc(
+      doc(attackerDatabase, 'users/renter-one'),
+      validAccountProfile('renter-one'),
+    ));
+    await assertFails(updateDoc(profile, { accountType: 'owner' }));
+    await assertFails(updateDoc(profile, { displayName: 'Changed Name' }));
+    await assertFails(deleteDoc(profile));
   });
 
   it('allows renters to read only their server-created intents and bookings', async () => {

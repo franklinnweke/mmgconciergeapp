@@ -12,9 +12,9 @@ const iconNames = {
 };
 
 export default function RenterTabsLayout() {
-  const { initializing, user } = useAuth();
+  const { initializing, profile, user } = useAuth();
 
-  if (!initializing && (!user || !user.emailVerified)) {
+  if (!initializing && (!user || !user.emailVerified || profile?.accountType !== 'renter')) {
     return <Redirect href="/" />;
   }
 
