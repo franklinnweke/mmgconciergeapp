@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  actorMayApplyDecision,
   calculateAuthoritativePrice,
   calculateBookingQuote,
   calculateChargedDays,
   canTransitionBookingIntent,
+  canTransitionOwnerVerification,
   canTransitionPaidBooking,
   dateOnlyToEpochDay,
+  decisionTargetStatus,
   formatNairaFromKobo,
   intervalsOverlap,
+  isTerminalOwnerVerification,
+  maskEmail,
+  maskPhoneE164,
+  ownerMayMutateProfile,
+  ownerMaySubmit,
+  ownerVerificationTransitions,
+  requiresApprovalChecklist,
+  requiresReviewReason,
   roundBasisPointsHalfUp,
+  validateReviewReason,
 } from './index';
 
 describe('formatNairaFromKobo', () => {
@@ -21,7 +33,6 @@ describe('formatNairaFromKobo', () => {
     expect(() => formatNairaFromKobo(10.5)).toThrow('integer number of kobo');
   });
 });
-
 describe('date-only booking arithmetic', () => {
   it('uses exclusive calendar dates without local-time or DST arithmetic', () => {
     expect(calculateChargedDays('2026-03-28', '2026-03-31')).toBe(3);
@@ -109,5 +120,140 @@ describe('calculateBookingQuote', () => {
 
   it('rejects invalid booking durations', () => {
     expect(() => calculateBookingQuote(385_000_00, 0)).toThrow('positive whole number');
+  });
+});
+
+describe('owner verification state machine and transitions', () => {
+  it('defines the complete 7-state transition table', () => {
+    expect(Object.keys(ownerVerificationTransitions)).toEqual([
+      'draft',
+      'submitted',
+      'under_review',
+      'approved',
+      'rejected',
+      'suspended',
+      'revoked',
+    ]);
+  });
+
+  it('allows legal transitions across the lifecycle', () => {
+    // draft -> submitted
+    expect(canTransitionOwnerVerification('draft', 'submitted')).toBe(true);
+
+    // submitted -> under_review
+    expect(canTransitionOwnerVerification('submitted', 'under_review')).toBe(true);
+
+    // under_review -> approved / rejected
+    expect(canTransitionOwnerVerification('under_review', 'approved')).toBe(true);
+    expect(canTransitionOwnerVerification('under_review', 'rejected')).toBe(true);
+
+    // approved -> suspended / revoked
+    expect(canTransitionOwnerVerification('approved', 'suspended')).toBe(true);
+    expect(canTransitionOwnerVerification('approved', 'revoked')).toBe(true);
+
+    // rejected -> submitted (resubmit)
+    expect(canTransitionOwnerVerification('rejected', 'submitted')).toBe(true);
+
+    // suspended -> approved / revoked
+    expect(canTransitionOwnerVerification('suspended', 'approved')).toBe(true);
+    expect(canTransitionOwnerVerification('suspended', 'revoked')).toBe(true);
+  });
+
+  it('rejects illegal transitions and shortcuts', () => {
+    // submitted cannot skip under_review
+    expect(canTransitionOwnerVerification('submitted', 'approved')).toBe(false);
+    expect(canTransitionOwnerVerification('submitted', 'rejected')).toBe(false);
+
+    // draft cannot jump to under_review or approved
+    expect(canTransitionOwnerVerification('draft', 'under_review')).toBe(false);
+    expect(canTransitionOwnerVerification('draft', 'approved')).toBe(false);
+
+    // rejected cannot jump to approved without submitted
+    expect(canTransitionOwnerVerification('rejected', 'approved')).toBe(false);
+    expect(canTransitionOwnerVerification('rejected', 'under_review')).toBe(false);
+
+    // terminal state revoked cannot transition anywhere
+    expect(canTransitionOwnerVerification('revoked', 'approved')).toBe(false);
+    expect(canTransitionOwnerVerification('revoked', 'draft')).toBe(false);
+    expect(canTransitionOwnerVerification('revoked', 'submitted')).toBe(false);
+  });
+
+  it('maps review decisions to target statuses', () => {
+    expect(decisionTargetStatus('start_review')).toBe('under_review');
+    expect(decisionTargetStatus('approve')).toBe('approved');
+    expect(decisionTargetStatus('reject')).toBe('rejected');
+    expect(decisionTargetStatus('suspend')).toBe('suspended');
+    expect(decisionTargetStatus('restore')).toBe('approved');
+    expect(decisionTargetStatus('revoke')).toBe('revoked');
+  });
+
+  it('evaluates actor decision permissions', () => {
+    expect(actorMayApplyDecision('verification_admin', 'approve')).toBe(true);
+    expect(actorMayApplyDecision('super_admin', 'revoke')).toBe(true);
+    expect(actorMayApplyDecision('owner', 'approve')).toBe(false);
+    expect(actorMayApplyDecision('system', 'start_review')).toBe(false);
+  });
+
+  it('evaluates profile mutation and submit eligibility', () => {
+    // ownerMayMutateProfile: true for null, draft, rejected
+    expect(ownerMayMutateProfile(null)).toBe(true);
+    expect(ownerMayMutateProfile('draft')).toBe(true);
+    expect(ownerMayMutateProfile('rejected')).toBe(true);
+    expect(ownerMayMutateProfile('submitted')).toBe(false);
+    expect(ownerMayMutateProfile('under_review')).toBe(false);
+    expect(ownerMayMutateProfile('approved')).toBe(false);
+    expect(ownerMayMutateProfile('suspended')).toBe(false);
+    expect(ownerMayMutateProfile('revoked')).toBe(false);
+
+    // ownerMaySubmit: true ONLY for draft and rejected; explicitly false for null
+    expect(ownerMaySubmit('draft')).toBe(true);
+    expect(ownerMaySubmit('rejected')).toBe(true);
+    expect(ownerMaySubmit(null)).toBe(false);
+    expect(ownerMaySubmit('submitted')).toBe(false);
+    expect(ownerMaySubmit('under_review')).toBe(false);
+    expect(ownerMaySubmit('approved')).toBe(false);
+    expect(ownerMaySubmit('suspended')).toBe(false);
+    expect(ownerMaySubmit('revoked')).toBe(false);
+  });
+
+  it('identifies terminal verification state', () => {
+    expect(isTerminalOwnerVerification('revoked')).toBe(true);
+    expect(isTerminalOwnerVerification('draft')).toBe(false);
+    expect(isTerminalOwnerVerification('submitted')).toBe(false);
+    expect(isTerminalOwnerVerification('approved')).toBe(false);
+  });
+
+  it('identifies decision reason and checklist requirements', () => {
+    expect(requiresReviewReason('reject')).toBe(true);
+    expect(requiresReviewReason('suspend')).toBe(true);
+    expect(requiresReviewReason('revoke')).toBe(true);
+    expect(requiresReviewReason('approve')).toBe(false);
+    expect(requiresReviewReason('start_review')).toBe(false);
+    expect(requiresReviewReason('restore')).toBe(false);
+
+    expect(requiresApprovalChecklist('approve')).toBe(true);
+    expect(requiresApprovalChecklist('reject')).toBe(false);
+  });
+
+  it('validates review reasons with strict length bounds [10, 500]', () => {
+    expect(validateReviewReason('  The uploaded document is expired and unreadable.  ')).toBe(
+      'The uploaded document is expired and unreadable.',
+    );
+    expect(() => validateReviewReason('Short')).toThrow(RangeError);
+    expect(() => validateReviewReason('A'.repeat(501))).toThrow(RangeError);
+  });
+
+  it('masks email addresses accurately', () => {
+    expect(maskEmail('ada.okafor@example.com')).toBe('a***@example.com');
+    expect(maskEmail('bello@domain.ng')).toBe('b***@domain.ng');
+    expect(() => maskEmail('invalid-email')).toThrow(TypeError);
+    expect(() => maskEmail('@example.com')).toThrow(TypeError);
+  });
+
+  it('masks Nigerian E.164 phone numbers accurately', () => {
+    expect(maskPhoneE164('+2348012345678')).toBe('+234****5678');
+    expect(maskPhoneE164('+2349098765432')).toBe('+234****5432');
+    expect(() => maskPhoneE164('+14155552671')).toThrow(TypeError);
+    expect(() => maskPhoneE164('08012345678')).toThrow(TypeError);
   });
 });
