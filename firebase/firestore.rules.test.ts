@@ -310,4 +310,118 @@ describeWithEmulator('booking request Firestore rules', () => {
     await assertFails(updateDoc(reference, { state: 'paid', renterTotalKobo: 1 }));
     await assertFails(deleteDoc(reference));
   });
+
+  describe('owner collections and staff client isolation', () => {
+    it('allows owner to get their own ownerProfiles but denies list and writes (F3, F5, F14)', async () => {
+      await environment.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'ownerProfiles/owner-one'), {
+          ownerId: 'owner-one',
+          legalName: 'Alhaji Musa Danjuma',
+          verificationStatus: 'draft',
+        });
+      });
+
+      const ownerDatabase = environment.authenticatedContext('owner-one', { email: 'owner@example.com' }).firestore();
+      const profileDoc = doc(ownerDatabase, 'ownerProfiles/owner-one');
+
+      // F3: Owner A can get ownerProfiles/A
+      await assertSucceeds(getDoc(profileDoc));
+
+      // F14: Owner A cannot list ownerProfiles collection
+      await assertFails(getDocs(collection(ownerDatabase, 'ownerProfiles')));
+
+      // F5: Owner A cannot write/update/delete ownerProfiles/A
+      await assertFails(setDoc(profileDoc, { legalName: 'Tampered' }));
+      await assertFails(updateDoc(profileDoc, { verificationStatus: 'approved' }));
+      await assertFails(deleteDoc(profileDoc));
+    });
+
+    it('denies cross-user and anonymous access to ownerProfiles (F1, F2, F4)', async () => {
+      await environment.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'ownerProfiles/owner-one'), {
+          ownerId: 'owner-one',
+          legalName: 'Alhaji Musa Danjuma',
+          verificationStatus: 'draft',
+        });
+      });
+
+      const attackerDatabase = environment.authenticatedContext('owner-two', { email: 'other@example.com' }).firestore();
+      const renterDatabase = environment.authenticatedContext('renter-one', { email: 'renter@example.com' }).firestore();
+      const publicDatabase = environment.unauthenticatedContext().firestore();
+
+      // F4: Owner B cannot read ownerProfiles/A
+      await assertFails(getDoc(doc(attackerDatabase, 'ownerProfiles/owner-one')));
+
+      // F2: Renter cannot read ownerProfiles/A
+      await assertFails(getDoc(doc(renterDatabase, 'ownerProfiles/owner-one')));
+
+      // F1: Anonymous cannot read ownerProfiles/A
+      await assertFails(getDoc(doc(publicDatabase, 'ownerProfiles/owner-one')));
+    });
+
+    it('denies all client access to ownerVerifications, adminAuditLogs, and notificationOutbox (F1, F6, F7, F10, F11, F12, F15, F16)', async () => {
+      await environment.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'ownerVerifications/owner-one'), {
+          ownerId: 'owner-one',
+          phoneE164: '+2348012345678',
+          status: 'submitted',
+        });
+        await setDoc(doc(context.firestore(), 'adminAuditLogs/log-one'), {
+          action: 'approve',
+          ownerId: 'owner-one',
+        });
+        await setDoc(doc(context.firestore(), 'notificationOutbox/event-one'), {
+          status: 'unavailable',
+        });
+      });
+
+      const ownerDatabase = environment.authenticatedContext('owner-one', { email: 'owner@example.com' }).firestore();
+      const staffDatabase = environment.authenticatedContext('staff-one', {
+        email: 'staff@example.com',
+        verification_admin: true,
+      }).firestore();
+      const supportDatabase = environment.authenticatedContext('support-one', {
+        email: 'support@example.com',
+        support: true,
+      }).firestore();
+      const publicDatabase = environment.unauthenticatedContext().firestore();
+
+      // F6: Owner cannot read ownerVerifications
+      await assertFails(getDoc(doc(ownerDatabase, 'ownerVerifications/owner-one')));
+
+      // F7: Owner cannot write ownerVerifications
+      await assertFails(setDoc(doc(ownerDatabase, 'ownerVerifications/owner-one'), { status: 'approved' }));
+
+      // F10, F15: Staff JS client cannot read/list ownerVerifications, adminAuditLogs, or other user docs
+      await assertFails(getDoc(doc(staffDatabase, 'ownerVerifications/owner-one')));
+      await assertFails(getDocs(collection(staffDatabase, 'ownerVerifications')));
+      await assertFails(getDoc(doc(staffDatabase, 'adminAuditLogs/log-one')));
+      await assertFails(getDocs(collection(staffDatabase, 'adminAuditLogs')));
+      await assertFails(getDoc(doc(staffDatabase, 'users/owner-one')));
+
+      // F10, F11: Staff JS client cannot read, list, or write ownerProfiles
+      await assertFails(getDoc(doc(staffDatabase, 'ownerProfiles/owner-one')));
+      await assertFails(getDocs(collection(staffDatabase, 'ownerProfiles')));
+      await assertFails(setDoc(doc(staffDatabase, 'ownerProfiles/owner-one'), { verificationStatus: 'approved' }));
+
+      // F11: Staff JS client cannot write any of those
+      await assertFails(setDoc(doc(staffDatabase, 'ownerVerifications/owner-one'), { status: 'approved' }));
+      await assertFails(setDoc(doc(staffDatabase, 'adminAuditLogs/log-two'), { action: 'approve' }));
+
+      // F12: Support claim cannot read ownerVerifications
+      await assertFails(getDoc(doc(supportDatabase, 'ownerVerifications/owner-one')));
+
+      // F1: Anonymous cannot write ownerProfiles, ownerVerifications, or adminAuditLogs
+      await assertFails(setDoc(doc(publicDatabase, 'ownerProfiles/owner-one'), { verificationStatus: 'approved' }));
+      await assertFails(setDoc(doc(publicDatabase, 'ownerVerifications/owner-one'), { status: 'approved' }));
+      await assertFails(setDoc(doc(publicDatabase, 'adminAuditLogs/log-one'), { action: 'approve' }));
+
+      // F16: Any client denied read/write on notificationOutbox
+      await assertFails(getDoc(doc(ownerDatabase, 'notificationOutbox/event-one')));
+      await assertFails(getDoc(doc(staffDatabase, 'notificationOutbox/event-one')));
+      await assertFails(getDoc(doc(publicDatabase, 'notificationOutbox/event-one')));
+      await assertFails(setDoc(doc(ownerDatabase, 'notificationOutbox/event-new'), { status: 'sent' }));
+      await assertFails(setDoc(doc(staffDatabase, 'notificationOutbox/event-new'), { status: 'sent' }));
+    });
+  });
 });
