@@ -10,8 +10,14 @@ rules_version = '2';
 // Collection: bookings/{bookingId} (server-owned)
 //   - renterId: string (required, immutable, owner-scoped reads)
 //   - payment evidence, prices, state, and timeline: server-owned
+// Collection: ownerProfiles/{ownerId} (server-owned)
+//   - ownerId: string (owner-scoped get only; list/write denied)
+//   - legalName, address, verification status, terms metadata: server-managed
+// Collection: ownerVerifications/{ownerId} (server-only)
+// Collection: adminAuditLogs/{logId} (server-only)
+// Collection: notificationOutbox/{eventId} (server-only)
 // Collections bookingBlocks, vehicleAvailability, payments, auditEvents,
-// idempotencyKeys, and systemConfig are trusted-backend-only.
+// notificationOutbox, idempotencyKeys, and systemConfig are trusted-backend-only.
 // Collection: users/{userId} (client-created once, then immutable)
 //   - uid: authenticated UID
 //   - accountType: renter | owner (admin is never a public account type)
@@ -200,6 +206,19 @@ service cloud.firestore {
       allow read: if isRenterRecord();
     }
 
+    match /ownerProfiles/{ownerId} {
+      allow get: if isOwner(ownerId);
+      allow list, write: if false;
+    }
+
+    match /ownerVerifications/{ownerId} {
+      allow read, write: if false;
+    }
+
+    match /adminAuditLogs/{logId} {
+      allow read, write: if false;
+    }
+
     // Explicit server-owned collection declarations aid review. With no allow
     // statements, every client create/read/update/delete remains denied.
     match /bookingBlocks/{blockId} {
@@ -212,6 +231,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /auditEvents/{eventId} {
+      allow read, write: if false;
+    }
+    match /notificationOutbox/{eventId} {
       allow read, write: if false;
     }
     match /idempotencyKeys/{idempotencyId} {
