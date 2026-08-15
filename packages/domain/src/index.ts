@@ -12,7 +12,6 @@ export function formatNairaFromKobo(amountKobo: number): string {
 
   return wholeNairaFormatter.format(amountKobo / 100).replace('NGN', '₦');
 }
-
 export type BookingQuote = {
   durationDays: number;
   rentalKobo: number;
@@ -194,4 +193,103 @@ export function calculateBookingQuote(dailyRateKobo: number, durationDays: numbe
     serviceFeeKobo,
     totalKobo: rentalKobo + serviceFeeKobo,
   };
+}
+
+export const ownerVerificationTransitions = {
+  draft: ['submitted'],
+  submitted: ['under_review'],
+  under_review: ['approved', 'rejected'],
+  approved: ['suspended', 'revoked'],
+  rejected: ['submitted'],
+  suspended: ['approved', 'revoked'],
+  revoked: [],
+} as const;
+
+export type OwnerVerificationStatus = keyof typeof ownerVerificationTransitions;
+export type OwnerVerificationActor = 'owner' | 'verification_admin' | 'super_admin' | 'system';
+export type OwnerReviewDecision =
+  | 'start_review'
+  | 'approve'
+  | 'reject'
+  | 'suspend'
+  | 'restore'
+  | 'revoke';
+
+export function canTransitionOwnerVerification(
+  from: OwnerVerificationStatus,
+  to: OwnerVerificationStatus,
+): boolean {
+  return (ownerVerificationTransitions[from] as readonly OwnerVerificationStatus[]).includes(to);
+}
+
+export function decisionTargetStatus(decision: OwnerReviewDecision): OwnerVerificationStatus {
+  switch (decision) {
+    case 'start_review':
+      return 'under_review';
+    case 'approve':
+      return 'approved';
+    case 'reject':
+      return 'rejected';
+    case 'suspend':
+      return 'suspended';
+    case 'restore':
+      return 'approved';
+    case 'revoke':
+      return 'revoked';
+  }
+}
+
+export function actorMayApplyDecision(
+  actor: OwnerVerificationActor,
+  _decision: OwnerReviewDecision,
+): boolean {
+  return actor === 'verification_admin' || actor === 'super_admin';
+}
+
+export function ownerMayMutateProfile(status: OwnerVerificationStatus | null): boolean {
+  return status === null || status === 'draft' || status === 'rejected';
+}
+
+export function ownerMaySubmit(status: OwnerVerificationStatus | null): boolean {
+  return status === 'draft' || status === 'rejected';
+}
+
+export function isTerminalOwnerVerification(status: OwnerVerificationStatus): boolean {
+  return status === 'revoked';
+}
+
+export function requiresReviewReason(decision: OwnerReviewDecision): boolean {
+  return decision === 'reject' || decision === 'suspend' || decision === 'revoke';
+}
+
+export function requiresApprovalChecklist(decision: OwnerReviewDecision): boolean {
+  return decision === 'approve';
+}
+
+export function validateReviewReason(reason: string): string {
+  const normalized = reason.trim();
+  if (normalized.length < 10 || normalized.length > 500) {
+    throw new RangeError('Review reason must be between 10 and 500 characters.');
+  }
+  return normalized;
+}
+
+export function maskEmail(email: string): string {
+  const trimmed = email.trim();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex <= 0 || atIndex === trimmed.length - 1) {
+    throw new TypeError('Invalid email address for masking.');
+  }
+  const firstChar = trimmed[0];
+  const domain = trimmed.slice(atIndex + 1);
+  return `${firstChar}***@${domain}`;
+}
+
+export function maskPhoneE164(phone: string): string {
+  const trimmed = phone.trim();
+  if (!trimmed.startsWith('+234') || trimmed.length < 8) {
+    throw new TypeError('Invalid Nigerian E.164 phone number for masking.');
+  }
+  const suffix = trimmed.slice(-4);
+  return `+234****${suffix}`;
 }
