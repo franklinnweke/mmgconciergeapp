@@ -1,0 +1,39 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function pathUidIsAuth(ownerId) {
+      return isAuth() && request.auth.uid == ownerId;
+    }
+
+    function ownerAccount() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.accountType == 'owner';
+    }
+
+    function allowedIdImage() {
+      return request.resource.contentType in [
+        'image/jpeg', 'image/png', 'image/webp', 'application/pdf'
+      ] && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.name.matches('private/owner-verification/[^/]+/[^/]+')
+        && request.resource.metadata.purpose == 'government_id'
+        && request.resource.metadata.ownerId == request.auth.uid;
+    }
+
+    match /private/owner-verification/{ownerId}/{uploadId} {
+      allow read: if false;
+      allow create: if pathUidIsAuth(ownerId)
+        && ownerAccount()
+        && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
+        && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
+        && allowedIdImage();
+      allow update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
