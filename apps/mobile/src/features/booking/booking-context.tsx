@@ -7,7 +7,6 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
 
 import { useAuth } from '@/core/auth/auth-context';
 
@@ -24,7 +23,6 @@ import {
   loadLocalBookingRequests,
   saveLocalBookingRequests,
 } from './data/local-booking-request-store';
-import { previewRenterTrips } from './data/preview-renter-trips';
 import {
   createUnsubscribeBundle,
   resolveVisibleRenterTrips,
@@ -144,8 +142,8 @@ export function BookingProvider({ children }: PropsWithChildren) {
     () => resolveVisibleRenterTrips({
       authoritative: scopeTripsToActiveUser(user?.uid, trustedTripsUserId, trustedTrips),
       legacy: requests.map(mapLegacyBookingRequest),
-      preview: previewRenterTrips,
-      allowPreview: Boolean(__DEV__ && Platform.OS === 'web'),
+      preview: [],
+      allowPreview: false,
     }),
     [requests, trustedTrips, trustedTripsUserId, user],
   );
