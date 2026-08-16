@@ -491,7 +491,21 @@ export function OwnerVerificationInspector({
                 </div>
               )}
 
-              {detail.auditLogs && detail.auditLogs.length > 0 ? (
+              {detail.auditTrailUnavailable ? (
+                <div
+                  style={{
+                    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: '6px',
+                    padding: '10px 14px',
+                    fontSize: '11px',
+                    color: '#F59E0B',
+                  }}
+                >
+                  Audit trail is temporarily unavailable — decision history could
+                  not be loaded. This does not mean no decisions were made.
+                </div>
+              ) : detail.auditLogs && detail.auditLogs.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {detail.auditLogs.map((log) => (
                     <div
