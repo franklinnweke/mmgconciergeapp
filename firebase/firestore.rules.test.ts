@@ -424,4 +424,114 @@ describeWithEmulator('booking request Firestore rules', () => {
       await assertFails(setDoc(doc(staffDatabase, 'notificationOutbox/event-new'), { status: 'sent' }));
     });
   });
+
+  describe('vehicle inventory and booking-case isolation', () => {
+    beforeEach(async () => {
+      await environment.withSecurityRulesDisabled(async (context) => {
+        const database = context.firestore();
+        await setDoc(doc(database, 'vehicles/vehicle-owner'), {
+          vehicleId: 'vehicle-owner',
+          ownerId: 'owner-one',
+          discoverable: false,
+          ownerDailyRateKobo: 15000000,
+        });
+        await setDoc(doc(database, 'vehicles/vehicle-public'), {
+          vehicleId: 'vehicle-public',
+          ownerId: 'owner-two',
+          discoverable: true,
+          ownerDailyRateKobo: 18000000,
+        });
+        await setDoc(doc(database, 'vehiclePrivate/vehicle-owner'), {
+          vehicleId: 'vehicle-owner',
+          ownerId: 'owner-one',
+          exactLatitude: 6.43,
+          exactLongitude: 3.42,
+          plate: 'KJA-123AB',
+        });
+        await setDoc(doc(database, 'vehicles/vehicle-owner/images/image-private'), {
+          vehicleId: 'vehicle-owner',
+          ownerId: 'owner-one',
+          status: 'processed',
+        });
+        await setDoc(doc(database, 'vehicles/vehicle-public/images/image-public'), {
+          vehicleId: 'vehicle-public',
+          ownerId: 'owner-two',
+          status: 'processed',
+        });
+        await setDoc(doc(database, 'vehicleRevisions/revision-owner'), {
+          vehicleId: 'vehicle-owner',
+          ownerId: 'owner-one',
+          createdAt: serverTimestamp(),
+        });
+        await setDoc(doc(database, 'bookingCases/case-owner'), {
+          ownerId: 'owner-one',
+          renterId: 'renter-one',
+          status: 'open',
+        });
+      });
+    });
+
+    it('limits vehicle reads and lists to own or discoverable documents', async () => {
+      const ownerDatabase = environment.authenticatedContext('owner-one').firestore();
+      const renterDatabase = environment.authenticatedContext('renter-one').firestore();
+      const anonymousDatabase = environment.unauthenticatedContext().firestore();
+
+      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehicles/vehicle-owner')));
+      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehicles/vehicle-public')));
+      await assertSucceeds(getDocs(query(
+        collection(ownerDatabase, 'vehicles'),
+        where('ownerId', '==', 'owner-one'),
+      )));
+      await assertFails(getDocs(collection(ownerDatabase, 'vehicles')));
+
+      await assertSucceeds(getDoc(doc(renterDatabase, 'vehicles/vehicle-public')));
+      await assertFails(getDoc(doc(renterDatabase, 'vehicles/vehicle-owner')));
+      await assertSucceeds(getDocs(query(
+        collection(renterDatabase, 'vehicles'),
+        where('discoverable', '==', true),
+      )));
+      await assertFails(getDocs(query(
+        collection(renterDatabase, 'vehicles'),
+        where('discoverable', '==', false),
+      )));
+      await assertFails(getDoc(doc(anonymousDatabase, 'vehicles/vehicle-public')));
+    });
+
+    it('keeps private vehicle data and image subcollections owner/public scoped', async () => {
+      const ownerDatabase = environment.authenticatedContext('owner-one').firestore();
+      const otherOwnerDatabase = environment.authenticatedContext('owner-two').firestore();
+      const renterDatabase = environment.authenticatedContext('renter-one').firestore();
+
+      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehiclePrivate/vehicle-owner')));
+      await assertFails(getDoc(doc(otherOwnerDatabase, 'vehiclePrivate/vehicle-owner')));
+      await assertSucceeds(getDocs(query(
+        collection(ownerDatabase, 'vehiclePrivate'),
+        where('ownerId', '==', 'owner-one'),
+      )));
+      await assertFails(getDoc(doc(renterDatabase, 'vehiclePrivate/vehicle-owner')));
+
+      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehicles/vehicle-owner/images/image-private')));
+      await assertSucceeds(getDoc(doc(renterDatabase, 'vehicles/vehicle-public/images/image-public')));
+      await assertFails(getDoc(doc(renterDatabase, 'vehicles/vehicle-owner/images/image-private')));
+      await assertFails(setDoc(doc(ownerDatabase, 'vehicles/vehicle-owner'), { discoverable: true }));
+    });
+
+    it('limits revisions and booking cases to the owner or booking participants', async () => {
+      const ownerDatabase = environment.authenticatedContext('owner-one').firestore();
+      const renterDatabase = environment.authenticatedContext('renter-one').firestore();
+      const attackerDatabase = environment.authenticatedContext('renter-two').firestore();
+
+      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehicleRevisions/revision-owner')));
+      await assertSucceeds(getDocs(query(
+        collection(ownerDatabase, 'vehicleRevisions'),
+        where('ownerId', '==', 'owner-one'),
+      )));
+      await assertFails(getDoc(doc(attackerDatabase, 'vehicleRevisions/revision-owner')));
+
+      await assertSucceeds(getDoc(doc(ownerDatabase, 'bookingCases/case-owner')));
+      await assertSucceeds(getDoc(doc(renterDatabase, 'bookingCases/case-owner')));
+      await assertFails(getDoc(doc(attackerDatabase, 'bookingCases/case-owner')));
+      await assertFails(setDoc(doc(ownerDatabase, 'bookingCases/case-new'), { ownerId: 'owner-one' }));
+    });
+  });
 });

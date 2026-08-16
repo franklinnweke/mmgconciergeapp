@@ -1,6 +1,15 @@
 import 'server-only';
 
-import { maskEmail, maskPhone, type OwnerVerificationStatus } from '@mmg/contracts';
+import { maskEmail, maskPhoneE164, type OwnerVerificationStatus } from '@mmg/domain';
+
+function safeMaskPhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  try {
+    return maskPhoneE164(phone);
+  } catch {
+    return `${phone.slice(0, 4)}****`;
+  }
+}
 
 import { getAdminFirestore, getAdminStorage } from '@/features/auth/server/firebase-admin';
 import type {
@@ -62,7 +71,7 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
         ownerId: doc.id,
         legalName: data.legalName || 'Unknown Owner',
         emailMasked: maskEmail(data.email || ''),
-        phoneMasked: maskPhone(data.phoneE164 || null),
+        phoneMasked: safeMaskPhone(data.phoneE164 || null),
         status: (data.status as OwnerVerificationStatus) || 'draft',
         submittedAt: toNullableIsoString(data.submittedAt),
         reviewedAt: toNullableIsoString(data.reviewedAt),
@@ -120,7 +129,7 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
       ownerId: docSnap.id,
       legalName: data.legalName || '',
       emailMasked: maskEmail(data.email || ''),
-      phoneMasked: maskPhone(data.phoneE164 || null),
+      phoneMasked: safeMaskPhone(data.phoneE164 || null),
       address: data.address
         ? {
             line1: data.address.line1 || '',

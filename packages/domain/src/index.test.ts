@@ -8,20 +8,33 @@ import {
   canTransitionBookingIntent,
   canTransitionOwnerVerification,
   canTransitionPaidBooking,
+  canTransitionVehicleModeration,
+  canTransitionVehicleVisibility,
+  classifyRevision,
+  computeDiscoverable,
   dateOnlyToEpochDay,
   decisionTargetStatus,
+  DEFAULT_OWNER_COMMISSION_BPS,
+  DEFAULT_SERVICE_FEE_BPS,
+  DEFAULT_SERVICE_FEE_FIXED_KOBO,
   formatNairaFromKobo,
   intervalsOverlap,
+  isCurrentTerms,
   isTerminalOwnerVerification,
   maskEmail,
+  maskNigerianPlate,
   maskPhoneE164,
+  ownerMayCreateVehicle,
+  ownerMayManageVehicle,
   ownerMayMutateProfile,
   ownerMaySubmit,
   ownerVerificationTransitions,
   requiresApprovalChecklist,
   requiresReviewReason,
   roundBasisPointsHalfUp,
+  roundToApproxLatLng,
   validateReviewReason,
+  vehicleReviewTargetStatus,
 } from './index';
 
 describe('formatNairaFromKobo', () => {
@@ -116,6 +129,28 @@ describe('calculateBookingQuote', () => {
       serviceFeeKobo: 61_600_00,
       totalKobo: 831_600_00,
     });
+  });
+
+  it('matches calculateAuthoritativePrice with default fee configuration', () => {
+    for (const dailyRate of [10_000_00, 25_000_00, 38_500_00, 50_000_00, 100_000_00]) {
+      for (const days of [1, 2, 3, 5, 7]) {
+        const quote = calculateBookingQuote(dailyRate, days);
+        const authoritative = calculateAuthoritativePrice({
+          ownerDailyRateKobo: dailyRate,
+          chargedDays: days,
+          deliveryFeeKobo: 0,
+          serviceFeeBps: DEFAULT_SERVICE_FEE_BPS,
+          serviceFeeFixedKobo: DEFAULT_SERVICE_FEE_FIXED_KOBO,
+          ownerCommissionBps: DEFAULT_OWNER_COMMISSION_BPS,
+          configVersion: 'test',
+          termsVersion: 'test',
+          cancellationPolicyVersion: 'test',
+        });
+        expect(quote.rentalKobo).toBe(authoritative.baseRentalKobo);
+        expect(quote.serviceFeeKobo).toBe(authoritative.serviceFeeKobo);
+        expect(quote.totalKobo).toBe(authoritative.renterTotalKobo);
+      }
+    }
   });
 
   it('rejects invalid booking durations', () => {
@@ -255,5 +290,100 @@ describe('owner verification state machine and transitions', () => {
     expect(maskPhoneE164('+2349098765432')).toBe('+234****5432');
     expect(() => maskPhoneE164('+14155552671')).toThrow(TypeError);
     expect(() => maskPhoneE164('08012345678')).toThrow(TypeError);
+  });
+});
+
+describe('isCurrentTerms', () => {
+  const current = {
+    ownerTermsVersion: 'owner-terms-2026-08-01',
+    commissionTermsVersion: 'owner-commission-2026-08-01',
+    privacyNoticeVersion: 'privacy-notice-2026-08-01',
+  };
+
+  it('returns true when all versions match', () => {
+    expect(isCurrentTerms(current, current)).toBe(true);
+  });
+
+  it('returns false when any version is stale', () => {
+    expect(isCurrentTerms({ ...current, ownerTermsVersion: 'owner-terms-2025-01-01' }, current)).toBe(false);
+    expect(isCurrentTerms({ ...current, commissionTermsVersion: 'stale' }, current)).toBe(false);
+    expect(isCurrentTerms({ ...current, privacyNoticeVersion: '' }, current)).toBe(false);
+  });
+});
+
+describe('vehicle domain', () => {
+  it('defines moderation state transitions', () => {
+    expect(canTransitionVehicleModeration('draft', 'pending_review')).toBe(true);
+    expect(canTransitionVehicleModeration('draft', 'approved')).toBe(false);
+    expect(canTransitionVehicleModeration('pending_review', 'approved')).toBe(true);
+    expect(canTransitionVehicleModeration('pending_review', 'rejected')).toBe(true);
+    expect(canTransitionVehicleModeration('approved', 'suspended')).toBe(true);
+    expect(canTransitionVehicleModeration('approved', 'rejected')).toBe(false);
+    expect(canTransitionVehicleModeration('rejected', 'pending_review')).toBe(true);
+    expect(canTransitionVehicleModeration('suspended', 'approved')).toBe(true);
+  });
+
+  it('defines visibility state transitions', () => {
+    expect(canTransitionVehicleVisibility('paused', 'active')).toBe(true);
+    expect(canTransitionVehicleVisibility('active', 'paused')).toBe(true);
+    expect(canTransitionVehicleVisibility('paused', 'deleted')).toBe(true);
+    expect(canTransitionVehicleVisibility('active', 'deleted')).toBe(true);
+    expect(canTransitionVehicleVisibility('deleted', 'active')).toBe(false);
+    expect(canTransitionVehicleVisibility('deleted', 'paused')).toBe(false);
+  });
+
+  it('maps review decisions to target moderation statuses', () => {
+    expect(vehicleReviewTargetStatus('start_review')).toBe('pending_review');
+    expect(vehicleReviewTargetStatus('approve')).toBe('approved');
+    expect(vehicleReviewTargetStatus('reject')).toBe('rejected');
+    expect(vehicleReviewTargetStatus('suspend')).toBe('suspended');
+    expect(vehicleReviewTargetStatus('restore')).toBe('approved');
+  });
+
+  it('computes discoverable from moderation + visibility', () => {
+    expect(computeDiscoverable({ moderationStatus: 'approved', visibility: 'active', hasApprovedSnapshot: true })).toBe(true);
+    expect(computeDiscoverable({ moderationStatus: 'approved', visibility: 'paused', hasApprovedSnapshot: true })).toBe(false);
+    expect(computeDiscoverable({ moderationStatus: 'draft', visibility: 'active', hasApprovedSnapshot: false })).toBe(false);
+    expect(computeDiscoverable({ moderationStatus: 'approved', visibility: 'deleted', hasApprovedSnapshot: true })).toBe(false);
+    expect(computeDiscoverable({ moderationStatus: 'rejected', visibility: 'active', hasApprovedSnapshot: false })).toBe(false);
+  });
+
+  it('gates vehicle creation on approved owner verification', () => {
+    expect(ownerMayCreateVehicle('approved')).toBe(true);
+    expect(ownerMayCreateVehicle('draft')).toBe(false);
+    expect(ownerMayCreateVehicle(null)).toBe(false);
+    expect(ownerMayCreateVehicle('suspended')).toBe(false);
+  });
+
+  it('gates vehicle management on owner match', () => {
+    expect(ownerMayManageVehicle('owner-1', 'owner-1')).toBe(true);
+    expect(ownerMayManageVehicle('owner-1', 'owner-2')).toBe(false);
+  });
+
+  it('classifies revisions', () => {
+    // Minor: description only
+    expect(classifyRevision({ specs: { description: 'Updated' } })).toEqual({ classification: 'minor', safetyCritical: false });
+    // Major: rate change
+    expect(classifyRevision({ ownerDailyRateKobo: 50_000_00 })).toEqual({ classification: 'major', safetyCritical: false });
+    // Safety-critical: plate change
+    expect(classifyRevision({ plate: 'ABC123DE' })).toEqual({ classification: 'major', safetyCritical: true });
+    // Major: spec change
+    expect(classifyRevision({ specs: { make: 'BMW' } })).toEqual({ classification: 'major', safetyCritical: false });
+    // Safety-critical: location
+    expect(classifyRevision({ areaLabel: 'Lekki' })).toEqual({ classification: 'major', safetyCritical: true });
+    // Mixed major + safety-critical is safety-critical
+    expect(classifyRevision({ ownerDailyRateKobo: 50_000_00, plate: 'ABC123DE' })).toEqual({ classification: 'major', safetyCritical: true });
+    // No changes: minor
+    expect(classifyRevision({})).toEqual({ classification: 'minor', safetyCritical: false });
+  });
+
+  it('rounds exact coords to ~1.1 km for public display', () => {
+    expect(roundToApproxLatLng(6.5244, 3.3792)).toEqual({ lat: 6.52, lng: 3.38 });
+  });
+
+  it('masks Nigerian plates for public display', () => {
+    expect(maskNigerianPlate('ABC123DE')).toBe('***DE');
+    expect(maskNigerianPlate('EKY456GZ')).toBe('***GZ');
+    expect(maskNigerianPlate('AB')).toBe('****');
   });
 });

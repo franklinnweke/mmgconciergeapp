@@ -12,6 +12,10 @@ export function formatNairaFromKobo(amountKobo: number): string {
 
   return wholeNairaFormatter.format(amountKobo / 100).replace('NGN', '₦');
 }
+export const DEFAULT_SERVICE_FEE_BPS = 800;
+export const DEFAULT_SERVICE_FEE_FIXED_KOBO = 0;
+export const DEFAULT_OWNER_COMMISSION_BPS = 1_500;
+
 export type BookingQuote = {
   durationDays: number;
   rentalKobo: number;
@@ -184,14 +188,23 @@ export function calculateBookingQuote(dailyRateKobo: number, durationDays: numbe
     throw new TypeError('Duration must be a positive whole number of days.');
   }
 
-  const rentalKobo = dailyRateKobo * durationDays;
-  const serviceFeeKobo = Math.round(rentalKobo * 0.08);
+  const snapshot = calculateAuthoritativePrice({
+    ownerDailyRateKobo: dailyRateKobo,
+    chargedDays: durationDays,
+    deliveryFeeKobo: 0,
+    serviceFeeBps: DEFAULT_SERVICE_FEE_BPS,
+    serviceFeeFixedKobo: DEFAULT_SERVICE_FEE_FIXED_KOBO,
+    ownerCommissionBps: DEFAULT_OWNER_COMMISSION_BPS,
+    configVersion: 'client-preview',
+    termsVersion: 'client-preview',
+    cancellationPolicyVersion: 'client-preview',
+  });
 
   return {
-    durationDays,
-    rentalKobo,
-    serviceFeeKobo,
-    totalKobo: rentalKobo + serviceFeeKobo,
+    durationDays: snapshot.chargedDays,
+    rentalKobo: snapshot.baseRentalKobo,
+    serviceFeeKobo: snapshot.serviceFeeKobo,
+    totalKobo: snapshot.renterTotalKobo,
   };
 }
 
@@ -272,6 +285,137 @@ export function validateReviewReason(reason: string): string {
     throw new RangeError('Review reason must be between 10 and 500 characters.');
   }
   return normalized;
+}
+
+// ── Vehicle domain ──
+
+export type VehicleModerationStatus = 'draft' | 'pending_review' | 'approved' | 'rejected' | 'suspended';
+export type VehicleVisibility = 'paused' | 'active' | 'deleted';
+export type VehicleReviewDecision = 'start_review' | 'approve' | 'reject' | 'suspend' | 'restore';
+
+export const vehicleModerationTransitions: Record<VehicleModerationStatus, readonly VehicleModerationStatus[]> = {
+  draft: ['pending_review'],
+  pending_review: ['approved', 'rejected'],
+  approved: ['suspended'],
+  rejected: ['pending_review'],
+  suspended: ['approved'],
+} as const;
+
+export const vehicleVisibilityTransitions: Record<VehicleVisibility, readonly VehicleVisibility[]> = {
+  paused: ['active', 'deleted'],
+  active: ['paused', 'deleted'],
+  deleted: [],
+} as const;
+
+export function canTransitionVehicleModeration(from: VehicleModerationStatus, to: VehicleModerationStatus): boolean {
+  return (vehicleModerationTransitions[from] as readonly string[]).includes(to);
+}
+
+export function canTransitionVehicleVisibility(from: VehicleVisibility, to: VehicleVisibility): boolean {
+  return (vehicleVisibilityTransitions[from] as readonly string[]).includes(to);
+}
+
+export function vehicleReviewTargetStatus(decision: VehicleReviewDecision): VehicleModerationStatus {
+  switch (decision) {
+    case 'start_review': return 'pending_review';
+    case 'approve': return 'approved';
+    case 'reject': return 'rejected';
+    case 'suspend': return 'suspended';
+    case 'restore': return 'approved';
+  }
+}
+
+export type DiscoverabilityInput = {
+  moderationStatus: VehicleModerationStatus;
+  visibility: VehicleVisibility;
+  hasApprovedSnapshot: boolean;
+};
+
+export function computeDiscoverable(input: DiscoverabilityInput): boolean {
+  if (input.visibility === 'deleted') return false;
+  if (input.moderationStatus === 'approved' && input.visibility === 'active') return true;
+  return false;
+}
+
+export function ownerMayCreateVehicle(verificationStatus: string | null): boolean {
+  return verificationStatus === 'approved';
+}
+
+export function ownerMayManageVehicle(vehicleOwnerId: string, actorUid: string): boolean {
+  return vehicleOwnerId === actorUid;
+}
+
+export type RevisionInput = {
+  specs?: Record<string, unknown>;
+  ownerDailyRateKobo?: number;
+  areaLabel?: string;
+  baseAddress?: Record<string, unknown>;
+  exactBase?: Record<string, unknown>;
+  plate?: string;
+  primaryImageId?: string;
+  imageOrder?: unknown[];
+};
+
+export type RevisionClass = 'minor' | 'major';
+
+export function classifyRevision(input: RevisionInput): { classification: RevisionClass; safetyCritical: boolean } {
+  const hasMajor = !!(
+    input.specs && (
+      (input.specs as Record<string, unknown>).make !== undefined ||
+      (input.specs as Record<string, unknown>).model !== undefined ||
+      (input.specs as Record<string, unknown>).year !== undefined ||
+      (input.specs as Record<string, unknown>).colour !== undefined ||
+      (input.specs as Record<string, unknown>).category !== undefined ||
+      (input.specs as Record<string, unknown>).seats !== undefined ||
+      (input.specs as Record<string, unknown>).transmission !== undefined ||
+      (input.specs as Record<string, unknown>).mileageKm !== undefined ||
+      (input.specs as Record<string, unknown>).fuelType !== undefined
+    )
+  ) ||
+    input.ownerDailyRateKobo !== undefined;
+
+  const hasSafetyCritical = !!(
+    input.areaLabel !== undefined ||
+    input.baseAddress !== undefined ||
+    input.exactBase !== undefined ||
+    input.plate !== undefined ||
+    input.primaryImageId !== undefined ||
+    input.imageOrder !== undefined
+  );
+
+  const classification: RevisionClass = (hasMajor || hasSafetyCritical) ? 'major' : 'minor';
+  return { classification, safetyCritical: hasSafetyCritical };
+}
+
+export function roundToApproxLatLng(lat: number, lng: number): { lat: number; lng: number } {
+  return {
+    lat: Math.round(lat * 100) / 100,
+    lng: Math.round(lng * 100) / 100,
+  };
+}
+
+export function maskNigerianPlate(plate: string): string {
+  const trimmed = plate.trim().toUpperCase();
+  if (trimmed.length < 5) return '****';
+  const last2 = trimmed.slice(-2);
+  return `***${last2}`;
+}
+
+export type TermsSnapshot = {
+  ownerTermsVersion: string;
+  commissionTermsVersion: string;
+  privacyNoticeVersion: string;
+};
+
+export function isCurrentTerms(
+  terms: TermsSnapshot,
+  current: TermsSnapshot,
+): boolean {
+  return (
+    terms.ownerTermsVersion === current.ownerTermsVersion &&
+    terms.commissionTermsVersion === current.commissionTermsVersion &&
+    terms.privacyNoticeVersion === current.privacyNoticeVersion
+  );
 }
 
 export function maskEmail(email: string): string {

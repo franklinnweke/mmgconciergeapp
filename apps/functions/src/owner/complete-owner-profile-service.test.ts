@@ -385,7 +385,7 @@ describe('completeOwnerProfile service', () => {
         { repository, now: () => now },
       ),
     ).rejects.toMatchObject({
-      code: 'INVALID_ARGUMENT',
+      code: 'FAILED_PRECONDITION',
     });
   });
 

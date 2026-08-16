@@ -89,6 +89,13 @@ service cloud.firestore {
         resource.data.renterId == request.auth.uid;
     }
 
+    function canReadVehicle(vehicleId) {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.ownerId == request.auth.uid ||
+        get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.discoverable == true
+      );
+    }
+
     // =============================================================
     // Domain validators
     // =============================================================
@@ -203,7 +210,55 @@ service cloud.firestore {
     }
 
     match /bookings/{bookingId} {
-      allow read: if isRenterRecord();
+      allow read: if isRenterRecord() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // ── Vehicle collections ──
+
+    match /vehicles/{vehicleId} {
+      // Owner may read own vehicles; renter may read only discoverable public listings
+      allow get: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.discoverable == true
+      );
+      // Query constraints are enforced by evaluating each candidate resource.
+      // Clients must query by ownerId or discoverable == true.
+      allow list: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.discoverable == true
+      );
+      allow write: if false;
+    }
+
+    match /vehiclePrivate/{vehicleId} {
+      // Owner and authorized staff (via Admin SDK) only; never renter
+      allow get: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /vehicles/{vehicleId}/images/{imageId} {
+      // Public images are readable only with an owner-readable or discoverable parent.
+      allow read: if canReadVehicle(vehicleId);
+      allow write: if false;
+    }
+
+    match /vehicleRevisions/{revisionId} {
+      // Owner may read own revisions; staff via Admin SDK
+      allow get: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ── Booking cases ──
+
+    match /bookingCases/{caseId} {
+      // Participants and admin read; no client writes
+      allow read: if isAuthenticated() && (
+        resource.data.renterId == request.auth.uid ||
+        resource.data.ownerId == request.auth.uid
+      );
+      allow write: if false;
     }
 
     match /ownerProfiles/{ownerId} {

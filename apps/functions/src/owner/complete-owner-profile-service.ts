@@ -10,7 +10,7 @@ import {
   type CompleteOwnerProfileCommand,
   type CompleteOwnerProfileResult,
 } from '@mmg/contracts';
-import { ownerMayMutateProfile } from '@mmg/domain';
+import { isCurrentTerms, ownerMayMutateProfile } from '@mmg/domain';
 import {
   requireVerifiedEmailOwnerAuth,
   type CallableAuth,
@@ -44,10 +44,21 @@ export async function completeOwnerProfile(
   }
   const command: CompleteOwnerProfileCommand = parsed.data;
 
+  const currentVersionSnapshot = {
+    ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+    commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+    privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+  };
+
   if (
-    command.data.acceptedOwnerTermsVersion !== CURRENT_OWNER_TERMS_VERSION ||
-    command.data.acceptedCommissionTermsVersion !== CURRENT_COMMISSION_TERMS_VERSION ||
-    command.data.acceptedPrivacyNoticeVersion !== CURRENT_PRIVACY_NOTICE_VERSION
+    !isCurrentTerms(
+      {
+        ownerTermsVersion: command.data.acceptedOwnerTermsVersion,
+        commissionTermsVersion: command.data.acceptedCommissionTermsVersion,
+        privacyNoticeVersion: command.data.acceptedPrivacyNoticeVersion,
+      },
+      currentVersionSnapshot,
+    )
   ) {
     throw new CommandError(
       'FAILED_PRECONDITION',
@@ -98,11 +109,12 @@ export async function completeOwnerProfile(
 
     const config = await transaction.getOwnerVerificationConfig();
     if (config) {
-      if (
-        config.termsVersion !== CURRENT_OWNER_TERMS_VERSION ||
-        config.commissionTermsVersion !== CURRENT_COMMISSION_TERMS_VERSION ||
-        config.privacyNoticeVersion !== CURRENT_PRIVACY_NOTICE_VERSION
-      ) {
+      const configSnapshot = {
+        ownerTermsVersion: config.termsVersion,
+        commissionTermsVersion: config.commissionTermsVersion,
+        privacyNoticeVersion: config.privacyNoticeVersion,
+      };
+      if (!isCurrentTerms(configSnapshot, currentVersionSnapshot)) {
         throw new CommandError(
           'FAILED_PRECONDITION',
           'System terms configuration has been updated. Please refresh.',
