@@ -157,19 +157,37 @@ const intentTransitions = {
   paid_conflict: [],
 } as const;
 
+// Mirrors the architecture handoff §7.4. Completion is deliberately two-step:
+// a trip may only reach `completed` through `completion_pending`, so the renter
+// or an admin has to confirm an owner-claimed completion.
 const paidBookingTransitions = {
   paid_pending_owner: ['confirmed', 'intervention_required', 'cancelled'],
-  confirmed: ['in_progress', 'cancelled', 'refund_pending', 'intervention_required'],
+  confirmed: [
+    'in_progress',
+    'completion_pending',
+    'cancelled',
+    'refund_pending',
+    'intervention_required',
+  ],
   intervention_required: ['confirmed', 'cancelled', 'refund_pending'],
   cancelled: ['refund_pending', 'refunded'],
   refund_pending: ['refunded', 'intervention_required'],
   refunded: [],
-  in_progress: ['completed', 'intervention_required'],
+  in_progress: ['completion_pending', 'intervention_required'],
+  completion_pending: ['completed'],
   completed: [],
 } as const;
 
 export type BookingIntentState = keyof typeof intentTransitions;
 export type PaidBookingState = keyof typeof paidBookingTransitions;
+
+/**
+ * Every paid-booking state, derived from the transition map so the list cannot
+ * drift from the machine. `paidBookingStateSchema` in `@mmg/contracts` is
+ * asserted against this, since a state the wire accepts but the machine does not
+ * know is a booking that can never move again.
+ */
+export const allPaidBookingStates = Object.keys(paidBookingTransitions) as readonly PaidBookingState[];
 
 export function canTransitionBookingIntent(from: BookingIntentState, to: BookingIntentState): boolean {
   return (intentTransitions[from] as readonly BookingIntentState[]).includes(to);
@@ -328,13 +346,27 @@ export function vehicleReviewTargetStatus(decision: VehicleReviewDecision): Vehi
 export type DiscoverabilityInput = {
   moderationStatus: VehicleModerationStatus;
   visibility: VehicleVisibility;
+  /**
+   * Whether there is a servable approved snapshot — in practice, at least one
+   * image whose bytes have been promoted into the public prefix.
+   */
   hasApprovedSnapshot: boolean;
 };
 
+/**
+ * Whether renters may see this listing at all.
+ *
+ * All three inputs are load-bearing. `hasApprovedSnapshot` is the one that is
+ * easy to omit: a moderator's approval is durable the instant it commits, but
+ * the image bytes are copied into the public prefix afterwards, so there is a
+ * window where the listing is approved and active with nothing a renter could
+ * actually load. Treating that as discoverable would put a listing with broken
+ * photos into search results.
+ */
 export function computeDiscoverable(input: DiscoverabilityInput): boolean {
   if (input.visibility === 'deleted') return false;
-  if (input.moderationStatus === 'approved' && input.visibility === 'active') return true;
-  return false;
+  if (!input.hasApprovedSnapshot) return false;
+  return input.moderationStatus === 'approved' && input.visibility === 'active';
 }
 
 export function ownerMayCreateVehicle(verificationStatus: string | null): boolean {

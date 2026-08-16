@@ -34,7 +34,7 @@ export type VehicleSummary = {
   distanceKm: number;
   chauffeurPolicy: 'included';
   deliveryPolicy: 'included';
-  imageKey: 'hero-suv' | 'pearl-suv' | 'graphite-sedan';
+  imageKey: 'hero-suv' | 'pearl-suv' | 'prado-graphite' | 'graphite-sedan';
 };
 export type VehicleSearchCriteria = { areaLabel?: string; category?: VehicleCategory; query?: string };
 export interface DiscoveryGateway {
@@ -99,6 +99,7 @@ export const paidBookingStateSchema = z.enum([
   'refund_pending',
   'refunded',
   'in_progress',
+  'completion_pending',
   'completed',
 ]);
 export type PaidBookingState = z.infer<typeof paidBookingStateSchema>;
@@ -126,7 +127,7 @@ export const renterVehicleSnapshotSchema = z.object({
   displayName: z.string().trim().min(1).max(120),
   areaLabel: z.string().trim().min(1).max(120),
   categoryLabel: z.string().trim().min(1).max(80),
-  imageKey: z.enum(['hero-suv', 'pearl-suv', 'graphite-sedan']).optional(),
+  imageKey: z.enum(['hero-suv', 'pearl-suv', 'prado-graphite', 'graphite-sedan']).optional(),
   imageUrl: z.string().url().max(2_048).optional(),
 }).strict();
 export type RenterVehicleSnapshot = z.infer<typeof renterVehicleSnapshotSchema>;
@@ -321,6 +322,7 @@ export const commandSafeReasonSchema = z.enum([
   'not_vehicle_owner',
   'listing_incomplete',
   'image_limit',
+  'image_dimensions',
   'dates_overlap',
   'not_paid',
 ]);
@@ -455,6 +457,13 @@ export const vehicleFuelTypeSchema = z.enum(VEHICLE_FUEL_TYPES);
 export const vehicleFeatureKeySchema = z.enum(VEHICLE_FEATURE_KEYS);
 export const vehicleImageVariantSchema = z.enum(VEHICLE_IMAGE_VARIANTS);
 export const bookingBlockStateSchema = z.enum(BOOKING_BLOCK_STATES);
+
+/**
+ * The variant ladder as a type. Exported so image processing and the storage
+ * path builders key their records off the contract rather than re-declaring the
+ * union and drifting from `VEHICLE_IMAGE_VARIANTS`.
+ */
+export type VehicleImageVariant = z.infer<typeof vehicleImageVariantSchema>;
 
 export const ownerDailyRateKoboSchema = z.number().int().min(MIN_OWNER_DAILY_RATE_KOBO).max(MAX_OWNER_DAILY_RATE_KOBO);
 export const vehicleYearSchema = z.number().int().min(MIN_VEHICLE_YEAR).max(2035);

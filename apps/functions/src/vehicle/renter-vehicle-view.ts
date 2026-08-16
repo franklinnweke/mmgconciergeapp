@@ -1,0 +1,160 @@
+import {
+  MAX_VEHICLE_IMAGES,
+  renterVisibleVehicleSchema,
+  type RenterVisibleVehicle,
+} from '@mmg/contracts';
+
+import { PRIMARY_IMAGE_VARIANT } from './image-processing.js';
+import type { VehicleImageRecord, VehicleRecord } from './vehicle-repository.js';
+
+/**
+ * The renter-facing projection of a listing.
+ *
+ * This is the only place a vehicle becomes visible to someone who does not own
+ * it, so it is written as a whitelist: every field is named explicitly and the
+ * result is validated against `renterVisibleVehicleSchema` (which is `.strict()`)
+ * before it is returned. A spread of the stored record would silently publish
+ * whatever field is added to `VehicleRecord` next.
+ *
+ * It never accepts a `VehiclePrivateRecord`. Plate, street address, exact
+ * coordinates, place id and document paths live there, and a function that
+ * cannot see them cannot leak them — a stronger guarantee than remembering to
+ * omit them.
+ *
+ * Photo URLs come only from `publicVariantPaths`, which `image-promotion.ts`
+ * stamps after the bytes are in the world-readable prefix. A private variant path
+ * is never turned into a URL: nothing outside the Admin SDK can read it, so a DTO
+ * naming one would be a broken image in the app and a claim the bucket denies.
+ */
+
+/** Maps a public object path to the URL a renter's client can fetch. */
+export type PublicObjectUrl = (publicPath: string) => string;
+
+/**
+ * Public URLs for a bucket's world-readable objects.
+ *
+ * `storage.googleapis.com/<bucket>/<path>` rather than a signed or tokenised
+ * download URL: these objects are `allow read: if true` in `storage.rules`, so
+ * there is no token to mint and no expiry to manage. The bucket name is required
+ * rather than defaulted — a hardcoded fallback would silently point production
+ * clients at another project's bucket.
+ */
+export function googleCloudStoragePublicUrl(bucketName: string): PublicObjectUrl {
+  if (!bucketName) {
+    throw new Error('googleCloudStoragePublicUrl: bucket name is required.');
+  }
+  return (publicPath: string) =>
+    `https://storage.googleapis.com/${bucketName}/${publicPath
+      .split('/')
+      .map(encodeURIComponent)
+      .join('/')}`;
+}
+
+/** Why a listing was not renter-visible. Reported, never guessed at by callers. */
+export type RenterVehicleDropReason =
+  | 'not_discoverable'
+  | 'not_approved'
+  | 'not_active'
+  | 'no_published_images'
+  | 'invalid_projection';
+
+export type RenterVehicleViewOptions = {
+  /** Called instead of throwing when a listing cannot be projected. */
+  onDropped?: (vehicleId: string, reason: RenterVehicleDropReason) => void;
+};
+
+/**
+ * Projects a stored listing for renters, or returns null if it is not visible.
+ *
+ * Null rather than a partial DTO: `renterVisibleVehicleSchema` requires at least
+ * one image URL, and a listing with no published photo is not something a renter
+ * can be shown. Returning null per listing (rather than throwing) is what lets a
+ * discovery query drop one bad row instead of failing the whole page.
+ */
+export function toRenterVisibleVehicle(
+  vehicle: VehicleRecord,
+  images: VehicleImageRecord[],
+  publicObjectUrl: PublicObjectUrl,
+  options: RenterVehicleViewOptions = {},
+): RenterVisibleVehicle | null {
+  const drop = (reason: RenterVehicleDropReason): null => {
+    options.onDropped?.(vehicle.vehicleId, reason);
+    return null;
+  };
+
+  // All three are checked, not just `discoverable`. That flag is derived state:
+  // if a document ever carries a stale `true` — a legacy write, a restore from
+  // backup, a bug in a future command — the status and visibility it was derived
+  // from still have to agree before anything is served.
+  if (!vehicle.discoverable) return drop('not_discoverable');
+  if (vehicle.moderationStatus !== 'approved') return drop('not_approved');
+  if (vehicle.visibility !== 'active') return drop('not_active');
+
+  const imageUrls: string[] = [];
+  for (const image of [...images].sort((a, b) => a.order - b.order)) {
+    // Both conditions, for the same reason as above: `publicVariantPaths` is the
+    // record of what was published, `status` is the moderation fact. A rejected
+    // image with paths still stamped is a listing mid-demotion, not a photo to
+    // show.
+    if (image.status !== 'approved' || !image.publicVariantPaths) continue;
+
+    const path =
+      image.publicVariantPaths[PRIMARY_IMAGE_VARIANT] ??
+      Object.values(image.publicVariantPaths)[0];
+    if (path) imageUrls.push(publicObjectUrl(path));
+    if (imageUrls.length === MAX_VEHICLE_IMAGES) break;
+  }
+
+  if (imageUrls.length === 0) return drop('no_published_images');
+
+  const projection = {
+    vehicleId: vehicle.vehicleId,
+    ownerId: vehicle.ownerId,
+    displayName: vehicle.displayName,
+    category: vehicle.category,
+    seats: vehicle.seats,
+    areaLabel: vehicle.areaLabel,
+    // Approximate coordinates only. The exact base is in `vehiclePrivate`, which
+    // this function is not given.
+    approxLatitude: vehicle.approxLatitude,
+    approxLongitude: vehicle.approxLongitude,
+    ownerDailyRateKobo: vehicle.ownerDailyRateKobo,
+    chauffeurPolicy: vehicle.chauffeurPolicy,
+    deliveryPolicy: vehicle.deliveryPolicy,
+    imageUrls,
+    primaryImageUrl: imageUrls[0],
+    description: vehicle.description,
+    features: vehicle.features,
+    year: vehicle.year,
+    make: vehicle.make,
+    model: vehicle.model,
+  };
+
+  const parsed = renterVisibleVehicleSchema.safeParse(projection);
+  if (!parsed.success) return drop('invalid_projection');
+  return parsed.data;
+}
+
+/**
+ * Projects a page of listings, dropping the ones that are not visible.
+ *
+ * The count of dropped listings is worth surfacing: a discovery page that is
+ * quietly short is indistinguishable from a city with fewer cars in it.
+ */
+export function toRenterVisibleVehicles(
+  sources: ReadonlyArray<{ vehicle: VehicleRecord; images: VehicleImageRecord[] }>,
+  publicObjectUrl: PublicObjectUrl,
+  options: RenterVehicleViewOptions = {},
+): RenterVisibleVehicle[] {
+  const visible: RenterVisibleVehicle[] = [];
+  for (const source of sources) {
+    const projected = toRenterVisibleVehicle(
+      source.vehicle,
+      source.images,
+      publicObjectUrl,
+      options,
+    );
+    if (projected) visible.push(projected);
+  }
+  return visible;
+}

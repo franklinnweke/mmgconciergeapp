@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "ownerVerifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "bookingBlocks",
       "queryScope": "COLLECTION",
       "fields": [

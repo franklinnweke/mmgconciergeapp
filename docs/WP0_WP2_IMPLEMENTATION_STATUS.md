@@ -82,29 +82,29 @@
 
 **`firebase/firestore.indexes.json`**: Added 4 composite indexes (vehicles discoverable+rate, vehicles ownerId+createdAt, vehicleRevisions vehicleId+createdAt, bookings ownerId+createdAt)
 
-### Batch C — Cloud Functions (partial) 🔶
-**`apps/functions/src/vehicle/vehicle-repository.ts`**: Complete VehicleTransaction/VehicleRepository interfaces, VehicleRecord, VehiclePrivateRecord, VehicleImageRecord, VehicleRevisionRecord types.
-
-**`apps/functions/src/vehicle/create-vehicle-draft-service.ts`**: Full implementation with:
-- Zod parsing of `createVehicleDraftCommandSchema`
-- Owner approval gate (`ownerMayCreateVehicle`)
-- Vehicle + vehiclePrivate records creation
-- Display name derivation, coord rounding
-- Chauffeur/delivery forced to `included`
-- Audit event + idempotency
-- 5 unit tests (create, reject unapproved, reject unknown, reject invalid, replay)
+### Batch C — Cloud Functions ✅ COMPLETE
+- **`apps/functions/src/vehicle/vehicle-repository.ts`**: Complete VehicleTransaction/VehicleRepository interfaces, VehicleRecord, VehiclePrivateRecord, VehicleImageRecord, VehicleRevisionRecord, VehicleAdminAuditLog, VehicleNotificationOutbox types.
+- **`apps/functions/src/vehicle/callable-auth.ts`**: Auth assertions `requireVehicleAdmin` (enforcing `vehicle_admin` or `super_admin`) and `requireVerifiedEmailOwnerAuth`.
+- **`apps/functions/src/vehicle/create-vehicle-draft-service.ts`**: Validates owner approval (`ownerMayCreateVehicle`), creates draft vehicle + private records, rounds Lagos coordinates, forces chauffeur/delivery to included, audit events + idempotency.
+- **`apps/functions/src/vehicle/create-vehicle-upload-session-service.ts`**: Generates private storage paths (`private/vehicle-uploads/` / `private/vehicle-documents/`), enforces max 20 image & max 5 document limits, audit events + idempotency.
+- **`apps/functions/src/vehicle/finalize-vehicle-image-service.ts`**: Magic-byte validation (JPEG/PNG/WEBP), 10 MiB limit, image record creation with 1920x1080 metadata and variant paths, primary image detection, audit events + idempotency.
+- **`apps/functions/src/vehicle/submit-vehicle-for-review-service.ts`**: Rigorous completeness gate (specs, 40-2000 char description, daily rate within ₦50k-₦10M, Nigerian plate format, Lagos address & BBOX point, 1-20 processed images), transitions `draft`/`rejected` -> `pending_review`, outbox record + idempotency.
+- **`apps/functions/src/vehicle/review-vehicle-service.ts`**: Enforces `vehicle_admin` | `super_admin`, 7-point checklist verification on approval, mandatory reason on rejection/suspension, immutable `adminAuditLogs` with state hashes, image promotion, discoverability calculation.
+- **`apps/functions/src/vehicle/set-vehicle-visibility-service.ts`**: Allows approved owners to toggle `active` ↔ `paused`, tombstoning on `deleted`, automatic `discoverable` recalculation.
+- **`apps/functions/src/vehicle/firestore-vehicle-repository.ts`**: Complete transactional Cloud Firestore repository.
+- **`apps/functions/src/index.ts`**: Exported all 6 callables (`createVehicleDraft`, `createVehicleUploadSession`, `finalizeVehicleImage`, `submitVehicleForReview`, `reviewVehicle`, `setVehicleVisibility`).
 
 ---
 
 ## Validation matrix at current checkpoint
 
 ```bash
-npm run check  # ✅ 210 tests passed, 0 type errors, 0 lint warnings
-  ├── npm test              # 210 passed, 29 skipped (emulator-only)
+npm run check  # ✅ 229 tests passed, 0 type errors, 0 lint warnings
+  ├── npm test              # 229 passed, 35 skipped (emulator-only)
   ├── npm run typecheck     # 0 errors (mobile)
   ├── npm run lint          # 0 warnings (mobile)
   ├── functions:typecheck   # 0 errors
-  ├── functions:build       # 965.6kb bundle
+  ├── functions:build       # 1.0MB bundle
   ├── admin:typecheck       # 0 errors
   ├── admin:lint            # 0 warnings
   └── admin:test            # 15 passed
@@ -118,14 +118,7 @@ npm run check  # ✅ 210 tests passed, 0 type errors, 0 lint warnings
 
 | Batch | Deliverable | Files |
 |---|---|---|
-| C (cont.) | `createVehicleUploadSession` service | `apps/functions/src/vehicle/` |
-| C (cont.) | `finalizeVehicleImage` service | `apps/functions/src/vehicle/` |
-| C (cont.) | `submitVehicleForReview` service | `apps/functions/src/vehicle/` |
-| C (cont.) | `reviewVehicle` service | `apps/functions/src/vehicle/` |
-| C (cont.) | `setVehicleVisibility` service | `apps/functions/src/vehicle/` |
-| C (cont.) | Firestore vehicle repository | `apps/functions/src/vehicle/` |
-| C (cont.) | Register callables in `index.ts` | `apps/functions/src/index.ts` |
-| D | Image processing (EXIF strip, variants) | `apps/functions/src/vehicle/` |
+| D | Image processing pipeline (EXIF strip, variants) | `apps/functions/src/vehicle/` |
 | E | Owner mobile fleet UI (list, create, edit, resubmit) | `apps/mobile/src/features/owner/` |
 | F | Admin vehicle queue + inspector | `apps/admin/src/features/vehicles/` |
 
@@ -134,7 +127,7 @@ npm run check  # ✅ 210 tests passed, 0 type errors, 0 lint warnings
 | WP | Status |
 |---|---|
 | WP1 | Not started — identity/renter profile/privacy/MFA |
-| WP2 | 🔶 In progress (3 of 11 batches done) |
+| WP2 | 🔶 In progress (Batches A, B, C complete; D, E, F pending) |
 | WP3 | Not started — live Lagos discovery |
 | WP4 | Not started — availability + booking ops |
 | WP5 | Not started — notifications + chat + lifecycle |

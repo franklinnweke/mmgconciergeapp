@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   actorMayApplyDecision,
+  allPaidBookingStates,
   calculateAuthoritativePrice,
   calculateBookingQuote,
   calculateChargedDays,
@@ -35,6 +36,7 @@ import {
   roundToApproxLatLng,
   validateReviewReason,
   vehicleReviewTargetStatus,
+  type PaidBookingState,
 } from './index';
 
 describe('formatNairaFromKobo', () => {
@@ -118,6 +120,78 @@ describe('availability and state machines', () => {
     expect(canTransitionBookingIntent('checkout_pending', 'paid')).toBe(true);
     expect(canTransitionPaidBooking('paid_pending_owner', 'confirmed')).toBe(true);
     expect(canTransitionPaidBooking('cancelled', 'confirmed')).toBe(false);
+  });
+});
+
+describe('paid booking transitions', () => {
+  // Mirrors the architecture handoff §7.4. Completion is deliberately two-step
+  // so a trip can only close after an owner-claimed completion is confirmed.
+  it('routes completion through completion_pending', () => {
+    expect(canTransitionPaidBooking('in_progress', 'completion_pending')).toBe(true);
+    expect(canTransitionPaidBooking('completion_pending', 'completed')).toBe(true);
+  });
+
+  it('refuses to close a trip directly from in_progress', () => {
+    expect(canTransitionPaidBooking('in_progress', 'completed')).toBe(false);
+  });
+
+  it('allows an owner to claim completion from confirmed without a start scan', () => {
+    expect(canTransitionPaidBooking('confirmed', 'completion_pending')).toBe(true);
+  });
+
+  it('treats completed and refunded as terminal', () => {
+    for (const state of allPaidBookingStates) {
+      expect(canTransitionPaidBooking('completed', state)).toBe(false);
+      expect(canTransitionPaidBooking('refunded', state)).toBe(false);
+    }
+  });
+
+  it('never allows a paid booking to re-enter the pending-owner state', () => {
+    for (const state of allPaidBookingStates) {
+      if (state === 'paid_pending_owner') continue;
+      expect(canTransitionPaidBooking(state, 'paid_pending_owner')).toBe(false);
+    }
+  });
+
+  it('reaches every state from the entry state', () => {
+    // Guards against adding a state that nothing can transition into.
+    const reachable = new Set<PaidBookingState>(['paid_pending_owner']);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const from of [...reachable]) {
+        for (const to of allPaidBookingStates) {
+          if (canTransitionPaidBooking(from, to) && !reachable.has(to)) {
+            reachable.add(to);
+            grew = true;
+          }
+        }
+      }
+    }
+    expect([...allPaidBookingStates].filter((state) => !reachable.has(state))).toEqual([]);
+  });
+
+  it('reaches a terminal state from every state', () => {
+    // Guards against a state that can be entered but never closed out.
+    for (const state of allPaidBookingStates) {
+      const seen = new Set<PaidBookingState>([state]);
+      const queue: PaidBookingState[] = [state];
+      let terminal = false;
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        if (current === 'completed' || current === 'refunded') {
+          terminal = true;
+          break;
+        }
+        for (const next of allPaidBookingStates) {
+          if (canTransitionPaidBooking(current, next) && !seen.has(next)) {
+            seen.add(next);
+            queue.push(next);
+          }
+        }
+      }
+      expect(terminal, `${state} cannot reach a terminal state`).toBe(true);
+    }
   });
 });
 
@@ -346,6 +420,19 @@ describe('vehicle domain', () => {
     expect(computeDiscoverable({ moderationStatus: 'draft', visibility: 'active', hasApprovedSnapshot: false })).toBe(false);
     expect(computeDiscoverable({ moderationStatus: 'approved', visibility: 'deleted', hasApprovedSnapshot: true })).toBe(false);
     expect(computeDiscoverable({ moderationStatus: 'rejected', visibility: 'active', hasApprovedSnapshot: false })).toBe(false);
+  });
+
+  it('withholds discovery from an approved active listing with nothing servable', () => {
+    // The gap between "the moderator approved it" and "the bytes are public".
+    // Ignoring hasApprovedSnapshot here would surface a listing whose photos
+    // cannot load.
+    expect(
+      computeDiscoverable({
+        moderationStatus: 'approved',
+        visibility: 'active',
+        hasApprovedSnapshot: false,
+      }),
+    ).toBe(false);
   });
 
   it('gates vehicle creation on approved owner verification', () => {

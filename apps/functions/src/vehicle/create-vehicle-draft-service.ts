@@ -7,7 +7,7 @@ import {
   type CreateVehicleDraftCommand,
   type CreateVehicleDraftResult,
 } from '@mmg/contracts';
-import { ownerMayCreateVehicle } from '@mmg/domain';
+import { ownerMayCreateVehicle, roundToApproxLatLng } from '@mmg/domain';
 
 import type {
   VehicleAuditEvent,
@@ -74,10 +74,7 @@ export async function createVehicleDraft(
       : 'New Vehicle';
 
     const approxLatLng = command.data.exactBase
-      ? {
-          lat: Math.round(command.data.exactBase.latitude * 100) / 100,
-          lng: Math.round(command.data.exactBase.longitude * 100) / 100,
-        }
+      ? roundToApproxLatLng(command.data.exactBase.latitude, command.data.exactBase.longitude)
       : null;
 
     const vehicleRecord: VehicleRecord = {
