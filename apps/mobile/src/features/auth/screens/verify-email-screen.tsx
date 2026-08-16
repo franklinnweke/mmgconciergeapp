@@ -33,7 +33,7 @@ export function VerifyEmailScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
-        <BrandWordmark />
+        <BrandWordmark withLogo />
         <Text style={styles.step}>IDENTITY · 01</Text>
       </View>
       <View style={styles.content}>

@@ -23,7 +23,7 @@ import { useAuth } from '@/core/auth/auth-context';
 
 type Mode = 'sign-in' | 'register';
 
-const heroImage = require('../../../../assets/images/fleet/lagos-arrival-hero.png');
+const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-hero.png');
 
 export function AuthEntryScreen() {
   const insets = useSafeAreaInsets();
@@ -151,15 +151,15 @@ export function AuthEntryScreen() {
             ]}
           >
             <View style={styles.topBar}>
-              <BrandWordmark />
+              <BrandWordmark withLogo />
               <View style={styles.marketPill}>
                 <View style={styles.marketDot} />
                 <Text style={styles.marketText}>LAGOS</Text>
               </View>
             </View>
             <View>
-              <Text style={styles.eyebrow}>PRIVATE CHAUFFEURED SERVICE</Text>
-              <Text style={styles.heroTitle}>Your arrival starts here.</Text>
+              <Text style={styles.eyebrow}>PRADO-LED CHAUFFEURED SERVICE</Text>
+              <Text style={styles.heroTitle}>Lagos, handled in a Prado.</Text>
             </View>
           </Animated.View>
         </View>

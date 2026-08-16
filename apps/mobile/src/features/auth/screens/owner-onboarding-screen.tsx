@@ -11,7 +11,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
-const heroImage = require('../../../../assets/images/fleet/lagos-arrival-hero.png');
+const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-hero.png');
 const steps = [
   ['person-outline', 'Owner identity', 'Confirm your contact and ownership details.'],
   ['car-sport-outline', 'Vehicle profile', 'Add the vehicle, documents, and operating details.'],
@@ -42,7 +42,7 @@ export function OwnerOnboardingScreen() {
             style={StyleSheet.absoluteFill}
           />
           <View style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}>
-            <BrandWordmark />
+            <BrandWordmark withLogo />
             <View style={styles.ownerPill}>
               <Text style={styles.ownerPillText}>OWNER</Text>
             </View>

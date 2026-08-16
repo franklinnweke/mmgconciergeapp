@@ -9,6 +9,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '@/components/pressable-scale';
 
 import { vehicleImages } from '../data/vehicle-images';
+import { vehicleEditorialClass } from '../data/lagos-destinations';
 
 type FeaturedVehicleCardProps = {
   onPress(): void;
@@ -39,7 +40,7 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
             </View>
             <View style={styles.pill}>
               <Text style={styles.pillText}>
-                {vehicle.category === 'executive_suv' ? 'Executive SUV' : 'Executive sedan'}
+                {vehicleEditorialClass(vehicle.displayName, vehicle.category)}
               </Text>
             </View>
           </View>

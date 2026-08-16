@@ -23,7 +23,7 @@ export function AccountProfileErrorScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.topBar}><BrandWordmark /></View>
+      <View style={styles.topBar}><BrandWordmark withLogo /></View>
       <View style={styles.content}>
         <View style={styles.iconFrame}>
           <Ionicons color={colors.goldStrong} name="cloud-offline-outline" size={30} />

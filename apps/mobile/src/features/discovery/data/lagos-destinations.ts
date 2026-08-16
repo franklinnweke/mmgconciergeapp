@@ -28,10 +28,15 @@ export const journeyOptions = [
 export type JourneyOption = (typeof journeyOptions)[number];
 
 export const fleetCategories: readonly { label: string; value?: VehicleCategory }[] = [
-  { label: 'All fleet' },
+  { label: 'Prado-led fleet' },
   { label: 'Executive SUV', value: 'executive_suv' },
   { label: 'Executive sedan', value: 'executive_sedan' },
 ];
+
+export function vehicleEditorialClass(displayName: string, category: VehicleCategory) {
+  if (displayName.toLocaleLowerCase().includes('prado')) return 'Prado · Executive SUV';
+  return category === 'executive_suv' ? 'Executive SUV' : 'Executive saloon';
+}
 
 export function vehicleAreaForPickup(area: string): (typeof vehicleAreas)[number] | undefined {
   return pickupDestinations.find((destination) => destination.area === area)?.vehicleArea;

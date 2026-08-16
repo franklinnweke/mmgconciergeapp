@@ -61,7 +61,7 @@ export default function TripsScreen() {
         }}
       >
         <View style={styles.topBar}>
-          <BrandWordmark />
+          <BrandWordmark withLogo />
           <View style={styles.statusPill}>
             <View style={[styles.statusDot, (syncState === 'offline' || isPreview) && styles.statusDotOffline]} />
             <Text style={styles.statusPillText}>{syncLabel(syncState, isPreview)}</Text>

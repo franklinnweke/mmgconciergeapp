@@ -84,7 +84,7 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
               <Ionicons color={colors.ivory} name="arrow-back" size={19} />
             </View>
           </PressableScale>
-          <BrandWordmark />
+          <BrandWordmark compact withLogo />
           <View style={styles.stepPill}>
             <Text style={styles.stepText}>REVIEW</Text>
           </View>

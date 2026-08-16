@@ -1,13 +1,17 @@
 import { colors, typography } from '@mmg/brand';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { BrandLogo } from './brand-logo';
+
 type BrandWordmarkProps = {
   compact?: boolean;
+  withLogo?: boolean;
 };
 
-export function BrandWordmark({ compact = false }: BrandWordmarkProps) {
+export function BrandWordmark({ compact = false, withLogo = false }: BrandWordmarkProps) {
   return (
     <View accessibilityLabel="MMG Concierge" style={styles.row}>
+      {withLogo ? <BrandLogo size={compact ? 24 : 28} /> : null}
       <Text style={[styles.mmg, compact && styles.mmgCompact]}>MMG</Text>
       <View style={styles.rule} />
       <Text style={styles.concierge}>CONCIERGE</Text>
