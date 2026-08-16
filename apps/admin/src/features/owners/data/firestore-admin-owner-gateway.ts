@@ -144,8 +144,11 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
 
     const data = docSnap.data()!;
 
-    // Fetch recent admin audit logs for this target
+    // Fetch recent admin audit logs for this target. A failure here (missing
+    // composite index, transient Firestore error) must surface to staff as
+    // "unavailable" — an empty list would claim no decisions were ever made.
     let auditLogs: OwnerAuditLogEntry[] = [];
+    let auditTrailUnavailable = false;
     try {
       const logsSnap = await this.firestore
         .collection('adminAuditLogs')
@@ -169,8 +172,9 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
         };
       });
     } catch {
-      // Audit logs failure should not break verification inspection
-      auditLogs = [];
+      // Audit log failure should not break verification inspection, but it
+      // must not masquerade as an empty history either.
+      auditTrailUnavailable = true;
     }
 
     let documentPreviewUrl: string | null = null;
@@ -220,6 +224,7 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
       createdAt: toIsoString(data.createdAt),
       updatedAt: toIsoString(data.updatedAt),
       auditLogs,
+      auditTrailUnavailable,
     };
   }
 

@@ -69,4 +69,10 @@ export type OwnerVerificationDetail = {
   createdAt: string;
   updatedAt: string;
   auditLogs?: OwnerAuditLogEntry[];
+  /**
+   * True when the audit-log query itself failed (missing index, transient
+   * Firestore error). Distinct from an empty trail: staff must be able to tell
+   * "no history exists" from "history could not be loaded".
+   */
+  auditTrailUnavailable?: boolean;
 };
