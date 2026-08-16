@@ -16,11 +16,16 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { AuthProvider } from '@/core/auth/auth-context';
+import { initializeNativeAppCheck } from '@/core/firebase/app-check';
 import { BookingProvider } from '@/features/booking/booking-context';
 
 import 'react-native-reanimated';
 
 void SplashScreen.preventAutoHideAsync();
+void initializeNativeAppCheck().catch(() => {
+  // Callable requests will surface the platform error; do not silently
+  // downgrade or bypass App Check when native initialization fails.
+});
 
 const mmgNavigationTheme = {
   ...DarkTheme,
