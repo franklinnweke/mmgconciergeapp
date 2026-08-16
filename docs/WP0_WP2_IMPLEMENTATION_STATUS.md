@@ -128,7 +128,7 @@ npm run check  # ✅ 389 tests passed (41 files), 0 type errors, 0 lint warnings
   └── admin:test            # 40 passed
 ```
 
-**Not run (requires Java 21+)**: `npm run test:rules`, `npm run test:storage-rules`
+**Rules suites (2026-08-16, Java 25)**: `npm run test:rules` ✅ 18 passed — first emulator run against the Batch B vehicle rules; `npm run test:storage-rules` ✅ 17 passed — first run against the vehicle upload prefixes. Both cover cross-owner, renter, anonymous, and staff-client denial paths.
 
 ---
 
@@ -136,7 +136,7 @@ npm run check  # ✅ 389 tests passed (41 files), 0 type errors, 0 lint warnings
 
 | Batch | Deliverable | Files |
 |---|---|---|
-| D | Image processing pipeline (EXIF strip, variants) | `apps/functions/src/vehicle/` |
+| D (remainder) | Abandoned-upload cleanup for vehicle prefixes (`private/vehicle-uploads`, `private/vehicle-documents`); originals are currently retained forever | `apps/functions/src/owner/expire-abandoned-uploads.ts` or a sibling job |
 | E | Owner mobile fleet UI (list, create, edit, resubmit) | `apps/mobile/src/features/owner/` |
 | F | Admin vehicle queue + inspector | `apps/admin/src/features/vehicles/` |
 
@@ -145,7 +145,7 @@ npm run check  # ✅ 389 tests passed (41 files), 0 type errors, 0 lint warnings
 | WP | Status |
 |---|---|
 | WP1 | Not started — identity/renter profile/privacy/MFA |
-| WP2 | 🔶 In progress (Batches A, B, C complete; D, E, F pending) |
+| WP2 | 🔶 In progress (Batches A, B, C complete; D partially delivered; E, F pending) |
 | WP3 | Not started — live Lagos discovery |
 | WP4 | Not started — availability + booking ops |
 | WP5 | Not started — notifications + chat + lifecycle |
