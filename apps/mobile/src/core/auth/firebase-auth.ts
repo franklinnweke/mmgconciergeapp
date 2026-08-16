@@ -122,10 +122,13 @@ export function getFriendlyAuthError(error: unknown): string {
     'auth/user-not-found': 'The email or password is incorrect.',
     'auth/weak-password': 'Use a stronger password with at least 8 characters.',
     'auth/wrong-password': 'The email or password is incorrect.',
+    'auth/invalid-verification-code': 'That code is incorrect. Try again.',
+    'auth/invalid-phone-number': 'Enter a valid Nigerian mobile number.',
+    'auth/credential-already-in-use': 'That phone number is already used by another account.',
+    'storage/unauthorized': 'The document could not be stored. Try again.',
   };
 
   if (messages[code]) return messages[code];
-  if (error instanceof Error && error.message) return error.message;
   return 'Something went wrong. Please try again.';
 }
 
