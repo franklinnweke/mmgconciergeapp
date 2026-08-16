@@ -25,7 +25,7 @@ const records: AdminBooking[] = [
   {
     id: 'MMG-260913-A7F2',
     renterReference: 'REN-•••-1842',
-    vehicle: { id: 'pearl-suv', displayName: 'Pearl Executive SUV', areaLabel: 'Victoria Island', categoryLabel: 'EXECUTIVE SUV' },
+    vehicle: { id: 'pearl-suv', displayName: 'Prado 150 — Pearl', areaLabel: 'Victoria Island', categoryLabel: 'PRADO · EXECUTIVE SUV' },
     startDate: '2026-09-13',
     endDate: '2026-09-16',
     state: 'paid_pending_owner',
@@ -55,7 +55,7 @@ const records: AdminBooking[] = [
   {
     id: 'MMG-260821-5D31',
     renterReference: 'REN-•••-3088',
-    vehicle: { id: 'pearl-suv', displayName: 'Pearl Executive SUV', areaLabel: 'Lekki Phase 1', categoryLabel: 'EXECUTIVE SUV' },
+    vehicle: { id: 'pearl-suv', displayName: 'Prado 150 — Pearl', areaLabel: 'Lekki Phase 1', categoryLabel: 'PRADO · EXECUTIVE SUV' },
     startDate: '2026-08-21',
     endDate: '2026-08-24',
     state: 'confirmed',

@@ -1,14 +1,14 @@
-import {
-  maskEmail,
-  maskPhone,
-  type OwnerVerificationStatus,
-} from '@mmg/contracts';
+import { maskEmail, maskPhone } from '@mmg/contracts';
 
 import type {
   OwnerVerificationDetail,
   OwnerVerificationListItem,
 } from '../domain/types';
-import type { AdminOwnerGateway } from './admin-owner-gateway';
+import type {
+  AdminOwnerGateway,
+  OwnerVerificationPage,
+  OwnerVerificationQuery,
+} from './admin-owner-gateway';
 
 export const FIXTURE_OWNER_VERIFICATIONS: OwnerVerificationDetail[] = [
   {
@@ -196,14 +196,13 @@ export const FIXTURE_OWNER_VERIFICATIONS: OwnerVerificationDetail[] = [
 export class FixtureAdminOwnerGateway implements AdminOwnerGateway {
   private verifications = [...FIXTURE_OWNER_VERIFICATIONS];
 
-  async listOwnerVerifications(filter?: {
-    status?: OwnerVerificationStatus;
-  }): Promise<OwnerVerificationListItem[]> {
+  async listOwnerVerifications(query?: OwnerVerificationQuery): Promise<OwnerVerificationPage> {
     let list = this.verifications;
-    if (filter?.status) {
-      list = list.filter((item) => item.status === filter.status);
+    if (query?.status) {
+      list = list.filter((item) => item.status === query.status);
     }
-    return list.map((item) => ({
+
+    const rows: OwnerVerificationListItem[] = list.map((item) => ({
       ownerId: item.ownerId,
       legalName: item.legalName,
       emailMasked: item.emailMasked,
@@ -216,6 +215,22 @@ export class FixtureAdminOwnerGateway implements AdminOwnerGateway {
       updatedAt: item.updatedAt,
       areaLabel: item.address?.areaLabel,
     }));
+
+    // Mirror the Firestore gateway's forward-only cursor so the queue page
+    // exercises the same pagination shape in fixture mode.
+    const pageSize = query?.pageSize && query.pageSize > 0 ? query.pageSize : rows.length;
+    const startIndex = query?.cursor
+      ? rows.findIndex((row) => row.ownerId === query.cursor) + 1
+      : 0;
+    const offset = startIndex > 0 ? startIndex : 0;
+    const items = rows.slice(offset, offset + pageSize);
+    const hasMore = offset + items.length < rows.length;
+
+    return {
+      items,
+      nextCursor: hasMore ? (items[items.length - 1]?.ownerId ?? null) : null,
+      hasMore,
+    };
   }
 
   async getOwnerVerificationDetail(ownerId: string): Promise<OwnerVerificationDetail | null> {

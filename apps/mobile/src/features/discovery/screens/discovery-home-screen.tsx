@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
 import { BookingControl } from '@/components/ui/booking-control';
 import { LuxuryCard } from '@/components/ui/luxury-card';
@@ -79,7 +80,7 @@ export default function DiscoveryHomeScreen() {
       >
         <View style={styles.topBar}>
           <View style={styles.topRow}>
-            <Text style={styles.kicker}>{formatLagosClock()}</Text>
+            <BrandWordmark compact withLogo />
             <View style={styles.topActions}>
               <View style={styles.cityPill}>
                 <View style={styles.liveDot} />
@@ -97,9 +98,12 @@ export default function DiscoveryHomeScreen() {
               </PressableScale>
             </View>
           </View>
-          <Text accessibilityRole="header" style={styles.greeting}>
-            {greetingForLagos()}, {firstName}
-          </Text>
+          <View style={styles.greetingBlock}>
+            <Text style={styles.kicker}>{formatLagosClock()}</Text>
+            <Text accessibilityRole="header" style={styles.greeting}>
+              {greetingForLagos()}, {firstName}
+            </Text>
+          </View>
         </View>
 
         {liveTrip ? (
@@ -182,9 +186,9 @@ export default function DiscoveryHomeScreen() {
 
         <SectionHeader
           actionLabel="See all"
-          eyebrow="Chauffeur-ready"
+          eyebrow="The Prado collection"
           onAction={() => openFleet()}
-          title="The fleet"
+          title="Prado first. Luxury beyond."
         />
 
         {isLoading ? (
@@ -252,9 +256,9 @@ export default function DiscoveryHomeScreen() {
           </View>
           <View style={styles.assuranceCopy}>
             <Text style={styles.assuranceEyebrow}>The MMG standard</Text>
-            <Text style={styles.assuranceTitle}>Vetted cars, professional chauffeurs, Lagos delivery.</Text>
+            <Text style={styles.assuranceTitle}>Prado-led, chauffeur-ready, reviewed by MMG.</Text>
             <Text style={styles.assuranceBody}>
-              Vehicle, chauffeur, and human concierge support are reviewed before confirmation.
+              Every Prado—and every executive vehicle beside it—includes Lagos delivery and a reviewed chauffeur.
             </Text>
           </View>
         </LuxuryCard>
@@ -431,7 +435,10 @@ const styles = StyleSheet.create({
     fontFamily: typography.display,
     fontSize: fontSizes.display,
     letterSpacing: -0.6,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  greetingBlock: {
+    marginTop: spacing.xs,
   },
   kicker: {
     color: colors.gold,

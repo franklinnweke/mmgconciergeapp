@@ -9,6 +9,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '@/components/pressable-scale';
 
 import { vehicleImages } from '../data/vehicle-images';
+import { vehicleEditorialClass } from '../data/lagos-destinations';
 
 type BrowseVehicleCardProps = {
   onPress(): void;
@@ -47,7 +48,7 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
           </View>
           <View style={styles.imageCopy}>
             <Text style={styles.category}>
-              {vehicle.category === 'executive_suv' ? 'EXECUTIVE SUV' : 'EXECUTIVE SALOON'}
+              {vehicleEditorialClass(vehicle.displayName, vehicle.category).toLocaleUpperCase()}
             </Text>
             <Text numberOfLines={1} style={styles.title}>
               {vehicle.displayName}

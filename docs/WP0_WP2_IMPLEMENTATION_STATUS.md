@@ -94,23 +94,41 @@
 - **`apps/functions/src/vehicle/firestore-vehicle-repository.ts`**: Complete transactional Cloud Firestore repository.
 - **`apps/functions/src/index.ts`**: Exported all 6 callables (`createVehicleDraft`, `createVehicleUploadSession`, `finalizeVehicleImage`, `submitVehicleForReview`, `reviewVehicle`, `setVehicleVisibility`).
 
+### Batch D — Image processing pipeline 🔶 PARTIALLY DELIVERED
+**Implemented and tested** (`apps/functions/src/vehicle/`):
+- `image-processing.ts` + `sharp-image-processor.ts`: sharp pipeline with `limitInputPixels`, `concurrency(1)`, orientation-corrected measured dimensions, EXIF stripping (proven by an independent JPEG marker walker in tests), thumb/card/detail variants, tri-state GPS detection.
+- `image-promotion.ts` (+ test suite): promotes approved images into `public/vehicles/{vehicleId}/approved/...`, demotes on suspend/pause/delete, idempotent demotion, partial-promotion-fails-hard.
+- `renter-vehicle-view.ts` (+ tests): whitelist-only renter projection — structurally cannot see `vehiclePrivate` (plate, exact coords, address); re-checks `moderationStatus`/`visibility`/`discoverable`; strict-schema validated with drop reasons.
+- `vehicle-repository-fake.ts`: shared in-memory repository for service tests.
+- `index.ts` wiring: `storageGateway` injected into `finalizeVehicleImage` (1GiB/120s budget), `reviewVehicle` and `setVehicleVisibility` (120s for up-to-20-image publication), with `onPromotionFailure` logging.
+
+**Still pending in Batch D**: extend abandoned-upload cleanup to the vehicle prefixes (`private/vehicle-uploads`, `private/vehicle-documents`) — originals are currently retained forever.
+
+### Review hardening batch (2026-08-16, post-review)
+- `apps/mobile/.../owner-verification-repository.ts`: `docSnap.exists()` (was a property read on a method — always truthy — which broke the desk for every new owner); regression tests added pinning the native snapshot shape.
+- `apps/admin/.../review-owner-verification-action.ts`: strict `assertSameOrigin` gate on the action (Next's built-in check allows missing Origin); Firestore repository constructed lazily via `getAdminFirestore()` (module-scope default threw `app/no-app` in fixture mode); deterministic idempotency key `action-rev-{ownerId}-{decision}-{expectedVersion}` (was `Date.now()`-salted, defeating replay protection).
+- `firebase/firestore.indexes.json`: added `adminAuditLogs (target ASC, createdAt DESC)` composite index — the inspector audit query previously failed with `failed-precondition` on every production load.
+- `apps/admin` gateway + inspector: audit-trail query failure now surfaces as "Audit trail is temporarily unavailable" instead of an indistinguishable empty history.
+- `apps/admin` sign-in: `?redirect=` restricted to same-origin relative paths (open-redirect/phishing vector).
+- Mobile: identity-screen idempotency key frozen per mount (matches submit-screen pattern); booking-context surfaces permanently failed remote writes instead of showing "LIVE UPDATES"; ID upload no longer fabricates a `1024` fallback `byteSize`.
+
 ---
 
 ## Validation matrix at current checkpoint
 
 ```bash
-npm run check  # ✅ 229 tests passed, 0 type errors, 0 lint warnings
-  ├── npm test              # 229 passed, 35 skipped (emulator-only)
+npm run check  # ✅ 389 tests passed (41 files), 0 type errors, 0 lint warnings
+  ├── npm test              # 389 passed, 38 skipped (emulator-only)
   ├── npm run typecheck     # 0 errors (mobile)
   ├── npm run lint          # 0 warnings (mobile)
   ├── functions:typecheck   # 0 errors
-  ├── functions:build       # 1.0MB bundle
+  ├── functions:build       # bundle builds
   ├── admin:typecheck       # 0 errors
   ├── admin:lint            # 0 warnings
-  └── admin:test            # 15 passed
+  └── admin:test            # 40 passed
 ```
 
-**Not run (requires Java 21+)**: `npm run test:rules`, `npm run test:storage-rules`
+**Rules suites (2026-08-16, Java 25)**: `npm run test:rules` ✅ 18 passed — first emulator run against the Batch B vehicle rules; `npm run test:storage-rules` ✅ 17 passed — first run against the vehicle upload prefixes. Both cover cross-owner, renter, anonymous, and staff-client denial paths.
 
 ---
 
@@ -118,7 +136,7 @@ npm run check  # ✅ 229 tests passed, 0 type errors, 0 lint warnings
 
 | Batch | Deliverable | Files |
 |---|---|---|
-| D | Image processing pipeline (EXIF strip, variants) | `apps/functions/src/vehicle/` |
+| D (remainder) | Abandoned-upload cleanup for vehicle prefixes (`private/vehicle-uploads`, `private/vehicle-documents`); originals are currently retained forever | `apps/functions/src/owner/expire-abandoned-uploads.ts` or a sibling job |
 | E | Owner mobile fleet UI (list, create, edit, resubmit) | `apps/mobile/src/features/owner/` |
 | F | Admin vehicle queue + inspector | `apps/admin/src/features/vehicles/` |
 
@@ -127,7 +145,7 @@ npm run check  # ✅ 229 tests passed, 0 type errors, 0 lint warnings
 | WP | Status |
 |---|---|
 | WP1 | Not started — identity/renter profile/privacy/MFA |
-| WP2 | 🔶 In progress (Batches A, B, C complete; D, E, F pending) |
+| WP2 | 🔶 In progress (Batches A, B, C complete; D partially delivered; E, F pending) |
 | WP3 | Not started — live Lagos discovery |
 | WP4 | Not started — availability + booking ops |
 | WP5 | Not started — notifications + chat + lifecycle |

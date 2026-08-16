@@ -1,6 +1,41 @@
 import 'server-only';
 
+import { cursorSchema, pageSizeSchema } from '@mmg/contracts';
 import { maskEmail, maskPhoneE164, type OwnerVerificationStatus } from '@mmg/domain';
+
+// Relative, not `@/…`: the `@` alias is a Next/tsconfig path that the
+// config-free root `vitest run` cannot resolve, so an aliased import here
+// makes this gateway impossible to unit test. `session.ts` imports it the
+// same way.
+import { getAdminFirestore, getAdminStorage } from '../../auth/server/firebase-admin';
+import type {
+  OwnerAuditLogEntry,
+  OwnerVerificationDetail,
+  OwnerVerificationListItem,
+} from '../domain/types';
+import type {
+  AdminOwnerGateway,
+  OwnerVerificationPage,
+  OwnerVerificationQuery,
+} from './admin-owner-gateway';
+
+/** Default rows per queue page. Bounded so one bad query cannot read the collection. */
+export const OWNER_QUEUE_PAGE_SIZE = 25;
+
+/**
+ * Masking must never take the queue down. `maskEmail`/`maskPhoneE164` throw on
+ * malformed input by design (they refuse to emit something that only looks
+ * masked), so a single legacy or partially-written verification document would
+ * otherwise 500 the whole page. These adapters degrade one row instead.
+ */
+function safeMaskEmail(email: string | null | undefined): string {
+  if (!email) return 'unknown';
+  try {
+    return maskEmail(email);
+  } catch {
+    return 'unknown';
+  }
+}
 
 function safeMaskPhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
@@ -10,14 +45,6 @@ function safeMaskPhone(phone: string | null | undefined): string | null {
     return `${phone.slice(0, 4)}****`;
   }
 }
-
-import { getAdminFirestore, getAdminStorage } from '@/features/auth/server/firebase-admin';
-import type {
-  OwnerAuditLogEntry,
-  OwnerVerificationDetail,
-  OwnerVerificationListItem,
-} from '../domain/types';
-import type { AdminOwnerGateway } from './admin-owner-gateway';
 
 function hasToDate(value: unknown): value is { toDate: () => Date } {
   return (
@@ -52,25 +79,45 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
     private readonly storage = getAdminStorage(),
   ) {}
 
-  async listOwnerVerifications(filter?: {
-    status?: OwnerVerificationStatus;
-  }): Promise<OwnerVerificationListItem[]> {
-    let query: FirebaseFirestore.Query = this.firestore.collection('ownerVerifications');
+  async listOwnerVerifications(query?: OwnerVerificationQuery): Promise<OwnerVerificationPage> {
+    const pageSize = pageSizeSchema.catch(OWNER_QUEUE_PAGE_SIZE).parse(
+      query?.pageSize ?? OWNER_QUEUE_PAGE_SIZE,
+    );
 
-    if (filter?.status) {
-      query = query.where('status', '==', filter.status);
+    let firestoreQuery: FirebaseFirestore.Query =
+      this.firestore.collection('ownerVerifications');
+
+    if (query?.status) {
+      firestoreQuery = firestoreQuery.where('status', '==', query.status);
     }
 
-    query = query.orderBy('updatedAt', 'desc');
+    firestoreQuery = firestoreQuery.orderBy('updatedAt', 'desc');
 
-    const snapshot = await query.get();
+    // Forward-only cursor. `startAfter(snapshot)` reuses the query's own sort
+    // fields plus Firestore's implicit `__name__` tiebreak, so it needs no
+    // index beyond the one the filtered query already requires. A cursor
+    // pointing at a deleted document is ignored rather than throwing.
+    const cursor = cursorSchema.safeParse(query?.cursor);
+    if (cursor.success) {
+      const cursorSnapshot = await this.firestore
+        .doc(`ownerVerifications/${cursor.data}`)
+        .get();
+      if (cursorSnapshot.exists) {
+        firestoreQuery = firestoreQuery.startAfter(cursorSnapshot);
+      }
+    }
 
-    return snapshot.docs.map((doc) => {
+    // Over-fetch by one to learn whether another page exists without a count.
+    const snapshot = await firestoreQuery.limit(pageSize + 1).get();
+    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const hasMore = snapshot.docs.length > pageSize;
+
+    const items: OwnerVerificationListItem[] = pageDocs.map((doc) => {
       const data = doc.data();
       return {
         ownerId: doc.id,
         legalName: data.legalName || 'Unknown Owner',
-        emailMasked: maskEmail(data.email || ''),
+        emailMasked: safeMaskEmail(data.email),
         phoneMasked: safeMaskPhone(data.phoneE164 || null),
         status: (data.status as OwnerVerificationStatus) || 'draft',
         submittedAt: toNullableIsoString(data.submittedAt),
@@ -81,6 +128,12 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
         areaLabel: data.address?.areaLabel,
       };
     });
+
+    return {
+      items,
+      nextCursor: hasMore ? (pageDocs[pageDocs.length - 1]?.id ?? null) : null,
+      hasMore,
+    };
   }
 
   async getOwnerVerificationDetail(ownerId: string): Promise<OwnerVerificationDetail | null> {
@@ -91,8 +144,11 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
 
     const data = docSnap.data()!;
 
-    // Fetch recent admin audit logs for this target
+    // Fetch recent admin audit logs for this target. A failure here (missing
+    // composite index, transient Firestore error) must surface to staff as
+    // "unavailable" — an empty list would claim no decisions were ever made.
     let auditLogs: OwnerAuditLogEntry[] = [];
+    let auditTrailUnavailable = false;
     try {
       const logsSnap = await this.firestore
         .collection('adminAuditLogs')
@@ -116,8 +172,9 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
         };
       });
     } catch {
-      // Audit logs failure should not break verification inspection
-      auditLogs = [];
+      // Audit log failure should not break verification inspection, but it
+      // must not masquerade as an empty history either.
+      auditTrailUnavailable = true;
     }
 
     let documentPreviewUrl: string | null = null;
@@ -128,7 +185,7 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
     return {
       ownerId: docSnap.id,
       legalName: data.legalName || '',
-      emailMasked: maskEmail(data.email || ''),
+      emailMasked: safeMaskEmail(data.email),
       phoneMasked: safeMaskPhone(data.phoneE164 || null),
       address: data.address
         ? {
@@ -167,6 +224,7 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
       createdAt: toIsoString(data.createdAt),
       updatedAt: toIsoString(data.updatedAt),
       auditLogs,
+      auditTrailUnavailable,
     };
   }
 

@@ -2,6 +2,7 @@
 
 import 'server-only';
 
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import {
   canonicalErrorCodeSchema,
@@ -11,6 +12,8 @@ import {
   type OwnerReviewDecision,
 } from '@mmg/contracts';
 
+import { getAdminFirestore } from '@/features/auth/server/firebase-admin';
+import { assertSameOrigin } from '@/features/auth/server/same-origin';
 import { requireLiveStaffSession } from '@/features/auth/server/session';
 import { FirestoreOwnerRepository } from '@mmg/functions-owner/firestore-owner-repository';
 import { reviewOwnerVerification } from '@mmg/functions-owner/review-owner-verification-service';
@@ -34,7 +37,6 @@ export type ExecuteReviewDecisionResult =
   | { success: true; toStatus: string; decidedAt: string }
   | { success: false; error: string };
 
-const repository = new FirestoreOwnerRepository();
 const GENERIC_REVIEW_ERROR = 'The review action could not be completed. Please try again.';
 
 function safeReviewErrorMessage(error: unknown): string {
@@ -69,6 +71,12 @@ export async function executeReviewDecisionAction(
   input: ExecuteReviewDecisionInput,
 ): Promise<ExecuteReviewDecisionResult> {
   try {
+    // The strict origin gate from the session endpoints, applied to the one
+    // action that changes verification state. Next's built-in Server Action
+    // check lets a missing Origin header through with a warning; this fails
+    // closed unless Origin (or Sec-Fetch-Site) proves same-origin.
+    assertSameOrigin(await headers());
+
     const session = await requireLiveStaffSession();
 
     // In fixture mode, simulate the review decision without writing to live Firestore
@@ -95,9 +103,14 @@ export async function executeReviewDecisionAction(
       };
     }
 
+    // Deterministic per intent (owner + decision + version): a double-fire of
+    // the same decision replays the stored result instead of minting a fresh
+    // Date.now()-salted key that the service's idempotency store can never
+    // deduplicate. Version increments on every successful review, so two
+    // genuinely different decisions can never collide on one key.
     const idempotencyKey =
       input.idempotencyKey ||
-      `action-rev-${input.ownerId}-${input.decision}-${input.expectedVersion}-${Date.now()}`;
+      `action-rev-${input.ownerId}-${input.decision}-${input.expectedVersion}`;
 
     const commandData = reviewOwnerVerificationDataSchema.parse({
       ownerId: input.ownerId,
@@ -117,6 +130,13 @@ export async function executeReviewDecisionAction(
       uid: session.uid,
       role: session.role,
     };
+
+    // Constructed lazily inside the action: the module-scope default
+    // (getFirestore() -> getApp()) throws app/no-app whenever this module is
+    // first imported before any page has initialized the Admin app — exactly
+    // what happens in fixture mode, where the action module loads on first
+    // POST without a live gateway ever having been constructed.
+    const repository = new FirestoreOwnerRepository(getAdminFirestore());
 
     const result = await reviewOwnerVerification(command, actor, { repository });
 

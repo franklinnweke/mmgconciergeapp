@@ -10,7 +10,18 @@ import { getClientAuth } from '@/features/auth/client/firebase-client';
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/owners';
+  // Only same-origin relative paths: an attacker-crafted
+  // /sign-in?redirect=https://evil.example must never steer staff off-site
+  // after a successful login. Reject protocol-relative (//host) and
+  // backslash variants, which browsers can reinterpret as absolute URLs.
+  const requestedRedirect = searchParams.get('redirect');
+  const redirectUrl =
+    requestedRedirect !== null &&
+    requestedRedirect.startsWith('/') &&
+    !requestedRedirect.startsWith('//') &&
+    !requestedRedirect.includes('\\')
+      ? requestedRedirect
+      : '/owners';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

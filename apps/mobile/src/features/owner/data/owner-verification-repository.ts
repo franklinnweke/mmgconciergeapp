@@ -96,7 +96,10 @@ export function createOwnerVerificationRepository(): OwnerVerificationRepository
       const unsubscribe = onSnapshot(
         profileDocRef,
         (docSnap: DocumentSnapshot) => {
-          if (!docSnap.exists) {
+          // RN Firebase snapshots expose `exists` as a method; reading it as a
+          // property is always truthy, which would push every new owner (no
+          // profile document yet) into the parse-error branch below.
+          if (!docSnap.exists()) {
             // Missing document = draft incomplete
             onUpdate(null);
             return;

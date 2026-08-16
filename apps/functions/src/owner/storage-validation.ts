@@ -27,6 +27,10 @@ export interface StorageGateway {
 export type StorageBucket = ReturnType<ReturnType<typeof getStorage>['bucket']>;
 
 export class AdminStorageGateway implements StorageGateway {
+  // `protected`, not `private`: `AdminVehicleStorageGateway` extends this to add
+  // the write side (download/write/copy/delete) that vehicle image processing
+  // needs. The read-only `StorageGateway` interface stays narrow so the owner
+  // verification tests' fakes do not have to implement writes.
   protected readonly bucket: StorageBucket;
 
   constructor(bucket?: StorageBucket) {

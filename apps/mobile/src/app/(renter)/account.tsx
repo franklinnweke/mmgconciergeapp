@@ -13,7 +13,7 @@ export default function AccountScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
       <View style={styles.topBar}>
-        <BrandWordmark compact />
+        <BrandWordmark compact withLogo />
         <View style={styles.verifiedPill}>
           <Ionicons color={colors.success} name="checkmark-circle" size={13} />
           <Text style={styles.verifiedText}>VERIFIED EMAIL</Text>

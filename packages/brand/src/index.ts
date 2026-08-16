@@ -1,5 +1,6 @@
 export const colors = {
   black: '#040404',
+  canvas: '#080807',
   graphite: '#151515',
   graphiteRaised: '#1D1D1D',
   ivory: '#F7F1E7',
@@ -25,10 +26,27 @@ export const spacing = {
   section: 64,
 } as const;
 
+export const layout = {
+  screenGutter: 24,
+  sectionGap: 48,
+  sectionGapLarge: 64,
+  componentGap: 24,
+  rowGap: 16,
+  itemGap: 12,
+  minTouchTarget: 48,
+  primaryButtonHeight: 56,
+  compactButtonHeight: 44,
+  headerHeight: 56,
+} as const;
+
 export const radii = {
-  sm: 10,
-  md: 16,
-  lg: 24,
+  none: 0,
+  sharp: 0,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
   pill: 999,
 } as const;
 
@@ -48,6 +66,7 @@ export const fontSizes = {
   lg: 20,
   xl: 24,
   display: 32,
+  displayLarge: 40,
 } as const;
 
 export const elevation = {
@@ -59,3 +78,4 @@ export const elevation = {
     shadowRadius: 20,
   },
 } as const;
+

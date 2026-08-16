@@ -176,7 +176,15 @@ export function BookingProvider({ children }: PropsWithChildren) {
           setSyncState('syncing');
           void createRemoteBookingRequest(request)
             .then(() => setSyncState('synced'))
-            .catch(() => setSyncState('offline'));
+            .catch(() => {
+              // The write failed permanently (e.g. rules rejected it). Say so:
+              // "offline" alone lets the live read listener flip the pill back
+              // to LIVE UPDATES while the request never reached the server.
+              setSyncState('offline');
+              setSyncError(
+                'This availability request could not be delivered to MMG. It is saved on this device only — no request was created.',
+              );
+            });
         }
         return request;
       },

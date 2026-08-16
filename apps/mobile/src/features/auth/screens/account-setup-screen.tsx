@@ -12,18 +12,18 @@ import { PressableScale } from '@/components/pressable-scale';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
-const heroImage = require('../../../../assets/images/fleet/lagos-arrival-hero.png');
+const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-hero.png');
 
 const choices = [
   {
     accountType: 'renter' as const,
-    description: 'Discover chauffeur-ready vehicles and manage every Lagos journey.',
+    description: 'Start with our Prado-led fleet, with other chauffeur-ready luxury options alongside it.',
     icon: 'car-sport-outline' as const,
     label: 'I want to rent',
   },
   {
     accountType: 'owner' as const,
-    description: 'Apply to list and operate your vehicle with MMG Concierge.',
+    description: 'Apply to list a Prado or another approved luxury vehicle with MMG Concierge.',
     icon: 'key-outline' as const,
     label: 'I own a car',
   },
@@ -72,7 +72,7 @@ export function AccountSetupScreen() {
           style={StyleSheet.absoluteFill}
         />
         <View style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}>
-          <BrandWordmark />
+          <BrandWordmark withLogo />
           <Text style={styles.step}>IDENTITY · 01</Text>
         </View>
       </View>

@@ -7,6 +7,7 @@ import type { OwnerVerificationStatus } from '@mmg/contracts';
 import {
   ShieldCheck,
   Search,
+  ChevronLeft,
   ChevronRight,
   LogOut,
   Clock,
@@ -21,6 +22,12 @@ import type { OwnerVerificationListItem } from '../domain/types';
 
 export type OwnerVerificationQueueProps = {
   items: OwnerVerificationListItem[];
+  /** True when the server has at least one further page after `items`. */
+  hasMore?: boolean;
+  /** Cursor for the next page, or null on the last page. */
+  nextCursor?: string | null;
+  /** False once the operator has paged forward at least once. */
+  isFirstPage?: boolean;
   staffEmail?: string;
   staffRole?: string;
 };
@@ -40,6 +47,9 @@ const STATUS_CONFIG: Record<
 
 export function OwnerVerificationQueue({
   items,
+  hasMore = false,
+  nextCursor = null,
+  isFirstPage = true,
   staffEmail,
   staffRole,
 }: OwnerVerificationQueueProps) {
@@ -415,6 +425,70 @@ export function OwnerVerificationQueue({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination — counts, search, and filters above apply to the loaded
+            page only, so say so rather than implying a whole-collection view. */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            marginTop: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <p style={{ fontSize: '12px', color: '#7E8695', margin: 0 }}>
+            Showing {items.length} {items.length === 1 ? 'application' : 'applications'}
+            {hasMore ? ' on this page. Counts and search cover the loaded page only.' : '.'}
+          </p>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {!isFirstPage && (
+              <Link
+                href="/owners"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#12151B',
+                  color: '#A0A8B8',
+                  border: '1px solid #232936',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                }}
+              >
+                <ChevronLeft size={14} />
+                <span>Newest</span>
+              </Link>
+            )}
+
+            {hasMore && nextCursor && (
+              <Link
+                href={`/owners?cursor=${encodeURIComponent(nextCursor)}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#1E232E',
+                  color: '#F3F4F6',
+                  border: '1px solid #2B3242',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Older</span>
+                <ChevronRight size={14} />
+              </Link>
+            )}
+          </div>
         </div>
       </main>
     </div>

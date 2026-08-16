@@ -31,6 +31,7 @@ export const allRenterTripStates = [
   'refund_pending',
   'refunded',
   'in_progress',
+  'completion_pending',
   'completed',
   'legacy_availability_requested',
 ] as const satisfies readonly RenterTripState[];
@@ -96,7 +97,8 @@ export function permittedRenterActions(state: RenterTripState): readonly RenterT
     state === 'intent_created' ||
     state === 'legacy_availability_requested' ||
     state === 'paid' ||
-    state === 'in_progress'
+    state === 'in_progress' ||
+    state === 'completion_pending'
   ) {
     return ['support'];
   }
@@ -184,6 +186,11 @@ export function tripStateCopy(state: RenterTripState): {
       title: 'Your journey is underway.',
       body: 'Concierge support remains available throughout the booking.',
     },
+    completion_pending: {
+      label: 'CONFIRM COMPLETION',
+      title: 'Confirm your journey is complete.',
+      body: 'The booking closes once you or MMG confirms the journey ended as planned.',
+    },
     completed: {
       label: 'COMPLETED',
       title: 'Journey complete.',
@@ -231,18 +238,31 @@ export function renterTripTimeline(state: RenterTripState): readonly RenterTripT
       item('journey', 'Journey', 'Starts after owner confirmation.', 'upcoming'),
     ];
   }
-  if (state === 'confirmed' || state === 'in_progress' || state === 'completed') {
+  if (
+    state === 'confirmed' ||
+    state === 'in_progress' ||
+    state === 'completion_pending' ||
+    state === 'completed'
+  ) {
     return [
       item('payment', 'Payment verified', 'The provider reported a successful payment.', 'complete'),
       item('owner', 'Owner confirmed', 'Vehicle and chauffeur were reserved.', 'complete'),
       item(
         'journey',
-        state === 'completed' ? 'Journey complete' : state === 'in_progress' ? 'Journey underway' : 'Journey scheduled',
+        state === 'completed'
+          ? 'Journey complete'
+          : state === 'completion_pending'
+            ? 'Awaiting completion confirmation'
+            : state === 'in_progress'
+              ? 'Journey underway'
+              : 'Journey scheduled',
         state === 'completed'
           ? 'The booked journey has ended.'
-          : state === 'in_progress'
-            ? 'Concierge remains available.'
-            : 'Arrival details are confirmed.',
+          : state === 'completion_pending'
+            ? 'Confirm the journey ended as planned to close this booking.'
+            : state === 'in_progress'
+              ? 'Concierge remains available.'
+              : 'Arrival details are confirmed.',
         state === 'completed' ? 'complete' : 'current',
       ),
     ];

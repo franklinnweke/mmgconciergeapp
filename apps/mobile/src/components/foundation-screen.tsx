@@ -29,7 +29,7 @@ export function FoundationScreen({
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.topBar}>
-        <BrandWordmark compact />
+        <BrandWordmark compact withLogo />
         <View style={styles.locationPill}>
           <View style={styles.onlineDot} />
           <Text style={styles.locationText}>LAGOS</Text>
