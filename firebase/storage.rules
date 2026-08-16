@@ -13,6 +13,10 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.accountType == 'owner';
     }
 
+    function vehicleOwnedByAuth(vehicleId) {
+      return firestore.get(/databases/(default)/documents/vehicles/$(vehicleId)).data.ownerId == request.auth.uid;
+    }
+
     function allowedIdImage() {
       return request.resource.contentType in [
         'image/jpeg', 'image/png', 'image/webp', 'application/pdf'
@@ -29,6 +33,43 @@ service firebase.storage {
         && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
         && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
         && allowedIdImage();
+      allow update, delete: if false;
+    }
+
+    // ── Vehicle image paths ──
+
+    match /public/vehicles/{vehicleId}/approved/{imageId}/{variant} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /private/vehicle-uploads/{ownerId}/{vehicleId}/{uploadId} {
+      allow read: if false;
+      allow create: if pathUidIsAuth(ownerId)
+        && ownerAccount()
+        && vehicleOwnedByAuth(vehicleId)
+        && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
+        && vehicleId.matches('^[A-Za-z0-9_-]{1,128}$')
+        && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp']
+        && request.resource.metadata.ownerId == ownerId
+        && request.resource.metadata.purpose == 'vehicle_image'
+        && request.resource.size <= 10 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
+    match /private/vehicle-documents/{ownerId}/{vehicleId}/{uploadId} {
+      allow read: if false;
+      allow create: if pathUidIsAuth(ownerId)
+        && ownerAccount()
+        && vehicleOwnedByAuth(vehicleId)
+        && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
+        && vehicleId.matches('^[A-Za-z0-9_-]{1,128}$')
+        && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+        && request.resource.metadata.ownerId == ownerId
+        && request.resource.metadata.purpose == 'vehicle_document'
+        && request.resource.size <= 10 * 1024 * 1024;
       allow update, delete: if false;
     }
 

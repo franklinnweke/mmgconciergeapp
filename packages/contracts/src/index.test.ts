@@ -282,6 +282,9 @@ describe('owner verification contracts and schemas', () => {
     expect(commandSafeReasonSchema.parse('phone_unverified')).toBe('phone_unverified');
     expect(commandSafeReasonSchema.parse('terms_stale')).toBe('terms_stale');
     expect(commandSafeReasonSchema.safeParse('unknown_reason').success).toBe(false);
+    expect(commandSafeReasonSchema.parse('not_approved_owner')).toBe('not_approved_owner');
+    expect(commandSafeReasonSchema.parse('not_vehicle_owner')).toBe('not_vehicle_owner');
+    expect(commandSafeReasonSchema.parse('listing_incomplete')).toBe('listing_incomplete');
   });
 
   it('validates Nigerian E.164 phone numbers', () => {
@@ -307,15 +310,25 @@ describe('owner verification contracts and schemas', () => {
     expect(ownerAddressSchema.safeParse({ ...validAddress, areaLabel: 'Unknown Area' }).success).toBe(false);
   });
 
-  it('validates terms acceptance requiring current versions', () => {
+  it('accepts bounded version strings and passes stale terms to the domain/service layer for comparison', () => {
+    // Current versions parse cleanly
     expect(ownerTermsAcceptanceSchema.parse({
       ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
       commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
       privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
     })).toMatchObject({ ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION });
 
+    // Historical/stale versions are accepted at the Zod boundary (domain layer emits terms_stale)
+    const staleResult = ownerTermsAcceptanceSchema.safeParse({
+      ownerTermsVersion: 'owner-terms-2025-01-01',
+      commissionTermsVersion: 'owner-commission-2025-01-01',
+      privacyNoticeVersion: 'privacy-notice-2025-01-01',
+    });
+    expect(staleResult.success).toBe(true);
+
+    // Empty or oversized strings still fail
     expect(ownerTermsAcceptanceSchema.safeParse({
-      ownerTermsVersion: 'stale-version',
+      ownerTermsVersion: '',
       commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
       privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
     }).success).toBe(false);
