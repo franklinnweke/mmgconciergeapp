@@ -7,6 +7,7 @@ import type {
 import { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
 
 import { createAccountProfile, loadAccountProfile } from './account-profile';
+import { initializeNativeAppCheck } from './firebase-app-check';
 import {
   getFriendlyAuthError,
   refreshCurrentUser,
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [, setRefreshVersion] = useState(0);
 
   useEffect(() => {
+    void initializeNativeAppCheck();
     let active = true;
     let requestVersion = 0;
     const unsubscribe = subscribeToAuthState((nextUser) => {
@@ -98,7 +100,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     profileLoadFailed,
     async refreshUser() {
       const nextUser = await refreshCurrentUser();
-      setUser(nextUser);
+      setUser(nextUser ? (Object.assign(Object.create(Object.getPrototypeOf(nextUser)), nextUser) as User) : null);
       setRefreshVersion((version) => version + 1);
     },
     register: registerWithEmailPassword,

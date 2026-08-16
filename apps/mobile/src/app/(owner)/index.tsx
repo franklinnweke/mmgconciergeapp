@@ -1,1 +1,1 @@
-export { OwnerOnboardingScreen as default } from '@/features/auth/screens/owner-onboarding-screen';
+export { OwnerApplicationDeskScreen as default } from '@/features/owner/screens/owner-application-desk-screen';

@@ -10,6 +10,7 @@ type PreviewUser = {
   displayName: string;
   email: string;
   emailVerified: boolean;
+  phoneNumber: string | null;
   uid: string;
 };
 
@@ -34,6 +35,7 @@ const previewUser: PreviewUser = {
   displayName: 'Preview Guest',
   email: 'preview@mmgconcierge.local',
   emailVerified: true,
+  phoneNumber: null,
   uid: 'preview-renter',
 };
 

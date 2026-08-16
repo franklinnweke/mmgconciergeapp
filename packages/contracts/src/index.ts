@@ -293,6 +293,7 @@ export const STAFF_ROLE_KEYS = [
 
 export const ownerVerificationStatusSchema = z.enum(OWNER_VERIFICATION_STATES);
 export type OwnerVerificationStatus = z.infer<typeof ownerVerificationStatusSchema>;
+export type OwnerVerificationState = OwnerVerificationStatus;
 
 export const lagosAreaLabelSchema = z.enum(LAGOS_AREA_LABELS);
 export type LagosAreaLabel = z.infer<typeof lagosAreaLabelSchema>;
@@ -302,6 +303,8 @@ export type GovernmentIdKind = z.infer<typeof governmentIdKindSchema>;
 
 export const ownerReviewDecisionSchema = z.enum(OWNER_REVIEW_DECISIONS);
 export type OwnerReviewDecision = z.infer<typeof ownerReviewDecisionSchema>;
+
+export type OwnerReviewChecklistKey = (typeof OWNER_REVIEW_CHECKLIST_KEYS)[number];
 
 export const staffRoleKeySchema = z.enum(STAFF_ROLE_KEYS);
 export type StaffRoleKey = z.infer<typeof staffRoleKeySchema>;
@@ -547,3 +550,47 @@ export const adminVisibleOwnerVerificationSchema = z
   })
   .strict();
 export type AdminVisibleOwnerVerification = z.infer<typeof adminVisibleOwnerVerificationSchema>;
+
+export class CommandError extends Error {
+  constructor(
+    public readonly code: CanonicalErrorCode,
+    message: string,
+    public readonly safeDetails?: Readonly<{ reason?: CommandSafeReason } & Record<string, unknown>>,
+  ) {
+    super(message);
+    this.name = 'CommandError';
+  }
+}
+
+export class BookingCommandError extends CommandError {
+  constructor(
+    code: CanonicalErrorCode,
+    message: string,
+    safeDetails?: Readonly<Record<string, unknown>>,
+  ) {
+    super(code, message, safeDetails as Readonly<{ reason?: CommandSafeReason } & Record<string, unknown>>);
+    this.name = 'BookingCommandError';
+  }
+}
+
+export function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return '***@***.***';
+  const [local, domain] = email.split('@');
+  if (local.length <= 2) {
+    return `${local.charAt(0)}***@${domain}`;
+  }
+  return `${local.charAt(0)}***${local.charAt(local.length - 1)}@${domain}`;
+}
+
+export function maskPhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const clean = phone.trim();
+  if (clean.length <= 5) return '***';
+  if (clean.startsWith('+234') && clean.length >= 10) {
+    const last4 = clean.slice(-4);
+    return `+234****${last4}`;
+  }
+  const prefix = clean.slice(0, 3);
+  const suffix = clean.slice(-3);
+  return `${prefix}****${suffix}`;
+}

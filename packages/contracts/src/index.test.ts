@@ -21,6 +21,8 @@ import {
   dateOnlySchema,
   emailPasswordRegistrationSchema,
   emailPasswordSignInSchema,
+  maskEmail,
+  maskPhone,
   nigerianE164Schema,
   ownerAddressSchema,
   ownerLegalNameSchema,
@@ -122,7 +124,6 @@ describe('booking command contracts', () => {
     }).success).toBe(false);
   });
 });
-
 const validPriceSnapshot = {
   currency: 'NGN',
   chargedDays: 3,
@@ -538,5 +539,19 @@ describe('owner verification contracts and schemas', () => {
     };
 
     expect(adminVisibleOwnerVerificationSchema.parse(validAdminView)).toEqual(validAdminView);
+  });
+
+  describe('maskEmail and maskPhone helpers', () => {
+    it('masks email correctly', () => {
+      expect(maskEmail('alhaji.danjuma@lagosholdings.ng')).toBe('a***a@lagosholdings.ng');
+      expect(maskEmail('ed@lagos.ng')).toBe('e***@lagos.ng');
+      expect(maskEmail('invalid')).toBe('***@***.***');
+    });
+
+    it('masks Nigerian phone numbers with +234 prefix and suffix', () => {
+      expect(maskPhone('+2348012345678')).toBe('+234****5678');
+      expect(maskPhone(null)).toBeNull();
+      expect(maskPhone('123')).toBe('***');
+    });
   });
 });
