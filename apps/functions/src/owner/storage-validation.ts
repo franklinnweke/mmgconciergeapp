@@ -27,7 +27,7 @@ export interface StorageGateway {
 export type StorageBucket = ReturnType<ReturnType<typeof getStorage>['bucket']>;
 
 export class AdminStorageGateway implements StorageGateway {
-  private readonly bucket: StorageBucket;
+  protected readonly bucket: StorageBucket;
 
   constructor(bucket?: StorageBucket) {
     this.bucket = bucket ?? getStorage().bucket();
