@@ -85,14 +85,14 @@ export default function VehicleDetailScreen({
     if (!vehicle) return [];
     const images = [vehicleImages[vehicle.imageKey]];
     // If it's a Prado, include alternate Prado shots for multi-angle demonstration
-    if (vehicle.imageKey === 'prado_250_obsidian') {
-      images.push(vehicleImages.prado_150_pearl, vehicleImages.prado_150_graphite);
-    } else if (vehicle.imageKey === 'prado_150_pearl') {
-      images.push(vehicleImages.prado_250_obsidian, vehicleImages.prado_150_graphite);
-    } else if (vehicle.imageKey === 'prado_150_graphite') {
-      images.push(vehicleImages.prado_250_obsidian, vehicleImages.prado_150_pearl);
+    if (vehicle.imageKey === 'hero-suv') {
+      images.push(vehicleImages['pearl-suv'], vehicleImages['prado-graphite']);
+    } else if (vehicle.imageKey === 'pearl-suv') {
+      images.push(vehicleImages['hero-suv'], vehicleImages['prado-graphite']);
+    } else if (vehicle.imageKey === 'prado-graphite') {
+      images.push(vehicleImages['hero-suv'], vehicleImages['pearl-suv']);
     } else {
-      images.push(vehicleImages.graphite_executive_sedan);
+      images.push(vehicleImages['graphite-sedan']);
     }
     return images;
   }, [vehicle]);
