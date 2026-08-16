@@ -50,6 +50,15 @@ export function OwnerIdentityScreen() {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Frozen per mount (same pattern as the submit screen): a fresh Date.now()
+  // key per attempt defeats the backend's idempotency replay, so a
+  // lost-response retry becomes a brand-new command instead of returning the
+  // stored result. The service persists idempotency records only on success,
+  // so retrying a failed attempt under the same key still executes normally.
+  const [idempotencyKey] = useState(
+    () => `complete-profile-${auth.user?.uid || 'anon'}-${Date.now()}`,
+  );
+
   const isFormValid =
     legalName.trim().length >= 3 &&
     legalName.trim().length <= 120 &&
@@ -66,7 +75,6 @@ export function OwnerIdentityScreen() {
 
     try {
       const gateway = createOwnerVerificationGateway();
-      const idempotencyKey = `complete-profile-${auth.user?.uid || 'anon'}-${Date.now()}`;
 
       const command: CompleteOwnerProfileCommand = {
         schemaVersion: 1,
