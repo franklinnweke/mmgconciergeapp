@@ -149,7 +149,9 @@ export function OwnerIdScreen() {
         documentKind,
         originalFileName: selectedAsset.fileName,
         contentType: selectedAsset.mimeType,
-        byteSize: uploadedMeta.byteSize || selectedAsset.fileSize || 1024,
+        // Real measured bytes only — never a fabricated fallback size. 0
+        // reads as "not measured" rather than inventing a plausible number.
+        byteSize: uploadedMeta.byteSize || selectedAsset.fileSize || 0,
         uploadedAt: uploadedMeta.uploadedAt || new Date().toISOString(),
       });
 
