@@ -49,11 +49,11 @@ const VALID_PROFILE_DOCUMENT = {
 };
 
 function subscribeAndEmit(snapshot: unknown): {
-  updates: Array<OwnerVisibleProfile | null>;
+  updates: (OwnerVisibleProfile | null)[];
   errors: Error[];
 } {
   const repository = createOwnerVerificationRepository();
-  const updates: Array<OwnerVisibleProfile | null> = [];
+  const updates: (OwnerVisibleProfile | null)[] = [];
   const errors: Error[] = [];
   repository.subscribe(
     'owner-1',

@@ -4,7 +4,6 @@ import { VehicleCategory } from '@mmg/contracts';
 import { useState } from 'react';
 import {
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
