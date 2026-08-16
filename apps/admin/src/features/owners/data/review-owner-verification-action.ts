@@ -7,6 +7,7 @@ import {
   canonicalErrorCodeSchema,
   CommandError,
   commandSafeReasonSchema,
+  reviewOwnerVerificationDataSchema,
   type OwnerReviewDecision,
 } from '@mmg/contracts';
 
@@ -98,16 +99,18 @@ export async function executeReviewDecisionAction(
       input.idempotencyKey ||
       `action-rev-${input.ownerId}-${input.decision}-${input.expectedVersion}-${Date.now()}`;
 
+    const commandData = reviewOwnerVerificationDataSchema.parse({
+      ownerId: input.ownerId,
+      expectedVersion: input.expectedVersion,
+      decision: input.decision,
+      reason: input.reason,
+      checklist: input.checklist,
+    });
+
     const command = {
-      schemaVersion: 1,
+      schemaVersion: 1 as const,
       idempotencyKey,
-      data: {
-        ownerId: input.ownerId,
-        expectedVersion: input.expectedVersion,
-        decision: input.decision,
-        reason: input.reason,
-        checklist: input.checklist,
-      },
+      data: commandData,
     };
 
     const actor = {

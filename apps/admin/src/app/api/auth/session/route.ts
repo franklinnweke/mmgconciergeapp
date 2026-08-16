@@ -3,8 +3,23 @@ import { NextResponse } from 'next/server';
 
 import { createStaffSessionCookie } from '@/features/auth/server/session';
 
+function assertSameOrigin(h: Headers): void {
+  const origin = h.get('origin');
+  const host = h.get('host');
+  if (!origin || !host) return; // Allow server-to-server requests
+  try {
+    const originHost = new URL(origin).host;
+    if (originHost !== host) {
+      throw new Error('Cross-origin session requests are not allowed.');
+    }
+  } catch {
+    throw new Error('Invalid origin header.');
+  }
+}
+
 export async function POST(request: Request) {
   try {
+    assertSameOrigin(request.headers);
     const body = await request.json();
     const { idToken } = body;
 

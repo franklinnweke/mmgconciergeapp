@@ -58,6 +58,16 @@ describeWithEmulator('private owner-verification Storage rules', () => {
     });
   }
 
+  async function seedVehicle(vehicleId: string, ownerId: string, discoverable = false) {
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `vehicles/${vehicleId}`), {
+        vehicleId,
+        ownerId,
+        discoverable,
+      });
+    });
+  }
+
   it('S1: denies anonymous client create and read on all storage paths', async () => {
     const unauthStorage = environment.unauthenticatedContext().storage();
     const targetRef = ref(unauthStorage, 'private/owner-verification/owner-one/upload-01');
@@ -271,5 +281,170 @@ describeWithEmulator('private owner-verification Storage rules', () => {
         customMetadata: { purpose: 'government_id', ownerId: 'renter-one' },
       },
     ));
+  });
+
+  it('V1: allows an approved owner account to create only its own private vehicle image/document uploads', async () => {
+    await seedUserAccount('owner-one', 'owner');
+    await seedVehicle('vehicle-one', 'owner-one');
+    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+
+    await assertSucceeds(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-one/upload-vehicle-01'),
+      Buffer.from('vehicle-image'),
+      {
+        contentType: 'image/jpeg',
+        customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' },
+      },
+    ));
+
+    await assertSucceeds(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-documents/owner-one/vehicle-one/upload-doc-01'),
+      Buffer.from('vehicle-document'),
+      {
+        contentType: 'application/pdf',
+        customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_document' },
+      },
+    ));
+  });
+
+  it('V2: denies vehicle uploads for cross-owner, missing-vehicle, renter, and malformed-metadata paths', async () => {
+    await seedUserAccount('owner-one', 'owner');
+    await seedUserAccount('owner-two', 'owner');
+    await seedUserAccount('renter-one', 'renter');
+    await seedVehicle('vehicle-one', 'owner-one');
+    await seedVehicle('vehicle-two', 'owner-two');
+
+    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const renterStorage = environment.authenticatedContext('renter-one').storage();
+    const imageBytes = Buffer.from('vehicle-image');
+
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-two/upload-vehicle-02'),
+      imageBytes,
+      {
+        contentType: 'image/jpeg',
+        customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' },
+      },
+    ));
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/missing-vehicle/upload-vehicle-03'),
+      imageBytes,
+      {
+        contentType: 'image/jpeg',
+        customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' },
+      },
+    ));
+    await assertFails(uploadBytes(
+      ref(renterStorage, 'private/vehicle-uploads/renter-one/vehicle-one/upload-vehicle-04'),
+      imageBytes,
+      {
+        contentType: 'image/jpeg',
+        customMetadata: { ownerId: 'renter-one', purpose: 'vehicle_image' },
+      },
+    ));
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-one/upload-vehicle-05'),
+      imageBytes,
+      {
+        contentType: 'image/jpeg',
+        customMetadata: { ownerId: 'owner-two', purpose: 'vehicle_image' },
+      },
+    ));
+  });
+
+  it('V3: public approved vehicle images are readable but client writes remain denied', async () => {
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(
+        ref(context.storage(), 'public/vehicles/vehicle-one/approved/image-one/card'),
+        Buffer.from('processed-image'),
+        { contentType: 'image/jpeg' },
+      );
+    });
+
+    const publicStorage = environment.unauthenticatedContext().storage();
+    await assertSucceeds(getBytes(ref(
+      publicStorage,
+      'public/vehicles/vehicle-one/approved/image-one/card',
+    )));
+    await assertFails(uploadBytes(
+      ref(publicStorage, 'public/vehicles/vehicle-one/approved/image-two/card'),
+      Buffer.from('client-write'),
+      { contentType: 'image/jpeg' },
+    ));
+  });
+
+  it('V4: the public prefix is read-only for signed-in clients too, including its owner', async () => {
+    // Being the owner of the listing grants nothing here. Promotion and demotion
+    // are Admin-SDK operations; an owner who could delete or overwrite a public
+    // object could take a moderated photo down, or swap it for an unmoderated
+    // one at a path renters already have cached.
+    await seedUserAccount('owner-one', 'owner');
+    await seedVehicle('vehicle-one', 'owner-one', true);
+    const publicPath = 'public/vehicles/vehicle-one/approved/image-one/card';
+
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(ref(context.storage(), publicPath), Buffer.from('processed-image'), {
+        contentType: 'image/jpeg',
+      });
+    });
+
+    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+
+    await assertSucceeds(getBytes(ref(ownerStorage, publicPath)));
+    await assertFails(uploadBytes(ref(ownerStorage, publicPath), Buffer.from('overwrite'), {
+      contentType: 'image/jpeg',
+    }));
+    await assertFails(deleteObject(ref(ownerStorage, publicPath)));
+    // Metadata specifically: the promoter publishes with empty custom metadata so
+    // nothing about the owner travels with the photo, and metadata is readable by
+    // anyone who can read the object.
+    await assertFails(updateMetadata(ref(ownerStorage, publicPath), {
+      customMetadata: { ownerId: 'owner-one' },
+    }));
+  });
+
+  it('V5: denies clients any access to processed variant objects', async () => {
+    // Variants live one level deeper than the upload rule matches
+    // (`.../{vehicleId}/{imageId}/variants/{variant}`), so they fall through to
+    // the catch-all deny. They are written by the Admin SDK only — a client that
+    // could write here would bypass the magic-byte check and the EXIF strip.
+    await seedUserAccount('owner-one', 'owner');
+    await seedVehicle('vehicle-one', 'owner-one');
+    const variantPath =
+      'private/vehicle-uploads/owner-one/vehicle-one/image-one/variants/card';
+
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(ref(context.storage(), variantPath), Buffer.from('variant-bytes'), {
+        contentType: 'image/jpeg',
+      });
+    });
+
+    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+
+    await assertFails(getBytes(ref(ownerStorage, variantPath)));
+    await assertFails(uploadBytes(ref(ownerStorage, variantPath), Buffer.from('client-variant'), {
+      contentType: 'image/jpeg',
+      customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' },
+    }));
+    await assertFails(deleteObject(ref(ownerStorage, variantPath)));
+  });
+
+  it('V6: denies a client writing outside the approved segment of the public prefix', async () => {
+    // `public/vehicles/{vehicleId}/approved/...` is the only public match. A
+    // sibling segment must not fall into it, and must not find another rule.
+    await seedUserAccount('owner-one', 'owner');
+    await seedVehicle('vehicle-one', 'owner-one');
+    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+
+    for (const path of [
+      'public/vehicles/vehicle-one/pending/image-one/card',
+      'public/vehicles/vehicle-one/approved/image-one',
+      'public/vehicles/vehicle-one/approved/image-one/card/extra',
+      'public/anything-else/file.jpg',
+    ]) {
+      await assertFails(uploadBytes(ref(ownerStorage, path), Buffer.from('client-write'), {
+        contentType: 'image/jpeg',
+      }));
+    }
   });
 });

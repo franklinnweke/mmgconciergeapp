@@ -34,7 +34,7 @@ export type VehicleSummary = {
   distanceKm: number;
   chauffeurPolicy: 'included';
   deliveryPolicy: 'included';
-  imageKey: 'hero-suv' | 'pearl-suv' | 'graphite-sedan';
+  imageKey: 'hero-suv' | 'pearl-suv' | 'prado-graphite' | 'graphite-sedan';
 };
 export type VehicleSearchCriteria = { areaLabel?: string; category?: VehicleCategory; query?: string };
 export interface DiscoveryGateway {
@@ -99,6 +99,7 @@ export const paidBookingStateSchema = z.enum([
   'refund_pending',
   'refunded',
   'in_progress',
+  'completion_pending',
   'completed',
 ]);
 export type PaidBookingState = z.infer<typeof paidBookingStateSchema>;
@@ -126,7 +127,7 @@ export const renterVehicleSnapshotSchema = z.object({
   displayName: z.string().trim().min(1).max(120),
   areaLabel: z.string().trim().min(1).max(120),
   categoryLabel: z.string().trim().min(1).max(80),
-  imageKey: z.enum(['hero-suv', 'pearl-suv', 'graphite-sedan']).optional(),
+  imageKey: z.enum(['hero-suv', 'pearl-suv', 'prado-graphite', 'graphite-sedan']).optional(),
   imageUrl: z.string().url().max(2_048).optional(),
 }).strict();
 export type RenterVehicleSnapshot = z.infer<typeof renterVehicleSnapshotSchema>;
@@ -317,19 +318,45 @@ export const commandSafeReasonSchema = z.enum([
   'upload_invalid',
   'terms_stale',
   'stale_version',
+  'not_approved_owner',
+  'not_vehicle_owner',
+  'listing_incomplete',
+  'image_limit',
+  'image_dimensions',
+  'dates_overlap',
+  'not_paid',
 ]);
 export type CommandSafeReason = z.infer<typeof commandSafeReasonSchema>;
 
-export const nigerianE164Schema = z
-  .string()
-  .regex(/^\+234[789]\d{9}$/, 'Enter a Nigerian mobile number.');
+// ── Cursor pagination contracts ──
 
-export const ownerLegalNameSchema = z
-  .string()
-  .trim()
-  .min(2, 'Enter your legal or business name.')
-  .max(120, 'Name is too long.')
-  .regex(/^[\p{L}0-9][\p{L}0-9 .,'&/-]{1,119}$/u, 'Enter a valid legal or business name.');
+export const cursorSchema = z.string().trim().min(1).max(256);
+export type Cursor = z.infer<typeof cursorSchema>;
+
+export const pageSizeSchema = z.number().int().min(1).max(100);
+
+export const paginatedRequestSchema = z.object({
+  cursor: cursorSchema.optional(),
+  pageSize: pageSizeSchema.optional().default(20),
+}).strict();
+export type PaginatedRequest = z.infer<typeof paginatedRequestSchema>;
+
+export const paginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    items: z.array(itemSchema),
+    nextCursor: cursorSchema.nullable(),
+    hasMore: z.boolean(),
+    totalCount: z.number().int().nonnegative().optional(),
+  }).strict();
+
+/**
+ * Maximum batch size for scheduled cleanup jobs (e.g., Storage upload expiry).
+ * Bounded to prevent timeout overruns.
+ */
+export const MAX_CLEANUP_BATCH_SIZE = 500;
+export const cleanupBatchSizeSchema = z.number().int().min(1).max(MAX_CLEANUP_BATCH_SIZE);
+
+// ── Vehicle inventory constants ──
 
 export const ownerAddressSchema = z
   .object({
@@ -343,11 +370,417 @@ export const ownerAddressSchema = z
   .strict();
 export type OwnerAddress = z.infer<typeof ownerAddressSchema>;
 
+export const VEHICLE_MODERATION_STATES = [
+  'draft',
+  'pending_review',
+  'approved',
+  'rejected',
+  'suspended',
+] as const;
+
+export const VEHICLE_VISIBILITY_STATES = ['paused', 'active', 'deleted'] as const;
+
+export const VEHICLE_REVIEW_DECISIONS = [
+  'start_review',
+  'approve',
+  'reject',
+  'suspend',
+  'restore',
+] as const;
+
+export const VEHICLE_REVIEW_CHECKLIST_KEYS = [
+  'images_complete_and_legible',
+  'specs_match_images',
+  'plate_matches_documents',
+  'lagos_base_plausible',
+  'rate_plausible',
+  'chauffeur_delivery_included',
+  'no_fraud_indicators',
+] as const;
+
+export const VEHICLE_CATEGORIES = ['executive_suv', 'executive_sedan'] as const;
+
+export const VEHICLE_TRANSMISSIONS = ['automatic', 'manual'] as const;
+
+export const VEHICLE_FUEL_TYPES = ['petrol', 'diesel', 'hybrid'] as const;
+
+export const VEHICLE_FEATURE_KEYS = [
+  'leather',
+  'panoramic_roof',
+  'apple_carplay',
+  'android_auto',
+  'climate_control',
+  'third_row',
+  'wifi',
+  'privacy_glass',
+] as const;
+
+export const VEHICLE_IMAGE_VARIANTS = ['thumb', 'card', 'detail'] as const;
+
+export const VEHICLE_UPLOAD_PURPOSES = ['listing_image', 'vehicle_document'] as const;
+
+export const VEHICLE_DOCUMENT_KINDS = ['insurance', 'other'] as const;
+
+export const BOOKING_BLOCK_STATES = ['held', 'paid', 'confirmed', 'owner_block'] as const;
+
+export const MIN_OWNER_DAILY_RATE_KOBO = 5_000_000;
+export const MAX_OWNER_DAILY_RATE_KOBO = 1_000_000_000;
+export const MIN_VEHICLE_YEAR = 2010;
+export const MAX_VEHICLE_IMAGES = 20;
+export const MAX_VEHICLE_DOCUMENTS = 5;
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const MIN_IMAGE_WIDTH = 1280;
+export const MIN_IMAGE_HEIGHT = 720;
+export const MAX_IMAGE_EDGE = 8000;
+
+export const LAGOS_BBOX = {
+  minLatitude: 6.35,
+  maxLatitude: 6.72,
+  minLongitude: 3.05,
+  maxLongitude: 3.70,
+} as const;
+
+// ── Vehicle Zod schemas ──
+
+export const vehicleModerationStatusSchema = z.enum(VEHICLE_MODERATION_STATES);
+export type VehicleModerationStatus = z.infer<typeof vehicleModerationStatusSchema>;
+
+export const vehicleVisibilitySchema = z.enum(VEHICLE_VISIBILITY_STATES);
+export type VehicleVisibility = z.infer<typeof vehicleVisibilitySchema>;
+
+export const vehicleReviewDecisionSchema = z.enum(VEHICLE_REVIEW_DECISIONS);
+export type VehicleReviewDecision = z.infer<typeof vehicleReviewDecisionSchema>;
+
+export const vehicleCategorySchema = z.enum(VEHICLE_CATEGORIES);
+export const vehicleTransmissionSchema = z.enum(VEHICLE_TRANSMISSIONS);
+export const vehicleFuelTypeSchema = z.enum(VEHICLE_FUEL_TYPES);
+export const vehicleFeatureKeySchema = z.enum(VEHICLE_FEATURE_KEYS);
+export const vehicleImageVariantSchema = z.enum(VEHICLE_IMAGE_VARIANTS);
+export const bookingBlockStateSchema = z.enum(BOOKING_BLOCK_STATES);
+
+/**
+ * The variant ladder as a type. Exported so image processing and the storage
+ * path builders key their records off the contract rather than re-declaring the
+ * union and drifting from `VEHICLE_IMAGE_VARIANTS`.
+ */
+export type VehicleImageVariant = z.infer<typeof vehicleImageVariantSchema>;
+
+export const ownerDailyRateKoboSchema = z.number().int().min(MIN_OWNER_DAILY_RATE_KOBO).max(MAX_OWNER_DAILY_RATE_KOBO);
+export const vehicleYearSchema = z.number().int().min(MIN_VEHICLE_YEAR).max(2035);
+export const vehicleSeatsSchema = z.number().int().min(2).max(8);
+export const vehicleMakeModelSchema = z.string().trim().min(1).max(40);
+export const vehicleColourSchema = z.string().trim().min(2).max(40);
+export const vehicleDescriptionSchema = z.string().trim().min(40).max(2000);
+
+export const nigerianPlateSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z]{3}-?\d{2,3}[A-Z]{2,3}$/, 'Enter a Nigerian registration plate.');
+
+export const lagosLatitudeSchema = z.number().gte(LAGOS_BBOX.minLatitude).lte(LAGOS_BBOX.maxLatitude);
+export const lagosLongitudeSchema = z.number().gte(LAGOS_BBOX.minLongitude).lte(LAGOS_BBOX.maxLongitude);
+
+export const exactLagosPointSchema = z.object({
+  latitude: lagosLatitudeSchema,
+  longitude: lagosLongitudeSchema,
+  placeId: z.string().trim().min(1).max(256).optional(),
+}).strict();
+
+export const vehicleSpecsSchema = z.object({
+  make: vehicleMakeModelSchema,
+  model: vehicleMakeModelSchema,
+  year: vehicleYearSchema,
+  colour: vehicleColourSchema,
+  category: vehicleCategorySchema,
+  seats: vehicleSeatsSchema,
+  transmission: vehicleTransmissionSchema.optional(),
+  fuelType: vehicleFuelTypeSchema.optional(),
+  mileageKm: z.number().int().min(0).max(1_000_000).optional(),
+  description: vehicleDescriptionSchema,
+  features: z.array(vehicleFeatureKeySchema).max(16).optional(),
+}).strict();
+
+export const vehicleReviewChecklistSchema = z.object({
+  images_complete_and_legible: z.literal(true),
+  specs_match_images: z.literal(true),
+  plate_matches_documents: z.literal(true),
+  lagos_base_plausible: z.literal(true),
+  rate_plausible: z.literal(true),
+  chauffeur_delivery_included: z.literal(true),
+  no_fraud_indicators: z.literal(true),
+}).strict();
+
+// ── Vehicle command schemas ──
+
+export const createVehicleDraftDataSchema = z.object({
+  specs: vehicleSpecsSchema.partial().extend({
+    make: vehicleMakeModelSchema.optional(),
+    model: vehicleMakeModelSchema.optional(),
+    year: vehicleYearSchema.optional(),
+    colour: vehicleColourSchema.optional(),
+    category: vehicleCategorySchema.optional(),
+    seats: vehicleSeatsSchema.optional(),
+    description: z.string().trim().min(1).max(2000).optional(),
+  }).strict().optional(),
+  ownerDailyRateKobo: ownerDailyRateKoboSchema.optional(),
+  areaLabel: lagosAreaLabelSchema.optional(),
+  baseAddress: ownerAddressSchema.optional(),
+  exactBase: exactLagosPointSchema.optional(),
+  plate: nigerianPlateSchema.optional(),
+}).strict();
+
+export const createVehicleDraftCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: createVehicleDraftDataSchema,
+}).strict();
+
+export const createVehicleDraftResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    vehicleId: boundedIdSchema,
+    moderationStatus: z.literal('draft'),
+    visibility: z.literal('paused'),
+    version: z.number().int().positive(),
+  }).strict(),
+}).strict();
+
+export const createVehicleUploadSessionDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  purpose: z.enum(VEHICLE_UPLOAD_PURPOSES),
+  contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
+  byteSize: z.number().int().positive().max(MAX_UPLOAD_BYTES),
+  originalFileName: z.string().trim().min(1).max(120),
+  documentKind: z.enum(VEHICLE_DOCUMENT_KINDS).optional(),
+}).strict().superRefine((value, ctx) => {
+  if (value.purpose === 'listing_image' && value.contentType === 'application/pdf') {
+    ctx.addIssue({ code: 'custom', path: ['contentType'], message: 'Listing images cannot be PDF.' });
+  }
+  if (value.purpose === 'vehicle_document' && !value.documentKind) {
+    ctx.addIssue({ code: 'custom', path: ['documentKind'], message: 'Document kind is required.' });
+  }
+});
+
+export const createVehicleUploadSessionCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: createVehicleUploadSessionDataSchema,
+}).strict();
+
+export const createVehicleUploadSessionResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    uploadId: boundedIdSchema,
+    storagePath: z.string().min(1).max(512),
+    purpose: z.enum(VEHICLE_UPLOAD_PURPOSES),
+    maxBytes: z.literal(MAX_UPLOAD_BYTES),
+  }).strict(),
+}).strict();
+
+export const finalizeVehicleImageDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  uploadId: boundedIdSchema,
+  order: z.number().int().min(0).max(19),
+}).strict();
+
+export const finalizeVehicleImageCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: finalizeVehicleImageDataSchema,
+}).strict();
+
+export const finalizeVehicleImageResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    imageId: boundedIdSchema,
+    order: z.number().int().min(0).max(19),
+    status: z.enum(['processed', 'rejected']),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }).strict(),
+}).strict();
+
+export const submitVehicleForReviewDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+}).strict();
+
+export const submitVehicleForReviewCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: submitVehicleForReviewDataSchema,
+}).strict();
+
+export const submitVehicleForReviewResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    vehicleId: boundedIdSchema,
+    moderationStatus: z.literal('pending_review'),
+    submittedAt: isoDateTimeSchema,
+    version: z.number().int().positive(),
+  }).strict(),
+}).strict();
+
+export const reviewVehicleDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  revisionId: boundedIdSchema.optional(),
+  expectedVersion: z.number().int().positive(),
+  decision: vehicleReviewDecisionSchema,
+  reason: z.string().trim().min(10).max(500).optional(),
+  checklist: vehicleReviewChecklistSchema.optional(),
+  exactBaseOverride: exactLagosPointSchema.optional(),
+}).strict().superRefine((value, ctx) => {
+  if (['reject', 'suspend'].includes(value.decision) && !value.reason) {
+    ctx.addIssue({ code: 'custom', path: ['reason'], message: 'A reason is required.' });
+  }
+  if (value.decision === 'approve' && !vehicleReviewChecklistSchema.safeParse(value.checklist).success) {
+    ctx.addIssue({ code: 'custom', path: ['checklist'], message: 'Complete the approval checklist.' });
+  }
+});
+
+export const reviewVehicleCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: reviewVehicleDataSchema,
+}).strict();
+
+export const reviewVehicleResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    vehicleId: boundedIdSchema,
+    revisionId: boundedIdSchema.nullable(),
+    fromStatus: vehicleModerationStatusSchema,
+    toStatus: vehicleModerationStatusSchema,
+    visibility: vehicleVisibilitySchema,
+    decidedAt: isoDateTimeSchema,
+    version: z.number().int().positive(),
+  }).strict(),
+}).strict();
+
+export const setVehicleVisibilityDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+  visibility: z.enum(['paused', 'active', 'deleted']),
+}).strict();
+
+export const setVehicleVisibilityCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: setVehicleVisibilityDataSchema,
+}).strict();
+
+export const setVehicleVisibilityResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    vehicleId: boundedIdSchema,
+    visibility: vehicleVisibilitySchema,
+    discoverable: z.boolean(),
+    version: z.number().int().positive(),
+  }).strict(),
+}).strict();
+
+// ── Vehicle visible documents ──
+
+export const ownerVisibleVehicleSchema = z.object({
+  vehicleId: boundedIdSchema,
+  ownerId: boundedIdSchema,
+  displayName: z.string().min(1).max(120),
+  make: vehicleMakeModelSchema.nullable(),
+  model: vehicleMakeModelSchema.nullable(),
+  year: vehicleYearSchema.nullable(),
+  colour: vehicleColourSchema.nullable(),
+  category: vehicleCategorySchema.nullable(),
+  seats: vehicleSeatsSchema.nullable(),
+  transmission: vehicleTransmissionSchema.nullable(),
+  fuelType: vehicleFuelTypeSchema.nullable(),
+  mileageKm: z.number().int().min(0).max(1_000_000).nullable(),
+  description: z.string().min(1).max(2000).nullable(),
+  features: z.array(vehicleFeatureKeySchema),
+  ownerDailyRateKobo: ownerDailyRateKoboSchema.nullable(),
+  chauffeurPolicy: z.literal('included'),
+  deliveryPolicy: z.literal('included'),
+  areaLabel: lagosAreaLabelSchema.nullable(),
+  approxLatitude: z.number().nullable(),
+  approxLongitude: z.number().nullable(),
+  moderationStatus: vehicleModerationStatusSchema,
+  visibility: vehicleVisibilitySchema,
+  discoverable: z.boolean(),
+  lastDecisionReason: z.string().min(1).max(500).nullable(),
+  pendingRevisionId: boundedIdSchema.nullable(),
+  imageCount: z.number().int().min(0).max(20),
+  primaryImagePath: z.string().max(512).nullable(),
+  createdAt: isoDateTimeSchema,
+  updatedAt: isoDateTimeSchema,
+  version: z.number().int().positive(),
+}).strict();
+
+export const renterVisibleVehicleSchema = z.object({
+  vehicleId: boundedIdSchema,
+  ownerId: boundedIdSchema,
+  displayName: z.string().min(1).max(120),
+  category: vehicleCategorySchema,
+  seats: z.number().int().min(2).max(8),
+  areaLabel: z.string().min(1).max(120),
+  approxLatitude: z.number(),
+  approxLongitude: z.number(),
+  ownerDailyRateKobo: ownerDailyRateKoboSchema,
+  chauffeurPolicy: z.literal('included'),
+  deliveryPolicy: z.literal('included'),
+  imageUrls: z.array(z.string().url().max(2048)).min(1).max(20),
+  primaryImageUrl: z.string().url().max(2048),
+  description: vehicleDescriptionSchema,
+  features: z.array(vehicleFeatureKeySchema),
+  year: vehicleYearSchema,
+  make: vehicleMakeModelSchema,
+  model: vehicleMakeModelSchema,
+}).strict();
+
+export type CreateVehicleDraftData = z.infer<typeof createVehicleDraftDataSchema>;
+export type CreateVehicleDraftCommand = z.infer<typeof createVehicleDraftCommandSchema>;
+export type CreateVehicleDraftResult = z.infer<typeof createVehicleDraftResultSchema>;
+export type CreateVehicleUploadSessionData = z.infer<typeof createVehicleUploadSessionDataSchema>;
+export type CreateVehicleUploadSessionCommand = z.infer<typeof createVehicleUploadSessionCommandSchema>;
+export type CreateVehicleUploadSessionResult = z.infer<typeof createVehicleUploadSessionResultSchema>;
+export type FinalizeVehicleImageData = z.infer<typeof finalizeVehicleImageDataSchema>;
+export type FinalizeVehicleImageCommand = z.infer<typeof finalizeVehicleImageCommandSchema>;
+export type FinalizeVehicleImageResult = z.infer<typeof finalizeVehicleImageResultSchema>;
+export type SubmitVehicleForReviewData = z.infer<typeof submitVehicleForReviewDataSchema>;
+export type SubmitVehicleForReviewCommand = z.infer<typeof submitVehicleForReviewCommandSchema>;
+export type SubmitVehicleForReviewResult = z.infer<typeof submitVehicleForReviewResultSchema>;
+export type ReviewVehicleData = z.infer<typeof reviewVehicleDataSchema>;
+export type ReviewVehicleCommand = z.infer<typeof reviewVehicleCommandSchema>;
+export type ReviewVehicleResult = z.infer<typeof reviewVehicleResultSchema>;
+export type SetVehicleVisibilityData = z.infer<typeof setVehicleVisibilityDataSchema>;
+export type SetVehicleVisibilityCommand = z.infer<typeof setVehicleVisibilityCommandSchema>;
+export type SetVehicleVisibilityResult = z.infer<typeof setVehicleVisibilityResultSchema>;
+export type OwnerVisibleVehicle = z.infer<typeof ownerVisibleVehicleSchema>;
+export type RenterVisibleVehicle = z.infer<typeof renterVisibleVehicleSchema>;
+
+export type ExactLagosPoint = z.infer<typeof exactLagosPointSchema>;
+export type VehicleSpecs = z.infer<typeof vehicleSpecsSchema>;
+export type VehicleReviewChecklist = z.infer<typeof vehicleReviewChecklistSchema>;
+
+// ── Error reason extensions ──
+
+export const nigerianE164Schema = z
+  .string()
+  .regex(/^\+234[789]\d{9}$/, 'Enter a Nigerian mobile number.');
+
+export const ownerLegalNameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Enter your legal or business name.')
+  .max(120, 'Name is too long.')
+  .regex(/^[\p{L}0-9][\p{L}0-9 .,'&/-]{1,119}$/u, 'Enter a valid legal or business name.');
+
+export const termsVersionSchema = z.string().trim().min(1).max(64);
+
 export const ownerTermsAcceptanceSchema = z
   .object({
-    ownerTermsVersion: z.literal(CURRENT_OWNER_TERMS_VERSION),
-    commissionTermsVersion: z.literal(CURRENT_COMMISSION_TERMS_VERSION),
-    privacyNoticeVersion: z.literal(CURRENT_PRIVACY_NOTICE_VERSION),
+    ownerTermsVersion: termsVersionSchema,
+    commissionTermsVersion: termsVersionSchema,
+    privacyNoticeVersion: termsVersionSchema,
   })
   .strict();
 export type OwnerTermsAcceptance = z.infer<typeof ownerTermsAcceptanceSchema>;
@@ -367,9 +800,9 @@ export const completeOwnerProfileDataSchema = z
   .object({
     legalName: ownerLegalNameSchema,
     address: ownerAddressSchema,
-    acceptedOwnerTermsVersion: z.literal(CURRENT_OWNER_TERMS_VERSION),
-    acceptedCommissionTermsVersion: z.literal(CURRENT_COMMISSION_TERMS_VERSION),
-    acceptedPrivacyNoticeVersion: z.literal(CURRENT_PRIVACY_NOTICE_VERSION),
+    acceptedOwnerTermsVersion: termsVersionSchema,
+    acceptedCommissionTermsVersion: termsVersionSchema,
+    acceptedPrivacyNoticeVersion: termsVersionSchema,
   })
   .strict();
 export type CompleteOwnerProfileData = z.infer<typeof completeOwnerProfileDataSchema>;
@@ -573,6 +1006,7 @@ export class BookingCommandError extends CommandError {
   }
 }
 
+/** @deprecated Use maskEmail from @mmg/domain instead. */
 export function maskEmail(email: string): string {
   if (!email || !email.includes('@')) return '***@***.***';
   const [local, domain] = email.split('@');
@@ -582,6 +1016,7 @@ export function maskEmail(email: string): string {
   return `${local.charAt(0)}***${local.charAt(local.length - 1)}@${domain}`;
 }
 
+/** @deprecated Use maskPhoneE164 from @mmg/domain instead. */
 export function maskPhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
   const clean = phone.trim();
