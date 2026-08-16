@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   CalendarDays,
+  Car,
   Check,
   ChevronRight,
   CircleDollarSign,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import Image, { type StaticImageData } from 'next/image';
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import graphiteSedan from '../../../../../mobile/assets/images/fleet/graphite-executive-sedan.png';
@@ -157,6 +159,8 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
           </div>
           <nav aria-label="Operations navigation" className="primary-nav">
             <a aria-current="page" href="#queue"><LayoutList size={17} />Bookings<span className="nav-count">{bookings.length}</span></a>
+            <Link href="/vehicles"><Car size={17} />Vehicle Moderation</Link>
+            <Link href="/owners"><ShieldCheck size={17} />Owner Verification</Link>
             <a href="#intervention"><AlertTriangle size={17} />Cases<span className="nav-count">{interventionCount}</span></a>
             <a href="#payments"><CircleDollarSign size={17} />Payments</a>
             <a href="#support"><Headphones size={17} />Support</a>

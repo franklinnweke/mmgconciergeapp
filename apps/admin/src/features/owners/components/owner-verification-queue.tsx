@@ -142,6 +142,19 @@ export function OwnerVerificationQueue({
 
           <nav style={{ display: 'flex', gap: '16px', marginLeft: '16px' }}>
             <Link
+              href="/vehicles"
+              style={{
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#8E95A3',
+                textDecoration: 'none',
+                padding: '6px 12px',
+                borderRadius: '6px',
+              }}
+            >
+              Vehicle Moderation
+            </Link>
+            <Link
               href="/owners"
               style={{
                 fontSize: '13px',
@@ -153,7 +166,7 @@ export function OwnerVerificationQueue({
                 backgroundColor: '#181D26',
               }}
             >
-              Verification Queue
+              Owner Verification
             </Link>
             <Link
               href="/"
