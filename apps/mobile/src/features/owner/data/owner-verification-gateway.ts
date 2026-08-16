@@ -7,12 +7,16 @@ import {
 } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { getStorage, putFile, ref } from '@react-native-firebase/storage';
-import type {
-  CompleteOwnerProfileCommand,
-  CompleteOwnerProfileResult,
-  SubmitOwnerVerificationCommand,
-  SubmitOwnerVerificationResult,
+import {
+  completeOwnerProfileResultSchema,
+  submitOwnerVerificationResultSchema,
+  type CompleteOwnerProfileCommand,
+  type CompleteOwnerProfileResult,
+  type SubmitOwnerVerificationCommand,
+  type SubmitOwnerVerificationResult,
 } from '@mmg/contracts';
+
+import { parseCallableResult } from '@/core/firebase/parse-callable-result';
 
 export type UploadedIdMetadata = {
   uploadId: string;
@@ -60,7 +64,13 @@ export class NativeOwnerVerificationGateway implements OwnerVerificationGateway 
   ): Promise<CompleteOwnerProfileResult> {
     const callable = httpsCallable(this.functionsInstance, 'completeOwnerProfile');
     const response = await callable(command);
-    return response.data as CompleteOwnerProfileResult;
+    // Validate rather than cast: an unparsed response would let a schema change
+    // or a partial payload surface as a confident-looking success in the UI.
+    return parseCallableResult(
+      completeOwnerProfileResultSchema,
+      response.data,
+      'completeOwnerProfile',
+    );
   }
 
   async submitOwnerVerification(
@@ -68,7 +78,11 @@ export class NativeOwnerVerificationGateway implements OwnerVerificationGateway 
   ): Promise<SubmitOwnerVerificationResult> {
     const callable = httpsCallable(this.functionsInstance, 'submitOwnerVerification');
     const response = await callable(command);
-    return response.data as SubmitOwnerVerificationResult;
+    return parseCallableResult(
+      submitOwnerVerificationResultSchema,
+      response.data,
+      'submitOwnerVerification',
+    );
   }
 
   async uploadPrivateIdDocument(

@@ -20,7 +20,7 @@ import {
   type LocalUploadedDocument,
 } from '../domain/owner-application';
 
-const heroImage = require('../../../../assets/images/fleet/lagos-arrival-hero.png');
+const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-hero.png');
 
 export function OwnerApplicationDeskScreen() {
   const auth = useAuth();
@@ -110,7 +110,7 @@ export function OwnerApplicationDeskScreen() {
             style={StyleSheet.absoluteFill}
           />
           <View style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}>
-            <BrandWordmark />
+            <BrandWordmark withLogo />
             <View style={styles.ownerPill}>
               <Text style={styles.ownerPillText}>OWNER</Text>
             </View>

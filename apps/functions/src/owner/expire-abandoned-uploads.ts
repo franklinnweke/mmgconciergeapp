@@ -508,5 +508,3 @@ export const expireAbandonedOwnerVerificationUploads = onSchedule(
     logger.info('owner.cleanup_abandoned_uploads_finished', result);
   },
 );
-
-export const expireAbandonedUploads = expireAbandonedOwnerVerificationUploads;

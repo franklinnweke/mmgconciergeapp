@@ -6,18 +6,55 @@ describe('FixtureAdminOwnerGateway', () => {
   const gateway = new FixtureAdminOwnerGateway();
 
   it('lists all fixture owner verification records', async () => {
-    const list = await gateway.listOwnerVerifications();
-    expect(list.length).toBeGreaterThan(0);
-    expect(list.some((item) => item.status === 'submitted')).toBe(true);
-    expect(list.some((item) => item.status === 'approved')).toBe(true);
+    const page = await gateway.listOwnerVerifications();
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.some((item) => item.status === 'submitted')).toBe(true);
+    expect(page.items.some((item) => item.status === 'approved')).toBe(true);
+    expect(page.hasMore).toBe(false);
+    expect(page.nextCursor).toBeNull();
   });
 
   it('filters owner verifications by status', async () => {
     const submitted = await gateway.listOwnerVerifications({ status: 'submitted' });
-    expect(submitted.every((item) => item.status === 'submitted')).toBe(true);
+    expect(submitted.items.every((item) => item.status === 'submitted')).toBe(true);
 
     const underReview = await gateway.listOwnerVerifications({ status: 'under_review' });
-    expect(underReview.every((item) => item.status === 'under_review')).toBe(true);
+    expect(underReview.items.every((item) => item.status === 'under_review')).toBe(true);
+  });
+
+  it('pages forward through the queue with a cursor and never repeats a row', async () => {
+    const all = await gateway.listOwnerVerifications();
+    expect(all.items.length).toBeGreaterThan(1);
+
+    const first = await gateway.listOwnerVerifications({ pageSize: 1 });
+    expect(first.items).toHaveLength(1);
+    expect(first.hasMore).toBe(true);
+    expect(first.nextCursor).toBe(first.items[0]?.ownerId);
+
+    const second = await gateway.listOwnerVerifications({
+      pageSize: 1,
+      cursor: first.nextCursor ?? undefined,
+    });
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0]?.ownerId).not.toBe(first.items[0]?.ownerId);
+    expect(second.items[0]?.ownerId).toBe(all.items[1]?.ownerId);
+  });
+
+  it('reports no further pages once the last row is reached', async () => {
+    const all = await gateway.listOwnerVerifications();
+    const last = await gateway.listOwnerVerifications({
+      pageSize: all.items.length,
+    });
+    expect(last.items).toHaveLength(all.items.length);
+    expect(last.hasMore).toBe(false);
+    expect(last.nextCursor).toBeNull();
+  });
+
+  it('treats an unknown cursor as the start of the queue rather than throwing', async () => {
+    // A reviewed record can disappear from a filtered view between page loads.
+    // Losing the cursor must degrade to a valid page, not a 500.
+    const page = await gateway.listOwnerVerifications({ cursor: 'owner-that-no-longer-matches' });
+    expect(page.items.length).toBeGreaterThan(0);
   });
 
   it('gets owner verification detail for a known owner with masked PII and documentPreviewUrl', async () => {

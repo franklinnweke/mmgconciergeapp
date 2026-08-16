@@ -22,8 +22,8 @@ import Image, { type StaticImageData } from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import graphiteSedan from '../../../../../mobile/assets/images/fleet/graphite-executive-sedan.png';
-import pearlSuv from '../../../../../mobile/assets/images/fleet/pearl-executive-suv.png';
-import { formatNairaFromKobo } from '@mmg/domain';
+import pearlSuv from '../../../../../mobile/assets/images/fleet/prado-150-pearl.png';
+import { formatNairaFromKobo, type PaidBookingState } from '@mmg/domain';
 
 import {
   AdminGatewayUnavailableError,
@@ -36,7 +36,9 @@ import { permittedAdminActions, type AdminBooking } from '../domain/admin-bookin
 type AdminDataMode = 'fixture' | 'unavailable';
 type QueueFilter = 'all' | 'actionable' | 'intervention' | 'confirmed' | 'closed';
 
-const statusCopy = {
+// Typed as an exhaustive record so adding a paid-booking state fails here, at
+// the definition, rather than as an implicit `any` at each lookup site.
+const statusCopy: Record<PaidBookingState, { label: string; tone: string }> = {
   paid_pending_owner: { label: 'OWNER RESPONSE DUE', tone: 'gold' },
   confirmed: { label: 'CONFIRMED', tone: 'green' },
   intervention_required: { label: 'INTERVENTION', tone: 'red' },
@@ -44,8 +46,9 @@ const statusCopy = {
   refund_pending: { label: 'REFUND PENDING', tone: 'gold' },
   refunded: { label: 'REFUNDED', tone: 'muted' },
   in_progress: { label: 'IN PROGRESS', tone: 'green' },
+  completion_pending: { label: 'COMPLETION REVIEW', tone: 'gold' },
   completed: { label: 'COMPLETED', tone: 'muted' },
-} as const;
+};
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -112,7 +115,8 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
     const matchesFilter = filter === 'all' ||
       (filter === 'actionable' && permittedAdminActions(booking).length > 0) ||
       (filter === 'intervention' && booking.state === 'intervention_required') ||
-      (filter === 'confirmed' && ['confirmed', 'in_progress'].includes(booking.state)) ||
+      (filter === 'confirmed' &&
+        ['confirmed', 'in_progress', 'completion_pending'].includes(booking.state)) ||
       (filter === 'closed' && ['cancelled', 'refunded', 'completed'].includes(booking.state));
     return matchesQuery && matchesDate && matchesFilter;
   }), [bookings, filter, query, startDate]);
