@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { requireLiveStaffSession } from '@/features/auth/server/session';
+import { requireStaffCapability } from '@/features/auth/server/session';
 import {
   FirestoreAdminOwnerGateway,
   OWNER_QUEUE_PAGE_SIZE,
@@ -15,7 +15,9 @@ export default async function OwnersQueuePage({
 }: {
   searchParams: Promise<{ cursor?: string | string[] }>;
 }) {
-  const session = await requireLiveStaffSession();
+  // Gated here as well as in the layout: App Router pages fetch independently
+  // of their layout, so the layout check alone is not an authorization boundary.
+  const session = await requireStaffCapability('owners.read');
   const { cursor } = await searchParams;
   const requestedCursor = Array.isArray(cursor) ? cursor[0] : cursor;
 

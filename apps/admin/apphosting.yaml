@@ -1,0 +1,10 @@
+# Firebase App Hosting configuration for MMG Concierge Admin Desk
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  cpu: 1
+  memoryMiB: 1024
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: mmg-concierge

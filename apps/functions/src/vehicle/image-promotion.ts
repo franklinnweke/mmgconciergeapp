@@ -318,7 +318,12 @@ export async function applyPublication(context: PublicationContext): Promise<voi
       if (nextDiscoverable !== vehicle.discoverable) {
         transaction.setVehicle(
           vehicleId,
-          { ...vehicle, discoverable: nextDiscoverable, updatedAt: now.toISOString() },
+          {
+            ...vehicle,
+            discoverable: nextDiscoverable,
+            lastDecisionReason: nextDiscoverable ? null : vehicle.lastDecisionReason,
+            updatedAt: now.toISOString(),
+          },
           now,
         );
       }

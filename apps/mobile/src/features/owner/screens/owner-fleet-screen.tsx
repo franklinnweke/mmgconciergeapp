@@ -1,0 +1,486 @@
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radii, spacing, typography } from '@mmg/brand';
+import { OwnerVisibleVehicle, VehicleModerationStatus } from '@mmg/contracts';
+import { formatNairaFromKobo } from '@mmg/domain';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { BrandWordmark } from '@/components/brand-wordmark';
+import { PressableScale } from '@/components/pressable-scale';
+import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import { useOwnerFleet } from '../hooks/use-owner-fleet';
+
+function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) {
+  switch (status) {
+    case 'approved':
+      if (visibility === 'active') {
+        return {
+          label: 'APPROVED & LIVE',
+          color: colors.success ?? '#10B981',
+          bgColor: 'rgba(16, 185, 129, 0.12)',
+          borderColor: 'rgba(16, 185, 129, 0.3)',
+          icon: 'checkmark-circle' as const,
+        };
+      }
+      return {
+        label: 'APPROVED (PAUSED)',
+        color: colors.muted,
+        bgColor: 'rgba(160, 160, 160, 0.12)',
+        borderColor: 'rgba(160, 160, 160, 0.3)',
+        icon: 'pause-circle' as const,
+      };
+    case 'pending_review':
+      return {
+        label: 'UNDER REVIEW',
+        color: '#3B82F6',
+        bgColor: 'rgba(59, 130, 246, 0.12)',
+        borderColor: 'rgba(59, 130, 246, 0.3)',
+        icon: 'time' as const,
+      };
+    case 'draft':
+      return {
+        label: 'DRAFT',
+        color: colors.goldStrong,
+        bgColor: 'rgba(212, 175, 55, 0.12)',
+        borderColor: 'rgba(212, 175, 55, 0.3)',
+        icon: 'document-text' as const,
+      };
+    case 'rejected':
+      return {
+        label: 'REVISION REQUIRED',
+        color: colors.danger ?? '#EF4444',
+        bgColor: 'rgba(239, 68, 68, 0.12)',
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+        icon: 'alert-circle' as const,
+      };
+    case 'suspended':
+      return {
+        label: 'SUSPENDED',
+        color: colors.danger ?? '#EF4444',
+        bgColor: 'rgba(239, 68, 68, 0.12)',
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+        icon: 'close-circle' as const,
+      };
+  }
+}
+
+export function OwnerFleetScreen() {
+  const router = useRouter();
+  const { actionInProgress, loading, syncError, toggleVisibility, vehicles } = useOwnerFleet();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleAddVehicle = () => {
+    router.push('/(owner)/add-vehicle' as any);
+  };
+
+  const handlePressVehicle = (vehicle: OwnerVisibleVehicle) => {
+    if (vehicle.moderationStatus === 'draft' || vehicle.moderationStatus === 'rejected') {
+      router.push({
+        pathname: '/(owner)/add-vehicle' as any,
+        params: { vehicleId: vehicle.vehicleId },
+      });
+    } else {
+      router.push({
+        pathname: '/(owner)/vehicle/[id]' as any,
+        params: { id: vehicle.vehicleId },
+      });
+    }
+  };
+
+  return (
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <View style={styles.header}>
+        <View style={styles.topRow}>
+          <BrandWordmark />
+          <PressableScale onPress={handleAddVehicle} style={styles.addButton}>
+            <Ionicons color={colors.black} name="add" size={18} />
+            <Text style={styles.addButtonText}>LIST VEHICLE</Text>
+          </PressableScale>
+        </View>
+        <View style={styles.titleBlock}>
+          <Text style={styles.eyebrow}>HOST FLEET MANAGEMENT</Text>
+          <Text style={styles.title}>My Luxury Fleet</Text>
+          <Text style={styles.subtitle}>
+            Chauffeured luxury vehicles registered to your MMG owner account.
+          </Text>
+        </View>
+      </View>
+
+      {syncError ? (
+        <View style={styles.errorBanner}>
+          <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
+          <Text style={styles.errorText}>{syncError}</Text>
+        </View>
+      ) : null}
+
+      {loading && vehicles.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={colors.gold} size="large" />
+          <Text style={styles.loadingText}>Synchronizing fleet listings...</Text>
+        </View>
+      ) : (
+        <FlatList
+          contentContainerStyle={styles.listContent}
+          data={vehicles}
+          keyExtractor={(item) => item.vehicleId}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconContainer}>
+                <Ionicons color={colors.goldStrong} name="car-sport-outline" size={44} />
+              </View>
+              <Text style={styles.emptyTitle}>No Vehicles Registered</Text>
+              <Text style={styles.emptyBody}>
+                You haven’t listed any luxury chauffeured vehicles yet. Add your first vehicle to begin earning on MMG Concierge.
+              </Text>
+              <PressableScale onPress={handleAddVehicle} style={styles.emptyButton}>
+                <Ionicons color={colors.black} name="add-circle" size={20} />
+                <Text style={styles.emptyButtonText}>REGISTER FIRST VEHICLE</Text>
+              </PressableScale>
+            </View>
+          }
+          refreshControl={
+            <RefreshControl
+              onRefresh={() => {
+                setRefreshing(true);
+                setTimeout(() => setRefreshing(false), 800);
+              }}
+              refreshing={refreshing}
+              tintColor={colors.gold}
+            />
+          }
+          renderItem={({ item }) => {
+            const badge = statusBadgeConfig(item.moderationStatus, item.visibility);
+            const isToggling = actionInProgress === item.vehicleId;
+
+            return (
+              <PressableScale
+                accessibilityHint="Opens vehicle management details"
+                accessibilityLabel={`${item.displayName}, ${badge.label}`}
+                accessibilityRole="button"
+                onPress={() => handlePressVehicle(item)}
+                style={styles.card}
+              >
+                <View style={styles.cardMedia}>
+                  <Image
+                    contentFit="cover"
+                    source={resolveVehicleImageSource({
+                      imageUrl: item.primaryImagePath ?? undefined,
+                      category: item.category ?? undefined,
+                    })}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={[styles.badge, { backgroundColor: badge.bgColor, borderColor: badge.borderColor }]}>
+                    <Ionicons color={badge.color} name={badge.icon} size={12} />
+                    <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardBody}>
+                  <View style={styles.cardTopRow}>
+                    <Text numberOfLines={1} style={styles.vehicleName}>
+                      {item.displayName}
+                    </Text>
+                    {item.moderationStatus === 'approved' ? (
+                      <View style={styles.switchRow}>
+                        <Text style={styles.switchLabel}>
+                          {item.visibility === 'active' ? 'Active' : 'Paused'}
+                        </Text>
+                        <Switch
+                          disabled={isToggling}
+                          onValueChange={() => void toggleVisibility(item)}
+                          thumbColor={item.visibility === 'active' ? colors.gold : colors.muted}
+                          trackColor={{ false: colors.graphite, true: 'rgba(212,175,55,0.4)' }}
+                          value={item.visibility === 'active'}
+                        />
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.metaRow}>
+                    <Ionicons color={colors.gold} name="location-outline" size={13} />
+                    <Text style={styles.metaText}>{item.areaLabel ?? 'Lagos'}</Text>
+                    <Text style={styles.metaDot}>·</Text>
+                    <Ionicons color={colors.gold} name="people-outline" size={13} />
+                    <Text style={styles.metaText}>{item.seats ?? 4} seats</Text>
+                    <Text style={styles.metaDot}>·</Text>
+                    <Text style={styles.metaText}>{item.year ?? 2024}</Text>
+                  </View>
+
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>DAILY RATE</Text>
+                    <Text style={styles.priceValue}>{formatNairaFromKobo(item.ownerDailyRateKobo ?? 0)}</Text>
+                  </View>
+
+                  {item.moderationStatus === 'rejected' && item.lastDecisionReason ? (
+                    <View style={styles.rejectionBox}>
+                      <Ionicons color={colors.danger} name="information-circle" size={14} />
+                      <Text numberOfLines={2} style={styles.rejectionText}>
+                        Feedback: {item.lastDecisionReason}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </PressableScale>
+            );
+          }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  addButton: {
+    alignItems: 'center',
+    backgroundColor: colors.gold,
+    borderRadius: radii.pill ?? 999,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  addButtonText: {
+    color: colors.black,
+    fontFamily: typography.body,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  badge: {
+    alignItems: 'center',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 4,
+    left: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    position: 'absolute',
+    top: spacing.sm,
+  },
+  badgeText: {
+    fontFamily: typography.body,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  card: {
+    backgroundColor: colors.graphiteRaised,
+    borderColor: colors.line,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  cardBody: {
+    padding: spacing.md,
+  },
+  cardMedia: {
+    backgroundColor: '#1E1E1E',
+    height: 160,
+    width: '100%',
+  },
+  cardTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  emptyBody: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    alignItems: 'center',
+    backgroundColor: colors.gold,
+    borderRadius: radii.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  emptyButtonText: {
+    color: colors.black,
+    fontFamily: typography.body,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  emptyIconContainer: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(212,175,55,0.1)',
+    borderRadius: 40,
+    height: 80,
+    justifyContent: 'center',
+    width: 80,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl,
+  },
+  emptyTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display ?? typography.body,
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: spacing.md,
+  },
+  errorBanner: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderColor: 'rgba(239,68,68,0.3)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+  },
+  errorText: {
+    color: colors.danger,
+    flex: 1,
+    fontFamily: typography.body,
+    fontSize: 12,
+  },
+  eyebrow: {
+    color: colors.goldStrong,
+    fontFamily: typography.body,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl + 40,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  loadingText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+    marginTop: spacing.sm,
+  },
+  metaDot: {
+    color: colors.muted,
+  },
+  metaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  metaText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+  },
+  priceLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  priceRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopWidth: 1,
+  },
+  priceValue: {
+    color: colors.ivory,
+    fontFamily: typography.body,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  rejectionBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    borderRadius: radii.sm,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    padding: spacing.xs,
+  },
+  rejectionText: {
+    color: colors.danger,
+    flex: 1,
+    fontFamily: typography.body,
+    fontSize: 11,
+  },
+  safeArea: {
+    backgroundColor: colors.black,
+    flex: 1,
+  },
+  subtitle: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  switchLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+  },
+  switchRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  title: {
+    color: colors.ivory,
+    fontFamily: typography.display ?? typography.body,
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  titleBlock: {
+    marginTop: spacing.md,
+  },
+  topRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  vehicleName: {
+    color: colors.ivory,
+    flex: 1,
+    fontFamily: typography.body,
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: spacing.sm,
+  },
+});

@@ -148,6 +148,20 @@ describe('owner application domain', () => {
       expect(desk.primaryAction?.label).toBe('UPDATE APPLICATION');
       expect(desk.primaryAction?.route).toBe('/(owner)/identity');
     });
+
+    it('presents approved desk with manage luxury fleet action', () => {
+      const desk = getDeskPresentation('approved', {
+        identityComplete: true,
+        phoneComplete: true,
+        idUploaded: true,
+        canSubmit: true,
+        firstIncompleteStep: null,
+      });
+      expect(desk.eyebrow).toBe('APPROVED');
+      expect(desk.primaryAction?.label).toBe('MANAGE LUXURY FLEET');
+      expect(desk.primaryAction?.route).toBe('/(owner)/fleet');
+      expect(desk.showChecklist).toBe(false);
+    });
   });
 
   describe('ownerCommandErrorMessage', () => {

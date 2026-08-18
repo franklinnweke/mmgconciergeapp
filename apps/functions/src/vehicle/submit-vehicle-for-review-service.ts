@@ -133,16 +133,18 @@ export async function submitVehicleForReview(
     const baseAddress = privateDoc.baseAddress as Record<string, unknown> | null;
     const hasValidAddress =
       typeof baseAddress?.line1 === 'string' &&
-      baseAddress.line1.trim().length >= 8 &&
+      baseAddress.line1.trim().length >= 5 &&
       typeof baseAddress?.city === 'string';
 
     const hasValidCoords =
-      privateDoc.exactLatitude !== null &&
-      privateDoc.exactLongitude !== null &&
-      privateDoc.exactLatitude >= LAGOS_BBOX.minLatitude &&
-      privateDoc.exactLatitude <= LAGOS_BBOX.maxLatitude &&
-      privateDoc.exactLongitude >= LAGOS_BBOX.minLongitude &&
-      privateDoc.exactLongitude <= LAGOS_BBOX.maxLongitude;
+      privateDoc.exactLatitude === null && privateDoc.exactLongitude === null
+        ? true
+        : privateDoc.exactLatitude !== null &&
+          privateDoc.exactLongitude !== null &&
+          privateDoc.exactLatitude >= LAGOS_BBOX.minLatitude &&
+          privateDoc.exactLatitude <= LAGOS_BBOX.maxLatitude &&
+          privateDoc.exactLongitude >= LAGOS_BBOX.minLongitude &&
+          privateDoc.exactLongitude <= LAGOS_BBOX.maxLongitude;
 
     const images = await transaction.getVehicleImages(command.data.vehicleId);
     const hasValidImages =

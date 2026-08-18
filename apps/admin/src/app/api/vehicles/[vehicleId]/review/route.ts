@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
-import { assertSameOrigin } from '@/features/auth/server/same-origin';
-import { requireLiveStaffSession } from '@/features/auth/server/session';
-import { FirestoreAdminVehicleGateway } from '@/features/vehicles/data/firestore-admin-vehicle-gateway';
-import { FixtureAdminVehicleGateway } from '@/features/vehicles/data/fixture-admin-vehicle-gateway';
+import {
+  executeReviewVehicleAction,
+  type ExecuteReviewVehicleInput,
+} from '@/features/vehicles/data/review-vehicle-action';
 
 type RouteContext = {
   params: Promise<{ vehicleId: string }>;
@@ -11,61 +11,64 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    assertSameOrigin(request.headers);
-
-    const session = await requireLiveStaffSession();
     const { vehicleId } = await context.params;
     if (!vehicleId) {
       return NextResponse.json({ error: 'Vehicle ID is required.' }, { status: 400 });
     }
 
     const body = (await request.json()) as {
+      decision?: unknown;
       action?: unknown;
       expectedVersion?: unknown;
       reason?: unknown;
+      checklist?: unknown;
     };
 
-    const action = body.action === 'approve' || body.action === 'reject' ? body.action : null;
+    const decision =
+      body.decision === 'approve' ||
+      body.decision === 'reject' ||
+      body.decision === 'suspend' ||
+      body.decision === 'restore' ||
+      body.decision === 'start_review'
+        ? body.decision
+        : body.action === 'approve'
+          ? 'approve'
+          : body.action === 'reject'
+            ? 'reject'
+            : null;
+
     const expectedVersion =
       typeof body.expectedVersion === 'number' &&
       Number.isInteger(body.expectedVersion) &&
       body.expectedVersion > 0
         ? body.expectedVersion
         : null;
-    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
 
-    if (!action || expectedVersion === null) {
+    if (!decision || expectedVersion === null) {
       return NextResponse.json(
-        { error: 'A valid action and expected version are required.' },
+        { error: 'A valid review decision and expected version are required.' },
         { status: 400 },
       );
     }
 
-    if (action === 'reject' && reason.length < 10) {
-      return NextResponse.json(
-        { error: 'A specific rejection reason is required.' },
-        { status: 400 },
-      );
-    }
-
-    const isFixture =
-      process.env.NODE_ENV !== 'production' && process.env.MMG_ADMIN_FIXTURES === '1';
-    const gateway = isFixture
-      ? new FixtureAdminVehicleGateway()
-      : new FirestoreAdminVehicleGateway();
-
-    const result = await gateway.reviewVehicle({
+    const result = await executeReviewVehicleAction({
       vehicleId,
       expectedVersion,
-      action,
-      reason: reason || undefined,
-      staffEmail: session.email || session.uid,
+      decision,
+      reason: typeof body.reason === 'string' ? body.reason : undefined,
+      checklist:
+        typeof body.checklist === 'object' && body.checklist !== null
+          ? (body.checklist as ExecuteReviewVehicleInput['checklist'])
+          : undefined,
     });
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
 
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Vehicle review could not be completed.';
-    const status = /origin|session|sign-in|access denied|unauthorized/i.test(message) ? 403 : 409;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
