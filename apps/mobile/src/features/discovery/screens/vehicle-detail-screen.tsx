@@ -4,7 +4,7 @@ import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -26,8 +26,8 @@ import {
   todayLagosDateOnly,
   vehicleEditorialClass,
 } from '../data/lagos-destinations';
-import { getPreviewVehicleById } from '../data/preview-discovery-gateway';
-import { vehicleImages } from '../data/vehicle-images';
+import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
+import { resolveVehicleImageSource, vehicleImages } from '../data/vehicle-images';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -38,7 +38,7 @@ const durationOptions = [
   { days: 7, label: '1 Week' },
 ] as const;
 
-type VehicleDetailScreenProps = {
+export type VehicleDetailScreenProps = {
   endDate?: string;
   startDate?: string;
   vehicleId: string;
@@ -61,37 +61,68 @@ function initialJourney(startDate?: string, endDate?: string) {
 }
 
 export default function VehicleDetailScreen({
-  endDate,
-  startDate,
+  endDate: propEndDate,
+  startDate: propStartDate,
   vehicleId,
 }: VehicleDetailScreenProps) {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const vehicle = getPreviewVehicleById(vehicleId);
+  const insets = useSafeAreaInsets();
+
+  const [vehicle, setVehicle] = useState<any>(null);
+
+  const gateway = useMemo(() => createDiscoveryGateway(), []);
+
+  useEffect(() => {
+    if (!vehicleId) return;
+    let isMounted = true;
+    gateway
+      .getVehicleById(vehicleId)
+      .then((v) => {
+        if (isMounted) {
+          setVehicle(v);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setVehicle(null);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [gateway, vehicleId]);
+
   const [{ durationDays, startDate: pickupDate }, setJourney] = useState(() =>
-    initialJourney(startDate, endDate),
+    initialJourney(propStartDate, propEndDate),
   );
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const returnDate = addDaysToDateOnly(pickupDate, durationDays);
+  const returnDate = useMemo(() => addDaysToDateOnly(pickupDate, durationDays), [pickupDate, durationDays]);
 
   const quote = useMemo(() => {
     if (!vehicle) return null;
     return calculateBookingQuote(vehicle.dailyRateKobo, durationDays);
   }, [durationDays, vehicle]);
 
-  // Build multi-image gallery array (using primary and available alternate perspectives)
+  // Build multi-image gallery array (using remote imageUrls or local bundled photography)
   const galleryImages = useMemo(() => {
     if (!vehicle) return [];
-    const images = [vehicleImages[vehicle.imageKey]];
-    // If it's a Prado, include alternate Prado shots for multi-angle demonstration
+    if (vehicle.imageUrls && vehicle.imageUrls.length > 0) {
+      return vehicle.imageUrls.map((url: string) => ({ uri: url }));
+    }
+    if (vehicle.imageUrl) {
+      return [{ uri: vehicle.imageUrl }];
+    }
+    const primary = resolveVehicleImageSource(vehicle);
+    const images = [primary];
     if (vehicle.imageKey === 'hero-suv') {
       images.push(vehicleImages['pearl-suv'], vehicleImages['prado-graphite']);
     } else if (vehicle.imageKey === 'pearl-suv') {
       images.push(vehicleImages['hero-suv'], vehicleImages['prado-graphite']);
     } else if (vehicle.imageKey === 'prado-graphite') {
       images.push(vehicleImages['hero-suv'], vehicleImages['pearl-suv']);
-    } else {
+    } else if (vehicle.imageKey === 'graphite-sedan') {
       images.push(vehicleImages['graphite-sedan']);
     }
     return images;

@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { notFound } from 'next/navigation';
-import { requireLiveStaffSession } from '@/features/auth/server/session';
+import { requireStaffCapability } from '@/features/auth/server/session';
 import { FirestoreAdminVehicleGateway } from '@/features/vehicles/data/firestore-admin-vehicle-gateway';
 import { FixtureAdminVehicleGateway } from '@/features/vehicles/data/fixture-admin-vehicle-gateway';
 import { VehicleModerationInspector } from '@/features/vehicles/components/vehicle-moderation-inspector';
@@ -13,7 +13,7 @@ export default async function VehicleInspectorPage({
 }: {
   params: Promise<{ vehicleId: string }>;
 }) {
-  const session = await requireLiveStaffSession();
+  const session = await requireStaffCapability('vehicles.read');
   const { vehicleId } = await params;
 
   const isFixture =

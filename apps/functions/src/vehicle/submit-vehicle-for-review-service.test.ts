@@ -234,4 +234,20 @@ describe('submitVehicleForReview service', () => {
       code: 'FAILED_PRECONDITION',
     });
   });
+
+  it('allows submission when exact coordinates are null but street address and area are present', async () => {
+    const { repository, writes } = mockRepository({ missingField: 'coords' });
+
+    const result = await submitVehicleForReview(validCommand('key-submit-no-coords-1'), 'owner-1', {
+      repository,
+      now: () => now,
+    });
+
+    expect(result.result.vehicleId).toBe('veh-01');
+    expect(result.result.moderationStatus).toBe('pending_review');
+
+    const { vehicles } = writes();
+    expect(vehicles).toHaveLength(1);
+    expect(vehicles[0].moderationStatus).toBe('pending_review');
+  });
 });

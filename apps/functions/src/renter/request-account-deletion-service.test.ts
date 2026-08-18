@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { requestAccountDeletionService } from './request-account-deletion-service';
+import { requestAccountDeletionService } from './request-account-deletion-service.js';
 import type {
   RenterAuditEvent,
   RenterProfileRecord,
   RenterRepository,
   RenterTransaction,
   StoredRenterIdempotency,
-} from './renter-repository';
+} from './renter-repository.js';
 
 class MockRenterRepository implements RenterRepository {
   profiles = new Map<string, RenterProfileRecord>();

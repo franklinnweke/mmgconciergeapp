@@ -14,7 +14,7 @@ import {
 
 import { getAdminFirestore } from '@/features/auth/server/firebase-admin';
 import { assertSameOrigin } from '@/features/auth/server/same-origin';
-import { requireLiveStaffSession } from '@/features/auth/server/session';
+import { requireLiveStaffSession, staffActorRole, staffSessionHasCapability } from '@/features/auth/server/session';
 import { FirestoreOwnerRepository } from '@mmg/functions-owner/firestore-owner-repository';
 import { reviewOwnerVerification } from '@mmg/functions-owner/review-owner-verification-service';
 
@@ -126,9 +126,21 @@ export async function executeReviewDecisionAction(
       data: commandData,
     };
 
+    // Capability, not the scalar display role: a staffer who also holds
+    // vehicle_admin still reviews owners. Actions cannot use
+    // requireStaffCapability — its redirect() throws, and this try/catch would
+    // turn that into a generic failure message.
+    const actorRole = staffActorRole(session, ['super_admin', 'verification_admin'] as const);
+    if (!actorRole || !staffSessionHasCapability(session, 'owners.review')) {
+      return {
+        success: false,
+        error: 'You are not authorized to review owner applications.',
+      };
+    }
+
     const actor = {
       uid: session.uid,
-      role: session.role,
+      role: actorRole,
     };
 
     // Constructed lazily inside the action: the module-scope default

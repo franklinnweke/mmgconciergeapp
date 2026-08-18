@@ -9,8 +9,10 @@ import { Animated, Platform, ScrollView, StyleSheet, Text, View } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { LuxuryEmblemLoader } from '@/components/ui/luxury-emblem-loader';
+import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
-import { vehicleImages } from '@/features/discovery/data/vehicle-images';
+import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 import {
@@ -64,9 +66,7 @@ export default function TripDetailScreen({
   const [session, dispatch] = useReducer(reduceRenterTripActionSession, initialRenterTripActionSession);
   const trip = tripOverride !== undefined ? tripOverride : trips.find((candidate) => candidate.id === tripId) ?? null;
   const vehicle = trip?.vehicleSnapshot ?? null;
-  const vehicleImage = vehicle?.imageUrl
-    ? { uri: vehicle.imageUrl }
-    : vehicleImages[vehicle?.imageKey ?? 'hero-suv'];
+  const vehicleImage = resolveVehicleImageSource(vehicle);
   const mode = tripDetailMode({
     initializing,
     syncState,
@@ -94,9 +94,8 @@ export default function TripDetailScreen({
 
   if (mode === 'initializing') {
     return (
-      <View accessibilityLiveRegion="polite" style={[styles.centered, { paddingTop: insets.top }]}>
-        <Text style={styles.centeredEyebrow}>TRIP DESK</Text>
-        <Text accessibilityRole="header" style={styles.centeredTitle}>Loading your journey…</Text>
+      <View accessibilityLiveRegion="polite" style={[styles.centered, { paddingTop: insets.top + spacing.xl }]}>
+        <LuxuryEmblemLoader label="SYNCING TRIP TELEMETRY" size={48} />
       </View>
     );
   }
@@ -141,7 +140,11 @@ export default function TripDetailScreen({
                 </View>
               </PressableScale>
               <View style={styles.syncPill}>
-                <View style={[styles.syncDot, (mode === 'offline' || mode === 'preview') && styles.syncDotOffline]} />
+                <RadarPulseDot
+                  color={mode === 'offline' || mode === 'preview' ? colors.goldStrong : colors.success}
+                  glowColor={mode === 'offline' || mode === 'preview' ? 'rgba(227,195,101,0.35)' : 'rgba(74,222,128,0.35)'}
+                  size={6}
+                />
                 <Text style={styles.syncText}>
                   {mode === 'preview' ? 'STATE PREVIEW' : mode === 'offline' ? 'OFFLINE COPY' : 'TRIP DESK'}
                 </Text>

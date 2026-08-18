@@ -86,7 +86,8 @@ export function AuthLoadingScreen({ message = 'Preparing your concierge' }: Auth
           },
         ]}
       >
-        <BrandLogo size={68} />
+        <View style={styles.glowBackdrop} />
+        <BrandLogo size={80} />
       </Animated.View>
 
       <Animated.View style={[styles.statusContainer, { opacity: pulseAnim }]}>
@@ -98,15 +99,23 @@ export function AuthLoadingScreen({ message = 'Preparing your concierge' }: Auth
 }
 
 const styles = StyleSheet.create({
+  glowBackdrop: {
+    backgroundColor: 'rgba(227,195,101,0.12)',
+    borderRadius: 70,
+    height: 140,
+    position: 'absolute',
+    width: 140,
+  },
   label: {
     color: colors.silver,
     fontFamily: typography.bodyMedium,
     fontSize: 12,
-    letterSpacing: 1.6,
+    letterSpacing: 1.8,
   },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   screen: {
     alignItems: 'center',

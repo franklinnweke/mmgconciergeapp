@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { requireLiveStaffSession } from '@/features/auth/server/session';
+import { requireStaffCapability } from '@/features/auth/server/session';
 import { VEHICLE_QUEUE_PAGE_SIZE } from '@/features/vehicles/data/admin-vehicle-gateway';
 import { FirestoreAdminVehicleGateway } from '@/features/vehicles/data/firestore-admin-vehicle-gateway';
 import { FixtureAdminVehicleGateway } from '@/features/vehicles/data/fixture-admin-vehicle-gateway';
@@ -13,7 +13,7 @@ export default async function VehiclesQueuePage({
 }: {
   searchParams: Promise<{ cursor?: string | string[] }>;
 }) {
-  const session = await requireLiveStaffSession();
+  const session = await requireStaffCapability('vehicles.read');
   const { cursor } = await searchParams;
   const requestedCursor = Array.isArray(cursor) ? cursor[0] : cursor;
 

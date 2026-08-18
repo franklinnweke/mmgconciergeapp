@@ -49,15 +49,15 @@ export function VehicleModerationInspector({
 }: VehicleModerationInspectorProps) {
   const router = useRouter();
 
-  // Checklist state
+  // Checklist state - starts unchecked so staff explicitly audits all 7 points
   const [checkedKeys, setCheckedKeys] = useState<Record<VehicleChecklistKey, boolean>>({
-    make_model_eligible: vehicle.moderationStatus === 'approved',
-    photo_coverage: vehicle.moderationStatus === 'approved',
-    plate_registered: vehicle.moderationStatus === 'approved',
-    daily_rate_conforms: vehicle.moderationStatus === 'approved',
-    lagos_serviceable_base: vehicle.moderationStatus === 'approved',
-    capacity_amenities_verified: vehicle.moderationStatus === 'approved',
-    owner_verified: vehicle.moderationStatus === 'approved',
+    images_complete_and_legible: false,
+    specs_match_images: false,
+    plate_matches_documents: false,
+    lagos_base_plausible: false,
+    rate_plausible: false,
+    chauffeur_delivery_included: false,
+    no_fraud_indicators: false,
   });
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -66,6 +66,8 @@ export function VehicleModerationInspector({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [showSuspendForm, setShowSuspendForm] = useState(false);
+  const [suspendReason, setSuspendReason] = useState('');
 
   const toggleCheck = (key: VehicleChecklistKey) => {
     setCheckedKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -88,8 +90,9 @@ export function VehicleModerationInspector({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'approve',
+          decision: 'approve',
           expectedVersion: vehicle.version,
+          checklist: checkedKeys,
         }),
       });
 
@@ -98,7 +101,15 @@ export function VehicleModerationInspector({
         throw new Error(body.error || 'Failed to approve vehicle listing.');
       }
 
-      setSuccessMsg('Vehicle listing has been approved and published to the live fleet.');
+      // Publication is a second step after the decision commits, and it can
+      // fail without failing the decision. Never claim the listing went live
+      // when the server told us the photos did not publish.
+      const body = (await res.json().catch(() => ({}))) as { warning?: string };
+      if (typeof body.warning === 'string' && body.warning) {
+        setErrorMsg(body.warning);
+      } else {
+        setSuccessMsg('Vehicle listing has been approved and published to the fleet.');
+      }
       router.refresh();
     } catch (error) {
       setErrorMsg(error instanceof Error ? error.message : 'Failed to approve vehicle listing.');
@@ -108,8 +119,8 @@ export function VehicleModerationInspector({
   };
 
   const handleReject = async () => {
-    if (!rejectionReason.trim()) {
-      setErrorMsg('Please provide a specific rationale for requesting changes or rejecting.');
+    if (!rejectionReason.trim() || rejectionReason.trim().length < 10) {
+      setErrorMsg('Please provide a specific rationale of at least 10 characters for rejecting.');
       return;
     }
 
@@ -121,7 +132,7 @@ export function VehicleModerationInspector({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'reject',
+          decision: 'reject',
           reason: rejectionReason.trim(),
           expectedVersion: vehicle.version,
         }),
@@ -132,10 +143,87 @@ export function VehicleModerationInspector({
         throw new Error(body.error || 'Failed to record decision.');
       }
 
-      setSuccessMsg('Review decision recorded. Feedback dispatched to vehicle owner.');
+      // Owner messaging is not live: reviewVehicle records the decision and
+      // reason on the listing but enqueues no notification. Do not claim a
+      // dispatch that did not happen.
+      setSuccessMsg('Review decision and rationale recorded on the listing. No owner notification has been sent — owner messaging is not live yet.');
+      setShowRejectForm(false);
       router.refresh();
     } catch (error) {
       setErrorMsg(error instanceof Error ? error.message : 'Failed to record review decision.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSuspend = async () => {
+    if (!suspendReason.trim() || suspendReason.trim().length < 10) {
+      setErrorMsg('Please provide a specific rationale of at least 10 characters for suspending.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch(`/api/vehicles/${vehicle.vehicleId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decision: 'suspend',
+          reason: suspendReason.trim(),
+          expectedVersion: vehicle.version,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to suspend vehicle.');
+      }
+
+      const body = (await res.json().catch(() => ({}))) as { warning?: string };
+      if (typeof body.warning === 'string' && body.warning) {
+        setErrorMsg(body.warning);
+      } else {
+        setSuccessMsg('Vehicle listing has been suspended and withdrawn from the fleet.');
+      }
+      setShowSuspendForm(false);
+      router.refresh();
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Failed to suspend vehicle.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setIsSubmitting(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch(`/api/vehicles/${vehicle.vehicleId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decision: 'restore',
+          expectedVersion: vehicle.version,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to restore vehicle.');
+      }
+
+      const body = (await res.json().catch(() => ({}))) as { warning?: string };
+      if (typeof body.warning === 'string' && body.warning) {
+        setErrorMsg(body.warning);
+      } else {
+        setSuccessMsg('Vehicle listing has been restored to approved status.');
+      }
+      router.refresh();
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Failed to restore vehicle.');
     } finally {
       setIsSubmitting(false);
     }
@@ -652,6 +740,121 @@ export function VehicleModerationInspector({
                     </button>
                   </div>
                 </div>
+              )}
+
+              {/* Suspend Action (for approved vehicles) */}
+              {vehicle.moderationStatus === 'approved' && !showSuspendForm && (
+                <button
+                  onClick={() => setShowSuspendForm(true)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#EF4444',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '6px',
+                    padding: '10px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <AlertTriangle size={14} />
+                  <span>Suspend Active Listing</span>
+                </button>
+              )}
+
+              {showSuspendForm && (
+                <div
+                  style={{
+                    padding: '14px',
+                    borderRadius: '6px',
+                    backgroundColor: '#141820',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: '#EF4444' }}>
+                    REASON FOR SUSPENSION (REQUIRED)
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. Host failed dispatch SLA or vehicle undergoing unscheduled maintenance..."
+                    value={suspendReason}
+                    onChange={(e) => setSuspendReason(e.target.value)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#181D26',
+                      border: '1px solid #28303F',
+                      borderRadius: '4px',
+                      padding: '8px',
+                      fontSize: '12px',
+                      color: '#F9FAFB',
+                      outline: 'none',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setShowSuspendForm(false)}
+                      style={{
+                        backgroundColor: 'transparent',
+                        color: '#9AA0A6',
+                        border: '1px solid #28303F',
+                        borderRadius: '4px',
+                        padding: '6px 10px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      disabled={isSubmitting}
+                      onClick={handleSuspend}
+                      style={{
+                        backgroundColor: '#DC2626',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Confirm Suspension
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Restore Action (for suspended vehicles) */}
+              {vehicle.moderationStatus === 'suspended' && (
+                <button
+                  disabled={isSubmitting}
+                  onClick={handleRestore}
+                  style={{
+                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                    color: '#4ADE80',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    borderRadius: '6px',
+                    padding: '12px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Restore to Approved Fleet</span>
+                </button>
               )}
             </div>
           </div>

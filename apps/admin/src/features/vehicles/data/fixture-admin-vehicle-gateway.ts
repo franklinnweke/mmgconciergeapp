@@ -2,9 +2,16 @@ import type {
   AdminVehicleGateway,
   ListVehiclesOptions,
   ListVehiclesResult,
-  ReviewVehicleDecision,
 } from './admin-vehicle-gateway';
 import type { VehicleModerationDetail } from '../domain/types';
+
+export type FixtureReviewVehicleDecision = {
+  vehicleId: string;
+  expectedVersion: number;
+  action: 'approve' | 'reject';
+  reason?: string;
+  staffEmail: string;
+};
 
 export const FIXTURE_VEHICLES: VehicleModerationDetail[] = [
   {
@@ -154,7 +161,7 @@ export class FixtureAdminVehicleGateway implements AdminVehicleGateway {
     return found ? { ...found } : null;
   }
 
-  async reviewVehicle(decision: ReviewVehicleDecision): Promise<{ success: boolean; newVersion: number }> {
+  async reviewVehicle(decision: FixtureReviewVehicleDecision): Promise<{ success: boolean; newVersion: number }> {
     const idx = this.vehicles.findIndex((v) => v.vehicleId === decision.vehicleId);
     if (idx === -1) {
       throw new Error(`Vehicle ${decision.vehicleId} not found.`);
@@ -178,5 +185,9 @@ export class FixtureAdminVehicleGateway implements AdminVehicleGateway {
     };
 
     return { success: true, newVersion };
+  }
+
+  async mintSignedImageUrl(storagePath: string): Promise<string | null> {
+    return storagePath ? `/mock-storage/${storagePath}` : null;
   }
 }

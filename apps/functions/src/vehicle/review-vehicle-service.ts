@@ -147,6 +147,7 @@ export async function reviewVehicle(
       };
 
       if (command.data.decision === 'approve') {
+        nextLastDecisionReason = null;
         const checklist = command.data.checklist || {};
         const allChecked = VEHICLE_REVIEW_CHECKLIST_KEYS.every(
           (key) => checklist[key as keyof typeof checklist] === true,
@@ -196,6 +197,7 @@ export async function reviewVehicle(
         nextLastDecisionReason = command.data.reason;
         nextVisibility = 'paused';
       } else if (command.data.decision === 'restore') {
+        nextLastDecisionReason = null;
         nextVisibility = 'paused';
       }
 

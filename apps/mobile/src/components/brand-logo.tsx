@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { type StyleProp, StyleSheet, type ImageStyle, View } from 'react-native';
 
-const logoSource = require('../../assets/images/logo-transparent.png');
+const logoTransparent = require('../../assets/images/logo-transparent.png');
+const logoDarkBg = require('../../assets/images/logo-darkbg.png');
 
 export type BrandLogoVariant = 'icon' | 'header' | 'hero' | 'splash';
 
@@ -10,6 +11,7 @@ export type BrandLogoProps = {
   variant?: BrandLogoVariant;
   style?: StyleProp<ImageStyle>;
   accessibilityLabel?: string;
+  background?: 'transparent' | 'darkbg';
 };
 
 const variantSizes: Record<BrandLogoVariant, { width: number; height: number }> = {
@@ -21,6 +23,7 @@ const variantSizes: Record<BrandLogoVariant, { width: number; height: number }> 
 
 export function BrandLogo({
   accessibilityLabel = 'MMG Concierge Logo',
+  background = 'transparent',
   size,
   style,
   variant = 'header',
@@ -29,11 +32,13 @@ export function BrandLogo({
     ? { width: size, height: size }
     : variantSizes[variant];
 
+  const source = background === 'darkbg' ? logoDarkBg : logoTransparent;
+
   return (
     <View accessibilityLabel={accessibilityLabel} accessibilityRole="image" style={styles.container}>
       <Image
         contentFit="contain"
-        source={logoSource}
+        source={source}
         style={[dimensions, style]}
         transition={200}
       />
