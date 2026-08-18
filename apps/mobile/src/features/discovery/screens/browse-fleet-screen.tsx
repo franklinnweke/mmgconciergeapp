@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
 import { VehicleCategory } from '@mmg/contracts';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   Platform,
@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
+import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 
 import { BrowseVehicleCard } from '../components/browse-vehicle-card';
@@ -50,6 +52,8 @@ export default function BrowseFleetScreen() {
     area?: string | string[];
     category?: string | string[];
     journey?: string | string[];
+    startDate?: string | string[];
+    endDate?: string | string[];
   }>();
 
   const routeArea = firstRouteParam(params.area);
@@ -85,12 +89,26 @@ export default function BrowseFleetScreen() {
       ? journeySelection.value
       : parseJourneyLabel(routeJourney);
 
+  const routeStartDate = firstRouteParam(params.startDate);
+  const routeEndDate = firstRouteParam(params.endDate);
+
+  const selectedJourneyDates = useMemo(() => {
+    if (routeStartDate && routeEndDate) {
+      return {
+        startDate: routeStartDate,
+        endDate: routeEndDate,
+      };
+    }
+    return journeyDates(journey);
+  }, [journey, routeStartDate, routeEndDate]);
+  const pickupLabel = formatLagosDateOnly(selectedJourneyDates.startDate);
+
   const [query, setQuery] = useState('');
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const reduceMotion = useReducedMotion();
   const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
 
-  const { isLoading, vehicles } = useVehicleSearch({
+  const { error, isLoading, vehicles } = useVehicleSearch({
     areaLabel: vehicleAreaForPickup(area),
     category,
     query,
@@ -107,9 +125,6 @@ export default function BrowseFleetScreen() {
       useNativeDriver: Platform.OS !== 'web',
     }).start();
   }, [entrance, reduceMotion]);
-
-  const selectedJourneyDates = journeyDates(journey);
-  const pickupLabel = formatLagosDateOnly(selectedJourneyDates.startDate);
 
   const activeFiltersCount =
     (area !== 'All Lagos' ? 1 : 0) +
@@ -164,7 +179,7 @@ export default function BrowseFleetScreen() {
             <BrandWordmark compact withLogo />
           </View>
           <View style={styles.datePill}>
-            <View style={styles.liveDot} />
+            <RadarPulseDot color={colors.goldStrong} glowColor="rgba(227,195,101,0.35)" size={6} />
             <Text style={styles.datePillText}>{pickupLabel}</Text>
           </View>
         </View>
@@ -306,10 +321,15 @@ export default function BrowseFleetScreen() {
 
         {/* Vehicle Results Feed */}
         <View style={styles.resultsList}>
-          {isLoading ? (
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons color={colors.danger} name="alert-circle" size={18} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : isLoading ? (
             <>
-              <View style={styles.loadingCard} />
-              <View style={styles.loadingCard} />
+              <LuxuryShimmer borderRadius={radii.lg} height={260} style={{ marginBottom: spacing.md }} />
+              <LuxuryShimmer borderRadius={radii.lg} height={260} />
             </>
           ) : vehicles.length ? (
             vehicles.map((vehicle) => (
@@ -641,5 +661,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingBottom: spacing.xs,
+  },
+  errorBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(209,133,120,0.12)',
+    borderColor: colors.danger,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  errorText: {
+    color: colors.danger,
+    flex: 1,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.sm,
   },
 });

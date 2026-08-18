@@ -7,7 +7,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
 
-import { vehicleImages } from '../data/vehicle-images';
+import { resolveVehicleImageSource } from '../data/vehicle-images';
 
 type VehicleCardProps = {
   vehicle: VehicleSummary;
@@ -20,7 +20,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         <View style={styles.imageFrame}>
           <Image
             contentFit="cover"
-            source={vehicleImages[vehicle.imageKey]}
+            source={resolveVehicleImageSource(vehicle)}
             style={StyleSheet.absoluteFill}
             transition={280}
           />

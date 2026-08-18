@@ -6,7 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '@/components/pressable-scale';
 import { tripStateCopy, type RenterTrip } from '@/features/booking/domain/renter-trip';
 
-import { vehicleImages } from '../data/vehicle-images';
+import { resolveVehicleImageSource } from '../data/vehicle-images';
 
 type LiveJourneyCardProps = {
   onPress(): void;
@@ -25,9 +25,7 @@ function formatDate(value: string) {
 export function LiveJourneyCard({ onPress, trip }: LiveJourneyCardProps) {
   const copy = tripStateCopy(trip.state);
   const vehicle = trip.vehicleSnapshot;
-  const image = vehicle.imageUrl
-    ? { uri: vehicle.imageUrl }
-    : vehicleImages[vehicle.imageKey ?? 'hero-suv'];
+  const image = resolveVehicleImageSource(vehicle);
   const attention = trip.group === 'intervention';
 
   return (

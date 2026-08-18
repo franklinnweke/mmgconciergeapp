@@ -58,8 +58,15 @@ function matchesCriteria(vehicle: VehicleSummary, criteria: VehicleSearchCriteri
     vehicle.displayName.toLocaleLowerCase().includes(query) ||
     vehicle.areaLabel.toLocaleLowerCase().includes(query);
 
+  const matchesSeats = !criteria.minSeats || vehicle.seats >= criteria.minSeats;
+  const matchesMinPrice = !criteria.minDailyRateKobo || vehicle.dailyRateKobo >= criteria.minDailyRateKobo;
+  const matchesMaxPrice = !criteria.maxDailyRateKobo || vehicle.dailyRateKobo <= criteria.maxDailyRateKobo;
+
   return (
     matchesQuery &&
+    matchesSeats &&
+    matchesMinPrice &&
+    matchesMaxPrice &&
     (!criteria.areaLabel || vehicle.areaLabel === criteria.areaLabel) &&
     (!criteria.category || vehicle.category === criteria.category)
   );
@@ -72,7 +79,7 @@ export function filterPreviewVehicles(criteria: VehicleSearchCriteria) {
     .sort((left, right) => left.distanceKm - right.distanceKm);
 }
 
-export function getPreviewVehicleById(vehicleId: string) {
+export function getPreviewVehicleById(vehicleId: string): VehicleSummary | null {
   return vehicles.find((vehicle) => vehicle.id === vehicleId) ?? null;
 }
 
@@ -82,5 +89,8 @@ export const previewDiscoveryGateway: DiscoveryGateway = {
   },
   async searchVehicles(criteria) {
     return filterPreviewVehicles(criteria);
+  },
+  async getVehicleById(vehicleId) {
+    return getPreviewVehicleById(vehicleId);
   },
 };

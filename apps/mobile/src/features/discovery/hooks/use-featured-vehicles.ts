@@ -1,24 +1,30 @@
 import { VehicleSummary } from '@mmg/contracts';
 import { useEffect, useState } from 'react';
 
-import { previewDiscoveryGateway } from '../data/preview-discovery-gateway';
+import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
 
 export function useFeaturedVehicles() {
   const [vehicles, setVehicles] = useState<readonly VehicleSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
+    const gateway = createDiscoveryGateway();
 
-    previewDiscoveryGateway
+    gateway
       .getFeaturedVehicles()
       .then((results) => {
         if (isMounted) {
           setVehicles(results);
+          setError(null);
+          setIsLoading(false);
         }
       })
-      .finally(() => {
+      .catch((err: unknown) => {
         if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to retrieve available fleet.');
+          setVehicles([]);
           setIsLoading(false);
         }
       });
@@ -28,5 +34,5 @@ export function useFeaturedVehicles() {
     };
   }, []);
 
-  return { isLoading, vehicles };
+  return { error, isLoading, vehicles };
 }
