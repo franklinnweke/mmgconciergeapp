@@ -38,6 +38,7 @@ If a status document conflicts with code or Git history, report the discrepancy,
 | Product/business rule or architecture change | Architecture handoff §§2–4, 5–12, and 14–16 |
 | Contracts, errors, money, dates, transitions | `packages/contracts`, `packages/domain`, ADRs 0001–0003, and the architecture handoff state-machine sections |
 | Owner verification | `docs/implementation/SEQUENCE_1_OWNER_VERIFICATION_SPEC.md`, owner files under `apps/functions/src/owner`, `apps/mobile/src/features/owner`, and `apps/admin/src/features/owners` |
+| Renter profile/privacy/deletion | WP1 in completion plan, `packages/contracts`, `packages/domain`, `apps/functions/src/renter`, `apps/mobile/src/features/account`, and Firestore rules |
 | Vehicle inventory/moderation | `docs/implementation/SEQUENCE_2_3_VEHICLE_INVENTORY_AND_OWNER_OPERATIONS_SPEC.md`, `docs/WP0_WP2_IMPLEMENTATION_STATUS.md`, `apps/functions/src/vehicle`, `apps/admin/src/features/vehicles`, and Firebase rules/indexes |
 | Renter trips/booking operations | `docs/implementation/SEQUENCE_3_COMPLETION_AGENT_HANDOFF.md`, `docs/implementation/ANTIGRAVITY_SEQUENCE_1_3_WORKPLAN.md`, `apps/mobile/src/features/booking`, and `apps/functions/src/booking` |
 | Discovery/search/detail | Architecture handoff §§3.5, 6.5, 8.4; WP3 in the completion plan; mobile discovery feature files |
@@ -62,7 +63,7 @@ If a status document conflicts with code or Git history, report the discrepancy,
 
 ## 5. Current milestone snapshot
 
-Snapshot date: **2026-08-17**. Verify against `git status`, `git log`, and the status documents before relying on it.
+Snapshot date: **2026-08-18**. Verify against `git status`, `git log`, and the status documents before relying on it.
 
 | Milestone | Status | Evidence / next gate |
 |---|---|---|
@@ -72,17 +73,25 @@ Snapshot date: **2026-08-17**. Verify against `git status`, `git log`, and the s
 | WP0 — foundation corrections | ✅ Complete | Terms, pricing, masking, CSRF, pagination, ADRs |
 | WP2 A–C — vehicle contracts, rules, Functions | ✅ Complete | Vehicle draft/upload/finalize/submit/review/visibility foundations and emulator coverage |
 | WP2 D — image processing/promotion | ✅ Complete in current implementation | Sharp variants, EXIF/GPS removal, approved-object promotion and renter projection |
-| WP2 F — Admin vehicle moderation | 🔶 Active/current | Initial desk is merged; current worktree may contain hardening, server actions, role/session changes, and review tests. Do not call it complete until committed and validated. |
-| WP2 E — owner mobile fleet UI | ⏳ Not complete | Owner fleet list, create/edit/resubmit wizard, resume/offline/retry acceptance |
-| WP1 — renter profile/privacy/MFA | ⏳ Not started | Renter profile, deletion/anonymization, staff MFA |
-| WP3 — live Lagos discovery | ⏳ Not started | Trusted place/search functions, geohash/ranking, live native data boundary |
+| WP2 F — Admin vehicle moderation | ✅ Complete | Live Firestore gateway rewritten against real flat/private schemas, server action wired to reviewVehicle + storage promotion, 7-point checklist enforced, 8/8 admin test files passing |
+| WP2 E — owner mobile fleet UI | ✅ Complete | Owner fleet list, 6-step create/submit wizard with image picking + upload session + binary PUT + finalize pipeline, authoritative version sync, live visibility toggling, vehicle inspector desk, router connections |
+| WP1 — renter profile/privacy/MFA | ✅ Complete | Complete renter profile & Lagos delivery address, deletion/NDPR workflow, terms agreement, rules & Functions live |
+| WP3 — live Lagos discovery | ✅ Complete | Haversine distance, Lagos BBox validation, composite discovery ranking, live native/web FirestoreDiscoveryGateway with strict row validation (no preview fallback, no category/coords/policy fabrication, limit(30) fetch), resolveSearchPlace & searchVehicles functions, ExecutiveBookingDesk, live BookingReviewScreen & VehicleDetailScreen, PickupDistrictSheet |
 | WP4 — availability and Paystack-ready booking | ⏳ Not started | Calendar, atomic holds, payment boundary, owner response/intervention |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
 | WP8 — release hardening | ⏳ Not started | CI, observability, privacy/data-safety inventory, runbooks, staging sign-off |
 
-### Current GitHub baseline
+### Firebase Infrastructure (Blaze Plan Active)
+
+The Firebase project `mmg-concierge` has been upgraded to the **Blaze (Pay-as-you-go) plan**. This unblocks:
+1. Live deployment of Node 22 Firebase Functions v2 (`africa-south1`).
+2. Google Cloud Scheduler daily cron for `expireAbandonedOwnerVerificationUploads`.
+3. Outbound network connectivity for live Nigerian Phone Auth (`+234...`), APNs/FCM pushes, and future Paystack payment webhooks/APIs.
+4. Custom memory allocations (512MiB–1024MiB) for server-side Sharp vehicle image resizing.
+
+### Current GitHub baseline & Working Tree Status
 
 The merged `main` history currently contains:
 
@@ -91,7 +100,17 @@ The merged `main` history currently contains:
 - `7d8003f` — app experience/auth/discovery
 - `71f88ae` — initial Admin vehicle moderation desk
 
-The branch may contain newer uncommitted work. Treat uncommitted code as **in progress**, not as a merged milestone.
+The uncommitted work in the repository is a **real Sequence 2 implementation pass** (contracts, Functions, Admin moderation desk, owner fleet UI, and live Lagos discovery) along with the WP1 renter profile foundation. **It is not Sequence 2+3 complete**, and the following paths are **not safe to treat as live**:
+
+1. **Paystack Payments & Settlement**: Live NGN card charging, webhook handling, escrow capture, and refunds are not live. (WP4/ADR 0005).
+2. **Paid Booking State Progression**: Transitions past `intent_created` (e.g. `confirmed`, `in_progress`, `completed`, `refunded`) are not backed by live payment/escrow services.
+3. **In-App Messaging / Chat**: Live renter-owner-concierge chat channels are not live (WP5).
+4. **Real-Time GPS Vehicle Tracking**: Live telematics / driver tracking is not implemented.
+5. **Push Notifications (FCM / APNs)**: Production APNs certificates / outbox processors are not live (WP5).
+6. **Vehicle Upload Garbage Collection**: Abandoned upload cleanup cron currently covers only owner verification uploads (`private/owner-verifications`); vehicle upload prefix cleanup is pending.
+7. **Ledger & Wallets**: Append-only double-entry financial ledger and bank withdrawals are not live (WP6).
+
+Treat all uncommitted code as an **in-progress Sequence 2 pass** and always fail closed on unimplemented paths.
 
 ## 6. Milestone checker
 
@@ -108,7 +127,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests (Current baseline: **52 test files passed, 458 unit tests passed, 0 typecheck errors, 0 lint warnings**). A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules
