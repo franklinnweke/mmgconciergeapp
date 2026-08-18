@@ -1,4 +1,9 @@
-import type { VehicleCategory, VehicleModerationStatus } from '@mmg/contracts';
+import type {
+  VehicleCategory,
+  VehicleModerationStatus,
+  VehicleReviewChecklistKey,
+  VehicleReviewDecision,
+} from '@mmg/contracts';
 
 export type VehicleModerationListItem = {
   vehicleId: string;
@@ -29,14 +34,7 @@ export type VehicleImageDetail = {
   contentType: string;
 };
 
-export type VehicleChecklistKey =
-  | 'make_model_eligible'
-  | 'photo_coverage'
-  | 'plate_registered'
-  | 'daily_rate_conforms'
-  | 'lagos_serviceable_base'
-  | 'capacity_amenities_verified'
-  | 'owner_verified';
+export type VehicleChecklistKey = VehicleReviewChecklistKey;
 
 export type VehicleChecklistItem = {
   key: VehicleChecklistKey;
@@ -46,39 +44,39 @@ export type VehicleChecklistItem = {
 
 export const VEHICLE_CHECKLIST_ITEMS: VehicleChecklistItem[] = [
   {
-    key: 'make_model_eligible',
-    label: '1. Executive Make & Model Standards',
-    description: 'Vehicle is an approved Toyota Land Cruiser Prado (250/150), Lexus LX, Mercedes E/S/G-Class, or verified executive luxury vehicle.',
+    key: 'images_complete_and_legible',
+    label: '1. Photo Quality & Completeness',
+    description: 'Multi-angle exterior & cabin photos are clear, legible, and uncorrupted without watermarks or PII.',
   },
   {
-    key: 'photo_coverage',
-    label: '2. Multi-Angle Photo Coverage',
-    description: 'Minimum 4 high-resolution photos showing front exterior, rear, interior cabin, and instrument cluster without watermarks or personal bystander PII.',
+    key: 'specs_match_images',
+    label: '2. Specifications Match Photos',
+    description: 'Make, model, year, colour, and seating capacity match the uploaded vehicle images.',
   },
   {
-    key: 'plate_registered',
-    label: '3. Plate & Registration Verification',
-    description: 'Nigerian registration plate is formatted correctly (e.g. LAG-882-AB) and verified against state registration guidelines.',
+    key: 'plate_matches_documents',
+    label: '3. Registration Plate & Documents',
+    description: 'Nigerian registration plate matches vehicle identity and vehicle papers in private records.',
   },
   {
-    key: 'daily_rate_conforms',
-    label: '4. Daily Rate & Platform Economics',
-    description: 'Gross daily rate is realistic for Lagos chauffeured luxury transport (≥ ₦100,000/day) and owner understands the 85% net payout structure.',
+    key: 'lagos_base_plausible',
+    label: '4. Lagos Operational Base',
+    description: 'Garaged base location is in an approved Lagos operational district (Ikoyi, VI, Lekki, Ikeja, etc.).',
   },
   {
-    key: 'lagos_serviceable_base',
-    label: '5. Lagos Serviceable Dispatch Zone',
-    description: 'Garaged base location is situated in an approved Lagos operational district (Ikoyi, VI, Banana Island, Lekki Phase 1, Ikeja GRA, Eko Atlantic).',
+    key: 'rate_plausible',
+    label: '5. Platform Rate Economics',
+    description: 'Daily rate conforms to platform economic bounds (₦50,000–₦10,000,000) and market plausibility.',
   },
   {
-    key: 'capacity_amenities_verified',
-    label: '6. Cabin Amenities & Air Conditioning',
-    description: 'Passenger seats and executive amenities (automatic transmission, dual-zone cold A/C, executive tint) are confirmed functional.',
+    key: 'chauffeur_delivery_included',
+    label: '6. Chauffeur & Delivery Policy',
+    description: 'Professional chauffeur and platform dispatch policies are verified as included.',
   },
   {
-    key: 'owner_verified',
-    label: '7. Owner Identity & Verification Status',
-    description: 'Vehicle owner profile has completed identity checks, Nigerian phone OTP verification, and government ID review on MMG Concierge.',
+    key: 'no_fraud_indicators',
+    label: '7. Security & Anti-Fraud Clearance',
+    description: 'No risk flags, duplicate vehicle plates, or security anomalies detected.',
   },
 ];
 
@@ -90,4 +88,13 @@ export type VehicleModerationDetail = VehicleModerationListItem & {
   lastDecisionReason: string | null;
   reviewedByStaffEmail: string | null;
   reviewedAt: string | null;
+  auditTrailUnavailable?: boolean;
+};
+
+export type ReviewVehicleDecisionInput = {
+  vehicleId: string;
+  expectedVersion: number;
+  decision: VehicleReviewDecision;
+  reason?: string;
+  checklist?: Record<VehicleChecklistKey, boolean>;
 };

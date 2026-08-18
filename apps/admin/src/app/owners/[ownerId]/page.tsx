@@ -2,7 +2,7 @@ import 'server-only';
 
 import { notFound } from 'next/navigation';
 
-import { requireLiveStaffSession } from '@/features/auth/server/session';
+import { requireStaffCapability } from '@/features/auth/server/session';
 import { FirestoreAdminOwnerGateway } from '@/features/owners/data/firestore-admin-owner-gateway';
 import { FixtureAdminOwnerGateway } from '@/features/owners/data/fixture-admin-owner-gateway';
 import { OwnerVerificationInspector } from '@/features/owners/components/owner-verification-inspector';
@@ -16,7 +16,9 @@ export type OwnerInspectorPageProps = {
 };
 
 export default async function OwnerInspectorPage({ params }: OwnerInspectorPageProps) {
-  const session = await requireLiveStaffSession();
+  // This page mints ≤15-minute signed URLs to government ID documents, so the
+  // capability check must pass before any gateway read happens.
+  const session = await requireStaffCapability('owners.read');
   const { ownerId } = await params;
 
   const isFixture =

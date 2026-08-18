@@ -30,7 +30,7 @@ export type DeskPresentation = {
   body: string;
   primaryAction: {
     label: string;
-    route: '/(owner)/identity' | '/(owner)/phone' | '/(owner)/id' | '/(owner)/submit';
+    route: '/(owner)/identity' | '/(owner)/phone' | '/(owner)/id' | '/(owner)/submit' | '/(owner)/fleet';
   } | null;
   lastDecisionReason: string | null;
   showChecklist: boolean;
@@ -171,8 +171,11 @@ export function getDeskPresentation(
       status: 'approved',
       eyebrow: 'APPROVED',
       title: 'You are verified.',
-      body: 'Your owner account has been approved. Vehicle listing and host calendar features will become available in the upcoming release.',
-      primaryAction: null,
+      body: 'Your owner account has been approved. You can now manage your luxury fleet and list vehicles for MMG Concierge moderation.',
+      primaryAction: {
+        label: 'MANAGE LUXURY FLEET',
+        route: '/(owner)/fleet',
+      },
       lastDecisionReason: null,
       showChecklist: false,
     };

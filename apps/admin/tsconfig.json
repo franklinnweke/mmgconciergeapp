@@ -28,6 +28,9 @@
       ],
       "@mmg/functions-owner/*": [
         "../functions/src/owner/*"
+      ],
+      "@mmg/functions-vehicle/*": [
+        "../functions/src/vehicle/*"
       ]
     }
   },

@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "mmg-concierge",
+    "development": "mmg-concierge"
+  }
+}
