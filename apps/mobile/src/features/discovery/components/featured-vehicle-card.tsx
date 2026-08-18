@@ -8,7 +8,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
 
-import { vehicleImages } from '../data/vehicle-images';
+import { resolveVehicleImageSource } from '../data/vehicle-images';
 import { vehicleEditorialClass } from '../data/lagos-destinations';
 
 type FeaturedVehicleCardProps = {
@@ -27,7 +27,7 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
     >
       <View style={[styles.card, { width }]}>
         <View style={styles.imageFrame}>
-          <Image contentFit="cover" source={vehicleImages[vehicle.imageKey]} style={StyleSheet.absoluteFill} />
+          <Image contentFit="cover" source={resolveVehicleImageSource(vehicle)} style={StyleSheet.absoluteFill} />
           <LinearGradient
             colors={['transparent', 'rgba(4,4,4,0.88)']}
             locations={[0.42, 1]}

@@ -8,7 +8,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
 
-import { vehicleImages } from '../data/vehicle-images';
+import { resolveVehicleImageSource } from '../data/vehicle-images';
 import { vehicleEditorialClass } from '../data/lagos-destinations';
 
 type BrowseVehicleCardProps = {
@@ -28,7 +28,7 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
         <View style={styles.imageFrame}>
           <Image
             contentFit="cover"
-            source={vehicleImages[vehicle.imageKey]}
+            source={resolveVehicleImageSource(vehicle)}
             style={StyleSheet.absoluteFill}
             transition={220}
           />
