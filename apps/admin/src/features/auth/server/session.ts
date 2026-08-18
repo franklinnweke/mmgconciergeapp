@@ -10,6 +10,7 @@ export type StaffRole =
   | 'vehicle_admin'
   | 'verification_admin'
   | 'finance_admin'
+  | 'booking_admin'
   | 'support'
   | 'privacy_admin';
 
@@ -19,7 +20,13 @@ export type StaffRole =
  * `role`: a staffer can legitimately carry several claims at once, and the
  * scalar only records the highest-precedence one for display and audit.
  */
-export type StaffCapability = 'owners.read' | 'owners.review' | 'vehicles.read' | 'vehicles.review';
+export type StaffCapability =
+  | 'owners.read'
+  | 'owners.review'
+  | 'vehicles.read'
+  | 'vehicles.review'
+  | 'bookings.read'
+  | 'bookings.review';
 
 /**
  * Fail-closed by construction. A role absent from this map, or present with an
@@ -28,7 +35,15 @@ export type StaffCapability = 'owners.read' | 'owners.review' | 'vehicles.read' 
  * must not inherit the owner PII inspector or the vehicle queue by default.
  */
 const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
-  super_admin: ['owners.read', 'owners.review', 'vehicles.read', 'vehicles.review'],
+  super_admin: [
+    'owners.read',
+    'owners.review',
+    'vehicles.read',
+    'vehicles.review',
+    'bookings.read',
+    'bookings.review',
+  ],
+  booking_admin: ['bookings.read', 'bookings.review'],
   verification_admin: ['owners.read', 'owners.review'],
   vehicle_admin: ['vehicles.read', 'vehicles.review'],
   finance_admin: [],
@@ -42,6 +57,7 @@ const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
  */
 const STAFF_ROLE_PRECEDENCE: readonly StaffRole[] = [
   'super_admin',
+  'booking_admin',
   'vehicle_admin',
   'verification_admin',
   'finance_admin',
@@ -60,6 +76,7 @@ export type StaffSession = {
 
 /** A capability-gated desk, used to tell a denied staffer where they *can* go. */
 export const STAFF_DESKS: readonly { href: string; label: string; capability: StaffCapability }[] = [
+  { href: '/', label: 'Booking operations desk', capability: 'bookings.read' },
   { href: '/owners', label: 'Owner verification desk', capability: 'owners.read' },
   { href: '/vehicles', label: 'Vehicle moderation desk', capability: 'vehicles.read' },
 ];

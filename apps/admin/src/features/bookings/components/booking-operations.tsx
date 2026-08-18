@@ -21,25 +21,19 @@ import {
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import graphiteSedan from '../../../../../mobile/assets/images/fleet/graphite-executive-sedan.png';
 import pearlSuv from '../../../../../mobile/assets/images/fleet/prado-150-pearl.png';
 import { formatNairaFromKobo, type PaidBookingState } from '@mmg/domain';
 
-import {
-  AdminGatewayUnavailableError,
-  unavailableAdminBookingGateway,
-  type AdminBookingGateway,
-} from '../data/admin-booking-gateway';
-import { createFixtureAdminBookingGateway } from '../data/fixture-admin-booking-gateway';
+import { fetchAdminBookingsAction } from '../data/list-bookings-action';
+import { executeBookingAction } from '../data/review-booking-action';
 import { permittedAdminActions, type AdminBooking } from '../domain/admin-booking';
 
-type AdminDataMode = 'fixture' | 'unavailable';
+export type AdminDataMode = 'live' | 'fixture' | 'unavailable';
 type QueueFilter = 'all' | 'actionable' | 'intervention' | 'confirmed' | 'closed';
 
-// Typed as an exhaustive record so adding a paid-booking state fails here, at
-// the definition, rather than as an implicit `any` at each lookup site.
 const statusCopy: Record<PaidBookingState, { label: string; tone: string }> = {
   paid_pending_owner: { label: 'OWNER RESPONSE DUE', tone: 'gold' },
   confirmed: { label: 'CONFIRMED', tone: 'green' },
@@ -63,16 +57,27 @@ function formatTimestamp(value: string) {
   }).format(new Date(value));
 }
 
-function vehicleImage(booking: AdminBooking): StaticImageData {
+function resolveVehicleImage(booking: AdminBooking): string | StaticImageData {
+  if (booking.vehicle.imageUrl) {
+    return booking.vehicle.imageUrl;
+  }
   return booking.vehicle.id === 'graphite-sedan' ? graphiteSedan : pearlSuv;
 }
 
-export function BookingOperations({ mode }: { mode: AdminDataMode }) {
-  const gateway = useMemo<AdminBookingGateway>(() =>
-    mode === 'fixture' ? createFixtureAdminBookingGateway() : unavailableAdminBookingGateway, [mode]);
-  const [bookings, setBookings] = useState<readonly AdminBooking[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+export function BookingOperations({
+  mode,
+  initialBookings = [],
+  staffEmail,
+  staffRole,
+}: {
+  mode: AdminDataMode;
+  initialBookings?: readonly AdminBooking[];
+  staffEmail?: string;
+  staffRole?: string;
+}) {
+  const [bookings, setBookings] = useState<readonly AdminBooking[]>(initialBookings);
+  const [selectedId, setSelectedId] = useState<string | null>(initialBookings[0]?.id ?? null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<QueueFilter>('all');
@@ -83,27 +88,34 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const loadBookings = useCallback(async () => {
+    if (mode === 'unavailable') {
+      setError('The booking queue is unavailable. Check staff session and permissions.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const records = await gateway.listBookings();
-      setBookings(records);
-      setSelectedId((current) => current && records.some((record) => record.id === current)
-        ? current
-        : records[0]?.id ?? null);
+      const response = await fetchAdminBookingsAction();
+      if (!response.success) {
+        throw new Error(response.error);
+      }
+      setBookings(response.bookings);
+      setSelectedId((current) =>
+        current && response.bookings.some((record) => record.id === current)
+          ? current
+          : response.bookings[0]?.id ?? null,
+      );
     } catch (loadError) {
-      setError(loadError instanceof AdminGatewayUnavailableError
-        ? loadError.message
-        : 'The booking queue could not be loaded. Retry when the operations service is available.');
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'The booking queue could not be loaded. Retry when the operations service is available.',
+      );
     } finally {
       setLoading(false);
     }
-  }, [gateway]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void loadBookings(); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [loadBookings]);
+  }, [mode]);
 
   const filteredBookings = useMemo(() => bookings.filter((booking) => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -136,10 +148,31 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
     setActionState(action === 'confirm' ? 'confirming' : 'rejecting');
     setActionError(null);
     try {
-      const updated = action === 'confirm'
-        ? await gateway.confirmBooking(selected.id)
-        : await gateway.rejectBooking(selected.id, rejectionReason);
-      setBookings((current) => current.map((booking) => booking.id === updated.id ? updated : booking));
+      const response = await executeBookingAction({
+        bookingId: selected.id,
+        expectedVersion: selected.version,
+        action,
+        adminNotes: action === 'confirm' ? 'Confirmed by concierge staff' : rejectionReason,
+        rejectionDetails: action === 'reject' ? rejectionReason : undefined,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error);
+      }
+
+      // Update local state with the transitioned result
+      setBookings((current) =>
+        current.map((booking) =>
+          booking.id === selected.id
+            ? {
+                ...booking,
+                state: response.state as PaidBookingState,
+                version: response.version,
+                updatedAt: response.updatedAt,
+              }
+            : booking,
+        ),
+      );
       setRejecting(false);
       setRejectionReason('');
     } catch (actionFailure) {
@@ -166,9 +199,16 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
             <a href="#support"><Headphones size={17} />Support</a>
           </nav>
           <div className="sidebar-foot">
-            <div className="operator-avatar" aria-hidden="true">FN</div>
-            <div><strong>Operations preview</strong><span>Session unavailable</span></div>
-            <button aria-label="Sign out unavailable in preview" disabled><LogOut size={16} /></button>
+            <div className="operator-avatar" aria-hidden="true">
+              {staffEmail ? staffEmail.slice(0, 2).toUpperCase() : 'OP'}
+            </div>
+            <div>
+              <strong>{staffRole ? staffRole.replace('_', ' ').toUpperCase() : 'Staff Session'}</strong>
+              <span>{staffEmail ?? 'Verified operator'}</span>
+            </div>
+            <form action="/api/auth/logout" method="post">
+              <button aria-label="Sign out" type="submit"><LogOut size={16} /></button>
+            </form>
           </div>
         </aside>
 
@@ -186,14 +226,21 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
             </div>
             <div className="header-status">
               <span className={`environment-dot ${mode === 'fixture' ? 'fixture' : ''}`} />
-              <div><strong>{mode === 'fixture' ? 'Development fixtures' : 'Live access locked'}</strong><span>{mode === 'fixture' ? 'No production writes' : 'Session cookie required'}</span></div>
+              <div>
+                <strong>
+                  {mode === 'fixture' ? 'Development fixtures' : mode === 'live' ? 'Live Operations' : 'Access Closed'}
+                </strong>
+                <span>
+                  {mode === 'fixture' ? 'Simulated records' : 'Live Firestore connection'}
+                </span>
+              </div>
             </div>
           </motion.header>
 
           <section aria-label="Queue summary" className="summary-strip">
             <div><span>ACTION DUE</span><strong>{actionableCount}</strong><small>Verified, awaiting response</small></div>
             <div><span>INTERVENTION</span><strong>{interventionCount}</strong><small>Requires concierge review</small></div>
-            <div><span>QUEUE UPDATED</span><strong>{bookings.length ? formatTimestamp(bookings[0].updatedAt) : '—'}</strong><small>{mode === 'fixture' ? 'Fixture snapshot' : 'No live connection'}</small></div>
+            <div><span>QUEUE UPDATED</span><strong>{bookings.length ? formatTimestamp(bookings[0].updatedAt) : '—'}</strong><small>{mode === 'fixture' ? 'Fixture snapshot' : 'Live desk'}</small></div>
           </section>
 
           <div className="filters" aria-label="Booking filters">
@@ -261,6 +308,7 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
 
 function BookingRow({ booking, selected, onSelect }: { booking: AdminBooking; selected: boolean; onSelect: (id: string) => void }) {
   const presentation = statusCopy[booking.state];
+  const imageSrc = resolveVehicleImage(booking);
   return (
     <motion.button
       aria-pressed={selected}
@@ -270,7 +318,21 @@ function BookingRow({ booking, selected, onSelect }: { booking: AdminBooking; se
       type="button"
       variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
     >
-      <span className="booking-identity"><Image alt="" height={48} src={vehicleImage(booking)} width={64} /><span><strong>{booking.id}</strong><small>{booking.vehicle.displayName}</small></span></span>
+      <span className="booking-identity">
+        {typeof imageSrc === 'string' ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img alt="" height={48} src={imageSrc} style={{ borderRadius: 6, objectFit: 'cover' }} width={64} />
+        ) : (
+          <Image alt="" height={48} src={imageSrc} width={64} />
+        )}
+        <span>
+          <strong>
+            {booking.id}
+            {booking.paymentEnvironment === 'test' ? <span className="test-mode-chip">TEST</span> : null}
+          </strong>
+          <small>{booking.vehicle.displayName}</small>
+        </span>
+      </span>
       <span className="journey-cell"><strong>{formatDate(booking.startDate)}</strong><small>{booking.vehicle.areaLabel}</small></span>
       <span className="value-cell"><strong>{formatNairaFromKobo(booking.priceSnapshot.renterTotalKobo)}</strong><small>{booking.priceSnapshot.chargedDays} days</small></span>
       <span className={`status-badge ${presentation.tone}`}><i />{presentation.label}</span>
@@ -281,13 +343,40 @@ function BookingRow({ booking, selected, onSelect }: { booking: AdminBooking; se
 
 function BookingInspector({ booking }: { booking: AdminBooking }) {
   const presentation = statusCopy[booking.state];
+  const imageSrc = resolveVehicleImage(booking);
   return (
     <>
-      <div className="inspector-visual"><Image alt={booking.vehicle.displayName} fill preload sizes="(max-width: 900px) 100vw, 390px" src={vehicleImage(booking)} /><div className="visual-overlay" /><span>{booking.vehicle.categoryLabel}</span></div>
-      <div className="inspector-title"><div><p className="eyebrow">{booking.id}</p><h2>{booking.vehicle.displayName}</h2><span>{booking.renterReference} · {booking.vehicle.areaLabel}</span></div><div className={`status-badge ${presentation.tone}`}><i />{presentation.label}</div></div>
+      <div className="inspector-visual">
+        {typeof imageSrc === 'string' ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img alt={booking.vehicle.displayName} src={imageSrc} style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
+        ) : (
+          <Image alt={booking.vehicle.displayName} fill preload sizes="(max-width: 900px) 100vw, 390px" src={imageSrc} />
+        )}
+        <div className="visual-overlay" />
+        <span>{booking.vehicle.categoryLabel}</span>
+      </div>
+      <div className="inspector-title">
+        <div>
+          <p className="eyebrow">
+            {booking.id}
+            {booking.paymentEnvironment === 'test' ? <span className="test-mode-chip">TEST MODE</span> : null}
+          </p>
+          <h2>{booking.vehicle.displayName}</h2>
+          <span>{booking.renterReference} · {booking.vehicle.areaLabel}</span>
+        </div>
+        <div className={`status-badge ${presentation.tone}`}><i />{presentation.label}</div>
+      </div>
       <div className="journey-band"><div><span>PICKUP</span><strong>{formatDate(booking.startDate)}</strong></div><ChevronRight size={17} /><div><span>RETURN</span><strong>{formatDate(booking.endDate)}</strong></div></div>
       <section className="inspector-section"><div className="section-title"><span>VERIFIED PRICE</span><small>{booking.priceSnapshot.configVersion}</small></div><dl className="price-lines"><div><dt>Rental · {booking.priceSnapshot.chargedDays} days</dt><dd>{formatNairaFromKobo(booking.priceSnapshot.baseRentalKobo)}</dd></div><div><dt>Service and protection</dt><dd>{formatNairaFromKobo(booking.priceSnapshot.serviceFeeKobo)}</dd></div><div className="price-total"><dt>Renter total</dt><dd>{formatNairaFromKobo(booking.priceSnapshot.renterTotalKobo)}</dd></div><div><dt>Owner earnings</dt><dd>{formatNairaFromKobo(booking.priceSnapshot.ownerEarningsKobo)}</dd></div></dl></section>
-      <section className="payment-evidence"><ShieldCheck size={19} /><div><span>PAYMENT EVIDENCE</span><strong>{booking.payment.status.replace('_', ' ').toUpperCase()} · {booking.payment.referenceSuffix}</strong><small>Verified {formatTimestamp(booking.payment.verifiedAt)}</small></div></section>
+      <section className="payment-evidence">
+        <ShieldCheck size={19} />
+        <div>
+          <span>PAYMENT EVIDENCE {booking.paymentEnvironment === 'test' ? '· TEST MODE' : ''}</span>
+          <strong>{booking.payment.status.replace('_', ' ').toUpperCase()} · {booking.payment.referenceSuffix}</strong>
+          <small>Verified {formatTimestamp(booking.payment.verifiedAt)}</small>
+        </div>
+      </section>
       <section className="inspector-section"><div className="section-title"><span>AUDIT TIMELINE</span><small>{booking.timeline.length} events</small></div><ol className="timeline">{booking.timeline.map((event, index) => <li key={event.id}><i className={index === booking.timeline.length - 1 ? 'current' : ''} /><div><strong>{event.eventType}</strong><span>{event.fromState ? `${event.fromState} → ` : ''}{event.toState}</span><small>{formatTimestamp(event.occurredAt)} · {event.actorType}</small></div></li>)}</ol></section>
     </>
   );

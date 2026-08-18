@@ -31,6 +31,9 @@
       ],
       "@mmg/functions-vehicle/*": [
         "../functions/src/vehicle/*"
+      ],
+      "@mmg/functions-booking/*": [
+        "../functions/src/booking/*"
       ]
     }
   },

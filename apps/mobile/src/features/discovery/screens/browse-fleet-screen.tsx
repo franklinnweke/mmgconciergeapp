@@ -186,9 +186,9 @@ export default function BrowseFleetScreen() {
 
         {/* Screen Title */}
         <View style={styles.titleBlock}>
-          <Text style={styles.eyebrow}>PRADO-LED LAGOS FLEET</Text>
+          <Text style={styles.eyebrow}>THE PRADO COLLECTION & EXECUTIVE FLEET</Text>
           <Text accessibilityRole="header" style={styles.title}>
-            Choose your ride
+            Choose Your Executive Ride
           </Text>
         </View>
 
@@ -369,9 +369,9 @@ export default function BrowseFleetScreen() {
         <View style={styles.assurance}>
           <Ionicons color={colors.goldStrong} name="shield-checkmark-outline" size={20} />
           <View style={styles.assuranceCopy}>
-            <Text style={styles.assuranceTitle}>A confirmed journey, not just a car.</Text>
+            <Text style={styles.assuranceTitle}>A confirmed rental, not just a car.</Text>
             <Text style={styles.assuranceBody}>
-              Vehicle, chauffeur, and Lagos delivery are reviewed before your booking is confirmed.
+              Vehicle, executive chauffeur, and Lagos dispatch delivery are reviewed before your booking is confirmed.
             </Text>
           </View>
         </View>

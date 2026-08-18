@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { LuxuryCard } from '@/components/ui/luxury-card';
 
 import {
   addDaysToDateOnly,
@@ -243,15 +244,15 @@ export default function VehicleDetailScreen({
             </View>
             <View style={styles.inclusionBadge}>
               <Ionicons color={colors.gold} name="shield-checkmark" size={15} />
-              <Text style={styles.inclusionBadgeText}>Chauffeur Included</Text>
+              <Text style={styles.inclusionBadgeText}>Executive Chauffeur Included</Text>
             </View>
           </View>
 
           {/* Service Promises Rail */}
           <View style={styles.promiseRail}>
-            <ServicePromise icon="person-outline" label="Vetted Chauffeur" />
+            <ServicePromise icon="person-outline" label="Executive Chauffeur" />
             <View style={styles.promiseDivider} />
-            <ServicePromise icon="location-outline" label="Doorstep Delivery" />
+            <ServicePromise icon="location-outline" label="Lagos Dispatch" />
             <View style={styles.promiseDivider} />
             <ServicePromise icon="headset-outline" label="Concierge Desk" />
           </View>
@@ -268,10 +269,41 @@ export default function VehicleDetailScreen({
             </View>
           </View>
 
-          {/* Journey Duration Selector */}
+          {/* Chauffeur & Dispatch Protocol */}
           <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>YOUR JOURNEY DURATION</Text>
-            <Text style={styles.sectionTitle}>Select Rental Period</Text>
+            <Text style={styles.sectionEyebrow}>CHAUFFEUR & DISPATCH PROTOCOL</Text>
+            <Text style={styles.sectionTitle}>Executive Security Standards</Text>
+            <LuxuryCard style={styles.protocolCard}>
+              <View style={styles.protocolItem}>
+                <View style={styles.protocolIcon}>
+                  <Ionicons color={colors.goldStrong} name="shield-checkmark-outline" size={18} />
+                </View>
+                <View style={styles.protocolCopy}>
+                  <Text style={styles.protocolHeading}>Security-Vetted Executive Chauffeur</Text>
+                  <Text style={styles.protocolBody}>
+                    Background-verified, NDPR-cleared, and defensive driving trained for executive transit across Lagos.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.protocolDivider} />
+              <View style={styles.protocolItem}>
+                <View style={styles.protocolIcon}>
+                  <Ionicons color={colors.goldStrong} name="navigate-circle-outline" size={18} />
+                </View>
+                <View style={styles.protocolCopy}>
+                  <Text style={styles.protocolHeading}>Lagos Dispatch & Delivery</Text>
+                  <Text style={styles.protocolBody}>
+                    Direct vehicle delivery to your designated residence, hotel, or VIP airport tarmac gate.
+                  </Text>
+                </View>
+              </View>
+            </LuxuryCard>
+          </View>
+
+          {/* Rental Duration Selector */}
+          <View style={styles.section}>
+            <Text style={styles.sectionEyebrow}>RENTAL DURATION</Text>
+            <Text style={styles.sectionTitle}>Select Rental Days</Text>
             <View style={styles.durationRail}>
               {durationOptions.map((option) => {
                 const selected = option.days === durationDays;
@@ -312,7 +344,7 @@ export default function VehicleDetailScreen({
             <View style={styles.quoteHeading}>
               <View>
                 <Text style={styles.sectionEyebrow}>ESTIMATED QUOTE</Text>
-                <Text style={styles.quoteTitle}>{durationDays}-Day Journey</Text>
+                <Text style={styles.quoteTitle}>{durationDays}-Day Rental</Text>
               </View>
               <Ionicons color={colors.goldStrong} name="receipt-outline" size={24} />
             </View>
@@ -326,7 +358,7 @@ export default function VehicleDetailScreen({
               value={formatNairaFromKobo(quote.serviceFeeKobo)}
             />
             <QuoteRow
-              label="Chauffeur and Lagos delivery"
+              label="Executive Chauffeur & Lagos Dispatch"
               value="Included"
             />
 
@@ -338,7 +370,7 @@ export default function VehicleDetailScreen({
             </View>
 
             <Text style={styles.quoteNote}>
-              This is a server-aligned quote estimate. Payment is completed securely before owner and chauffeur confirmation.
+              This is a server-aligned quote estimate. Payment is completed securely before owner and executive chauffeur confirmation.
             </Text>
           </View>
         </View>
@@ -620,6 +652,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 6,
+  },
+  protocolBody: {
+    color: colors.silver,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  protocolCard: {
+    backgroundColor: colors.graphite,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  protocolCopy: {
+    flex: 1,
+  },
+  protocolDivider: {
+    backgroundColor: colors.line,
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 2,
+  },
+  protocolHeading: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.sm,
+  },
+  protocolIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.graphiteRaised,
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  protocolItem: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   promiseRail: {
     alignItems: 'center',

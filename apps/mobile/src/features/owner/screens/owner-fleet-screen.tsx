@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import { OwnerPendingReservations } from '../components/owner-pending-reservations';
 import { useOwnerFleet } from '../hooks/use-owner-fleet';
 
 function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) {
@@ -131,6 +132,7 @@ export function OwnerFleetScreen() {
         </View>
       ) : (
         <FlatList
+          ListHeaderComponent={<OwnerPendingReservations />}
           contentContainerStyle={styles.listContent}
           data={vehicles}
           keyExtractor={(item) => item.vehicleId}

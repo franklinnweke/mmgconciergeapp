@@ -1,22 +1,32 @@
 import 'server-only';
 
-import { requireLiveStaffSession } from '@/features/auth/server/session';
+import { requireStaffCapability } from '@/features/auth/server/session';
 import { BookingOperations } from '@/features/bookings/components/booking-operations';
+import { createFixtureAdminBookingGateway } from '@/features/bookings/data/fixture-admin-booking-gateway';
+import { FirestoreAdminBookingGateway } from '@/features/bookings/data/firestore-admin-booking-gateway';
 
 export const dynamic = 'force-dynamic';
 
 export default async function OperationsPage() {
-  // Every privileged page enforces the staff session server-side. This route
-  // renders operational booking data, so it must not be reachable without a
-  // verified staff claim just because it has no live data source yet.
-  //
-  // Deliberately session-gated rather than capability-gated: in live mode it
-  // renders the 'unavailable' shell with no records, no PII, and no signed
-  // URLs, so any staff claim may see it. The desk that will own this view
-  // (bookings) does not exist yet — when it does, gate it on that capability.
-  await requireLiveStaffSession();
+  // Privileged booking operations desk. Enforces the 'bookings.read' capability
+  // server-side so unauthorized staff members are redirected to /access-denied.
+  const session = await requireStaffCapability('bookings.read');
 
   const fixtureMode =
     process.env.NODE_ENV !== 'production' && process.env.MMG_ADMIN_FIXTURES === '1';
-  return <BookingOperations mode={fixtureMode ? 'fixture' : 'unavailable'} />;
+
+  const gateway = fixtureMode
+    ? createFixtureAdminBookingGateway()
+    : new FirestoreAdminBookingGateway();
+
+  const initialBookings = await gateway.listBookings();
+
+  return (
+    <BookingOperations
+      initialBookings={initialBookings}
+      mode={fixtureMode ? 'fixture' : 'live'}
+      staffEmail={session.email}
+      staffRole={session.role}
+    />
+  );
 }

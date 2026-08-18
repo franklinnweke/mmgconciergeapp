@@ -8,6 +8,7 @@ export type AdminBooking = {
     displayName: string;
     areaLabel: string;
     categoryLabel: string;
+    imageUrl?: string;
   };
   startDate: string;
   endDate: string;
@@ -17,6 +18,8 @@ export type AdminBooking = {
     referenceSuffix: string;
     verifiedAt: string;
   };
+  paymentEnvironment: 'test' | 'live';
+  version: number;
   priceSnapshot: PriceSnapshot;
   timeline: readonly BookingTimelineEvent[];
   updatedAt: string;

@@ -112,8 +112,8 @@
 ## Validation matrix at current checkpoint
 
 ```bash
-npm run check  # ✅ 458 tests passed (52 files), 0 type errors, 0 lint warnings
-  ├── npm test              # 458 passed, 38 skipped (emulator-only)
+npm run check  # ✅ 481 tests passed (55 files), 0 type errors, 0 lint warnings
+  ├── npm test              # 481 passed, 38 skipped (emulator-only)
   ├── npm run typecheck     # 0 errors (mobile)
   ├── npm run lint          # 0 warnings (mobile - expo lint)
   ├── functions:typecheck   # 0 errors
@@ -123,11 +123,12 @@ npm run check  # ✅ 458 tests passed (52 files), 0 type errors, 0 lint warnings
   └── admin:test            # 61 passed
 ```
 
-### Sequence 2 & Discovery Hardening (Latest Snapshot)
+### Sequence 2, Discovery & WP4 Availability/Booking Snapshot
 
 1. **Owner Wizard Flow**: Sequential photo upload + finalization pipeline, authoritative version re-read before submit, physical address validation with optional exact coords, and truthful Fleet desk status tracking.
 2. **Strict Discovery Gateway**: Native & Web Firestore gateways enforce strict row validation (drops missing coords, unknown categories, non-included policies, or missing public images; `limit(30)` on all discovery queries; zero synthetic fallback).
 3. **Live Booking Review**: `BookingReviewScreen` and `VehicleDetailScreen` asynchronously resolve live vehicles from `DiscoveryGateway` with truthful loading and missing states.
+4. **WP4 Availability & Calendar Operations**: Owner availability blocking/unblocking with transaction sentinel serialization, calendar day merging with strict block precedence (`booked` > `held` > `owner_block` > `available`), fail-closed `PaymentPort` with `TestPaymentAdapter`, verified payment intake promoting held intervals to booked journeys, owner confirmation with chauffeur notes, owner rejection with mandatory reason and operations escalation, renter cancellation with deterministic cancellation refund math, admin intervention/reassignment, and owner response SLA alerts without auto-cancel.
 
 **Rules suites (2026-08-16, Java 25)**: `npm run test:rules` ✅ 18 passed — first emulator run against the Batch B vehicle rules; `npm run test:storage-rules` ✅ 17 passed — first run against the vehicle upload prefixes. Both cover cross-owner, renter, anonymous, and staff-client denial paths.
 
@@ -148,7 +149,7 @@ npm run check  # ✅ 458 tests passed (52 files), 0 type errors, 0 lint warnings
 | WP1 | ✅ Complete | Complete renter profile & Lagos delivery address, deletion/NDPR workflow, terms agreement, rules & Functions live |
 | WP2 | 🔶 Sequence 2 Pass Complete | Batches A, B, C, D (core), E, F delivered and hardened; abandoned upload cleanup remaining |
 | WP3 | ✅ Hardened | Haversine distance, Lagos BBox validation, composite discovery ranking, live native/web FirestoreDiscoveryGateway with strict row validation (no preview fallback or fake field synthesis), resolveSearchPlace & searchVehicles functions, ExecutiveBookingDesk, PickupDistrictSheet |
-| WP4 | ⏳ Not started | Calendar, atomic holds, payment boundary, owner response/intervention |
+| WP4 | ✅ Complete | Owner calendar blocking/unblocking, calendar day merging, sentinel serialization, fail-closed PaymentPort, TestPaymentAdapter, processPaidBookingEvent, owner confirm, owner reject with reason, renter cancel with refund math, admin intervention/reassignment, owner SLA alert without auto-cancel |
 | WP5 | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules pending |

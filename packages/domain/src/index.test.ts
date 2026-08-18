@@ -5,6 +5,7 @@ import {
   allPaidBookingStates,
   calculateAuthoritativePrice,
   calculateBookingQuote,
+  calculateCancellationRefund,
   calculateChargedDays,
   calculateDiscoveryScore,
   canTransitionBookingIntent,
@@ -19,6 +20,7 @@ import {
   DEFAULT_OWNER_COMMISSION_BPS,
   DEFAULT_SERVICE_FEE_BPS,
   DEFAULT_SERVICE_FEE_FIXED_KOBO,
+  evaluateOwnerResponseSla,
   formatNairaFromKobo,
   haversineDistanceKm,
   intervalsOverlap,
@@ -29,6 +31,7 @@ import {
   maskEmail,
   maskNigerianPlate,
   maskPhoneE164,
+  mergeCalendarDays,
   ownerMayCreateVehicle,
   ownerMayManageVehicle,
   ownerMayMutateProfile,
@@ -559,5 +562,120 @@ describe('renter profile domain rules', () => {
     expect(renterMayRequestDeletion('suspended')).toBe(false);
     expect(renterMayRequestDeletion('deleted')).toBe(false);
     expect(renterMayRequestDeletion('deletion_requested')).toBe(false);
+  });
+});
+
+describe('WP4 cancellation, SLA, and calendar domain rules', () => {
+  const priceSnapshot = {
+    baseRentalKobo: 30_000_000, // 300,000 NGN
+    deliveryFeeKobo: 2_000_000, // 20,000 NGN
+    serviceFeeKobo: 2_400_000,  // 24,000 NGN
+    renterTotalKobo: 34_400_000,
+  };
+
+  it('provides 100% full refund if cancelled by owner or admin', () => {
+    const ownerCancel = calculateCancellationRefund({
+      priceSnapshot,
+      startDate: '2026-09-10',
+      cancelledAt: new Date('2026-09-09T12:00:00Z'),
+      cancelledBy: 'owner',
+    });
+    expect(ownerCancel.refundKobo).toBe(34_400_000);
+    expect(ownerCancel.penaltyKobo).toBe(0);
+    expect(ownerCancel.policyTier).toBe('full_refund');
+
+    const adminCancel = calculateCancellationRefund({
+      priceSnapshot,
+      startDate: '2026-09-10',
+      cancelledAt: new Date('2026-09-10T05:00:00Z'),
+      cancelledBy: 'admin',
+    });
+    expect(adminCancel.refundKobo).toBe(34_400_000);
+    expect(adminCancel.policyTier).toBe('full_refund');
+  });
+
+  it('provides full rental + delivery refund (> 48 hrs) when cancelled by renter', () => {
+    // 2026-09-10 start date, cancelled on 2026-09-05 (> 48 hrs)
+    const result = calculateCancellationRefund({
+      priceSnapshot,
+      startDate: '2026-09-10',
+      cancelledAt: new Date('2026-09-05T12:00:00Z'),
+      cancelledBy: 'renter',
+    });
+    expect(result.refundKobo).toBe(32_000_000); // 300k + 20k
+    expect(result.penaltyKobo).toBe(2_400_000); // service fee
+    expect(result.policyTier).toBe('full_refund');
+  });
+
+  it('provides 50% rental + 100% delivery refund (24–48 hrs) when cancelled by renter', () => {
+    // 2026-09-10 start date (00:00 Lagos / 23:00 UTC Sept 9)
+    // Cancelled on 2026-09-08 at 12:00 UTC (~35 hrs before start)
+    const result = calculateCancellationRefund({
+      priceSnapshot,
+      startDate: '2026-09-10',
+      cancelledAt: new Date('2026-09-08T12:00:00Z'),
+      cancelledBy: 'renter',
+    });
+    expect(result.refundKobo).toBe(17_000_000); // 150k + 20k
+    expect(result.penaltyKobo).toBe(17_400_000); // 150k + 24k
+    expect(result.policyTier).toBe('partial_refund');
+  });
+
+  it('provides 0% rental + 100% delivery refund (< 24 hrs) when cancelled by renter', () => {
+    // Cancelled on 2026-09-09 at 20:00 UTC (~3 hrs before start)
+    const result = calculateCancellationRefund({
+      priceSnapshot,
+      startDate: '2026-09-10',
+      cancelledAt: new Date('2026-09-09T20:00:00Z'),
+      cancelledBy: 'renter',
+    });
+    expect(result.refundKobo).toBe(2_000_000); // delivery only
+    expect(result.penaltyKobo).toBe(32_400_000); // 300k + 24k
+    expect(result.policyTier).toBe('no_refund');
+  });
+
+  it('evaluates owner response SLA without auto-cancellation', () => {
+    const paidAt = new Date('2026-08-18T10:00:00Z');
+    const withinSla = evaluateOwnerResponseSla(paidAt, 2, new Date('2026-08-18T11:30:00Z'));
+    expect(withinSla.isExpired).toBe(false);
+    expect(withinSla.remainingMs).toBe(30 * 60 * 1000);
+
+    const expiredSla = evaluateOwnerResponseSla(paidAt, 2, new Date('2026-08-18T12:05:00Z'));
+    expect(expiredSla.isExpired).toBe(true);
+    expect(expiredSla.remainingMs).toBe(0);
+  });
+
+  it('merges calendar blocks and enforces precedence (booked > held > owner_block > available)', () => {
+    const blocks = [
+      {
+        blockId: 'b-owner-1',
+        startDate: '2026-09-01',
+        endDate: '2026-09-05',
+        type: 'owner_block' as const,
+        reason: 'maintenance' as const,
+      },
+      {
+        blockId: 'b-held-1',
+        startDate: '2026-09-04',
+        endDate: '2026-09-07',
+        type: 'held' as const,
+        expiresAt: new Date('2026-09-01T12:00:00Z'), // active
+      },
+      {
+        blockId: 'b-booked-1',
+        startDate: '2026-09-06',
+        endDate: '2026-09-09',
+        type: 'booked' as const,
+      },
+    ];
+
+    const days = mergeCalendarDays('2026-09-01', '2026-09-11', blocks, new Date('2026-09-01T10:00:00Z'));
+
+    expect(days).toHaveLength(10);
+    expect(days[0]).toEqual({ date: '2026-09-01', status: 'owner_block', blockId: 'b-owner-1', reason: 'maintenance' });
+    expect(days[3]).toEqual({ date: '2026-09-04', status: 'held', blockId: 'b-held-1', reason: undefined }); // held overrides owner_block
+    expect(days[5]).toEqual({ date: '2026-09-06', status: 'booked', blockId: 'b-booked-1', reason: undefined }); // booked overrides held
+    expect(days[8]).toEqual({ date: '2026-09-09', status: 'available', blockId: undefined, reason: undefined });
+    expect(days[9]).toEqual({ date: '2026-09-10', status: 'available', blockId: undefined, reason: undefined });
   });
 });

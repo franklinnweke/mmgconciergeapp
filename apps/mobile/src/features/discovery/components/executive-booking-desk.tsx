@@ -20,10 +20,10 @@ export type ExecutiveBookingDeskProps = {
 };
 
 const DURATION_PRESETS = [
-  { label: '1 Day', days: 1, caption: 'Daily Escort' },
+  { label: '1 Day', days: 1, caption: 'Daily Rental' },
   { label: '3 Days', days: 3, caption: 'Weekend / Short' },
   { label: '7 Days', days: 7, caption: 'Weekly Retainer' },
-  { label: '14 Days', days: 14, caption: 'Fortnight Escort' },
+  { label: '14 Days', days: 14, caption: 'Fortnight Rental' },
 ];
 
 export function ExecutiveBookingDesk({
@@ -76,7 +76,7 @@ export function ExecutiveBookingDesk({
       {/* Header Eyebrow & Title */}
       <View style={styles.header}>
         <Text style={styles.eyebrow}>CHAUFFEURED MOBILITY · LAGOS</Text>
-        <Text style={styles.title}>Reserve Executive Escort</Text>
+        <Text style={styles.title}>Reserve Executive Ride</Text>
         <Text style={styles.subtitle}>
           Tailored chauffeured transport with vetted executive security drivers across Lagos.
         </Text>
@@ -164,7 +164,7 @@ export function ExecutiveBookingDesk({
           <View style={styles.stepperCenter}>
             <Text style={styles.stepperNumber}>{durationDays}</Text>
             <Text style={styles.stepperLabel}>
-              {durationDays === 1 ? 'Chauffeured Day' : 'Chauffeured Days'}
+              {durationDays === 1 ? 'Rental Day' : 'Rental Days'}
             </Text>
           </View>
 

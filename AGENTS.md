@@ -77,7 +77,11 @@ Snapshot date: **2026-08-18**. Verify against `git status`, `git log`, and the s
 | WP2 E — owner mobile fleet UI | ✅ Complete | Owner fleet list, 6-step create/submit wizard with image picking + upload session + binary PUT + finalize pipeline, authoritative version sync, live visibility toggling, vehicle inspector desk, router connections |
 | WP1 — renter profile/privacy/MFA | ✅ Complete | Complete renter profile & Lagos delivery address, deletion/NDPR workflow, terms agreement, rules & Functions live |
 | WP3 — live Lagos discovery | ✅ Complete | Haversine distance, Lagos BBox validation, composite discovery ranking, live native/web FirestoreDiscoveryGateway with strict row validation (no preview fallback, no category/coords/policy fabrication, limit(30) fetch), resolveSearchPlace & searchVehicles functions, ExecutiveBookingDesk, live BookingReviewScreen & VehicleDetailScreen, PickupDistrictSheet |
-| WP4 — availability and Paystack-ready booking | ⏳ Not started | Calendar, atomic holds, payment boundary, owner response/intervention |
+| WP4 — availability and Paystack-ready booking | ✅ Complete | Owner calendar blocking/unblocking, merge calendar read model, sentinel serialization, fail-closed PaymentPort, TestPaymentAdapter, processPaidBookingEvent, owner confirm, owner reject with reason, renter cancel with refund math, admin intervention/reassignment, owner SLA alert without auto-cancel |
+| Paystack Sandbox & Test Mode Simulation | ✅ Complete | Server PaystackPaymentAdapter (Node 22 fetch, secret key configuration, reference verification), initializeBookingPayment & verifyBookingPayment Cloud Functions, mobile BookingReviewScreen with test mode banner & test card assistant, instant sandbox simulation shortcut, OwnerPendingReservations desk with accept/decline actions |
+| UI/Brand Polish & Motion Suite | ✅ Complete | Master Design Plan (Phases 1–5), ExecutiveBookingDesk (custom duration stepper & live schedule calculator), Prado-led fleet realignment (Prado 250 Obsidian), LuxuryShimmer, RadarPulseDot, LuxuryEmblemLoader, brand language & tone standardization ("Executive Chauffeur", "Rental & Ride", "The Prado Collection & Executive Fleet", "Dispatch Zone"), primary app icon unified to logo-darkbg.png across mobile & admin surfaces |
+| Realistic Prado-Led Executive Fleet & Live Firestore Seeding | ✅ Complete | 8 documentary-style Lagos luxury vehicle listings (Prado 250 First Edition, Prado 150 VX, Prado 150 TXL, LC300 VXR VIP, Mercedes S 580, Mercedes V-Class VIP Jet, Mercedes-AMG G 63, Lexus LX 600 Ultra Luxury), 4 verified test owners (Adeleke, Okafor, Fashola, Nnamdi), live Cloud Firestore populated with public projections, private registration details & availability sentinels, bundled assets & gateway mapping complete |
+| Admin Cloud Deployment Configuration | ✅ Complete | Next.js 16 SSR App Router build verified with Turbopack/Webpack extension aliasing, apphosting.yaml and firebase.json configured for Firebase App Hosting on Google Cloud Run |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
@@ -88,7 +92,7 @@ Snapshot date: **2026-08-18**. Verify against `git status`, `git log`, and the s
 The Firebase project `mmg-concierge` has been upgraded to the **Blaze (Pay-as-you-go) plan**. This unblocks:
 1. Live deployment of Node 22 Firebase Functions v2 (`africa-south1`).
 2. Google Cloud Scheduler daily cron for `expireAbandonedOwnerVerificationUploads`.
-3. Outbound network connectivity for live Nigerian Phone Auth (`+234...`), APNs/FCM pushes, and future Paystack payment webhooks/APIs.
+3. Outbound network connectivity for live Nigerian Phone Auth (`+234...`), APNs/FCM pushes, and Paystack payment sandbox API (`https://api.paystack.co`).
 4. Custom memory allocations (512MiB–1024MiB) for server-side Sharp vehicle image resizing.
 
 ### Current GitHub baseline & Working Tree Status
@@ -100,15 +104,13 @@ The merged `main` history currently contains:
 - `7d8003f` — app experience/auth/discovery
 - `71f88ae` — initial Admin vehicle moderation desk
 
-The uncommitted work in the repository is a **real Sequence 2 implementation pass** (contracts, Functions, Admin moderation desk, owner fleet UI, and live Lagos discovery) along with the WP1 renter profile foundation. **It is not Sequence 2+3 complete**, and the following paths are **not safe to treat as live**:
+The uncommitted work in the repository is a **real Sequence 2 implementation pass** along with **WP1 (renter profile/privacy), WP3 (live Lagos discovery), WP4 (availability & Paystack-ready booking operations), Paystack Sandbox Simulation, UI/Brand Polish (Master Design Plan Phases 1–5, Luxury Motion Suite, Prado-Led Fleet Realignment, and Language Tone Standardization), and Admin Cloud Deployment Configuration**. The following paths remain deliberately unimplemented until their explicit gates:
 
-1. **Paystack Payments & Settlement**: Live NGN card charging, webhook handling, escrow capture, and refunds are not live. (WP4/ADR 0005).
-2. **Paid Booking State Progression**: Transitions past `intent_created` (e.g. `confirmed`, `in_progress`, `completed`, `refunded`) are not backed by live payment/escrow services.
-3. **In-App Messaging / Chat**: Live renter-owner-concierge chat channels are not live (WP5).
-4. **Real-Time GPS Vehicle Tracking**: Live telematics / driver tracking is not implemented.
-5. **Push Notifications (FCM / APNs)**: Production APNs certificates / outbox processors are not live (WP5).
-6. **Vehicle Upload Garbage Collection**: Abandoned upload cleanup cron currently covers only owner verification uploads (`private/owner-verifications`); vehicle upload prefix cleanup is pending.
-7. **Ledger & Wallets**: Append-only double-entry financial ledger and bank withdrawals are not live (WP6).
+1. **Production Real-Money Paystack Settlement**: Production NGN bank card charging remains in test sandbox mode until release verification.
+2. **In-App Messaging / Chat**: Live renter-owner-concierge chat channels are not live (WP5).
+3. **Real-Time GPS Vehicle Tracking**: Live telematics / driver tracking is not implemented.
+4. **Push Notifications (FCM / APNs Outbox Delivery)**: Production APNs certificates and delivery workers are not live (WP5).
+5. **Ledger & Wallets**: Append-only double-entry financial ledger and bank withdrawals are not live (WP6).
 
 Treat all uncommitted code as an **in-progress Sequence 2 pass** and always fail closed on unimplemented paths.
 
@@ -127,7 +129,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests (Current baseline: **52 test files passed, 458 unit tests passed, 0 typecheck errors, 0 lint warnings**). A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests (Current baseline: **58 test files passed, 500 unit tests passed, 0 typecheck errors, 0 lint warnings**). A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules

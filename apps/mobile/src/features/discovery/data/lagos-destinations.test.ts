@@ -59,13 +59,15 @@ describe('Lagos destination helpers', () => {
   });
 
   it('orders search results by nearest distance', () => {
-    expect(filterPreviewVehicles({}).map((vehicle) => vehicle.distanceKm)).toEqual([3.2, 5.7, 6.1, 8.4]);
+    expect(filterPreviewVehicles({}).map((vehicle) => vehicle.distanceKm)).toEqual([
+      2.4, 2.8, 3.2, 3.9, 4.1, 4.8, 5.1, 9.6,
+    ]);
   });
 
   it('keeps the preview collection Prado-led without removing the broader luxury class', () => {
     expect(filterPreviewVehicles({ query: 'Prado' })).toHaveLength(3);
     expect(filterPreviewVehicles({ category: 'executive_sedan' })).toHaveLength(1);
-    expect(vehicleEditorialClass('Prado 150 — Pearl', 'executive_suv')).toBe('Prado · Executive SUV');
-    expect(vehicleEditorialClass('Obsidian Executive Saloon', 'executive_sedan')).toBe('Executive saloon');
+    expect(vehicleEditorialClass('Toyota Land Cruiser Prado 250 First Edition', 'executive_suv')).toBe('Prado · Executive SUV');
+    expect(vehicleEditorialClass('Mercedes-Benz S 580 4MATIC Executive Saloon', 'executive_sedan')).toBe('Executive saloon');
   });
 });
