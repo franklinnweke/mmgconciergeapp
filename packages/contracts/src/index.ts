@@ -24,6 +24,9 @@ export type SessionState = { status: 'loading' } | { status: 'signedOut' } | { s
 export interface AuthGateway { getCurrentSession(): Promise<SessionState>; }
 
 export type VehicleCategory = 'executive_suv' | 'executive_sedan';
+
+export type VehicleSummaryImageKey = 'hero-suv' | 'pearl-suv' | 'prado-graphite' | 'graphite-sedan';
+
 export type VehicleSummary = {
   id: string;
   displayName: string;
@@ -34,12 +37,34 @@ export type VehicleSummary = {
   distanceKm: number;
   chauffeurPolicy: 'included';
   deliveryPolicy: 'included';
-  imageKey: 'hero-suv' | 'pearl-suv' | 'prado-graphite' | 'graphite-sedan';
+  imageKey?: VehicleSummaryImageKey;
+  imageUrl?: string;
+  imageUrls?: readonly string[];
+  primaryImageUrl?: string;
+  description?: string;
+  year?: number;
+  make?: string;
+  model?: string;
 };
-export type VehicleSearchCriteria = { areaLabel?: string; category?: VehicleCategory; query?: string };
+export type VehicleSearchCriteria = {
+  areaLabel?: string;
+  category?: VehicleCategory;
+  query?: string;
+  startDate?: string;
+  endDate?: string;
+  minSeats?: number;
+  minDailyRateKobo?: number;
+  maxDailyRateKobo?: number;
+  features?: readonly string[];
+  originLat?: number;
+  originLng?: number;
+  radiusKm?: number;
+};
+
 export interface DiscoveryGateway {
   getFeaturedVehicles(): Promise<readonly VehicleSummary[]>;
   searchVehicles(criteria: VehicleSearchCriteria): Promise<readonly VehicleSummary[]>;
+  getVehicleById(vehicleId: string): Promise<VehicleSummary | null>;
 }
 
 export const schemaVersionSchema = z.literal(1);
@@ -418,10 +443,17 @@ export const VEHICLE_FEATURE_KEYS = [
 export const VEHICLE_IMAGE_VARIANTS = ['thumb', 'card', 'detail'] as const;
 
 export const VEHICLE_UPLOAD_PURPOSES = ['listing_image', 'vehicle_document'] as const;
+export type VehicleUploadPurpose = typeof VEHICLE_UPLOAD_PURPOSES[number];
 
 export const VEHICLE_DOCUMENT_KINDS = ['insurance', 'other'] as const;
+export type VehicleDocumentKind = typeof VEHICLE_DOCUMENT_KINDS[number];
 
 export const BOOKING_BLOCK_STATES = ['held', 'paid', 'confirmed', 'owner_block'] as const;
+export type BookingBlockState = typeof BOOKING_BLOCK_STATES[number];
+
+export type VehicleFeatureKey = typeof VEHICLE_FEATURE_KEYS[number];
+export type VehicleFuelType = typeof VEHICLE_FUEL_TYPES[number];
+export type VehicleTransmission = typeof VEHICLE_TRANSMISSIONS[number];
 
 export const MIN_OWNER_DAILY_RATE_KOBO = 5_000_000;
 export const MAX_OWNER_DAILY_RATE_KOBO = 1_000_000_000;
@@ -760,6 +792,32 @@ export type RenterVisibleVehicle = z.infer<typeof renterVisibleVehicleSchema>;
 export type ExactLagosPoint = z.infer<typeof exactLagosPointSchema>;
 export type VehicleSpecs = z.infer<typeof vehicleSpecsSchema>;
 export type VehicleReviewChecklist = z.infer<typeof vehicleReviewChecklistSchema>;
+export type VehicleReviewChecklistKey = keyof VehicleReviewChecklist;
+
+export function renterVisibleVehicleToSummary(
+  vehicle: RenterVisibleVehicle,
+  distanceKm = 0,
+): VehicleSummary {
+  return {
+    id: vehicle.vehicleId,
+    displayName: vehicle.displayName,
+    category: vehicle.category,
+    areaLabel: vehicle.areaLabel,
+    seats: vehicle.seats,
+    dailyRateKobo: vehicle.ownerDailyRateKobo,
+    distanceKm,
+    chauffeurPolicy: vehicle.chauffeurPolicy,
+    deliveryPolicy: vehicle.deliveryPolicy,
+    imageUrl: vehicle.primaryImageUrl,
+    primaryImageUrl: vehicle.primaryImageUrl,
+    imageUrls: vehicle.imageUrls,
+    description: vehicle.description,
+    year: vehicle.year,
+    make: vehicle.make,
+    model: vehicle.model,
+  };
+}
+
 
 // ── Error reason extensions ──
 
@@ -983,6 +1041,128 @@ export const adminVisibleOwnerVerificationSchema = z
   })
   .strict();
 export type AdminVisibleOwnerVerification = z.infer<typeof adminVisibleOwnerVerificationSchema>;
+
+/**
+ * Alias of the canonical `nigerianE164Schema`, not a second definition. Owner
+ * auth (`owner/callable-auth.ts`) validates phone numbers against that one and
+ * the contract tests assert it rejects non-mobile prefixes like
+ * `+234601234567`. A looser renter-side regex would make the same number valid
+ * for a renter and invalid for an owner.
+ */
+export const nigerianE164PhoneSchema = z.string().trim().pipe(nigerianE164Schema);
+export type NigerianE164Phone = z.infer<typeof nigerianE164PhoneSchema>;
+
+export const lagosDeliveryAddressSchema = z
+  .object({
+    streetAddress: z.string().trim().min(5, 'Street address must be at least 5 characters.').max(200),
+    areaLabel: lagosAreaLabelSchema,
+    buildingNumber: z.string().trim().max(50).nullable().optional(),
+    landmark: z.string().trim().max(100).nullable().optional(),
+    placeId: z.string().trim().max(128).nullable().optional(),
+    approxLatitude: z.number().nullable().optional(),
+    approxLongitude: z.number().nullable().optional(),
+  })
+  .strict();
+export type LagosDeliveryAddress = z.infer<typeof lagosDeliveryAddressSchema>;
+
+export const renterProfileStatusSchema = z.enum([
+  'active',
+  'suspended',
+  'deletion_requested',
+  'deleted',
+]);
+export type RenterProfileStatus = z.infer<typeof renterProfileStatusSchema>;
+
+export const completeRenterProfileDataSchema = z
+  .object({
+    fullName: z.string().trim().min(2, 'Full name must be at least 2 characters.').max(120),
+    phone: nigerianE164PhoneSchema,
+    defaultDeliveryAddress: lagosDeliveryAddressSchema,
+    acceptedRenterTermsVersion: termsVersionSchema,
+    acceptedPrivacyNoticeVersion: termsVersionSchema,
+  })
+  .strict();
+export type CompleteRenterProfileData = z.infer<typeof completeRenterProfileDataSchema>;
+
+export const completeRenterProfileCommandSchema = z
+  .object({
+    schemaVersion: schemaVersionSchema,
+    idempotencyKey: idempotencyKeySchema,
+    data: completeRenterProfileDataSchema,
+  })
+  .strict();
+export type CompleteRenterProfileCommand = z.infer<typeof completeRenterProfileCommandSchema>;
+
+export const completeRenterProfileResultSchema = z
+  .object({
+    requestId: z.string().min(1).max(128),
+    result: z
+      .object({
+        renterId: boundedIdSchema,
+        fullName: z.string().min(2).max(120),
+        email: z.string().email(),
+        phone: nigerianE164PhoneSchema,
+        defaultDeliveryAddress: lagosDeliveryAddressSchema,
+        accountStatus: renterProfileStatusSchema,
+        profileVersion: z.number().int().positive(),
+        updatedAt: isoDateTimeSchema,
+      })
+      .strict(),
+  })
+  .strict();
+export type CompleteRenterProfileResult = z.infer<typeof completeRenterProfileResultSchema>;
+
+export const renterProfileRecordSchema = z
+  .object({
+    renterId: boundedIdSchema,
+    fullName: z.string().min(2).max(120),
+    email: z.string().email(),
+    phone: nigerianE164PhoneSchema,
+    defaultDeliveryAddress: lagosDeliveryAddressSchema,
+    acceptedRenterTermsVersion: termsVersionSchema,
+    acceptedPrivacyNoticeVersion: termsVersionSchema,
+    accountStatus: renterProfileStatusSchema,
+    deletionReason: z.string().max(500).nullable().optional(),
+    deletionRequestedAt: isoDateTimeSchema.nullable().optional(),
+    profileVersion: z.number().int().positive(),
+    createdAt: isoDateTimeSchema,
+    updatedAt: isoDateTimeSchema,
+  })
+  .strict();
+export type RenterProfileRecord = z.infer<typeof renterProfileRecordSchema>;
+
+export const requestAccountDeletionDataSchema = z
+  .object({
+    reason: z.string().trim().max(500).optional(),
+    confirmation: z.literal(true, {
+      message: 'You must confirm account deletion.',
+    }),
+  })
+  .strict();
+export type RequestAccountDeletionData = z.infer<typeof requestAccountDeletionDataSchema>;
+
+export const requestAccountDeletionCommandSchema = z
+  .object({
+    schemaVersion: schemaVersionSchema,
+    idempotencyKey: idempotencyKeySchema,
+    data: requestAccountDeletionDataSchema,
+  })
+  .strict();
+export type RequestAccountDeletionCommand = z.infer<typeof requestAccountDeletionCommandSchema>;
+
+export const requestAccountDeletionResultSchema = z
+  .object({
+    requestId: z.string().min(1).max(128),
+    result: z
+      .object({
+        renterId: boundedIdSchema,
+        accountStatus: z.literal('deletion_requested'),
+        requestedAt: isoDateTimeSchema,
+      })
+      .strict(),
+  })
+  .strict();
+export type RequestAccountDeletionResult = z.infer<typeof requestAccountDeletionResultSchema>;
 
 export class CommandError extends Error {
   constructor(

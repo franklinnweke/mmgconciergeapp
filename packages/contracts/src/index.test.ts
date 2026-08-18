@@ -24,6 +24,7 @@ import {
   maskEmail,
   maskPhone,
   nigerianE164Schema,
+  nigerianE164PhoneSchema,
   ownerAddressSchema,
   ownerLegalNameSchema,
   ownerTermsAcceptanceSchema,
@@ -31,6 +32,7 @@ import {
   priceSnapshotSchema,
   renterVisibleBookingIntentSchema,
   renterVisibleBookingSchema,
+  renterVisibleVehicleToSummary,
   reviewOwnerVerificationCommandSchema,
   reviewOwnerVerificationResultSchema,
   submitOwnerVerificationCommandSchema,
@@ -293,6 +295,26 @@ describe('owner verification contracts and schemas', () => {
     expect(nigerianE164Schema.safeParse('08012345678').success).toBe(false);
     expect(nigerianE164Schema.safeParse('+14155552671').success).toBe(false);
     expect(nigerianE164Schema.safeParse('+234601234567').success).toBe(false);
+  });
+
+  it('applies one phone rule to renters and owners alike', () => {
+    // The renter-profile schema must not be looser than the one owner auth
+    // enforces, or the same number would be valid for a renter and invalid for
+    // an owner.
+    for (const candidate of [
+      '+2348012345678',
+      '+2349098765432',
+      '08012345678',
+      '+14155552671',
+      '+234601234567',
+      '+2340000000000',
+    ]) {
+      expect(nigerianE164PhoneSchema.safeParse(candidate).success).toBe(
+        nigerianE164Schema.safeParse(candidate).success,
+      );
+    }
+    // It does tolerate surrounding whitespace from form input.
+    expect(nigerianE164PhoneSchema.parse('  +2348012345678  ')).toBe('+2348012345678');
   });
 
   it('validates legal names and structured Lagos addresses', () => {
@@ -565,6 +587,52 @@ describe('owner verification contracts and schemas', () => {
       expect(maskPhone('+2348012345678')).toBe('+234****5678');
       expect(maskPhone(null)).toBeNull();
       expect(maskPhone('123')).toBe('***');
+    });
+  });
+
+  describe('renterVisibleVehicleToSummary', () => {
+    it('maps RenterVisibleVehicle to VehicleSummary with remote imageUrl and details', () => {
+      const renterView = {
+        vehicleId: 'veh-001',
+        ownerId: 'owner-001',
+        displayName: '2024 Toyota Land Cruiser Prado 250',
+        category: 'executive_suv' as const,
+        seats: 7,
+        areaLabel: 'Ikoyi',
+        approxLatitude: 6.45,
+        approxLongitude: 3.43,
+        ownerDailyRateKobo: 25_000_000,
+        chauffeurPolicy: 'included' as const,
+        deliveryPolicy: 'included' as const,
+        imageUrls: ['https://storage.googleapis.com/mmg-concierge/public/vehicles/v1/approved/card.jpg'],
+        primaryImageUrl: 'https://storage.googleapis.com/mmg-concierge/public/vehicles/v1/approved/card.jpg',
+        description: 'First Edition Prado in Ikoyi.',
+        features: ['cold_ac' as const, 'armoured_available' as const],
+        year: 2024,
+        make: 'Toyota',
+        model: 'Land Cruiser Prado',
+      };
+
+      const summary = renterVisibleVehicleToSummary(renterView, 5.2);
+
+      expect(summary).toEqual({
+        id: 'veh-001',
+        displayName: '2024 Toyota Land Cruiser Prado 250',
+        category: 'executive_suv',
+        areaLabel: 'Ikoyi',
+        seats: 7,
+        dailyRateKobo: 25_000_000,
+        distanceKm: 5.2,
+        chauffeurPolicy: 'included',
+        deliveryPolicy: 'included',
+        imageUrl: 'https://storage.googleapis.com/mmg-concierge/public/vehicles/v1/approved/card.jpg',
+        primaryImageUrl: 'https://storage.googleapis.com/mmg-concierge/public/vehicles/v1/approved/card.jpg',
+        imageUrls: ['https://storage.googleapis.com/mmg-concierge/public/vehicles/v1/approved/card.jpg'],
+        description: 'First Edition Prado in Ikoyi.',
+        year: 2024,
+        make: 'Toyota',
+        model: 'Land Cruiser Prado',
+      });
     });
   });
 });

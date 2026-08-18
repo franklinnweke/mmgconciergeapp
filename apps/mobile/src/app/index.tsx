@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Redirect, type Href } from 'expo-router';
 
 import { useAuth } from '@/core/auth/auth-context';
@@ -10,8 +11,16 @@ import { VerifyEmailScreen } from '@/features/auth/screens/verify-email-screen';
 
 export default function IndexRoute() {
   const { initializing, profile, profileLoadFailed, user } = useAuth();
+  const [minSplashDone, setMinSplashDone] = useState(false);
 
-  if (initializing) return <AuthLoadingScreen />;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinSplashDone(true);
+    }, 1300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (initializing || !minSplashDone) return <AuthLoadingScreen />;
   if (profileLoadFailed) return <AccountProfileErrorScreen />;
   const destination = resolveIdentityDestination({
     emailVerified: user?.emailVerified ?? false,

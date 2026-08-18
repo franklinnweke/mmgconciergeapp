@@ -450,6 +450,25 @@ export function isCurrentTerms(
   );
 }
 
+export type RenterTermsSnapshot = {
+  renterTermsVersion: string;
+  privacyNoticeVersion: string;
+};
+
+export function isCurrentRenterTerms(
+  terms: RenterTermsSnapshot,
+  current: RenterTermsSnapshot,
+): boolean {
+  return (
+    terms.renterTermsVersion === current.renterTermsVersion &&
+    terms.privacyNoticeVersion === current.privacyNoticeVersion
+  );
+}
+
+export function renterMayRequestDeletion(status: string): boolean {
+  return status === 'active';
+}
+
 export function maskEmail(email: string): string {
   const trimmed = email.trim();
   const atIndex = trimmed.indexOf('@');
@@ -468,4 +487,113 @@ export function maskPhoneE164(phone: string): string {
   }
   const suffix = trimmed.slice(-4);
   return `+234****${suffix}`;
+}
+
+/**
+ * Haversine formula to compute great-circle distance between two points in kilometres.
+ * Returns distance rounded to one decimal place.
+ */
+export function haversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371.0; // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c;
+  return Math.round(d * 10) / 10;
+}
+
+/**
+ * Validates whether latitude and longitude lie inside the Lagos bounding box.
+ */
+export function isWithinLagosBBox(
+  lat: number,
+  lon: number,
+  bbox = { minLatitude: 6.35, maxLatitude: 6.72, minLongitude: 3.05, maxLongitude: 3.70 },
+): boolean {
+  return (
+    lat >= bbox.minLatitude &&
+    lat <= bbox.maxLatitude &&
+    lon >= bbox.minLongitude &&
+    lon <= bbox.maxLongitude
+  );
+}
+
+export type DiscoveryRankingInput = {
+  distanceKm: number;
+  dailyRateKobo: number;
+  maxRadiusKm?: number;
+  minRateKobo?: number;
+  maxRateKobo?: number;
+  distanceWeight?: number;
+  priceWeight?: number;
+};
+
+/**
+ * Default composite ranking formula:
+ * score = 0.60 * normalizedDistance + 0.40 * normalizedDailyPrice
+ * Lower score represents higher ranking in discovery results.
+ */
+export function calculateDiscoveryScore(input: DiscoveryRankingInput): number {
+  const distanceWeight = input.distanceWeight ?? 0.60;
+  const priceWeight = input.priceWeight ?? 0.40;
+  const maxRadiusKm = Math.max(input.maxRadiusKm ?? 50, 1);
+  const minRateKobo = input.minRateKobo ?? 5_000_000;
+  const maxRateKobo = Math.max(input.maxRateKobo ?? 50_000_000, minRateKobo + 1);
+
+  const normalizedDistance = Math.min(Math.max(input.distanceKm / maxRadiusKm, 0), 1);
+  const normalizedPrice = Math.min(
+    Math.max((input.dailyRateKobo - minRateKobo) / (maxRateKobo - minRateKobo), 0),
+    1,
+  );
+
+  const score = distanceWeight * normalizedDistance + priceWeight * normalizedPrice;
+  return Math.round(score * 10000) / 10000;
+}
+
+export function rankVehiclesByDiscoveryScore<
+  T extends { distanceKm: number; dailyRateKobo: number }
+>(
+  vehicles: readonly T[],
+  options?: { distanceWeight?: number; priceWeight?: number; maxRadiusKm?: number },
+): T[] {
+  if (vehicles.length <= 1) return [...vehicles];
+
+  const rates = vehicles.map((v) => v.dailyRateKobo);
+  const minRate = Math.min(...rates);
+  const maxRate = Math.max(...rates);
+  const distances = vehicles.map((v) => v.distanceKm);
+  const maxDist = Math.max(...distances, options?.maxRadiusKm ?? 25, 1);
+
+  return [...vehicles].sort((a, b) => {
+    const scoreA = calculateDiscoveryScore({
+      distanceKm: a.distanceKm,
+      dailyRateKobo: a.dailyRateKobo,
+      maxRadiusKm: maxDist,
+      minRateKobo: minRate,
+      maxRateKobo: maxRate,
+      distanceWeight: options?.distanceWeight,
+      priceWeight: options?.priceWeight,
+    });
+    const scoreB = calculateDiscoveryScore({
+      distanceKm: b.distanceKm,
+      dailyRateKobo: b.dailyRateKobo,
+      maxRadiusKm: maxDist,
+      minRateKobo: minRate,
+      maxRateKobo: maxRate,
+      distanceWeight: options?.distanceWeight,
+      priceWeight: options?.priceWeight,
+    });
+    return scoreA - scoreB;
+  });
 }
