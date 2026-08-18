@@ -30,6 +30,8 @@ const records: AdminBooking[] = [
     endDate: '2026-09-16',
     state: 'paid_pending_owner',
     payment: { status: 'verified', referenceSuffix: '•••• 8214', verifiedAt: '2026-08-13T12:14:00.000Z' },
+    paymentEnvironment: 'test',
+    version: 1,
     priceSnapshot: basePrice,
     updatedAt: '2026-08-13T12:14:00.000Z',
     timeline: [
@@ -45,6 +47,8 @@ const records: AdminBooking[] = [
     endDate: '2026-09-07',
     state: 'intervention_required',
     payment: { status: 'verified', referenceSuffix: '•••• 4429', verifiedAt: '2026-08-13T10:42:00.000Z' },
+    paymentEnvironment: 'test',
+    version: 1,
     priceSnapshot: { ...basePrice, chargedDays: 2, baseRentalKobo: 77_000_000, serviceFeeKobo: 6_160_000, ownerCommissionKobo: 11_550_000, ownerEarningsKobo: 65_450_000, renterTotalKobo: 83_160_000 },
     updatedAt: '2026-08-13T11:20:00.000Z',
     timeline: [
@@ -60,6 +64,8 @@ const records: AdminBooking[] = [
     endDate: '2026-08-24',
     state: 'confirmed',
     payment: { status: 'verified', referenceSuffix: '•••• 1057', verifiedAt: '2026-08-12T15:10:00.000Z' },
+    paymentEnvironment: 'test',
+    version: 2,
     priceSnapshot: basePrice,
     updatedAt: '2026-08-12T16:03:00.000Z',
     timeline: [
@@ -75,6 +81,8 @@ const records: AdminBooking[] = [
     endDate: '2026-08-04',
     state: 'refunded',
     payment: { status: 'refunded', referenceSuffix: '•••• 6671', verifiedAt: '2026-07-30T09:20:00.000Z' },
+    paymentEnvironment: 'test',
+    version: 3,
     priceSnapshot: { ...basePrice, chargedDays: 2, baseRentalKobo: 77_000_000, serviceFeeKobo: 6_160_000, ownerCommissionKobo: 11_550_000, ownerEarningsKobo: 65_450_000, renterTotalKobo: 83_160_000 },
     updatedAt: '2026-08-01T12:00:00.000Z',
     timeline: [
@@ -110,6 +118,7 @@ export function createFixtureAdminBookingGateway(): AdminBookingGateway {
       const updated: AdminBooking = {
         ...booking,
         state: 'confirmed',
+        version: booking.version + 1,
         updatedAt: new Date().toISOString(),
         timeline: [...booking.timeline, {
           id: `fixture-${Date.now()}`,
@@ -129,6 +138,7 @@ export function createFixtureAdminBookingGateway(): AdminBookingGateway {
       const updated: AdminBooking = {
         ...booking,
         state: 'intervention_required',
+        version: booking.version + 1,
         updatedAt: new Date().toISOString(),
         timeline: [...booking.timeline, {
           id: `fixture-${Date.now()}`,

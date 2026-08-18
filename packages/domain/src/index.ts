@@ -597,3 +597,185 @@ export function rankVehiclesByDiscoveryScore<
     return scoreA - scoreB;
   });
 }
+
+// ---------------------------------------------------------------------------
+// Cancellation Policy & Refund Calculation (WP4)
+// ---------------------------------------------------------------------------
+
+export type CancellationRefundCalculationInput = {
+  priceSnapshot: {
+    baseRentalKobo: number;
+    deliveryFeeKobo: number;
+    serviceFeeKobo: number;
+    renterTotalKobo: number;
+  };
+  startDate: string; // YYYY-MM-DD
+  cancelledAt: Date;
+  cancelledBy: 'renter' | 'owner' | 'admin';
+};
+
+export type CancellationRefundResult = {
+  refundKobo: number;
+  penaltyKobo: number;
+  policyTier: 'full_refund' | 'partial_refund' | 'no_refund';
+  hoursUntilStart: number;
+};
+
+export function calculateCancellationRefund(input: CancellationRefundCalculationInput): CancellationRefundResult {
+  const { priceSnapshot, startDate, cancelledAt, cancelledBy } = input;
+
+  if (cancelledBy === 'owner' || cancelledBy === 'admin') {
+    return {
+      refundKobo: priceSnapshot.renterTotalKobo,
+      penaltyKobo: 0,
+      policyTier: 'full_refund',
+      hoursUntilStart: 0,
+    };
+  }
+
+  // Start of rental date in Lagos timezone (UTC+1)
+  const [year, month, day] = startDate.split('-').map(Number);
+  const startLagosMs = Date.UTC(year, month - 1, day, 0, 0, 0) - 3_600_000;
+  const diffMs = startLagosMs - cancelledAt.getTime();
+  const hoursUntilStart = Math.floor(diffMs / 3_600_000);
+
+  if (hoursUntilStart >= 48) {
+    // > 48 hours: 100% refund of base rental + delivery fee, platform service fee retained
+    const refundKobo = priceSnapshot.baseRentalKobo + priceSnapshot.deliveryFeeKobo;
+    const penaltyKobo = priceSnapshot.serviceFeeKobo;
+    return {
+      refundKobo,
+      penaltyKobo,
+      policyTier: 'full_refund',
+      hoursUntilStart,
+    };
+  }
+
+  if (hoursUntilStart >= 24) {
+    // 24-48 hours: 50% refund of base rental + 100% delivery fee
+    const halfRental = Math.floor(priceSnapshot.baseRentalKobo / 2);
+    const refundKobo = halfRental + priceSnapshot.deliveryFeeKobo;
+    const penaltyKobo = (priceSnapshot.baseRentalKobo - halfRental) + priceSnapshot.serviceFeeKobo;
+    return {
+      refundKobo,
+      penaltyKobo,
+      policyTier: 'partial_refund',
+      hoursUntilStart,
+    };
+  }
+
+  // < 24 hours: 0% refund of base rental + 100% delivery fee
+  const refundKobo = priceSnapshot.deliveryFeeKobo;
+  const penaltyKobo = priceSnapshot.baseRentalKobo + priceSnapshot.serviceFeeKobo;
+  return {
+    refundKobo,
+    penaltyKobo,
+    policyTier: 'no_refund',
+    hoursUntilStart,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Owner Response SLA Evaluation (WP4)
+// ---------------------------------------------------------------------------
+
+export type OwnerSlaEvaluationResult = {
+  expiresAt: Date;
+  isExpired: boolean;
+  remainingMs: number;
+};
+
+export function evaluateOwnerResponseSla(
+  paidAt: Date,
+  slaHours = 2,
+  now = new Date(),
+): OwnerSlaEvaluationResult {
+  const expiresAt = new Date(paidAt.getTime() + slaHours * 3_600_000);
+  const remainingMs = expiresAt.getTime() - now.getTime();
+  return {
+    expiresAt,
+    isExpired: remainingMs <= 0,
+    remainingMs: Math.max(0, remainingMs),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Calendar Interval Merging & Day Resolution (WP4)
+// ---------------------------------------------------------------------------
+
+export type CalendarIntervalBlock = {
+  blockId?: string;
+  startDate: string;
+  endDate: string;
+  type: 'owner_block' | 'held' | 'booked';
+  reason?: 'maintenance' | 'owner_use' | 'offline' | 'other';
+  expiresAt?: Date;
+};
+
+export function mergeCalendarDays(
+  windowStartDate: string,
+  windowEndDate: string,
+  blocks: readonly CalendarIntervalBlock[],
+  now = new Date(),
+): {
+  date: string;
+  status: 'available' | 'owner_block' | 'held' | 'booked';
+  blockId?: string;
+  reason?: 'maintenance' | 'owner_use' | 'offline' | 'other';
+}[] {
+  const startDay = dateOnlyToEpochDay(windowStartDate);
+  const endDay = dateOnlyToEpochDay(windowEndDate);
+  if (endDay <= startDay) throw new RangeError('Window end date must be after window start date.');
+
+  const days: {
+    date: string;
+    status: 'available' | 'owner_block' | 'held' | 'booked';
+    blockId?: string;
+    reason?: 'maintenance' | 'owner_use' | 'offline' | 'other';
+  }[] = [];
+
+  for (let epochDay = startDay; epochDay < endDay; epochDay++) {
+    const d = new Date(epochDay * 86_400_000);
+    const dateStr = d.toISOString().slice(0, 10);
+
+    let dayStatus: 'available' | 'owner_block' | 'held' | 'booked' = 'available';
+    let activeBlockId: string | undefined;
+    let activeReason: 'maintenance' | 'owner_use' | 'offline' | 'other' | undefined;
+
+    for (const b of blocks) {
+      const bStart = dateOnlyToEpochDay(b.startDate);
+      const bEnd = dateOnlyToEpochDay(b.endDate);
+
+      if (epochDay >= bStart && epochDay < bEnd) {
+        if (b.type === 'booked') {
+          dayStatus = 'booked';
+          activeBlockId = b.blockId;
+          activeReason = b.reason;
+          break; // Highest precedence
+        } else if (b.type === 'held') {
+          const isHeldActive = !b.expiresAt || b.expiresAt.getTime() > now.getTime();
+          if (isHeldActive) {
+            dayStatus = 'held';
+            activeBlockId = b.blockId;
+            activeReason = undefined;
+          }
+        } else if (b.type === 'owner_block') {
+          if (dayStatus === 'available') {
+            dayStatus = 'owner_block';
+            activeBlockId = b.blockId;
+            activeReason = b.reason;
+          }
+        }
+      }
+    }
+
+    days.push({
+      date: dateStr,
+      status: dayStatus,
+      blockId: activeBlockId,
+      reason: activeReason,
+    });
+  }
+
+  return days;
+}

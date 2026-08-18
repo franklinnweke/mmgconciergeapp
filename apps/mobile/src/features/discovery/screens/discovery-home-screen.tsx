@@ -164,9 +164,9 @@ export default function DiscoveryHomeScreen() {
 
         <SectionHeader
           actionLabel="See all"
-          eyebrow="The Prado collection"
+          eyebrow="The Prado Collection & Executive Fleet"
           onAction={() => openFleet()}
-          title="Prado first. Luxury beyond."
+          title="Prado First. Luxury Beyond."
         />
 
         {error ? (
@@ -219,7 +219,7 @@ export default function DiscoveryHomeScreen() {
           </ScrollView>
         )}
 
-        <SectionHeader eyebrow="Lagos pickup" title="Districts & airport" />
+        <SectionHeader eyebrow="Dispatch Zones" title="Lagos Pickup Locations" />
         <ScrollView
           contentContainerStyle={styles.districtRail}
           horizontal
@@ -241,7 +241,7 @@ export default function DiscoveryHomeScreen() {
                   <Ionicons color={colors.goldStrong} name={destination.icon} size={18} />
                 </View>
                 <Text style={styles.districtLabel}>{destination.label}</Text>
-                <Text style={styles.districtHint}>Pickup here</Text>
+                <Text style={styles.districtHint}>Dispatch here</Text>
               </View>
             </PressableScale>
           ))}
@@ -252,10 +252,10 @@ export default function DiscoveryHomeScreen() {
             <Ionicons color={colors.goldStrong} name="shield-checkmark-outline" size={20} />
           </View>
           <View style={styles.assuranceCopy}>
-            <Text style={styles.assuranceEyebrow}>The MMG standard</Text>
-            <Text style={styles.assuranceTitle}>Prado-led, chauffeur-ready, reviewed by MMG.</Text>
+            <Text style={styles.assuranceEyebrow}>The MMG Standard</Text>
+            <Text style={styles.assuranceTitle}>Prado-Led, Executive Chauffeur Included.</Text>
             <Text style={styles.assuranceBody}>
-              Every Prado—and every executive vehicle beside it—includes Lagos delivery and a reviewed chauffeur.
+              Every Prado—and every executive vehicle in our fleet—includes professional Lagos dispatch delivery and a vetted executive chauffeur.
             </Text>
           </View>
         </LuxuryCard>

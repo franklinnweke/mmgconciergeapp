@@ -72,11 +72,11 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
         <View style={styles.inclusionRow}>
           <View style={styles.inclusion}>
             <Ionicons color={colors.gold} name="checkmark-circle-outline" size={14} />
-            <Text style={styles.inclusionText}>Chauffeur</Text>
+            <Text style={styles.inclusionText}>Executive Chauffeur</Text>
           </View>
           <View style={styles.inclusion}>
             <Ionicons color={colors.gold} name="checkmark-circle-outline" size={14} />
-            <Text style={styles.inclusionText}>Lagos delivery</Text>
+            <Text style={styles.inclusionText}>Lagos Dispatch</Text>
           </View>
           <View style={styles.openButton}>
             <Ionicons color={colors.black} name="arrow-forward" size={16} />

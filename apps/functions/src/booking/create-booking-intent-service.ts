@@ -37,7 +37,7 @@ export type TrustedBookingConfig = {
 export type BlockingInterval = {
   startDate: string;
   endDate: string;
-  state: 'held' | 'paid' | 'confirmed';
+  state: 'held' | 'paid' | 'confirmed' | 'owner_block';
   expiresAt?: Date;
 };
 

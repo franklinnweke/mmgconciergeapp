@@ -23,9 +23,22 @@ export type SessionUser = { uid: string; accountType: AccountType; displayName: 
 export type SessionState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; user: SessionUser };
 export interface AuthGateway { getCurrentSession(): Promise<SessionState>; }
 
-export type VehicleCategory = 'executive_suv' | 'executive_sedan';
+export type VehicleCategory =
+  | 'executive_suv'
+  | 'executive_sedan'
+  | 'luxury_van'
+  | 'presidential_armored';
 
-export type VehicleSummaryImageKey = 'hero-suv' | 'pearl-suv' | 'prado-graphite' | 'graphite-sedan';
+export type VehicleSummaryImageKey =
+  | 'hero-suv'
+  | 'pearl-suv'
+  | 'prado-graphite'
+  | 'graphite-sedan'
+  | 'lc300-white'
+  | 'mercedes-s580'
+  | 'mercedes-vclass'
+  | 'mercedes-g63'
+  | 'lexus-lx600';
 
 export type VehicleSummary = {
   id: string;
@@ -152,7 +165,17 @@ export const renterVehicleSnapshotSchema = z.object({
   displayName: z.string().trim().min(1).max(120),
   areaLabel: z.string().trim().min(1).max(120),
   categoryLabel: z.string().trim().min(1).max(80),
-  imageKey: z.enum(['hero-suv', 'pearl-suv', 'prado-graphite', 'graphite-sedan']).optional(),
+  imageKey: z.enum([
+    'hero-suv',
+    'pearl-suv',
+    'prado-graphite',
+    'graphite-sedan',
+    'lc300-white',
+    'mercedes-s580',
+    'mercedes-vclass',
+    'mercedes-g63',
+    'lexus-lx600',
+  ]).optional(),
   imageUrl: z.string().url().max(2_048).optional(),
 }).strict();
 export type RenterVehicleSnapshot = z.infer<typeof renterVehicleSnapshotSchema>;
@@ -314,6 +337,7 @@ export const STAFF_ROLE_KEYS = [
   'verification_admin',
   'finance_admin',
   'privacy_admin',
+  'booking_admin',
   'super_admin',
 ] as const;
 
@@ -339,6 +363,7 @@ export const commandSafeReasonSchema = z.enum([
   'email_unverified',
   'phone_unverified',
   'not_owner',
+  'not_renter',
   'not_staff',
   'upload_invalid',
   'terms_stale',
@@ -349,7 +374,11 @@ export const commandSafeReasonSchema = z.enum([
   'image_limit',
   'image_dimensions',
   'dates_overlap',
+  'availability_conflict',
+  'expired',
   'not_paid',
+  'payment_reference_mismatch',
+  'payment_unavailable',
 ]);
 export type CommandSafeReason = z.infer<typeof commandSafeReasonSchema>;
 
@@ -423,7 +452,12 @@ export const VEHICLE_REVIEW_CHECKLIST_KEYS = [
   'no_fraud_indicators',
 ] as const;
 
-export const VEHICLE_CATEGORIES = ['executive_suv', 'executive_sedan'] as const;
+export const VEHICLE_CATEGORIES = [
+  'executive_suv',
+  'executive_sedan',
+  'luxury_van',
+  'presidential_armored',
+] as const;
 
 export const VEHICLE_TRANSMISSIONS = ['automatic', 'manual'] as const;
 
@@ -1174,6 +1208,392 @@ export class CommandError extends Error {
     this.name = 'CommandError';
   }
 }
+
+// ---------------------------------------------------------------------------
+// Availability Blocking & Calendar Contracts (WP4)
+// ---------------------------------------------------------------------------
+
+export const availabilityBlockReasonSchema = z.enum(['maintenance', 'owner_use', 'offline', 'other']);
+export type AvailabilityBlockReason = z.infer<typeof availabilityBlockReasonSchema>;
+
+export const availabilityBlockTypeSchema = z.enum(['owner_block', 'held', 'booked']);
+export type AvailabilityBlockType = z.infer<typeof availabilityBlockTypeSchema>;
+
+export const setVehicleAvailabilityBlockDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  startDate: dateOnlySchema,
+  endDate: dateOnlySchema,
+  reason: availabilityBlockReasonSchema.default('owner_use'),
+  notes: z.string().trim().max(500).optional(),
+}).strict();
+export type SetVehicleAvailabilityBlockData = z.infer<typeof setVehicleAvailabilityBlockDataSchema>;
+
+export const setVehicleAvailabilityBlockCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: setVehicleAvailabilityBlockDataSchema,
+}).strict();
+export type SetVehicleAvailabilityBlockCommand = z.infer<typeof setVehicleAvailabilityBlockCommandSchema>;
+
+export const vehicleAvailabilityBlockSchema = z.object({
+  blockId: boundedIdSchema,
+  vehicleId: boundedIdSchema,
+  ownerId: boundedIdSchema,
+  startDate: dateOnlySchema,
+  endDate: dateOnlySchema,
+  type: availabilityBlockTypeSchema,
+  reason: availabilityBlockReasonSchema.optional(),
+  referenceId: boundedIdSchema.optional(),
+  createdAt: isoDateTimeSchema,
+  updatedAt: isoDateTimeSchema,
+}).strict();
+export type VehicleAvailabilityBlock = z.infer<typeof vehicleAvailabilityBlockSchema>;
+
+export const setVehicleAvailabilityBlockResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    block: vehicleAvailabilityBlockSchema,
+  }).strict(),
+}).strict();
+export type SetVehicleAvailabilityBlockResult = z.infer<typeof setVehicleAvailabilityBlockResultSchema>;
+
+export const removeVehicleAvailabilityBlockDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  blockId: boundedIdSchema,
+}).strict();
+export type RemoveVehicleAvailabilityBlockData = z.infer<typeof removeVehicleAvailabilityBlockDataSchema>;
+
+export const removeVehicleAvailabilityBlockCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: removeVehicleAvailabilityBlockDataSchema,
+}).strict();
+export type RemoveVehicleAvailabilityBlockCommand = z.infer<typeof removeVehicleAvailabilityBlockCommandSchema>;
+
+export const removeVehicleAvailabilityBlockResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    vehicleId: boundedIdSchema,
+    blockId: boundedIdSchema,
+    removed: z.literal(true),
+  }).strict(),
+}).strict();
+export type RemoveVehicleAvailabilityBlockResult = z.infer<typeof removeVehicleAvailabilityBlockResultSchema>;
+
+export const getVehicleCalendarDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  windowStartDate: dateOnlySchema,
+  windowEndDate: dateOnlySchema,
+}).strict();
+export type GetVehicleCalendarData = z.infer<typeof getVehicleCalendarDataSchema>;
+
+export const getVehicleCalendarCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  data: getVehicleCalendarDataSchema,
+}).strict();
+export type GetVehicleCalendarCommand = z.infer<typeof getVehicleCalendarCommandSchema>;
+
+export const vehicleCalendarDayStatusSchema = z.enum(['available', 'owner_block', 'held', 'booked']);
+export type VehicleCalendarDayStatus = z.infer<typeof vehicleCalendarDayStatusSchema>;
+
+export const vehicleCalendarDaySchema = z.object({
+  date: dateOnlySchema,
+  status: vehicleCalendarDayStatusSchema,
+  blockId: boundedIdSchema.optional(),
+  reason: availabilityBlockReasonSchema.optional(),
+}).strict();
+export type VehicleCalendarDay = z.infer<typeof vehicleCalendarDaySchema>;
+
+export const getVehicleCalendarResultSchema = z.object({
+  vehicleId: boundedIdSchema,
+  windowStartDate: dateOnlySchema,
+  windowEndDate: dateOnlySchema,
+  days: z.array(vehicleCalendarDaySchema),
+  blocks: z.array(vehicleAvailabilityBlockSchema),
+}).strict();
+export type GetVehicleCalendarResult = z.infer<typeof getVehicleCalendarResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Paid Booking Operations Contracts (WP4)
+// ---------------------------------------------------------------------------
+
+export const ownerConfirmBookingDataSchema = z.object({
+  bookingId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+  chauffeurNotes: z.string().trim().max(1000).optional(),
+}).strict();
+export type OwnerConfirmBookingData = z.infer<typeof ownerConfirmBookingDataSchema>;
+
+export const ownerConfirmBookingCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: ownerConfirmBookingDataSchema,
+}).strict();
+export type OwnerConfirmBookingCommand = z.infer<typeof ownerConfirmBookingCommandSchema>;
+
+export const ownerConfirmBookingResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    bookingId: boundedIdSchema,
+    state: z.literal('confirmed'),
+    version: z.number().int().positive(),
+    updatedAt: isoDateTimeSchema,
+  }).strict(),
+}).strict();
+export type OwnerConfirmBookingResult = z.infer<typeof ownerConfirmBookingResultSchema>;
+
+export const ownerRejectReasonSchema = z.enum([
+  'chauffeur_unavailable',
+  'vehicle_maintenance',
+  'outside_service_area',
+  'other',
+]);
+export type OwnerRejectReason = z.infer<typeof ownerRejectReasonSchema>;
+
+export const ownerRejectBookingDataSchema = z.object({
+  bookingId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+  reason: ownerRejectReasonSchema,
+  details: z.string().trim().max(1000).optional(),
+}).strict();
+export type OwnerRejectBookingData = z.infer<typeof ownerRejectBookingDataSchema>;
+
+export const ownerRejectBookingCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: ownerRejectBookingDataSchema,
+}).strict();
+export type OwnerRejectBookingCommand = z.infer<typeof ownerRejectBookingCommandSchema>;
+
+export const ownerRejectBookingResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    bookingId: boundedIdSchema,
+    state: z.literal('intervention_required'),
+    version: z.number().int().positive(),
+    updatedAt: isoDateTimeSchema,
+  }).strict(),
+}).strict();
+export type OwnerRejectBookingResult = z.infer<typeof ownerRejectBookingResultSchema>;
+
+export const cancellationPolicyTierSchema = z.enum(['full_refund', 'partial_refund', 'no_refund']);
+export type CancellationPolicyTier = z.infer<typeof cancellationPolicyTierSchema>;
+
+export const renterCancelBookingDataSchema = z.object({
+  bookingId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+  reason: z.string().trim().max(500).optional(),
+}).strict();
+export type RenterCancelBookingData = z.infer<typeof renterCancelBookingDataSchema>;
+
+export const renterCancelBookingCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: renterCancelBookingDataSchema,
+}).strict();
+export type RenterCancelBookingCommand = z.infer<typeof renterCancelBookingCommandSchema>;
+
+export const renterCancelBookingResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    bookingId: boundedIdSchema,
+    state: z.enum(['cancelled', 'refund_pending', 'refunded']),
+    refundKobo: safeKoboSchema,
+    penaltyKobo: safeKoboSchema,
+    policyTier: cancellationPolicyTierSchema,
+    version: z.number().int().positive(),
+    updatedAt: isoDateTimeSchema,
+  }).strict(),
+}).strict();
+export type RenterCancelBookingResult = z.infer<typeof renterCancelBookingResultSchema>;
+
+export const adminInterventionActionSchema = z.enum([
+  'reassign_vehicle',
+  'force_cancel',
+  'manual_override',
+]);
+export type AdminInterventionAction = z.infer<typeof adminInterventionActionSchema>;
+
+export const adminInterveneBookingDataSchema = z.object({
+  bookingId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+  action: adminInterventionActionSchema,
+  targetVehicleId: boundedIdSchema.optional(),
+  adminNotes: z.string().trim().min(5).max(2000),
+}).strict();
+export type AdminInterveneBookingData = z.infer<typeof adminInterveneBookingDataSchema>;
+
+export const adminInterveneBookingCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: adminInterveneBookingDataSchema,
+}).strict();
+export type AdminInterveneBookingCommand = z.infer<typeof adminInterveneBookingCommandSchema>;
+
+export const adminInterveneBookingResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    bookingId: boundedIdSchema,
+    action: adminInterventionActionSchema,
+    state: paidBookingStateSchema,
+    reassignedVehicleId: boundedIdSchema.optional(),
+    version: z.number().int().positive(),
+    updatedAt: isoDateTimeSchema,
+  }).strict(),
+}).strict();
+export type AdminInterveneBookingResult = z.infer<typeof adminInterveneBookingResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Payment Port Contracts & Types (WP4)
+// ---------------------------------------------------------------------------
+
+export const paymentStatusSchema = z.enum(['pending', 'succeeded', 'failed', 'abandoned', 'unavailable']);
+export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
+
+export const paymentEnvironmentSchema = z.enum(['test', 'live']);
+export type PaymentEnvironment = z.infer<typeof paymentEnvironmentSchema>;
+
+export const initializePaymentInputSchema = z.object({
+  intentId: boundedIdSchema,
+  amountKobo: safeKoboSchema,
+  email: z.string().email(),
+  callbackUrl: z.string().url().optional(),
+}).strict();
+export type InitializePaymentInput = z.infer<typeof initializePaymentInputSchema>;
+
+export const initializePaymentResultSchema = z.object({
+  reference: z.string().min(1).max(128),
+  status: paymentStatusSchema,
+  authorizationUrl: z.string().url().optional(),
+  environment: paymentEnvironmentSchema.optional(),
+  message: z.string().optional(),
+}).strict();
+export type InitializePaymentResult = z.infer<typeof initializePaymentResultSchema>;
+
+export const initializeBookingPaymentDataSchema = z.object({
+  intentId: boundedIdSchema,
+}).strict();
+export type InitializeBookingPaymentData = z.infer<typeof initializeBookingPaymentDataSchema>;
+
+export const initializeBookingPaymentCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: initializeBookingPaymentDataSchema,
+}).strict();
+export type InitializeBookingPaymentCommand = z.infer<typeof initializeBookingPaymentCommandSchema>;
+
+export const initializeBookingPaymentResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    intentId: boundedIdSchema,
+    reference: z.string().min(1).max(128),
+    authorizationUrl: z.string().url(),
+    environment: paymentEnvironmentSchema.optional(),
+  }).strict(),
+}).strict();
+export type InitializeBookingPaymentResult = z.infer<typeof initializeBookingPaymentResultSchema>;
+
+export const verifyPaymentInputSchema = z.object({
+  reference: z.string().min(1).max(128),
+}).strict();
+export type VerifyPaymentInput = z.infer<typeof verifyPaymentInputSchema>;
+
+export const verifyPaymentResultSchema = z.object({
+  reference: z.string().min(1).max(128),
+  status: paymentStatusSchema,
+  environment: paymentEnvironmentSchema,
+  amountKobo: safeKoboSchema.optional(),
+  paidAtIso: isoDateTimeSchema.optional(),
+  gatewayResponse: z.string().optional(),
+}).strict();
+export type VerifyPaymentResult = z.infer<typeof verifyPaymentResultSchema>;
+
+export interface PaymentPort {
+  initializePayment(input: InitializePaymentInput): Promise<InitializePaymentResult>;
+  verifyPayment(input: VerifyPaymentInput): Promise<VerifyPaymentResult>;
+}
+
+export const verifyBookingPaymentDataSchema = z.object({
+  intentId: boundedIdSchema,
+  paymentReference: z.string().min(1).max(128),
+}).strict();
+export type VerifyBookingPaymentData = z.infer<typeof verifyBookingPaymentDataSchema>;
+
+export const verifyBookingPaymentCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: verifyBookingPaymentDataSchema,
+}).strict();
+export type VerifyBookingPaymentCommand = z.infer<typeof verifyBookingPaymentCommandSchema>;
+
+export const verifyBookingPaymentResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    bookingId: boundedIdSchema,
+    intentId: boundedIdSchema,
+    state: paidBookingStateSchema,
+    renterTotalKobo: safeKoboSchema,
+    paymentReference: z.string(),
+    paymentEnvironment: paymentEnvironmentSchema.optional(),
+    createdAt: isoDateTimeSchema,
+    updatedAt: isoDateTimeSchema,
+  }).strict(),
+}).strict();
+export type VerifyBookingPaymentResult = z.infer<typeof verifyBookingPaymentResultSchema>;
+
+export const staffConfirmBookingDataSchema = z.object({
+  bookingId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+  adminNotes: z.string().trim().min(2).max(2000).optional(),
+}).strict();
+export type StaffConfirmBookingData = z.infer<typeof staffConfirmBookingDataSchema>;
+
+export const staffConfirmBookingCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: staffConfirmBookingDataSchema,
+}).strict();
+export type StaffConfirmBookingCommand = z.infer<typeof staffConfirmBookingCommandSchema>;
+
+export const staffConfirmBookingResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    bookingId: boundedIdSchema,
+    state: paidBookingStateSchema,
+    version: z.number().int().positive(),
+    updatedAt: isoDateTimeSchema,
+  }).strict(),
+}).strict();
+export type StaffConfirmBookingResult = z.infer<typeof staffConfirmBookingResultSchema>;
+
+export const staffRejectBookingDataSchema = z.object({
+  bookingId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+  reason: ownerRejectReasonSchema,
+  customReason: z.string().trim().min(5).max(500).optional(),
+  adminNotes: z.string().trim().min(2).max(2000).optional(),
+}).strict();
+export type StaffRejectBookingData = z.infer<typeof staffRejectBookingDataSchema>;
+
+export const staffRejectBookingCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: staffRejectBookingDataSchema,
+}).strict();
+export type StaffRejectBookingCommand = z.infer<typeof staffRejectBookingCommandSchema>;
+
+export const staffRejectBookingResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    bookingId: boundedIdSchema,
+    state: z.literal('intervention_required'),
+    version: z.number().int().positive(),
+    updatedAt: isoDateTimeSchema,
+  }).strict(),
+}).strict();
+export type StaffRejectBookingResult = z.infer<typeof staffRejectBookingResultSchema>;
+
+
 
 export class BookingCommandError extends CommandError {
   constructor(

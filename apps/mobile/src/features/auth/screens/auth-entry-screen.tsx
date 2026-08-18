@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
@@ -153,12 +154,12 @@ export function AuthEntryScreen() {
             <View style={styles.topBar}>
               <BrandWordmark withLogo />
               <View style={styles.marketPill}>
-                <View style={styles.marketDot} />
+                <RadarPulseDot color={colors.goldStrong} glowColor="rgba(227,195,101,0.35)" size={5} />
                 <Text style={styles.marketText}>LAGOS</Text>
               </View>
             </View>
             <View>
-              <Text style={styles.eyebrow}>PRADO-LED CHAUFFEURED SERVICE</Text>
+              <Text style={styles.eyebrow}>THE PRADO COLLECTION & EXECUTIVE FLEET</Text>
               <Text style={styles.heroTitle}>Lagos, handled in a Prado.</Text>
             </View>
           </Animated.View>
@@ -184,7 +185,7 @@ export function AuthEntryScreen() {
             </Text>
             <Text style={styles.formBody}>
               {mode === 'sign-in'
-                ? 'Access your journeys and concierge support.'
+                ? 'Access your rentals, rides, and concierge support.'
                 : 'Create your identity first. Profile and phone verification follow securely.'}
             </Text>
           </View>

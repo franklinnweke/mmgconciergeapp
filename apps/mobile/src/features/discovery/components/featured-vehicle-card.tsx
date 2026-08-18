@@ -56,7 +56,7 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
         <View style={styles.footer}>
           <View>
             <Text style={styles.price}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
-            <Text style={styles.perDay}>per day · chauffeur included</Text>
+            <Text style={styles.perDay}>per day · executive chauffeur included</Text>
           </View>
           <View style={styles.bookChip}>
             <Text style={styles.bookText}>View</Text>

@@ -8,7 +8,16 @@ import {
   FinalizeVehicleImageCommand,
   FinalizeVehicleImageData,
   FinalizeVehicleImageResult,
+  GetVehicleCalendarCommand,
+  GetVehicleCalendarData,
+  GetVehicleCalendarResult,
   OwnerVisibleVehicle,
+  RemoveVehicleAvailabilityBlockCommand,
+  RemoveVehicleAvailabilityBlockData,
+  RemoveVehicleAvailabilityBlockResult,
+  SetVehicleAvailabilityBlockCommand,
+  SetVehicleAvailabilityBlockData,
+  SetVehicleAvailabilityBlockResult,
   SetVehicleVisibilityCommand,
   SetVehicleVisibilityData,
   SetVehicleVisibilityResult,
@@ -21,6 +30,12 @@ import {
   createVehicleUploadSessionResultSchema,
   finalizeVehicleImageCommandSchema,
   finalizeVehicleImageResultSchema,
+  getVehicleCalendarCommandSchema,
+  getVehicleCalendarResultSchema,
+  removeVehicleAvailabilityBlockCommandSchema,
+  removeVehicleAvailabilityBlockResultSchema,
+  setVehicleAvailabilityBlockCommandSchema,
+  setVehicleAvailabilityBlockResultSchema,
   setVehicleVisibilityCommandSchema,
   setVehicleVisibilityResultSchema,
   submitVehicleForReviewCommandSchema,
@@ -58,6 +73,9 @@ export interface OwnerFleetGateway {
   finalizeImage(data: FinalizeVehicleImageData): Promise<FinalizeVehicleImageResult>;
   submitForReview(data: SubmitVehicleForReviewData): Promise<SubmitVehicleForReviewResult>;
   setVisibility(data: SetVehicleVisibilityData): Promise<SetVehicleVisibilityResult>;
+  setAvailabilityBlock(data: SetVehicleAvailabilityBlockData): Promise<SetVehicleAvailabilityBlockResult>;
+  removeAvailabilityBlock(data: RemoveVehicleAvailabilityBlockData): Promise<RemoveVehicleAvailabilityBlockResult>;
+  getCalendar(data: GetVehicleCalendarData): Promise<GetVehicleCalendarResult>;
 }
 
 function generateIdempotencyKey(prefix: string): string {
@@ -230,6 +248,38 @@ export class NativeOwnerFleetGateway implements OwnerFleetGateway {
     const callable = httpsCallable(this.functions, 'setVehicleVisibility');
     const res = await callable(command);
     return parseCallableResult(setVehicleVisibilityResultSchema, res.data, 'setVehicleVisibility');
+  }
+
+  async setAvailabilityBlock(data: SetVehicleAvailabilityBlockData): Promise<SetVehicleAvailabilityBlockResult> {
+    const command: SetVehicleAvailabilityBlockCommand = setVehicleAvailabilityBlockCommandSchema.parse({
+      schemaVersion: 1,
+      idempotencyKey: generateIdempotencyKey('avail_block'),
+      data,
+    });
+    const callable = httpsCallable(this.functions, 'setVehicleAvailabilityBlock');
+    const res = await callable(command);
+    return parseCallableResult(setVehicleAvailabilityBlockResultSchema, res.data, 'setVehicleAvailabilityBlock');
+  }
+
+  async removeAvailabilityBlock(data: RemoveVehicleAvailabilityBlockData): Promise<RemoveVehicleAvailabilityBlockResult> {
+    const command: RemoveVehicleAvailabilityBlockCommand = removeVehicleAvailabilityBlockCommandSchema.parse({
+      schemaVersion: 1,
+      idempotencyKey: generateIdempotencyKey('rm_avail_block'),
+      data,
+    });
+    const callable = httpsCallable(this.functions, 'removeVehicleAvailabilityBlock');
+    const res = await callable(command);
+    return parseCallableResult(removeVehicleAvailabilityBlockResultSchema, res.data, 'removeVehicleAvailabilityBlock');
+  }
+
+  async getCalendar(data: GetVehicleCalendarData): Promise<GetVehicleCalendarResult> {
+    const command: GetVehicleCalendarCommand = getVehicleCalendarCommandSchema.parse({
+      schemaVersion: 1,
+      data,
+    });
+    const callable = httpsCallable(this.functions, 'getVehicleCalendar');
+    const res = await callable(command);
+    return parseCallableResult(getVehicleCalendarResultSchema, res.data, 'getVehicleCalendar');
   }
 }
 

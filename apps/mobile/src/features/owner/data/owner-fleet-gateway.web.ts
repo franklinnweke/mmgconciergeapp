@@ -8,7 +8,16 @@ import {
   FinalizeVehicleImageCommand,
   FinalizeVehicleImageData,
   FinalizeVehicleImageResult,
+  GetVehicleCalendarCommand,
+  GetVehicleCalendarData,
+  GetVehicleCalendarResult,
   OwnerVisibleVehicle,
+  RemoveVehicleAvailabilityBlockCommand,
+  RemoveVehicleAvailabilityBlockData,
+  RemoveVehicleAvailabilityBlockResult,
+  SetVehicleAvailabilityBlockCommand,
+  SetVehicleAvailabilityBlockData,
+  SetVehicleAvailabilityBlockResult,
   SetVehicleVisibilityCommand,
   SetVehicleVisibilityData,
   SetVehicleVisibilityResult,
@@ -18,6 +27,9 @@ import {
   createVehicleDraftCommandSchema,
   createVehicleUploadSessionCommandSchema,
   finalizeVehicleImageCommandSchema,
+  getVehicleCalendarCommandSchema,
+  removeVehicleAvailabilityBlockCommandSchema,
+  setVehicleAvailabilityBlockCommandSchema,
   setVehicleVisibilityCommandSchema,
   submitVehicleForReviewCommandSchema,
 } from '@mmg/contracts';
@@ -222,6 +234,47 @@ export class WebOwnerFleetGateway implements OwnerFleetGateway {
     const callable = httpsCallable<SetVehicleVisibilityCommand, SetVehicleVisibilityResult>(
       this.functions,
       'setVehicleVisibility',
+    );
+    const res = await callable(command);
+    return res.data;
+  }
+
+  async setAvailabilityBlock(data: SetVehicleAvailabilityBlockData): Promise<SetVehicleAvailabilityBlockResult> {
+    const command: SetVehicleAvailabilityBlockCommand = setVehicleAvailabilityBlockCommandSchema.parse({
+      schemaVersion: 1,
+      idempotencyKey: generateIdempotencyKey('avail_block'),
+      data,
+    });
+    const callable = httpsCallable<SetVehicleAvailabilityBlockCommand, SetVehicleAvailabilityBlockResult>(
+      this.functions,
+      'setVehicleAvailabilityBlock',
+    );
+    const res = await callable(command);
+    return res.data;
+  }
+
+  async removeAvailabilityBlock(data: RemoveVehicleAvailabilityBlockData): Promise<RemoveVehicleAvailabilityBlockResult> {
+    const command: RemoveVehicleAvailabilityBlockCommand = removeVehicleAvailabilityBlockCommandSchema.parse({
+      schemaVersion: 1,
+      idempotencyKey: generateIdempotencyKey('rm_avail_block'),
+      data,
+    });
+    const callable = httpsCallable<RemoveVehicleAvailabilityBlockCommand, RemoveVehicleAvailabilityBlockResult>(
+      this.functions,
+      'removeVehicleAvailabilityBlock',
+    );
+    const res = await callable(command);
+    return res.data;
+  }
+
+  async getCalendar(data: GetVehicleCalendarData): Promise<GetVehicleCalendarResult> {
+    const command: GetVehicleCalendarCommand = getVehicleCalendarCommandSchema.parse({
+      schemaVersion: 1,
+      data,
+    });
+    const callable = httpsCallable<GetVehicleCalendarCommand, GetVehicleCalendarResult>(
+      this.functions,
+      'getVehicleCalendar',
     );
     const res = await callable(command);
     return res.data;

@@ -139,7 +139,7 @@ function TripRow({ trip }: { trip: RenterTrip }) {
           </View>
           <View style={styles.imageCopy}>
             <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
-            <Text style={styles.area}>{vehicle.areaLabel} · Chauffeur included</Text>
+            <Text style={styles.area}>{vehicle.areaLabel} · Executive Chauffeur included</Text>
           </View>
         </View>
         <View style={styles.tripBody}>
@@ -164,7 +164,7 @@ function TripRow({ trip }: { trip: RenterTrip }) {
               </Text>
             </View>
             <View style={styles.viewAction}>
-              <Text style={styles.viewText}>VIEW JOURNEY</Text>
+              <Text style={styles.viewText}>VIEW RENTAL</Text>
               <Ionicons color={colors.black} name="arrow-forward" size={15} />
             </View>
           </View>
@@ -178,17 +178,17 @@ function EmptyTrips({ onExplore }: { onExplore: () => void }) {
   return (
     <View style={styles.empty}>
       <View style={styles.emptyVisual}>
-        <Image accessibilityLabel="MMG chauffeur-ready Toyota Prado" contentFit="cover" source={vehicleImages['hero-suv']} style={StyleSheet.absoluteFill} />
+        <Image accessibilityLabel="MMG luxury Toyota Prado" contentFit="cover" source={vehicleImages['hero-suv']} style={StyleSheet.absoluteFill} />
         <LinearGradient colors={['transparent', 'rgba(4,4,4,.9)']} style={StyleSheet.absoluteFill} />
         <Text style={styles.emptyVisualText}>YOUR NEXT ARRIVAL</Text>
       </View>
-      <Text style={styles.emptyTitle}>No journeys yet.</Text>
+      <Text style={styles.emptyTitle}>No active rentals yet.</Text>
       <Text style={styles.emptyBody}>
-        Choose a chauffeur-ready vehicle and start with a current, server-verified booking intent.
+        Choose an executive vehicle from our Prado collection and reserve your ride with confidence.
       </Text>
       <PressableScale accessibilityRole="button" onPress={onExplore}>
         <View style={styles.emptyAction}>
-          <Text style={styles.emptyActionText}>EXPLORE THE FLEET</Text>
+          <Text style={styles.emptyActionText}>EXPLORE AVAILABLE FLEET</Text>
           <Ionicons color={colors.black} name="arrow-forward" size={17} />
         </View>
       </PressableScale>

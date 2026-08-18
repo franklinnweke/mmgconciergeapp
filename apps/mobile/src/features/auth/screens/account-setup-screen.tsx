@@ -17,15 +17,15 @@ const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-he
 const choices = [
   {
     accountType: 'renter' as const,
-    description: 'Start with our Prado-led fleet, with other chauffeur-ready luxury options alongside it.',
+    description: 'Access the Prado collection and executive fleet with verified chauffeur delivery across Lagos.',
     icon: 'car-sport-outline' as const,
-    label: 'I want to rent',
+    label: 'I want to reserve rides',
   },
   {
     accountType: 'owner' as const,
-    description: 'Apply to list a Prado or another approved luxury vehicle with MMG Concierge.',
+    description: 'Apply to list an approved Prado or luxury vehicle on the MMG Concierge fleet.',
     icon: 'key-outline' as const,
-    label: 'I own a car',
+    label: 'I want to list a vehicle',
   },
 ];
 

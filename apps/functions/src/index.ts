@@ -4,9 +4,26 @@ import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
+import { adminInterveneBooking as adminInterveneBookingService } from './booking/admin-intervene-booking-service.js';
+import {
+  requireAuthenticatedOwner,
+  requireBookingAdmin,
+  requireVerifiedRenter,
+} from './booking/callable-auth.js';
 import { createBookingIntent as createBookingIntentService } from './booking/create-booking-intent-service.js';
-import { requireVerifiedRenter } from './booking/callable-auth.js';
 import { FirestoreBookingIntentRepository } from './booking/firestore-booking-intent-repository.js';
+import { FirestoreBookingRepository } from './booking/firestore-booking-repository.js';
+import { getVehicleCalendar as getVehicleCalendarService } from './booking/get-vehicle-calendar-service.js';
+import { initializeBookingPayment as initializeBookingPaymentService } from './booking/initialize-booking-payment-service.js';
+import { ownerConfirmBooking as ownerConfirmBookingService } from './booking/owner-confirm-booking-service.js';
+import { ownerRejectBooking as ownerRejectBookingService } from './booking/owner-reject-booking-service.js';
+import { PaystackPaymentAdapter } from './booking/paystack-payment-adapter.js';
+import { removeVehicleAvailabilityBlock as removeVehicleAvailabilityBlockService } from './booking/remove-vehicle-availability-block-service.js';
+import { renterCancelBooking as renterCancelBookingService } from './booking/renter-cancel-booking-service.js';
+import { setVehicleAvailabilityBlock as setVehicleAvailabilityBlockService } from './booking/set-vehicle-availability-block-service.js';
+import { staffConfirmBooking as staffConfirmBookingService } from './booking/staff-confirm-booking-service.js';
+import { staffRejectBooking as staffRejectBookingService } from './booking/staff-reject-booking-service.js';
+import { verifyBookingPayment as verifyBookingPaymentService } from './booking/verify-booking-payment-service.js';
 import { resolveSearchPlaceService } from './discovery/resolve-search-place-service.js';
 import {
   FirestoreDiscoveryVehicleSource,
@@ -42,6 +59,8 @@ import { AdminVehicleStorageGateway } from './vehicle/vehicle-storage-gateway.js
 initializeApp();
 
 const bookingRepository = new FirestoreBookingIntentRepository();
+const fullBookingRepository = new FirestoreBookingRepository();
+const paymentAdapter = new PaystackPaymentAdapter();
 const ownerRepository = new FirestoreOwnerRepository();
 const vehicleRepository = new FirestoreVehicleRepository();
 const renterRepository = new FirestoreRenterRepository();
@@ -540,6 +559,349 @@ export const requestAccountDeletion = onCall(
       }
       logger.error('renter.deletion_failed', { error });
       throw new HttpsError('internal', 'Account deletion could not be requested.');
+    }
+  },
+);
+
+export const setVehicleAvailabilityBlock = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const ownerId = requireAuthenticatedOwner(request.auth);
+      const result = await setVehicleAvailabilityBlockService(request.data, ownerId, {
+        repository: fullBookingRepository,
+      });
+      logger.info('availability_block.created', {
+        requestId: result.requestId,
+        blockId: result.result.block.blockId,
+        vehicleId: result.result.block.vehicleId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('availability_block.creation_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('availability_block.creation_failed', { error });
+      throw new HttpsError('internal', 'Availability block could not be created.');
+    }
+  },
+);
+
+export const removeVehicleAvailabilityBlock = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const ownerId = requireAuthenticatedOwner(request.auth);
+      const result = await removeVehicleAvailabilityBlockService(request.data, ownerId, {
+        repository: fullBookingRepository,
+      });
+      logger.info('availability_block.removed', {
+        requestId: result.requestId,
+        blockId: result.result.blockId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('availability_block.removal_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('availability_block.removal_failed', { error });
+      throw new HttpsError('internal', 'Availability block could not be removed.');
+    }
+  },
+);
+
+export const getVehicleCalendar = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: false,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const result = await getVehicleCalendarService(request.data, {
+        repository: fullBookingRepository,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message);
+      }
+      logger.error('calendar.fetch_failed', { error });
+      throw new HttpsError('internal', 'Vehicle calendar could not be retrieved.');
+    }
+  },
+);
+
+export const ownerConfirmBooking = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const ownerId = requireAuthenticatedOwner(request.auth);
+      const result = await ownerConfirmBookingService(request.data, ownerId, {
+        repository: fullBookingRepository,
+      });
+      logger.info('booking.confirmed', {
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('booking.confirmation_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.confirmation_failed', { error });
+      throw new HttpsError('internal', 'Booking confirmation failed.');
+    }
+  },
+);
+
+export const ownerRejectBooking = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const ownerId = requireAuthenticatedOwner(request.auth);
+      const result = await ownerRejectBookingService(request.data, ownerId, {
+        repository: fullBookingRepository,
+      });
+      logger.info('booking.rejected_by_owner', {
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('booking.rejection_failed', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.rejection_failed', { error });
+      throw new HttpsError('internal', 'Booking rejection failed.');
+    }
+  },
+);
+
+export const renterCancelBooking = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const renterId = requireVerifiedRenter(request.auth);
+      const result = await renterCancelBookingService(request.data, renterId, {
+        repository: fullBookingRepository,
+      });
+      logger.info('booking.cancelled_by_renter', {
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+        refundKobo: result.result.refundKobo,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('booking.cancellation_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.cancellation_failed', { error });
+      throw new HttpsError('internal', 'Booking cancellation failed.');
+    }
+  },
+);
+
+export const adminInterveneBooking = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const staff = requireBookingAdmin(request.auth);
+      const result = await adminInterveneBookingService(request.data, staff.uid, {
+        repository: fullBookingRepository,
+      });
+      logger.info('booking.admin_intervened', {
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+        action: result.result.action,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('booking.admin_intervention_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.admin_intervention_failed', { error });
+      throw new HttpsError('internal', 'Booking intervention failed.');
+    }
+  },
+);
+
+export const initializeBookingPayment = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const result = await initializeBookingPaymentService(request.data, request.auth, {
+        repository: fullBookingRepository,
+        paymentPort: paymentAdapter,
+      });
+      logger.info('booking.payment_initialized', {
+        requestId: result.requestId,
+        intentId: result.result.intentId,
+        reference: result.result.reference,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.payment_initialization_failed', { error });
+      throw new HttpsError('internal', 'Payment initialization failed.');
+    }
+  },
+);
+
+export const verifyBookingPayment = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const result = await verifyBookingPaymentService(request.data, request.auth, {
+        repository: fullBookingRepository,
+        paymentPort: paymentAdapter,
+      });
+      logger.info('booking.payment_verified', {
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+        paymentReference: result.result.paymentReference,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('booking.payment_verification_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.payment_verification_failed', { error });
+      throw new HttpsError('internal', 'Payment verification failed.');
+    }
+  },
+);
+
+export const staffConfirmBooking = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const result = await staffConfirmBookingService(request.data, request.auth, {
+        repository: fullBookingRepository,
+      });
+      logger.info('booking.staff_confirmed', {
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.staff_confirmation_failed', { error });
+      throw new HttpsError('internal', 'Staff booking confirmation failed.');
+    }
+  },
+);
+
+export const staffRejectBooking = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const result = await staffRejectBookingService(request.data, request.auth, {
+        repository: fullBookingRepository,
+      });
+      logger.info('booking.staff_declined', {
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.staff_rejection_failed', { error });
+      throw new HttpsError('internal', 'Staff booking rejection failed.');
     }
   },
 );

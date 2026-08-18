@@ -12,6 +12,7 @@ import {
   STAFF_ROLE_KEYS,
   accountProfileSchema,
   accountTypeSchema,
+  adminInterveneBookingCommandSchema,
   adminVisibleOwnerVerificationSchema,
   canonicalErrorCodeSchema,
   commandSafeReasonSchema,
@@ -21,22 +22,29 @@ import {
   dateOnlySchema,
   emailPasswordRegistrationSchema,
   emailPasswordSignInSchema,
+  initializePaymentInputSchema,
   maskEmail,
   maskPhone,
   nigerianE164Schema,
   nigerianE164PhoneSchema,
   ownerAddressSchema,
+  ownerConfirmBookingCommandSchema,
   ownerLegalNameSchema,
+  ownerRejectBookingCommandSchema,
   ownerTermsAcceptanceSchema,
   ownerVisibleProfileSchema,
   priceSnapshotSchema,
+  removeVehicleAvailabilityBlockCommandSchema,
+  renterCancelBookingCommandSchema,
   renterVisibleBookingIntentSchema,
   renterVisibleBookingSchema,
   renterVisibleVehicleToSummary,
   reviewOwnerVerificationCommandSchema,
   reviewOwnerVerificationResultSchema,
+  setVehicleAvailabilityBlockCommandSchema,
   submitOwnerVerificationCommandSchema,
   submitOwnerVerificationResultSchema,
+  verifyPaymentResultSchema,
 } from './index';
 
 describe('authentication contracts', () => {
@@ -274,6 +282,7 @@ describe('owner verification contracts and schemas', () => {
       'verification_admin',
       'finance_admin',
       'privacy_admin',
+      'booking_admin',
       'super_admin',
     ]);
   });
@@ -287,6 +296,11 @@ describe('owner verification contracts and schemas', () => {
     expect(commandSafeReasonSchema.parse('not_approved_owner')).toBe('not_approved_owner');
     expect(commandSafeReasonSchema.parse('not_vehicle_owner')).toBe('not_vehicle_owner');
     expect(commandSafeReasonSchema.parse('listing_incomplete')).toBe('listing_incomplete');
+    expect(commandSafeReasonSchema.parse('availability_conflict')).toBe('availability_conflict');
+    expect(commandSafeReasonSchema.parse('expired')).toBe('expired');
+    expect(commandSafeReasonSchema.parse('not_renter')).toBe('not_renter');
+    expect(commandSafeReasonSchema.parse('payment_unavailable')).toBe('payment_unavailable');
+    expect(commandSafeReasonSchema.parse('payment_reference_mismatch')).toBe('payment_reference_mismatch');
   });
 
   it('validates Nigerian E.164 phone numbers', () => {
@@ -633,6 +647,107 @@ describe('owner verification contracts and schemas', () => {
         make: 'Toyota',
         model: 'Land Cruiser Prado',
       });
+    });
+  });
+
+  describe('WP4 availability and paid booking contracts', () => {
+    it('validates setVehicleAvailabilityBlockCommandSchema', () => {
+      const command = {
+        schemaVersion: 1,
+        idempotencyKey: 'idemp_avail_block_0123456789',
+        data: {
+          vehicleId: 'veh-001',
+          startDate: '2026-09-10',
+          endDate: '2026-09-15',
+          reason: 'maintenance' as const,
+          notes: 'Routine 20k km servicing',
+        },
+      };
+
+      const parsed = setVehicleAvailabilityBlockCommandSchema.parse(command);
+      expect(parsed.data.vehicleId).toBe('veh-001');
+      expect(parsed.data.reason).toBe('maintenance');
+    });
+
+    it('validates ownerConfirmBookingCommandSchema', () => {
+      const command = {
+        schemaVersion: 1,
+        idempotencyKey: 'idemp_owner_confirm_01234567',
+        data: {
+          bookingId: 'book-001',
+          expectedVersion: 1,
+          chauffeurNotes: 'Uniformed executive driver assigned',
+        },
+      };
+
+      const parsed = ownerConfirmBookingCommandSchema.parse(command);
+      expect(parsed.data.bookingId).toBe('book-001');
+    });
+
+    it('validates ownerRejectBookingCommandSchema', () => {
+      const command = {
+        schemaVersion: 1,
+        idempotencyKey: 'idemp_owner_reject_012345678',
+        data: {
+          bookingId: 'book-001',
+          expectedVersion: 1,
+          reason: 'chauffeur_unavailable' as const,
+          details: 'Driver on emergency medical leave',
+        },
+      };
+
+      const parsed = ownerRejectBookingCommandSchema.parse(command);
+      expect(parsed.data.reason).toBe('chauffeur_unavailable');
+    });
+
+    it('validates renterCancelBookingCommandSchema', () => {
+      const command = {
+        schemaVersion: 1,
+        idempotencyKey: 'idemp_renter_cancel_01234567',
+        data: {
+          bookingId: 'book-001',
+          expectedVersion: 2,
+          reason: 'Flight delayed',
+        },
+      };
+
+      const parsed = renterCancelBookingCommandSchema.parse(command);
+      expect(parsed.data.bookingId).toBe('book-001');
+    });
+
+    it('validates adminInterveneBookingCommandSchema', () => {
+      const command = {
+        schemaVersion: 1,
+        idempotencyKey: 'idemp_admin_intervene_012345',
+        data: {
+          bookingId: 'book-001',
+          expectedVersion: 2,
+          action: 'reassign_vehicle' as const,
+          targetVehicleId: 'veh-002',
+          adminNotes: 'Reassigned to matching Prado 250 in Ikoyi with owner agreement.',
+        },
+      };
+
+      const parsed = adminInterveneBookingCommandSchema.parse(command);
+      expect(parsed.data.action).toBe('reassign_vehicle');
+    });
+
+    it('validates payment port input and result schemas', () => {
+      const initInput = {
+        intentId: 'intent-001',
+        amountKobo: 50_000_000,
+        email: 'renter@example.com',
+      };
+      expect(initializePaymentInputSchema.parse(initInput).amountKobo).toBe(50_000_000);
+
+      const verifyResult = {
+        reference: 'pay_ref_001',
+        status: 'succeeded' as const,
+        environment: 'test' as const,
+        amountKobo: 50_000_000,
+        paidAtIso: '2026-08-18T10:00:00.000Z',
+      };
+      expect(verifyPaymentResultSchema.parse(verifyResult).status).toBe('succeeded');
     });
   });
 });

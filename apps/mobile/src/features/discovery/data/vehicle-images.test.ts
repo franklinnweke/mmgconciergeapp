@@ -49,7 +49,7 @@ describe('resolveVehicleImageSource', () => {
     const sedanSource = resolveVehicleImageSource({
       category: 'executive_sedan',
     });
-    expect(sedanSource).toBe(vehicleImages['graphite-sedan']);
+    expect(sedanSource).toBe(vehicleImages['mercedes-s580']);
 
     const suvSource = resolveVehicleImageSource({
       category: 'executive_suv',

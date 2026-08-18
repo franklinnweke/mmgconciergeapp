@@ -155,7 +155,7 @@ export default function TripDetailScreen({
                 <Text style={styles.statePillText}>{copy.label}</Text>
               </View>
               <Text accessibilityRole="header" style={styles.vehicleName}>{vehicle.displayName}</Text>
-              <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · Chauffeur included</Text>
+              <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · Executive Chauffeur included</Text>
             </View>
           </View>
 
@@ -187,7 +187,7 @@ export default function TripDetailScreen({
               <DatePoint label="RETURN" value={formatDate(trip.endDate)} />
             </View>
 
-            <SectionTitle label="JOURNEY TIMELINE" />
+            <SectionTitle label="RENTAL TIMELINE" />
             <View style={styles.timeline}>
               {timeline.map((step, index) => (
                 <View key={step.id} style={styles.timelineRow}>

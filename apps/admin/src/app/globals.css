@@ -87,6 +87,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .status-badge.green { color: var(--green); }
 .status-badge.red { color: var(--red); }
 .status-badge.muted { color: var(--muted); }
+.test-mode-chip { background: rgba(201,167,91,.14); border: 1px solid rgba(201,167,91,.35); border-radius: 4px; color: var(--gold-dark); display: inline-flex; font-size: 7px; font-weight: 800; letter-spacing: .12em; line-height: 1; padding: 2px 5px; vertical-align: middle; }
 .row-chevron { color: #aaa99f; justify-self: end; transition: transform .18s ease; }
 .booking-row:hover .row-chevron { transform: translateX(2px); }
 

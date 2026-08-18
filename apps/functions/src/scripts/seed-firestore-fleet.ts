@@ -1,0 +1,373 @@
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+
+if (getApps().length === 0) {
+  initializeApp({
+    projectId: 'mmg-concierge',
+  });
+}
+
+const db = getFirestore();
+
+export const SEED_OWNERS = [
+  {
+    ownerId: 'owner-adeleke-01',
+    legalName: 'Babatunde Adeleke',
+    phone: '+2348031234567',
+    email: 'babatunde.adeleke@mmgfleet.ng',
+    areaLabel: 'Ikoyi, Lagos',
+    verificationStatus: 'verified',
+    termsAcceptedAt: new Date('2026-08-01T10:00:00Z'),
+  },
+  {
+    ownerId: 'owner-okafor-02',
+    legalName: 'Chiamaka Okafor',
+    phone: '+2348029876543',
+    email: 'chiamaka.okafor@mmgfleet.ng',
+    areaLabel: 'Victoria Island, Lagos',
+    verificationStatus: 'verified',
+    termsAcceptedAt: new Date('2026-08-01T10:00:00Z'),
+  },
+  {
+    ownerId: 'owner-fashola-03',
+    legalName: 'Tunde Fashola',
+    phone: '+2348055551212',
+    email: 'tunde.fashola@mmgfleet.ng',
+    areaLabel: 'Banana Island, Lagos',
+    verificationStatus: 'verified',
+    termsAcceptedAt: new Date('2026-08-01T10:00:00Z'),
+  },
+  {
+    ownerId: 'owner-nnamdi-04',
+    legalName: 'Dr. Emeka Nnamdi',
+    phone: '+2348077778899',
+    email: 'emeka.nnamdi@mmgfleet.ng',
+    areaLabel: 'Victoria Island, Lagos',
+    verificationStatus: 'verified',
+    termsAcceptedAt: new Date('2026-08-01T10:00:00Z'),
+  },
+];
+
+export const SEED_FLEET = [
+  {
+    vehicleId: 'veh-lagos-prado-250-first-edition',
+    ownerId: 'owner-adeleke-01',
+    displayName: 'Toyota Land Cruiser Prado 250 First Edition',
+    make: 'Toyota',
+    model: 'Land Cruiser Prado 250',
+    year: 2024,
+    category: 'executive_suv',
+    seats: 7,
+    ownerDailyRateKobo: 38500000,
+    areaLabel: 'Ikoyi, Lagos',
+    approxLatitude: 6.4520,
+    approxLongitude: 3.4350,
+    chauffeurPolicy: 'included',
+    deliveryPolicy: 'included',
+    discoverable: true,
+    moderationStatus: 'approved',
+    visibility: 'active',
+    primaryImageUrl: '/assets/images/fleet/prado-250-obsidian-hero.png',
+    imageUrls: ['/assets/images/fleet/prado-250-obsidian-hero.png'],
+    description: '2024 Toyota Land Cruiser Prado 250 First Edition in Obsidian Black. Equipped with high-clearance executive suspension, dual-zone climate control, privacy glass, and certified executive chauffeur.',
+    features: ['Dual Climate A/C', 'Security Chauffeur', 'Leather Captain Chairs', 'Airport Tarmac Delivery', '4WD Terrain Command', 'Tinted Executive Privacy'],
+    plateNumber: 'LAG-250-AB',
+    plateMasked: 'LAG-***-AB',
+    vin: 'JTEBU5JR8R5019284',
+    transmission: 'Automatic',
+    colour: 'Obsidian Black',
+  },
+  {
+    vehicleId: 'veh-lagos-prado-150-vx-pearl',
+    ownerId: 'owner-okafor-02',
+    displayName: 'Toyota Land Cruiser Prado 150 VX Luxury',
+    make: 'Toyota',
+    model: 'Land Cruiser Prado 150 VX',
+    year: 2023,
+    category: 'executive_suv',
+    seats: 7,
+    ownerDailyRateKobo: 29000000,
+    areaLabel: 'Victoria Island, Lagos',
+    approxLatitude: 6.4281,
+    approxLongitude: 3.4219,
+    chauffeurPolicy: 'included',
+    deliveryPolicy: 'included',
+    discoverable: true,
+    moderationStatus: 'approved',
+    visibility: 'active',
+    primaryImageUrl: '/assets/images/fleet/prado-150-pearl.png',
+    imageUrls: ['/assets/images/fleet/prado-150-pearl.png'],
+    description: '2023 Toyota Land Cruiser Prado 150 VX in Pearl White metallic. High-grade executive interior, whisper-quiet cabin, cool-box refrigeration, and professional diplomatic driver.',
+    features: ['Cool Box Refrigeration', 'Executive Chauffeur', 'JBL Premium Audio', 'Full Leather Seating', 'VI / Island Express Delivery'],
+    plateNumber: 'KJA-150-XY',
+    plateMasked: 'KJA-***-XY',
+    vin: 'JTEBX3FJ5P5082193',
+    transmission: 'Automatic',
+    colour: 'Pearl White',
+  },
+  {
+    vehicleId: 'veh-lagos-prado-150-txl-graphite',
+    ownerId: 'owner-adeleke-01',
+    displayName: 'Toyota Land Cruiser Prado 150 TXL',
+    make: 'Toyota',
+    model: 'Land Cruiser Prado 150 TXL',
+    year: 2022,
+    category: 'executive_suv',
+    seats: 7,
+    ownerDailyRateKobo: 25000000,
+    areaLabel: 'Lekki Phase 1, Lagos',
+    approxLatitude: 6.4474,
+    approxLongitude: 3.4731,
+    chauffeurPolicy: 'included',
+    deliveryPolicy: 'included',
+    discoverable: true,
+    moderationStatus: 'approved',
+    visibility: 'active',
+    primaryImageUrl: '/assets/images/fleet/prado-150-graphite.png',
+    imageUrls: ['/assets/images/fleet/prado-150-graphite.png'],
+    description: '2022 Toyota Land Cruiser Prado 150 TXL in Metallic Graphite Grey. Robust Lagos-road resilience, rear passenger comfort, and certified security-vetted driver.',
+    features: ['Security Vetted Driver', 'Heavy-Duty Suspension', 'Dual A/C System', 'Fast Dispatch Lekki Corridor', 'Spacious Cargo Space'],
+    plateNumber: 'APP-150-GR',
+    plateMasked: 'APP-***-GR',
+    vin: 'JTEBX3FJ2N5041920',
+    transmission: 'Automatic',
+    colour: 'Graphite Grey',
+  },
+  {
+    vehicleId: 'veh-lagos-lc300-vxr-vip',
+    ownerId: 'owner-fashola-03',
+    displayName: 'Toyota Land Cruiser 300 VXR VIP',
+    make: 'Toyota',
+    model: 'Land Cruiser 300 VXR',
+    year: 2024,
+    category: 'executive_suv',
+    seats: 7,
+    ownerDailyRateKobo: 55000000,
+    areaLabel: 'Banana Island, Ikoyi, Lagos',
+    approxLatitude: 6.4600,
+    approxLongitude: 3.4480,
+    chauffeurPolicy: 'included',
+    deliveryPolicy: 'included',
+    discoverable: true,
+    moderationStatus: 'approved',
+    visibility: 'active',
+    primaryImageUrl: '/assets/images/fleet/lc300-vxr-white.png',
+    imageUrls: ['/assets/images/fleet/lc300-vxr-white.png'],
+    description: '2024 Toyota Land Cruiser 300 VXR VIP Flagship in Super White. Twin-turbo V6, ventilated executive leather, heads-up display, and VIP protocol chauffeur.',
+    features: ['Twin-Turbo V6 Power', 'VIP Protocol Chauffeur', 'Ventilated Climate Seats', 'Rear Seat Entertainment', 'Armored Door Panels'],
+    plateNumber: 'BDG-300-LC',
+    plateMasked: 'BDG-***-LC',
+    vin: 'JTMAB09J9R4011283',
+    transmission: 'Automatic',
+    colour: 'Super White',
+  },
+  {
+    vehicleId: 'veh-lagos-mercedes-s580-saloon',
+    ownerId: 'owner-nnamdi-04',
+    displayName: 'Mercedes-Benz S 580 4MATIC Executive Saloon',
+    make: 'Mercedes-Benz',
+    model: 'S 580 4MATIC',
+    year: 2023,
+    category: 'executive_sedan',
+    seats: 4,
+    ownerDailyRateKobo: 48000000,
+    areaLabel: 'Victoria Island, Lagos',
+    approxLatitude: 6.4310,
+    approxLongitude: 3.4150,
+    chauffeurPolicy: 'included',
+    deliveryPolicy: 'included',
+    discoverable: true,
+    moderationStatus: 'approved',
+    visibility: 'active',
+    primaryImageUrl: '/assets/images/fleet/mercedes-s580-black.png',
+    imageUrls: ['/assets/images/fleet/mercedes-s580-black.png'],
+    description: '2023 Mercedes-Benz S 580 long-wheelbase in Obsidian Black. Rear executive reclining lounge with calf rests, Burmester 3D surround sound, and uniformed executive chauffeur.',
+    features: ['Rear Executive Lounge', 'Burmester 3D Audio', 'Massage Seats', 'Panoramic Sunroof', 'Chauffeured VIP Protocol'],
+    plateNumber: 'JJJ-580-MB',
+    plateMasked: 'JJJ-***-MB',
+    vin: 'W1K2231761A094821',
+    transmission: 'Automatic',
+    colour: 'Obsidian Black',
+  },
+  {
+    vehicleId: 'veh-lagos-mercedes-vclass-jet',
+    ownerId: 'owner-fashola-03',
+    displayName: 'Mercedes-Benz V-Class VIP Jet Edition',
+    make: 'Mercedes-Benz',
+    model: 'V-Class Extra Long',
+    year: 2023,
+    category: 'luxury_van',
+    seats: 6,
+    ownerDailyRateKobo: 42000000,
+    areaLabel: 'Murtala Muhammed Airport, Lagos',
+    approxLatitude: 6.5774,
+    approxLongitude: 3.3212,
+    chauffeurPolicy: 'included',
+    deliveryPolicy: 'included',
+    discoverable: true,
+    moderationStatus: 'approved',
+    visibility: 'active',
+    primaryImageUrl: '/assets/images/fleet/mercedes-vclass-vip.png',
+    imageUrls: ['/assets/images/fleet/mercedes-vclass-vip.png'],
+    description: '2023 Mercedes-Benz V-Class VIP Jet Lounge in Obsidian Black. 4 facing first-class electric captain chairs, privacy partition, Wi-Fi router, and direct tarmac VIP pickup.',
+    features: ['First-Class Captain Chairs', 'Airport VIP Tarmac Access', 'Privacy Glass Partition', 'On-board Wi-Fi & Fridge', 'Starlight Headliner'],
+    plateNumber: 'IKJ-447-VC',
+    plateMasked: 'IKJ-***-VC',
+    vin: 'WDF44781513982104',
+    transmission: 'Automatic',
+    colour: 'Obsidian Black',
+  },
+  {
+    vehicleId: 'veh-lagos-mercedes-g63-amg',
+    ownerId: 'owner-adeleke-01',
+    displayName: 'Mercedes-AMG G 63 Executive Escort',
+    make: 'Mercedes-AMG',
+    model: 'G 63',
+    year: 2023,
+    category: 'executive_suv',
+    seats: 5,
+    ownerDailyRateKobo: 65000000,
+    areaLabel: 'Ikoyi, Lagos',
+    approxLatitude: 6.4500,
+    approxLongitude: 3.4300,
+    chauffeurPolicy: 'included',
+    deliveryPolicy: 'included',
+    discoverable: true,
+    moderationStatus: 'approved',
+    visibility: 'active',
+    primaryImageUrl: '/assets/images/fleet/mercedes-g63-black.png',
+    imageUrls: ['/assets/images/fleet/mercedes-g63-black.png'],
+    description: '2023 Mercedes-AMG G 63 in Obsidian Black with Night Package. Handcrafted 4.0L V8 Biturbo, unmistakable executive road authority, and defensive-driving trained security escort driver.',
+    features: ['Handcrafted AMG V8', 'Defensive Escort Driver', 'Night Package Trim', 'Active Multicontour Seats', 'Ikoyi & Island Rapid Delivery'],
+    plateNumber: 'IKY-63-AMG',
+    plateMasked: 'IKY-***-63',
+    vin: 'W1N4632761X391048',
+    transmission: 'Automatic',
+    colour: 'Obsidian Black',
+  },
+  {
+    vehicleId: 'veh-lagos-lexus-lx600-vip',
+    ownerId: 'owner-okafor-02',
+    displayName: 'Lexus LX 600 Ultra Luxury Lounge',
+    make: 'Lexus',
+    model: 'LX 600 Ultra Luxury',
+    year: 2024,
+    category: 'executive_suv',
+    seats: 4,
+    ownerDailyRateKobo: 58000000,
+    areaLabel: 'Eko Atlantic, Lagos',
+    approxLatitude: 6.4150,
+    approxLongitude: 3.4100,
+    chauffeurPolicy: 'included',
+    deliveryPolicy: 'included',
+    discoverable: true,
+    moderationStatus: 'approved',
+    visibility: 'active',
+    primaryImageUrl: '/assets/images/fleet/lexus-lx600-pearl.png',
+    imageUrls: ['/assets/images/fleet/lexus-lx600-pearl.png'],
+    description: '2024 Lexus LX 600 Ultra Luxury in Eminent White Pearl. 4-seat VIP executive layout with Ottoman footrest, Mark Levinson 25-speaker audio, and white-glove chauffeur service.',
+    features: ['4-Seat VIP Ottoman Lounge', 'Mark Levinson 25-Speaker', 'Active Height Control', 'Eko Atlantic & VI Delivery', 'Executive Chauffeur Included'],
+    plateNumber: 'EKO-600-LX',
+    plateMasked: 'EKO-***-LX',
+    vin: 'JTJHY7AX8R4092184',
+    transmission: 'Automatic',
+    colour: 'Eminent White Pearl',
+  },
+];
+
+export async function seedFirestoreFleet() {
+  console.log('🚀 Seeding verified owners and executive Prado-first fleet to Firestore...');
+
+  const batch = db.batch();
+
+  // 1. Seed Owners
+  for (const owner of SEED_OWNERS) {
+    const ownerDoc = db.collection('ownerProfiles').doc(owner.ownerId);
+    batch.set(ownerDoc, {
+      ownerId: owner.ownerId,
+      legalName: owner.legalName,
+      phone: owner.phone,
+      email: owner.email,
+      areaLabel: owner.areaLabel,
+      verificationStatus: owner.verificationStatus,
+      termsAcceptedAt: owner.termsAcceptedAt,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    const userDoc = db.collection('users').doc(owner.ownerId);
+    batch.set(userDoc, {
+      uid: owner.ownerId,
+      accountType: 'owner',
+      displayName: owner.legalName,
+      email: owner.email,
+      phoneNumber: owner.phone,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+
+  // 2. Seed Vehicles
+  for (const v of SEED_FLEET) {
+    // Public discoverable vehicle projection
+    const vehicleDoc = db.collection('vehicles').doc(v.vehicleId);
+    batch.set(vehicleDoc, {
+      vehicleId: v.vehicleId,
+      ownerId: v.ownerId,
+      displayName: v.displayName,
+      make: v.make,
+      model: v.model,
+      year: v.year,
+      category: v.category,
+      seats: v.seats,
+      ownerDailyRateKobo: v.ownerDailyRateKobo,
+      areaLabel: v.areaLabel,
+      approxLatitude: v.approxLatitude,
+      approxLongitude: v.approxLongitude,
+      chauffeurPolicy: v.chauffeurPolicy,
+      deliveryPolicy: v.deliveryPolicy,
+      discoverable: v.discoverable,
+      moderationStatus: v.moderationStatus,
+      visibility: v.visibility,
+      primaryImageUrl: v.primaryImageUrl,
+      imageUrls: v.imageUrls,
+      description: v.description,
+      features: v.features,
+      transmission: v.transmission,
+      colour: v.colour,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // Private owner details (registration & plate)
+    const privateDoc = db.collection('vehiclePrivate').doc(v.vehicleId);
+    batch.set(privateDoc, {
+      vehicleId: v.vehicleId,
+      ownerId: v.ownerId,
+      plateNumber: v.plateNumber,
+      plateMasked: v.plateMasked,
+      vin: v.vin,
+      state: 'Lagos',
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // Availability sentinel
+    const sentinelDoc = db.collection('vehicleAvailabilitySentinels').doc(v.vehicleId);
+    batch.set(sentinelDoc, {
+      vehicleId: v.vehicleId,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+
+  await batch.commit();
+  console.log(`✅ Successfully seeded ${SEED_OWNERS.length} verified owners and ${SEED_FLEET.length} executive vehicles into Firestore!`);
+}
+
+// Run if directly executed
+if (process.argv[1]?.endsWith('seed-firestore-fleet.ts') || process.argv[1]?.endsWith('seed-firestore-fleet.js')) {
+  seedFirestoreFleet().catch((err) => {
+    console.error('❌ Failed to seed Firestore:', err);
+    process.exit(1);
+  });
+}

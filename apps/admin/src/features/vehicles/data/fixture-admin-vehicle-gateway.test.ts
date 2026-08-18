@@ -20,7 +20,7 @@ describe('FixtureAdminVehicleGateway', () => {
 
   it('retrieves detailed vehicle record by vehicleId', async () => {
     const gateway = new FixtureAdminVehicleGateway();
-    const vehicle = await gateway.getVehicleDetail('veh-lagos-prado-250');
+    const vehicle = await gateway.getVehicleDetail('veh-lagos-prado-250-first-edition');
 
     expect(vehicle).not.toBeNull();
     expect(vehicle?.make).toBe('Toyota');
@@ -39,7 +39,7 @@ describe('FixtureAdminVehicleGateway', () => {
   it('approves vehicle and increments version', async () => {
     const gateway = new FixtureAdminVehicleGateway();
     const result = await gateway.reviewVehicle({
-      vehicleId: 'veh-lagos-prado-250',
+      vehicleId: 'veh-lagos-prado-250-first-edition',
       expectedVersion: 1,
       action: 'approve',
       staffEmail: 'ops.lead@mmgconcierge.com',
@@ -48,7 +48,7 @@ describe('FixtureAdminVehicleGateway', () => {
     expect(result.success).toBe(true);
     expect(result.newVersion).toBe(2);
 
-    const updated = await gateway.getVehicleDetail('veh-lagos-prado-250');
+    const updated = await gateway.getVehicleDetail('veh-lagos-prado-250-first-edition');
     expect(updated?.moderationStatus).toBe('approved');
     expect(updated?.reviewedByStaffEmail).toBe('ops.lead@mmgconcierge.com');
   });
@@ -56,7 +56,7 @@ describe('FixtureAdminVehicleGateway', () => {
   it('rejects vehicle with reason and increments version', async () => {
     const gateway = new FixtureAdminVehicleGateway();
     const result = await gateway.reviewVehicle({
-      vehicleId: 'veh-lagos-prado-250',
+      vehicleId: 'veh-lagos-prado-250-first-edition',
       expectedVersion: 1,
       action: 'reject',
       reason: 'Please upload clearer photo of interior dashboard.',
@@ -66,7 +66,7 @@ describe('FixtureAdminVehicleGateway', () => {
     expect(result.success).toBe(true);
     expect(result.newVersion).toBe(2);
 
-    const updated = await gateway.getVehicleDetail('veh-lagos-prado-250');
+    const updated = await gateway.getVehicleDetail('veh-lagos-prado-250-first-edition');
     expect(updated?.moderationStatus).toBe('rejected');
     expect(updated?.lastDecisionReason).toBe('Please upload clearer photo of interior dashboard.');
   });
@@ -76,7 +76,7 @@ describe('FixtureAdminVehicleGateway', () => {
 
     await expect(
       gateway.reviewVehicle({
-        vehicleId: 'veh-lagos-prado-250',
+        vehicleId: 'veh-lagos-prado-250-first-edition',
         expectedVersion: 99, // Stale version
         action: 'approve',
         staffEmail: 'ops.lead@mmgconcierge.com',

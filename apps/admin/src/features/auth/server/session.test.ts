@@ -194,6 +194,8 @@ describe('staff capability model', () => {
     'owners.review',
     'vehicles.read',
     'vehicles.review',
+    'bookings.read',
+    'bookings.review',
   ];
 
   it('resolves claims into roles and keeps the scalar role as the highest one', () => {
@@ -214,7 +216,7 @@ describe('staff capability model', () => {
     expect(capabilitiesForRoles(['super_admin']).sort()).toEqual([...ALL_CAPABILITIES].sort());
   });
 
-  it('scopes verification_admin to owners and vehicle_admin to vehicles', () => {
+  it('scopes verification_admin to owners, vehicle_admin to vehicles, and booking_admin to bookings', () => {
     expect(capabilitiesForRoles(['verification_admin']).sort()).toEqual([
       'owners.read',
       'owners.review',
@@ -223,6 +225,16 @@ describe('staff capability model', () => {
       'vehicles.read',
       'vehicles.review',
     ]);
+    expect(capabilitiesForRoles(['booking_admin']).sort()).toEqual([
+      'bookings.read',
+      'bookings.review',
+    ]);
+    expect(staffSessionHasCapability({ roles: ['vehicle_admin'] }, 'bookings.read')).toBe(false);
+    expect(staffSessionHasCapability({ roles: ['vehicle_admin'] }, 'bookings.review')).toBe(false);
+    expect(staffSessionHasCapability({ roles: ['verification_admin'] }, 'bookings.read')).toBe(false);
+    expect(staffSessionHasCapability({ roles: ['verification_admin'] }, 'bookings.review')).toBe(false);
+    expect(staffSessionHasCapability({ roles: ['booking_admin'] }, 'owners.read')).toBe(false);
+    expect(staffSessionHasCapability({ roles: ['booking_admin'] }, 'vehicles.read')).toBe(false);
   });
 
   it('grants no desk capability to roles whose desks are not built yet', () => {

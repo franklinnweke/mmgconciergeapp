@@ -73,12 +73,12 @@ export function PickupDistrictSheet({
 
           {/* Header */}
           <View style={styles.header}>
-            <div>
-              <Text style={styles.eyebrow}>LAGOS DISPATCH</Text>
-              <Text style={styles.title}>Select Pickup Region</Text>
-            </div>
+            <View>
+              <Text style={styles.eyebrow}>LAGOS DISPATCH ZONES</Text>
+              <Text style={styles.title}>Select Pickup Location</Text>
+            </View>
             <Pressable
-              accessibilityLabel="Close district selection"
+              accessibilityLabel="Close dispatch zone selection"
               onPress={onClose}
               style={styles.closeButton}
             >

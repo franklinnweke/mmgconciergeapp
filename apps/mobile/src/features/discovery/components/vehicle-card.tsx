@@ -48,7 +48,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
           <Text style={styles.price}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
           <Text style={styles.perDay}> / day</Text>
           <View style={styles.includedSpacer} />
-          <Text style={styles.included}>Chauffeur included</Text>
+          <Text style={styles.included}>Executive Chauffeur included</Text>
         </View>
       </View>
     </PressableScale>

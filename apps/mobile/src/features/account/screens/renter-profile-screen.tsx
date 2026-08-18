@@ -156,11 +156,11 @@ function RenterProfileForm({
 
       {/* Contact Details Card */}
       <LuxuryCard style={styles.card}>
-        <Text style={styles.cardEyebrow}>PERSONAL IDENTITY</Text>
-        <Text style={styles.cardTitle}>Executive Contact</Text>
+        <Text style={styles.cardEyebrow}>PERSONAL INFORMATION</Text>
+        <Text style={styles.cardTitle}>Identity & Contact</Text>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>FULL LEGAL NAME</Text>
+          <Text style={styles.label}>FULL NAME</Text>
           <TextInput
             editable={!isSaving}
             onChangeText={setFullName}
@@ -172,12 +172,12 @@ function RenterProfileForm({
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>NIGERIAN PHONE NUMBER (E.164)</Text>
+          <Text style={styles.label}>PHONE NUMBER (+234)</Text>
           <TextInput
             editable={!isSaving}
             keyboardType="phone-pad"
             onChangeText={setPhone}
-            placeholder="+2348012345678"
+            placeholder="+234 800 000 0000"
             placeholderTextColor={colors.muted}
             style={styles.input}
             value={phone}
@@ -187,14 +187,14 @@ function RenterProfileForm({
 
       {/* Default Lagos Delivery Address */}
       <LuxuryCard style={styles.card}>
-        <Text style={styles.cardEyebrow}>CHAUFFEUR DISPATCH</Text>
+        <Text style={styles.cardEyebrow}>DISPATCH & DELIVERY</Text>
         <Text style={styles.cardTitle}>Default Delivery Address</Text>
         <Text style={styles.cardDescription}>
           Every luxury rental includes private delivery to your confirmed Lagos address.
         </Text>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>PRIMARY LAGOS DISTRICT</Text>
+          <Text style={styles.label}>PRIMARY DISPATCH ZONE</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.areaScroll}>
             {LAGOS_AREAS.map((area) => {
               const isSelected = selectedArea === area;
