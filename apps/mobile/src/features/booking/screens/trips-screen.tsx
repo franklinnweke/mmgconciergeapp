@@ -5,13 +5,15 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, Platform, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { LuxuryEmblemLoader } from '@/components/ui/luxury-emblem-loader';
+import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
-import { vehicleImages } from '@/features/discovery/data/vehicle-images';
+import { resolveVehicleImageSource, vehicleImages } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 import { groupTripsForDisplay, tripStateCopy, type RenterTrip } from '../domain/renter-trip';
@@ -63,7 +65,11 @@ export default function TripsScreen() {
         <View style={styles.topBar}>
           <BrandWordmark withLogo />
           <View style={styles.statusPill}>
-            <View style={[styles.statusDot, (syncState === 'offline' || isPreview) && styles.statusDotOffline]} />
+            <RadarPulseDot
+              color={syncState === 'offline' || isPreview ? colors.goldStrong : colors.success}
+              glowColor={syncState === 'offline' || isPreview ? 'rgba(227,195,101,0.35)' : 'rgba(74,222,128,0.35)'}
+              size={6}
+            />
             <Text style={styles.statusPillText}>{syncLabel(syncState, isPreview)}</Text>
           </View>
         </View>
@@ -88,8 +94,7 @@ export default function TripsScreen() {
         ) : null}
         {initializing ? (
           <View accessibilityLiveRegion="polite" style={styles.loading}>
-            <ActivityIndicator color={colors.goldStrong} />
-            <Text style={styles.loadingText}>Loading your journeys…</Text>
+            <LuxuryEmblemLoader label="RETRIEVING YOUR JOURNEYS" size={44} />
           </View>
         ) : groups.length ? (
           groups.map((section) => (
@@ -114,9 +119,7 @@ export default function TripsScreen() {
 function TripRow({ trip }: { trip: RenterTrip }) {
   const router = useRouter();
   const vehicle = trip.vehicleSnapshot;
-  const vehicleImage = vehicle.imageUrl
-    ? { uri: vehicle.imageUrl }
-    : vehicleImages[vehicle.imageKey ?? 'hero-suv'];
+  const vehicleImage = resolveVehicleImageSource(vehicle);
   const copy = tripStateCopy(trip.state);
   const attention = trip.group === 'intervention';
   return (
@@ -175,7 +178,7 @@ function EmptyTrips({ onExplore }: { onExplore: () => void }) {
   return (
     <View style={styles.empty}>
       <View style={styles.emptyVisual}>
-        <Image accessibilityLabel="MMG chauffeur-ready vehicle" contentFit="cover" source={vehicleImages['graphite-sedan']} style={StyleSheet.absoluteFill} />
+        <Image accessibilityLabel="MMG chauffeur-ready Toyota Prado" contentFit="cover" source={vehicleImages['hero-suv']} style={StyleSheet.absoluteFill} />
         <LinearGradient colors={['transparent', 'rgba(4,4,4,.9)']} style={StyleSheet.absoluteFill} />
         <Text style={styles.emptyVisualText}>YOUR NEXT ARRIVAL</Text>
       </View>

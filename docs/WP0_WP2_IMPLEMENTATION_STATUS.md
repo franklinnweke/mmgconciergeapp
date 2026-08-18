@@ -87,46 +87,47 @@
 - **`apps/functions/src/vehicle/callable-auth.ts`**: Auth assertions `requireVehicleAdmin` (enforcing `vehicle_admin` or `super_admin`) and `requireVerifiedEmailOwnerAuth`.
 - **`apps/functions/src/vehicle/create-vehicle-draft-service.ts`**: Validates owner approval (`ownerMayCreateVehicle`), creates draft vehicle + private records, rounds Lagos coordinates, forces chauffeur/delivery to included, audit events + idempotency.
 - **`apps/functions/src/vehicle/create-vehicle-upload-session-service.ts`**: Generates private storage paths (`private/vehicle-uploads/` / `private/vehicle-documents/`), enforces max 20 image & max 5 document limits, audit events + idempotency.
-- **`apps/functions/src/vehicle/finalize-vehicle-image-service.ts`**: Magic-byte validation (JPEG/PNG/WEBP), 10 MiB limit, image record creation with 1920x1080 metadata and variant paths, primary image detection, audit events + idempotency.
+- **`apps/functions/src/vehicle/finalize-vehicle-image-service.ts`**: Magic-byte validation (JPEG/PNG/WEBP), 10 MiB limit, image record creation with measured orientation-corrected dimensions and variant paths, primary image detection, audit events + idempotency.
 - **`apps/functions/src/vehicle/submit-vehicle-for-review-service.ts`**: Rigorous completeness gate (specs, 40-2000 char description, daily rate within ₦50k-₦10M, Nigerian plate format, Lagos address & BBOX point, 1-20 processed images), transitions `draft`/`rejected` -> `pending_review`, outbox record + idempotency.
 - **`apps/functions/src/vehicle/review-vehicle-service.ts`**: Enforces `vehicle_admin` | `super_admin`, 7-point checklist verification on approval, mandatory reason on rejection/suspension, immutable `adminAuditLogs` with state hashes, image promotion, discoverability calculation.
 - **`apps/functions/src/vehicle/set-vehicle-visibility-service.ts`**: Allows approved owners to toggle `active` ↔ `paused`, tombstoning on `deleted`, automatic `discoverable` recalculation.
 - **`apps/functions/src/vehicle/firestore-vehicle-repository.ts`**: Complete transactional Cloud Firestore repository.
 - **`apps/functions/src/index.ts`**: Exported all 6 callables (`createVehicleDraft`, `createVehicleUploadSession`, `finalizeVehicleImage`, `submitVehicleForReview`, `reviewVehicle`, `setVehicleVisibility`).
 
-### Batch D — Image processing pipeline 🔶 PARTIALLY DELIVERED
-**Implemented and tested** (`apps/functions/src/vehicle/`):
-- `image-processing.ts` + `sharp-image-processor.ts`: sharp pipeline with `limitInputPixels`, `concurrency(1)`, orientation-corrected measured dimensions, EXIF stripping (proven by an independent JPEG marker walker in tests), thumb/card/detail variants, tri-state GPS detection.
-- `image-promotion.ts` (+ test suite): promotes approved images into `public/vehicles/{vehicleId}/approved/...`, demotes on suspend/pause/delete, idempotent demotion, partial-promotion-fails-hard.
-- `renter-vehicle-view.ts` (+ tests): whitelist-only renter projection — structurally cannot see `vehiclePrivate` (plate, exact coords, address); re-checks `moderationStatus`/`visibility`/`discoverable`; strict-schema validated with drop reasons.
-- `vehicle-repository-fake.ts`: shared in-memory repository for service tests.
-- `index.ts` wiring: `storageGateway` injected into `finalizeVehicleImage` (1GiB/120s budget), `reviewVehicle` and `setVehicleVisibility` (120s for up-to-20-image publication), with `onPromotionFailure` logging.
+### Batch D (D1 & D2) — Image Processing Pipeline & Storage Promotion ✅ COMPLETE
+- **`image-processing.ts` + `sharp-image-processor.ts`**: Sharp pipeline with `limitInputPixels(8000²)`, `concurrency(1)`, orientation-corrected measured dimensions, EXIF/GPS stripping (verified with marker walker), thumb/card/detail variants at quality 82.
+- **`image-promotion.ts`**: Promotes approved images into `public/vehicles/{vehicleId}/approved/...`, demotes on suspend/pause/delete, idempotent demotion, supersede-check placed above writes so paused listings abandon stamps cleanly.
+- **`renter-vehicle-view.ts`**: Whitelist-only renter projection — structurally isolates `vehiclePrivate` (plate, exact coords, address); checks `moderationStatus`/`visibility`/`discoverable`; strictly validated.
+- **`index.ts` Wiring**: Injected `AdminVehicleStorageGateway` into `finalizeVehicleImage`, `reviewVehicle`, and `setVehicleVisibility`.
 
-**Still pending in Batch D**: extend abandoned-upload cleanup to the vehicle prefixes (`private/vehicle-uploads`, `private/vehicle-documents`) — originals are currently retained forever.
-
-### Review hardening batch (2026-08-16, post-review)
-- `apps/mobile/.../owner-verification-repository.ts`: `docSnap.exists()` (was a property read on a method — always truthy — which broke the desk for every new owner); regression tests added pinning the native snapshot shape.
-- `apps/admin/.../review-owner-verification-action.ts`: strict `assertSameOrigin` gate on the action (Next's built-in check allows missing Origin); Firestore repository constructed lazily via `getAdminFirestore()` (module-scope default threw `app/no-app` in fixture mode); deterministic idempotency key `action-rev-{ownerId}-{decision}-{expectedVersion}` (was `Date.now()`-salted, defeating replay protection).
-- `firebase/firestore.indexes.json`: added `adminAuditLogs (target ASC, createdAt DESC)` composite index — the inspector audit query previously failed with `failed-precondition` on every production load.
-- `apps/admin` gateway + inspector: audit-trail query failure now surfaces as "Audit trail is temporarily unavailable" instead of an indistinguishable empty history.
-- `apps/admin` sign-in: `?redirect=` restricted to same-origin relative paths (open-redirect/phishing vector).
-- Mobile: identity-screen idempotency key frozen per mount (matches submit-screen pattern); booking-context surfaces permanently failed remote writes instead of showing "LIVE UPDATES"; ID upload no longer fabricates a `1024` fallback `byteSize`.
+### Admin Vehicle Moderation Desk Hardening (2026-08-17) ✅ COMPLETE
+- **`FirestoreAdminVehicleGateway`**: Completely rewritten against genuine schemas. Reads flat specs on `vehicles/{id}`, fetches `vehiclePrivate/{id}` for plate masking via canonical `@mmg/domain` `maskNigerianPlate()`, and queries `vehicles/{id}/images` subcollection for real signed URLs. Eliminated all fabricated fallbacks (`year || 2024`, `seats || 7`, `make || 'Toyota'`) and completely severed `FIXTURE_VEHICLES` from the production path (fail-closed).
+- **`review-vehicle-action.ts`**: Created Server Action `executeReviewVehicleAction` consuming the canonical `reviewVehicle` service with `AdminVehicleStorageGateway`. Enforces 7-point checklist on approval, executes image promotion (Batch D2), and writes SHA-256 hashed `adminAuditLogs`.
+- **`session.ts` & Staff Roles**: Added `vehicle_admin` and comprehensive staff role resolution to `StaffRole` and session claims checks.
+- **`VehicleModerationInspector`**: Updated to enforce explicit verification of all 7 canonical checklist points from `@mmg/contracts`, with full support for Approve, Reject, Suspend, and Restore actions.
+- **Test Suite**: Added comprehensive unit test coverage in `firestore-admin-vehicle-gateway.test.ts`. Admin vitest suite: **8 files | 52 passed**. Total monorepo suite: **401 passed**.
 
 ---
 
 ## Validation matrix at current checkpoint
 
 ```bash
-npm run check  # ✅ 389 tests passed (41 files), 0 type errors, 0 lint warnings
-  ├── npm test              # 389 passed, 38 skipped (emulator-only)
+npm run check  # ✅ 458 tests passed (52 files), 0 type errors, 0 lint warnings
+  ├── npm test              # 458 passed, 38 skipped (emulator-only)
   ├── npm run typecheck     # 0 errors (mobile)
-  ├── npm run lint          # 0 warnings (mobile)
+  ├── npm run lint          # 0 warnings (mobile - expo lint)
   ├── functions:typecheck   # 0 errors
-  ├── functions:build       # bundle builds
+  ├── functions:build       # bundle builds (esbuild node22)
   ├── admin:typecheck       # 0 errors
-  ├── admin:lint            # 0 warnings
-  └── admin:test            # 40 passed
+  ├── admin:lint            # 0 warnings (eslint max-warnings=0)
+  └── admin:test            # 61 passed
 ```
+
+### Sequence 2 & Discovery Hardening (Latest Snapshot)
+
+1. **Owner Wizard Flow**: Sequential photo upload + finalization pipeline, authoritative version re-read before submit, physical address validation with optional exact coords, and truthful Fleet desk status tracking.
+2. **Strict Discovery Gateway**: Native & Web Firestore gateways enforce strict row validation (drops missing coords, unknown categories, non-included policies, or missing public images; `limit(30)` on all discovery queries; zero synthetic fallback).
+3. **Live Booking Review**: `BookingReviewScreen` and `VehicleDetailScreen` asynchronously resolve live vehicles from `DiscoveryGateway` with truthful loading and missing states.
 
 **Rules suites (2026-08-16, Java 25)**: `npm run test:rules` ✅ 18 passed — first emulator run against the Batch B vehicle rules; `npm run test:storage-rules` ✅ 17 passed — first run against the vehicle upload prefixes. Both cover cross-owner, renter, anonymous, and staff-client denial paths.
 
@@ -134,21 +135,21 @@ npm run check  # ✅ 389 tests passed (41 files), 0 type errors, 0 lint warnings
 
 ## Remaining WP2 work
 
-| Batch | Deliverable | Files |
-|---|---|---|
-| D (remainder) | Abandoned-upload cleanup for vehicle prefixes (`private/vehicle-uploads`, `private/vehicle-documents`); originals are currently retained forever | `apps/functions/src/owner/expire-abandoned-uploads.ts` or a sibling job |
-| E | Owner mobile fleet UI (list, create, edit, resubmit) | `apps/mobile/src/features/owner/` |
-| F | Admin vehicle queue + inspector | `apps/admin/src/features/vehicles/` |
+| Batch | Deliverable | Status | Files |
+|---|---|---|---|
+| D (remainder) | Abandoned-upload cleanup for vehicle prefixes (`private/vehicle-uploads`, `private/vehicle-documents`); originals are currently retained forever | ⏳ Pending | `apps/functions/src/owner/expire-abandoned-uploads.ts` or sibling job |
+| E | Owner mobile fleet UI (list, 6-step create/submit wizard with photo upload + finalize pipeline, live visibility toggling) | ✅ Delivered & Hardened | `apps/mobile/src/features/owner/` |
+| F | Admin vehicle moderation desk + 7-point checklist server action | ✅ Delivered & Hardened | `apps/admin/src/features/vehicles/` |
 
 ## Remaining work packages
 
-| WP | Status |
-|---|---|
-| WP1 | Not started — identity/renter profile/privacy/MFA |
-| WP2 | 🔶 In progress (Batches A, B, C complete; D partially delivered; E, F pending) |
-| WP3 | Not started — live Lagos discovery |
-| WP4 | Not started — availability + booking ops |
-| WP5 | Not started — notifications + chat + lifecycle |
-| WP6 | Not started — ledger + wallets + withdrawals |
-| WP7 | Not started — admin completeness |
-| WP8 | Not started — hardening + release engineering |
+| WP | Status | Notes |
+|---|---|---|
+| WP1 | ✅ Complete | Complete renter profile & Lagos delivery address, deletion/NDPR workflow, terms agreement, rules & Functions live |
+| WP2 | 🔶 Sequence 2 Pass Complete | Batches A, B, C, D (core), E, F delivered and hardened; abandoned upload cleanup remaining |
+| WP3 | ✅ Hardened | Haversine distance, Lagos BBox validation, composite discovery ranking, live native/web FirestoreDiscoveryGateway with strict row validation (no preview fallback or fake field synthesis), resolveSearchPlace & searchVehicles functions, ExecutiveBookingDesk, PickupDistrictSheet |
+| WP4 | ⏳ Not started | Calendar, atomic holds, payment boundary, owner response/intervention |
+| WP5 | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
+| WP6 | ⏳ Not started | Append-only ledger and manual finance workflow |
+| WP7 | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules pending |
+| WP8 | ⏳ Not started | CI, observability, privacy/data-safety inventory, runbooks, staging sign-off |

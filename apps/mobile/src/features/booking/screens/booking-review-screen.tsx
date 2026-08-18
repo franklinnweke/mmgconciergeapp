@@ -1,22 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
+import { VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 import {
   addDaysToDateOnly,
   formatLagosDateOnly,
   parseDateOnly,
   todayLagosDateOnly,
 } from '@/features/discovery/data/lagos-destinations';
-import { getPreviewVehicleById } from '@/features/discovery/data/preview-discovery-gateway';
-import { vehicleImages } from '@/features/discovery/data/vehicle-images';
+import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 
@@ -48,16 +49,50 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { requestAvailability } = useBookings();
-  const vehicle = getPreviewVehicleById(vehicleId);
+  const gateway = useMemo(() => createDiscoveryGateway(), []);
+  const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
+  const [loading, setLoading] = useState(true);
   const journey = useMemo(() => resolveJourney(startDate, endDate), [endDate, startDate]);
   const validDuration = journey.durationDays;
   const [requested, setRequested] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    gateway
+      .getVehicleById(vehicleId)
+      .then((v) => {
+        if (isMounted) {
+          setVehicle(v);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setVehicle(null);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [gateway, vehicleId]);
+
   const quote = useMemo(
-    () => vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, validDuration) : null,
+    () => (vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, validDuration) : null),
     [validDuration, vehicle],
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.screen, styles.loadingCenter, { paddingTop: insets.top + spacing.lg }]}>
+        <ActivityIndicator color={colors.goldStrong} size="large" />
+        <Text style={styles.loadingText}>Retrieving vehicle details...</Text>
+      </View>
+    );
+  }
 
   if (!vehicle || !quote) {
     return (
@@ -67,7 +102,7 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
             <Ionicons color={colors.ivory} name="arrow-back" size={19} />
           </View>
         </PressableScale>
-        <Text style={styles.missingTitle}>This quote is no longer available.</Text>
+        <Text style={styles.missingTitle}>This vehicle listing is no longer available.</Text>
       </View>
     );
   }
@@ -102,7 +137,7 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
           <Image
             accessibilityLabel={vehicle.displayName}
             contentFit="cover"
-            source={vehicleImages[vehicle.imageKey]}
+            source={resolveVehicleImageSource(vehicle)}
             style={styles.vehicleImage}
           />
           <View style={styles.vehicleCopy}>
@@ -150,68 +185,54 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
           </View>
         </View>
 
+        {errorMessage ? (
+          <View style={styles.errorBox}>
+            <Ionicons color={colors.danger} name="alert-circle" size={16} />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : null}
+
         {requested ? (
           <View style={styles.successCard}>
-            <View style={styles.successIcon}>
-              <Ionicons color={colors.black} name="checkmark" size={20} />
-            </View>
-            <View style={styles.successCopy}>
-              <Text style={styles.successTitle}>Availability requested.</Text>
-              <Text style={styles.successBody}>
-                Your estimate is saved in Trips. It remains unconfirmed until the trusted payment-first flow is connected.
-              </Text>
-            </View>
+            <Ionicons color={colors.success} name="checkmark-circle" size={24} />
+            <Text style={styles.successTitle}>Availability Request Sent</Text>
+            <Text style={styles.successText}>
+              {'Your request has been logged. In the live system, the owner is contacted to confirm their chauffeur\'s schedule.'}
+            </Text>
           </View>
         ) : (
-          <View style={styles.assurance}>
-            <Ionicons color={colors.goldStrong} name="shield-checkmark-outline" size={20} />
-            <Text style={styles.assuranceText}>
-              No payment is taken when you request availability.
-            </Text>
-          </View>
+          <PressableScale
+            disabled={submitting}
+            onPress={async () => {
+              setSubmitting(true);
+              setErrorMessage(null);
+              try {
+                await requestAvailability({
+                  dailyRateKobo: vehicle.dailyRateKobo,
+                  durationDays: validDuration,
+                  pickupAt: journey.startDate,
+                  returnAt: journey.endDate,
+                  totalKobo: quote.totalKobo,
+                  vehicleId: vehicle.id,
+                });
+                setRequested(true);
+              } catch (err: unknown) {
+                setErrorMessage(err instanceof Error ? err.message : 'Could not submit request.');
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+          >
+            <View style={[styles.ctaButton, submitting && { opacity: 0.6 }]}>
+              <Text style={styles.ctaText}>
+                {submitting ? 'LOGGING REQUEST...' : 'REQUEST AVAILABILITY'}
+              </Text>
+              <Ionicons color={colors.black} name="arrow-forward" size={16} />
+            </View>
+          </PressableScale>
         )}
 
-        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-
-        <PressableScale
-          accessibilityRole="button"
-          disabled={submitting}
-          onPress={async () => {
-            if (requested) {
-              router.replace('/(renter)/trips');
-              return;
-            }
-
-            setSubmitting(true);
-            setErrorMessage(null);
-            try {
-              await requestAvailability({
-                dailyRateKobo: vehicle.dailyRateKobo,
-                durationDays: validDuration,
-                pickupAt: `${journey.startDate}T10:00:00+01:00`,
-                returnAt: `${journey.endDate}T10:00:00+01:00`,
-                totalKobo: quote.totalKobo,
-                vehicleId: vehicle.id,
-              });
-              setRequested(true);
-            } catch {
-              setErrorMessage('We could not save this request. Please try again.');
-            } finally {
-              setSubmitting(false);
-            }
-          }}
-        >
-          <View style={[styles.primaryButton, requested && styles.primaryButtonRequested]}>
-            <Text style={styles.primaryText}>
-              {submitting ? 'SAVING REQUEST…' : requested ? 'VIEW IN TRIPS' : 'REQUEST AVAILABILITY'}
-            </Text>
-            <Ionicons
-              color={colors.black}
-              name={requested ? 'calendar-clear-outline' : 'arrow-forward'}
-              size={18}
-            />
-          </View>
-        </PressableScale>
+        <View style={{ height: insets.bottom + spacing.xl }} />
       </ScrollView>
     </View>
   );
@@ -219,9 +240,9 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
 
 function JourneyPoint({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.journeyPoint}>
-      <Text style={styles.journeyLabel}>{label}</Text>
-      <Text style={styles.journeyValue}>{value}</Text>
+    <View style={styles.point}>
+      <Text style={styles.pointLabel}>{label}</Text>
+      <Text style={styles.pointValue}>{value}</Text>
     </View>
   );
 }
@@ -236,54 +257,295 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  assurance: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
-  assuranceText: { color: colors.muted, fontFamily: typography.body, fontSize: 10 },
-  backButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 42, justifyContent: 'center', width: 42 },
-  content: { paddingBottom: 56, paddingHorizontal: spacing.lg },
-  deliveryCopy: { flex: 1 },
-  deliveryIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 40, justifyContent: 'center', width: 40 },
-  deliveryLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.4 },
-  deliveryRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, paddingTop: spacing.lg },
-  deliveryValue: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 11, lineHeight: 17, marginTop: 4 },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.8 },
-  errorText: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 10, textAlign: 'center' },
-  intro: { marginBottom: spacing.xl, marginTop: spacing.xl },
-  journeyLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.3 },
-  journeyLine: { backgroundColor: colors.lineStrong, flex: 1, height: StyleSheet.hairlineWidth },
-  journeyPoint: { minWidth: 82 },
-  journeyRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.lg },
-  journeyValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 11, marginTop: 5 },
-  missing: { backgroundColor: colors.black, flex: 1, gap: spacing.xl, paddingHorizontal: spacing.lg },
-  missingTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 32 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.lg, minHeight: 58 },
-  primaryButtonRequested: { backgroundColor: colors.ivory },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 1.3 },
-  quoteCard: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, padding: spacing.lg },
-  quoteLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  quoteRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm },
-  quoteValue: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 11 },
-  rule: { backgroundColor: colors.lineStrong, height: StyleSheet.hairlineWidth, marginVertical: spacing.md },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  section: { marginBottom: spacing.xl },
-  sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.7 },
-  stepPill: { borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, paddingVertical: 8 },
-  stepText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.4 },
-  subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm, maxWidth: 340 },
-  successBody: { color: colors.muted, fontFamily: typography.body, fontSize: 10, lineHeight: 16, marginTop: 4 },
-  successCard: { alignItems: 'flex-start', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, padding: spacing.md },
-  successCopy: { flex: 1 },
-  successIcon: { alignItems: 'center', backgroundColor: colors.success, borderRadius: radii.pill, height: 34, justifyContent: 'center', width: 34 },
-  successTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 39, letterSpacing: -0.8, lineHeight: 44, marginTop: spacing.sm },
-  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  totalLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  totalRow: { alignItems: 'baseline', flexDirection: 'row', justifyContent: 'space-between' },
-  totalValue: { color: colors.goldStrong, fontFamily: typography.display, fontSize: 25 },
-  vehicleCard: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', marginBottom: spacing.xl, overflow: 'hidden' },
-  vehicleCategory: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.4 },
-  vehicleCopy: { flex: 1, justifyContent: 'center', padding: spacing.md },
-  vehicleImage: { height: 136, width: 132 },
-  vehicleMeta: { alignItems: 'center', flexDirection: 'row', gap: 4, marginTop: spacing.sm },
-  vehicleMetaText: { color: colors.muted, fontFamily: typography.body, fontSize: 9 },
-  vehicleName: { color: colors.ivory, fontFamily: typography.display, fontSize: 20, lineHeight: 25, marginTop: 4 },
+  backButton: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  content: {
+    paddingHorizontal: spacing.lg,
+  },
+  ctaButton: {
+    alignItems: 'center',
+    backgroundColor: colors.goldStrong,
+    borderRadius: radii.pill,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  ctaText: {
+    color: colors.black,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 14,
+    letterSpacing: 1.2,
+  },
+  deliveryCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  deliveryIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(212,175,55,0.1)',
+    borderRadius: radii.sm,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  deliveryLabel: {
+    color: colors.gold,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  deliveryRow: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+  },
+  deliveryValue: {
+    color: colors.ivory,
+    fontFamily: typography.body,
+    fontSize: 12,
+  },
+  errorBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(209,133,120,0.12)',
+    borderColor: colors.danger,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  errorText: {
+    color: colors.danger,
+    flex: 1,
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
+  },
+  eyebrow: {
+    color: colors.gold,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+  },
+  intro: {
+    gap: spacing.xs,
+    marginVertical: spacing.md,
+  },
+  journeyLine: {
+    backgroundColor: colors.line,
+    flex: 1,
+    height: 1,
+  },
+  journeyRow: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  loadingCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+    marginTop: spacing.md,
+  },
+  missing: {
+    backgroundColor: colors.black,
+    flex: 1,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  missingTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 22,
+  },
+  point: {
+    gap: 2,
+  },
+  pointLabel: {
+    color: colors.muted,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  pointValue: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+  },
+  quoteCard: {
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  quoteLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+  },
+  quoteRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  quoteValue: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+  },
+  rule: {
+    backgroundColor: colors.line,
+    height: 1,
+    marginVertical: spacing.xs,
+  },
+  screen: {
+    backgroundColor: colors.black,
+    flex: 1,
+  },
+  section: {
+    gap: spacing.xs,
+    marginTop: spacing.md,
+  },
+  sectionLabel: {
+    color: colors.gold,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+  },
+  stepPill: {
+    backgroundColor: 'rgba(212,175,55,0.15)',
+    borderColor: colors.gold,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  stepText: {
+    color: colors.goldStrong,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 9,
+    letterSpacing: 1.2,
+  },
+  subtitle: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  successCard: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.success,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+  },
+  successText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  successTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 18,
+  },
+  title: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 22,
+  },
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  totalLabel: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 15,
+  },
+  totalRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  totalValue: {
+    color: colors.goldStrong,
+    fontFamily: typography.display,
+    fontSize: 20,
+  },
+  vehicleCard: {
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    overflow: 'hidden',
+    padding: spacing.sm,
+  },
+  vehicleCategory: {
+    color: colors.gold,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  vehicleCopy: {
+    flex: 1,
+    gap: 4,
+    justifyContent: 'center',
+  },
+  vehicleImage: {
+    borderRadius: radii.sm,
+    height: 70,
+    width: 90,
+  },
+  vehicleMeta: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  vehicleMetaText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 11,
+  },
+  vehicleName: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 14,
+  },
 });
