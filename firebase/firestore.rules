@@ -266,6 +266,11 @@ service cloud.firestore {
       allow list, write: if false;
     }
 
+    match /renterProfiles/{renterId} {
+      allow get: if isOwner(renterId);
+      allow list, write: if false;
+    }
+
     match /ownerVerifications/{ownerId} {
       allow read, write: if false;
     }

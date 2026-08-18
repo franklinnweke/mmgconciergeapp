@@ -6,6 +6,7 @@ import {
   calculateAuthoritativePrice,
   calculateBookingQuote,
   calculateChargedDays,
+  calculateDiscoveryScore,
   canTransitionBookingIntent,
   canTransitionOwnerVerification,
   canTransitionPaidBooking,
@@ -19,9 +20,12 @@ import {
   DEFAULT_SERVICE_FEE_BPS,
   DEFAULT_SERVICE_FEE_FIXED_KOBO,
   formatNairaFromKobo,
+  haversineDistanceKm,
   intervalsOverlap,
+  isCurrentRenterTerms,
   isCurrentTerms,
   isTerminalOwnerVerification,
+  isWithinLagosBBox,
   maskEmail,
   maskNigerianPlate,
   maskPhoneE164,
@@ -30,6 +34,8 @@ import {
   ownerMayMutateProfile,
   ownerMaySubmit,
   ownerVerificationTransitions,
+  rankVehiclesByDiscoveryScore,
+  renterMayRequestDeletion,
   requiresApprovalChecklist,
   requiresReviewReason,
   roundBasisPointsHalfUp,
@@ -472,5 +478,86 @@ describe('vehicle domain', () => {
     expect(maskNigerianPlate('ABC123DE')).toBe('***DE');
     expect(maskNigerianPlate('EKY456GZ')).toBe('***GZ');
     expect(maskNigerianPlate('AB')).toBe('****');
+  });
+});
+
+describe('Lagos geo calculations and discovery ranking', () => {
+  it('computes Haversine great-circle distance accurately', () => {
+    // Ikoyi (6.4531, 3.4334) to Victoria Island (6.4281, 3.4219) ~ 3.0 km
+    const dist = haversineDistanceKm(6.4531, 3.4334, 6.4281, 3.4219);
+    expect(dist).toBeGreaterThan(2.5);
+    expect(dist).toBeLessThan(3.5);
+
+    // Same point is 0 km
+    expect(haversineDistanceKm(6.45, 3.43, 6.45, 3.43)).toBe(0);
+  });
+
+  it('validates Lagos bounding box boundaries', () => {
+    // Inside Lagos
+    expect(isWithinLagosBBox(6.4531, 3.4334)).toBe(true); // Ikoyi
+    expect(isWithinLagosBBox(6.6018, 3.3515)).toBe(true); // Ikeja
+
+    // Outside Lagos
+    expect(isWithinLagosBBox(9.0765, 7.3986)).toBe(false); // Abuja
+    expect(isWithinLagosBBox(4.8156, 7.0498)).toBe(false); // Port Harcourt
+    expect(isWithinLagosBBox(51.5074, -0.1278)).toBe(false); // London
+  });
+
+  it('calculates discovery score using distance and price weighting', () => {
+    // Closer + cheaper vehicle produces lower score
+    const scoreCloser = calculateDiscoveryScore({
+      distanceKm: 2,
+      dailyRateKobo: 25_000_000,
+      maxRadiusKm: 20,
+      minRateKobo: 20_000_000,
+      maxRateKobo: 60_000_000,
+    });
+
+    const scoreFarther = calculateDiscoveryScore({
+      distanceKm: 18,
+      dailyRateKobo: 55_000_000,
+      maxRadiusKm: 20,
+      minRateKobo: 20_000_000,
+      maxRateKobo: 60_000_000,
+    });
+
+    expect(scoreCloser).toBeLessThan(scoreFarther);
+  });
+
+  it('ranks vehicles by composite discovery score', () => {
+    const list = [
+      { id: 'v-far-expensive', distanceKm: 25, dailyRateKobo: 60_000_00 },
+      { id: 'v-close-cheap', distanceKm: 2, dailyRateKobo: 25_000_00 },
+      { id: 'v-mid', distanceKm: 8, dailyRateKobo: 35_000_00 },
+    ];
+
+    const ranked = rankVehiclesByDiscoveryScore(list);
+    expect(ranked[0].id).toBe('v-close-cheap');
+    expect(ranked[1].id).toBe('v-mid');
+    expect(ranked[2].id).toBe('v-far-expensive');
+  });
+});
+
+describe('renter profile domain rules', () => {
+  it('validates renter terms agreement version matching', () => {
+    const current = {
+      renterTermsVersion: '2026-03-01',
+      privacyNoticeVersion: '2026-03-01',
+    };
+
+    expect(isCurrentRenterTerms(current, current)).toBe(true);
+    expect(
+      isCurrentRenterTerms(
+        { renterTermsVersion: '2025-01-01', privacyNoticeVersion: '2026-03-01' },
+        current,
+      ),
+    ).toBe(false);
+  });
+
+  it('permits deletion request only for active accounts', () => {
+    expect(renterMayRequestDeletion('active')).toBe(true);
+    expect(renterMayRequestDeletion('suspended')).toBe(false);
+    expect(renterMayRequestDeletion('deleted')).toBe(false);
+    expect(renterMayRequestDeletion('deletion_requested')).toBe(false);
   });
 });

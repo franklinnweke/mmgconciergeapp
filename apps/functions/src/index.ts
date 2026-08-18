@@ -1,10 +1,17 @@
 import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { createBookingIntent as createBookingIntentService } from './booking/create-booking-intent-service.js';
 import { requireVerifiedRenter } from './booking/callable-auth.js';
 import { FirestoreBookingIntentRepository } from './booking/firestore-booking-intent-repository.js';
+import { resolveSearchPlaceService } from './discovery/resolve-search-place-service.js';
+import {
+  FirestoreDiscoveryVehicleSource,
+  searchVehiclesService,
+} from './discovery/search-vehicles-service.js';
 import { CommandError } from './errors.js';
 import {
   requireAuthenticatedUser,
@@ -17,6 +24,10 @@ import { FirestoreOwnerRepository } from './owner/firestore-owner-repository.js'
 import { reviewOwnerVerification as reviewOwnerVerificationService } from './owner/review-owner-verification-service.js';
 import { AdminStorageGateway } from './owner/storage-validation.js';
 import { submitOwnerVerification as submitOwnerVerificationService } from './owner/submit-owner-verification-service.js';
+import { requireAuthenticatedRenter } from './renter/callable-auth.js';
+import { completeRenterProfileService } from './renter/complete-renter-profile-service.js';
+import { FirestoreRenterRepository } from './renter/firestore-renter-repository.js';
+import { requestAccountDeletionService } from './renter/request-account-deletion-service.js';
 import { requireVehicleAdmin } from './vehicle/callable-auth.js';
 import { createVehicleDraft as createVehicleDraftService } from './vehicle/create-vehicle-draft-service.js';
 import { createVehicleUploadSession as createVehicleUploadSessionService } from './vehicle/create-vehicle-upload-session-service.js';
@@ -33,6 +44,7 @@ initializeApp();
 const bookingRepository = new FirestoreBookingIntentRepository();
 const ownerRepository = new FirestoreOwnerRepository();
 const vehicleRepository = new FirestoreVehicleRepository();
+const renterRepository = new FirestoreRenterRepository();
 const storageGateway = new AdminStorageGateway();
 const vehicleStorageGateway = new AdminVehicleStorageGateway();
 const imageProcessor = new SharpImageProcessor();
@@ -423,6 +435,111 @@ export const setVehicleVisibility = onCall(
       }
       logger.error('vehicle.visibility_change_failed');
       throw new HttpsError('internal', 'Vehicle visibility could not be updated.');
+    }
+  },
+);
+
+export const resolveSearchPlace = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: false,
+    timeoutSeconds: 15,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const result = resolveSearchPlaceService(request.data);
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message);
+      }
+      throw new HttpsError('internal', 'Place could not be resolved.');
+    }
+  },
+);
+
+export const searchVehicles = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: false,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const bucketName = getStorage().bucket().name || 'mmg-concierge.appspot.com';
+      const source = new FirestoreDiscoveryVehicleSource(getFirestore());
+      const result = await searchVehiclesService(request.data ?? {}, source, bucketName);
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message);
+      }
+      logger.error('discovery.search_failed', { error });
+      throw new HttpsError('internal', 'Vehicle search failed.');
+    }
+  },
+);
+
+export const completeRenterProfile = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const actor = requireAuthenticatedRenter(request.auth);
+      const result = await completeRenterProfileService(request.data, actor, renterRepository);
+      logger.info('renter.profile_completed', {
+        requestId: result.requestId,
+        renterId: result.result.renterId,
+        accountStatus: result.result.accountStatus,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('renter.profile_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('renter.profile_failed', { error });
+      throw new HttpsError('internal', 'Renter profile could not be updated.');
+    }
+  },
+);
+
+export const requestAccountDeletion = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const actor = requireAuthenticatedRenter(request.auth);
+      const result = await requestAccountDeletionService(request.data, actor, renterRepository);
+      logger.info('renter.deletion_requested', {
+        requestId: result.requestId,
+        renterId: result.result.renterId,
+        accountStatus: result.result.accountStatus,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('renter.deletion_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('renter.deletion_failed', { error });
+      throw new HttpsError('internal', 'Account deletion could not be requested.');
     }
   },
 );
