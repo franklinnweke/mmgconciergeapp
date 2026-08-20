@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createDiscoveryGateway } from './firestore-discovery-gateway.web';
+import { previewDiscoveryGateway } from './preview-discovery-gateway';
 
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(),
@@ -10,13 +12,6 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   where: vi.fn(),
 }));
-
-import { createDiscoveryGateway } from './firestore-discovery-gateway.web';
-import {
-  filterPreviewVehicles,
-  getPreviewVehicleById,
-  previewDiscoveryGateway,
-} from './preview-discovery-gateway';
 
 describe('previewDiscoveryGateway', () => {
   it('returns all 4 preview vehicles ordered by distance in getFeaturedVehicles', async () => {

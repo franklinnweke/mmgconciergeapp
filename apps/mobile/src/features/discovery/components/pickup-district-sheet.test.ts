@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { DISTRICTS } from './pickup-district-sheet';
 
 vi.mock('react-native', () => ({
   Modal: 'Modal',
@@ -23,8 +24,6 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('@/components/pressable-scale', () => ({
   PressableScale: 'PressableScale',
 }));
-
-import { DISTRICTS } from './pickup-district-sheet';
 
 describe('PickupDistrictSheet', () => {
   it('exports valid Lagos pickup districts with valid area labels and icons', () => {
