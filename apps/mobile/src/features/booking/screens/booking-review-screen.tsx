@@ -24,6 +24,7 @@ import {
   createBookingIntentGateway,
   type BookingIntentGateway,
 } from '../data/booking-intent-gateway';
+import { bookingCommandErrorMessage } from '../domain/booking-errors';
 
 type BookingReviewScreenProps = {
   bookingIntentGateway?: BookingIntentGateway;
@@ -182,14 +183,10 @@ export default function BookingReviewScreen({
             </View>
           </PressableScale>
           <BrandWordmark compact withLogo />
-          <View style={styles.stepPill}>
-            <Text style={styles.stepText}>REVIEW</Text>
-          </View>
         </View>
 
         <View style={styles.intro}>
-          <Text style={styles.eyebrow}>SECURE BOOKING HOLD</Text>
-          <Text style={styles.title}>Review your Prado journey.</Text>
+          <Text style={styles.title}>Review your journey</Text>
           <Text style={styles.subtitle}>
             MMG will recalculate the price on the server and hold these dates for 15 minutes. Creating the hold does not take payment or confirm the ride.
           </Text>
@@ -203,9 +200,6 @@ export default function BookingReviewScreen({
             style={styles.vehicleImage}
           />
           <View style={styles.vehicleCopy}>
-            <Text style={styles.vehicleCategory}>
-              {vehicle.category === 'executive_suv' ? 'EXECUTIVE SUV' : 'EXECUTIVE SALOON'}
-            </Text>
             <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
             <View style={styles.vehicleMeta}>
               <Ionicons color={colors.gold} name="location-outline" size={13} />
@@ -215,7 +209,7 @@ export default function BookingReviewScreen({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>JOURNEY</Text>
+          <Text style={styles.sectionTitle}>Dates</Text>
           <View style={styles.journeyRow}>
             <JourneyPoint label="PICKUP" value={formatLagosDateOnly(journey.startDate)} />
             <View style={styles.journeyLine} />
@@ -236,11 +230,11 @@ export default function BookingReviewScreen({
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>
-            {authoritativePrice ? 'SERVER-VERIFIED HOLD' : 'QUOTE ESTIMATE'}
+            {authoritativePrice ? 'Held quote' : 'Quote'}
           </Text>
           <View style={styles.quoteCard}>
             <QuoteRow
-              label={`${formatNairaFromKobo(authoritativePrice?.ownerDailyRateKobo ?? vehicle.dailyRateKobo)} × ${authoritativePrice?.chargedDays ?? validDuration} days`}
+              label={`${formatNairaFromKobo(authoritativePrice?.ownerDailyRateKobo ?? vehicle.dailyRateKobo)} × ${authoritativePrice?.chargedDays ?? validDuration} ${((authoritativePrice?.chargedDays ?? validDuration) === 1) ? 'day' : 'days'}`}
               value={formatNairaFromKobo(authoritativePrice?.baseRentalKobo ?? quote.rentalKobo)}
             />
             <QuoteRow
@@ -297,7 +291,7 @@ export default function BookingReviewScreen({
                 submissionKey.current.markSucceeded();
                 setIntentResult(result);
               } catch (err: unknown) {
-                const reason = err instanceof Error ? err.message : 'The booking service is unavailable.';
+                const reason = bookingCommandErrorMessage(err);
                 setErrorMessage(
                   `${reason} No booking intent or date hold was created, and no charge was attempted.`,
                 );
@@ -389,14 +383,13 @@ const styles = StyleSheet.create({
   },
   deliveryRow: {
     alignItems: 'center',
-    backgroundColor: colors.graphite,
     borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.md,
     marginTop: spacing.sm,
-    padding: spacing.md,
+    paddingVertical: spacing.sm,
   },
   deliveryValue: {
     color: colors.ivory,
@@ -481,12 +474,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   quoteCard: {
-    backgroundColor: colors.graphite,
     borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: StyleSheet.hairlineWidth,
     gap: spacing.sm,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
   },
   quoteLabel: {
     color: colors.muted,
@@ -553,6 +545,11 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodySemiBold,
     fontSize: 10,
     letterSpacing: 1.2,
+  },
+  sectionTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 20,
   },
   stepPill: {
     backgroundColor: 'rgba(212,175,55,0.15)',

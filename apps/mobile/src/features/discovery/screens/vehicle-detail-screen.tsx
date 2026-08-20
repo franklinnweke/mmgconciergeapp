@@ -26,7 +26,6 @@ import {
   formatLagosDateOnly,
   parseDateOnly,
   todayLagosDateOnly,
-  vehicleEditorialClass,
 } from '../data/lagos-destinations';
 import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
 import { resolveVehicleImageSource, vehicleImages } from '../data/vehicle-images';
@@ -34,6 +33,7 @@ import {
   createVehicleCalendarGateway,
   type VehicleCalendarGateway,
 } from '../data/vehicle-calendar-gateway';
+import { vehicleCalendarErrorMessage } from '../data/vehicle-calendar-gateway-core';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -311,18 +311,11 @@ export default function VehicleDetailScreen({
                   </Text>
                 </View>
               ) : null}
-              <View style={styles.availablePill}>
-                <View style={styles.availableDot} />
-                <Text style={styles.availableText}>IN FLEET</Text>
-              </View>
             </View>
           </View>
 
           {/* Hero Header Copy */}
           <View style={styles.heroCopy}>
-            <Text style={styles.category}>
-              {vehicleEditorialClass(vehicle.displayName, vehicle.category).toLocaleUpperCase()}
-            </Text>
             <Text style={styles.title}>{vehicle.displayName}</Text>
             <View style={styles.heroMeta}>
               <Ionicons color={colors.goldStrong} name="location-outline" size={16} />
@@ -343,37 +336,24 @@ export default function VehicleDetailScreen({
               <Text style={styles.label}>DAILY RATE</Text>
               <Text style={styles.rate}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
             </View>
-            <View style={styles.inclusionBadge}>
-              <Ionicons color={colors.gold} name="shield-checkmark" size={15} />
-              <Text style={styles.inclusionBadgeText}>Chauffeur Included</Text>
-            </View>
           </View>
 
           {/* Service Promises Rail */}
-          <View style={styles.promiseRail}>
-            <ServicePromise icon="person-outline" label="Vetted Chauffeur" />
-            <View style={styles.promiseDivider} />
-            <ServicePromise icon="location-outline" label="Doorstep Delivery" />
-            <View style={styles.promiseDivider} />
-            <ServicePromise icon="headset-outline" label="Concierge Desk" />
-          </View>
 
           {/* Key Specifications Grid */}
           <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>VEHICLE SPECIFICATIONS</Text>
-            <Text style={styles.sectionTitle}>Executive Amenities</Text>
-            <View style={styles.specsGrid}>
-              <SpecBadge icon="people-outline" label="Capacity" value={`${vehicle.seats} Passengers`} />
-              <SpecBadge icon="speedometer-outline" label="Transmission" value="Automatic" />
-              <SpecBadge icon="briefcase-outline" label="Luggage" value="3 Large Bags" />
-              <SpecBadge icon="snow-outline" label="Climate" value="Dual A/C System" />
+            <Text style={styles.sectionTitle}>Details</Text>
+            <View style={styles.detailsList}>
+              <DetailRow label="Capacity" value={`${vehicle.seats} passengers`} />
+              <DetailRow label="Transmission" value="Automatic" />
+              <DetailRow label="Luggage" value="3 large bags" />
+              <DetailRow label="Climate" value="Dual A/C system" />
             </View>
           </View>
 
           {/* Journey Duration Selector */}
           <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>YOUR JOURNEY DURATION</Text>
-            <Text style={styles.sectionTitle}>Select Rental Period</Text>
+            <Text style={styles.sectionTitle}>Dates</Text>
             <View style={styles.durationRail}>
               {durationOptions.map((option) => {
                 const selected = option.days === durationDays;
@@ -444,7 +424,7 @@ export default function VehicleDetailScreen({
                     : availability.status === 'unavailable'
                       ? 'The selected period is unavailable. Private calendar details are not shown.'
                       : availability.status === 'error'
-                        ? availability.error
+                        ? vehicleCalendarErrorMessage(availability.error)
                         : 'This does not reserve the vehicle.'}
                 </Text>
               </View>
@@ -466,13 +446,7 @@ export default function VehicleDetailScreen({
 
           {/* Server-Aligned Quote Breakdown Card */}
           <View style={styles.quoteSection}>
-            <View style={styles.quoteHeading}>
-              <View>
-                <Text style={styles.sectionEyebrow}>ESTIMATED QUOTE</Text>
-                <Text style={styles.quoteTitle}>{durationDays}-Day Journey</Text>
-              </View>
-              <Ionicons color={colors.goldStrong} name="receipt-outline" size={24} />
-            </View>
+            <Text style={styles.sectionTitle}>Quote</Text>
 
             <QuoteRow
               label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${durationDays} ${durationDays === 1 ? 'day' : 'days'}`}
@@ -535,31 +509,11 @@ export default function VehicleDetailScreen({
   );
 }
 
-function ServicePromise({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.promiseItem}>
-      <Ionicons color={colors.gold} name={icon} size={18} />
-      <Text style={styles.promiseText}>{label}</Text>
-    </View>
-  );
-}
-
-function SpecBadge({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.specBadge}>
-      <Ionicons color={colors.goldStrong} name={icon} size={18} />
-      <View style={styles.specCopy}>
-        <Text style={styles.specLabel}>{label}</Text>
-        <Text style={styles.specValue}>{value}</Text>
-      </View>
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
 }
@@ -669,10 +623,9 @@ const styles = StyleSheet.create({
   },
   dateSummary: {
     alignItems: 'center',
-    backgroundColor: colors.graphite,
     borderColor: colors.line,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: spacing.md,
@@ -890,11 +843,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   quoteSection: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: spacing.lg,
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.md,
   },
   quoteTitle: {
     color: colors.ivory,
@@ -946,6 +898,27 @@ const styles = StyleSheet.create({
     fontFamily: typography.display,
     fontSize: fontSizes.xl,
     letterSpacing: -0.4,
+  },
+  detailsList: {
+    marginTop: spacing.sm,
+  },
+  detailRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 40,
+  },
+  detailLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.sm,
+  },
+  detailValue: {
+    color: colors.ivory,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.sm,
   },
   specBadge: {
     alignItems: 'center',
