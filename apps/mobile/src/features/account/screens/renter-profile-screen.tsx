@@ -16,7 +16,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
-import { LuxuryCard } from '@/components/ui/luxury-card';
 import { useAuth } from '@/core/auth/auth-context';
 import { useRenterProfile } from '../hooks/use-renter-profile';
 
@@ -139,12 +138,7 @@ function RenterProfileForm({
             <Ionicons color={colors.gold} name="alert-circle" size={13} />
             <Text style={styles.deletionBadgeText}>DELETION REQUESTED</Text>
           </View>
-        ) : (
-          <View style={styles.statusBadge}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusBadgeText}>ACTIVE ACCOUNT</Text>
-          </View>
-        )}
+        ) : null}
       </View>
 
       {successToast && (
@@ -155,9 +149,8 @@ function RenterProfileForm({
       )}
 
       {/* Contact Details Card */}
-      <LuxuryCard style={styles.card}>
-        <Text style={styles.cardEyebrow}>PERSONAL IDENTITY</Text>
-        <Text style={styles.cardTitle}>Executive Contact</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Personal details</Text>
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>FULL LEGAL NAME</Text>
@@ -183,15 +176,11 @@ function RenterProfileForm({
             value={phone}
           />
         </View>
-      </LuxuryCard>
+      </View>
 
       {/* Default Lagos Delivery Address */}
-      <LuxuryCard style={styles.card}>
-        <Text style={styles.cardEyebrow}>CHAUFFEUR DISPATCH</Text>
-        <Text style={styles.cardTitle}>Default Delivery Address</Text>
-        <Text style={styles.cardDescription}>
-          Every luxury rental includes private delivery to your confirmed Lagos address.
-        </Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Lagos delivery address</Text>
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>PRIMARY LAGOS DISTRICT</Text>
@@ -200,6 +189,9 @@ function RenterProfileForm({
               const isSelected = selectedArea === area;
               return (
                 <PressableScale
+                  accessibilityLabel={`Select Lagos district ${area}`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
                   key={area}
                   onPress={() => setSelectedArea(area)}
                   style={[styles.areaPill, isSelected && styles.areaPillSelected]}
@@ -236,21 +228,19 @@ function RenterProfileForm({
             value={landmark}
           />
         </View>
-      </LuxuryCard>
+      </View>
 
       {/* Legal & Terms Badge */}
-      <LuxuryCard style={styles.card}>
-        <Text style={styles.cardEyebrow}>COMPLIANCE & PRIVACY</Text>
-        <Text style={styles.cardTitle}>Platform Agreement</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Terms and privacy</Text>
         <View style={styles.termsRow}>
           <Ionicons color={colors.goldStrong} name="document-text-outline" size={18} />
           <View style={styles.termsInfo}>
             <Text style={styles.termsHeading}>Renter Terms & Privacy Notice</Text>
-            <Text style={styles.termsSub}>v2026-03-01 · Active Consent</Text>
           </View>
           <Ionicons color={colors.success} name="checkmark-circle" size={18} />
         </View>
-      </LuxuryCard>
+      </View>
 
       {/* Save Button */}
       <PressableScale
@@ -381,10 +371,6 @@ export function RenterProfileScreen() {
     <SafeAreaView edges={['top']} style={styles.screen}>
       <View style={styles.topBar}>
         <BrandWordmark compact withLogo />
-        <View style={styles.verifiedPill}>
-          <Ionicons color={colors.success} name="shield-checkmark" size={14} />
-          <Text style={styles.verifiedText}>SECURE RENTER IDENTITY</Text>
-        </View>
       </View>
 
       {errorMessage && (
@@ -416,11 +402,13 @@ export function RenterProfileScreen() {
 
 const styles = StyleSheet.create({
   areaPill: {
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderColor: colors.line,
     borderRadius: radii.pill,
     borderWidth: 1,
     marginRight: spacing.sm,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -455,24 +443,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   card: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     gap: spacing.md,
-    padding: spacing.lg,
-  },
-  cardDescription: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  cardEyebrow: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 1.5,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.sm,
   },
   cardTitle: {
     color: colors.ivory,
@@ -698,23 +673,6 @@ const styles = StyleSheet.create({
   signOutPressable: {
     marginBottom: spacing.lg,
   },
-  statusBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(78,205,196,0.12)',
-    borderColor: 'rgba(78,205,196,0.3)',
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  statusBadgeText: {
-    color: '#4ECDC4',
-    fontFamily: typography.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 1.2,
-  },
   statusDot: {
     backgroundColor: '#4ECDC4',
     borderRadius: 3,
@@ -769,16 +727,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-  },
-  verifiedPill: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  verifiedText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 8,
-    letterSpacing: 1.2,
   },
 });

@@ -73,7 +73,6 @@ export function AccountSetupScreen() {
         />
         <View style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}>
           <BrandWordmark withLogo />
-          <Text style={styles.step}>IDENTITY · 01</Text>
         </View>
       </View>
 
@@ -82,10 +81,9 @@ export function AccountSetupScreen() {
         showsVerticalScrollIndicator={false}
         style={[styles.scrollView, { opacity, transform: [{ translateY: translate }] }]}
       >
-        <Text style={styles.eyebrow}>CHOOSE YOUR EXPERIENCE</Text>
         <Text style={styles.title}>How will you use MMG?</Text>
         <Text style={styles.body}>
-          Your choice creates the right private experience. It cannot be changed inside the app.
+          Choose how you’ll use MMG. This cannot be changed in the app.
         </Text>
 
         <View style={styles.choiceList}>
@@ -99,13 +97,6 @@ export function AccountSetupScreen() {
                 onPress={() => setSelection(choice.accountType)}
               >
                 <View style={[styles.choice, selected && styles.choiceSelected]}>
-                  <View style={[styles.iconFrame, selected && styles.iconFrameSelected]}>
-                    <Ionicons
-                      color={selected ? colors.black : colors.goldStrong}
-                      name={choice.icon}
-                      size={24}
-                    />
-                  </View>
                   <View style={styles.choiceCopy}>
                     <Text style={styles.choiceLabel}>{choice.label}</Text>
                     <Text style={styles.choiceDescription}>{choice.description}</Text>
@@ -145,24 +136,24 @@ export function AccountSetupScreen() {
 const styles = StyleSheet.create({
   body: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 22 },
   brandRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
-  choice: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 112, padding: spacing.md },
+  choice: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 72, paddingVertical: spacing.sm },
   choiceCopy: { flex: 1, gap: spacing.xs },
   choiceDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   choiceLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
   choiceList: { gap: spacing.sm, marginVertical: spacing.lg },
-  choiceSelected: { backgroundColor: colors.graphiteRaised, borderColor: colors.goldStrong },
+  choiceSelected: {
+    backgroundColor: 'rgba(227,195,101,0.1)',
+    borderLeftColor: colors.goldStrong,
+    borderLeftWidth: 2,
+  },
   content: { paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
   disabled: { opacity: 0.6 },
   error: { color: colors.danger, fontFamily: typography.body, fontSize: 12, marginBottom: spacing.md, textAlign: 'center' },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 2.1 },
   hero: { height: 220, justifyContent: 'flex-start' },
-  iconFrame: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 52, justifyContent: 'center', width: 52 },
-  iconFrameSelected: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 56 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   screen: { backgroundColor: colors.black, flex: 1 },
   scrollView: { flex: 1 },
   signOut: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12, paddingVertical: spacing.lg, textAlign: 'center' },
-  step: { color: colors.silver, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.5 },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 38, letterSpacing: -0.8, lineHeight: 44, marginBottom: spacing.sm, marginTop: spacing.sm },
 });

@@ -152,13 +152,8 @@ export function AuthEntryScreen() {
           >
             <View style={styles.topBar}>
               <BrandWordmark withLogo />
-              <View style={styles.marketPill}>
-                <View style={styles.marketDot} />
-                <Text style={styles.marketText}>LAGOS</Text>
-              </View>
             </View>
             <View>
-              <Text style={styles.eyebrow}>PRADO-LED CHAUFFEURED SERVICE</Text>
               <Text style={styles.heroTitle}>Lagos, handled in a Prado.</Text>
             </View>
           </Animated.View>
@@ -180,12 +175,12 @@ export function AuthEntryScreen() {
 
           <View style={styles.headingBlock}>
             <Text style={styles.formTitle}>
-              {mode === 'sign-in' ? 'Welcome back.' : 'Join the guest list.'}
+              {mode === 'sign-in' ? 'Sign in to your account.' : 'Create your account.'}
             </Text>
             <Text style={styles.formBody}>
               {mode === 'sign-in'
-                ? 'Access your journeys and concierge support.'
-                : 'Create your identity first. Profile and phone verification follow securely.'}
+                ? 'View your journeys and account details.'
+                : 'Start with your name, email, and password.'}
             </Text>
           </View>
 
@@ -237,7 +232,7 @@ export function AuthEntryScreen() {
               ) : (
                 <>
                   <Text style={styles.primaryButtonText}>
-                    {mode === 'sign-in' ? 'Continue securely' : 'Create account'}
+                    {mode === 'sign-in' ? 'Sign in' : 'Create account'}
                   </Text>
                   <Ionicons color={colors.black} name="arrow-forward" size={18} />
                 </>
@@ -431,17 +426,6 @@ const styles = StyleSheet.create({
     maxWidth: 330,
   },
   marketDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 5, width: 5 },
-  marketPill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(4,4,4,0.34)',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
   marketText: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,

@@ -28,10 +28,9 @@ export function AccountProfileErrorScreen() {
         <View style={styles.iconFrame}>
           <Ionicons color={colors.goldStrong} name="cloud-offline-outline" size={30} />
         </View>
-        <Text style={styles.eyebrow}>ACCOUNT CONNECTION</Text>
         <Text style={styles.title}>We couldn’t confirm your profile.</Text>
         <Text style={styles.body}>
-          Your account is still secure. Check your connection and try again before continuing.
+          Check your connection and try again before continuing.
         </Text>
         <PressableScale disabled={retrying} onPress={() => void retry()} style={styles.fullWidth}>
           <View style={styles.primaryButton}>

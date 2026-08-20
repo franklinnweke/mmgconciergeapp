@@ -34,16 +34,14 @@ export function VerifyEmailScreen() {
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
         <BrandWordmark withLogo />
-        <Text style={styles.step}>IDENTITY · 01</Text>
       </View>
       <View style={styles.content}>
         <View style={styles.iconFrame}>
           <Ionicons color={colors.goldStrong} name="mail-unread-outline" size={31} />
         </View>
-        <Text style={styles.eyebrow}>VERIFY YOUR EMAIL</Text>
         <Text style={styles.title}>Check your inbox.</Text>
         <Text style={styles.body}>
-          We sent a private verification link to{' '}
+          We sent a verification link to{' '}
           <Text style={styles.email}>{auth.user?.email}</Text>. Open it, then return here.
         </Text>
         {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -93,12 +91,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   email: { color: colors.ivory, fontFamily: typography.bodyMedium },
-  eyebrow: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 10,
-    letterSpacing: 2.2,
-  },
   fullWidth: { alignSelf: 'stretch' },
   iconFrame: {
     alignItems: 'center',
@@ -144,12 +136,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     paddingBottom: spacing.lg,
     textAlign: 'center',
-  },
-  step: {
-    color: colors.muted,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 1.5,
   },
   title: {
     color: colors.ivory,
