@@ -107,6 +107,15 @@ export function OwnerFleetScreen() {
             <Ionicons color={colors.black} name="add" size={18} />
             <Text style={styles.addButtonText}>LIST VEHICLE</Text>
           </PressableScale>
+          <PressableScale
+            accessibilityLabel="Open owner booking desk"
+            accessibilityRole="button"
+            onPress={() => router.push('/(owner)/owner-bookings' as any)}
+            style={styles.bookingsButton}
+          >
+            <Ionicons color={colors.gold} name="calendar-outline" size={18} />
+            <Text style={styles.bookingsButtonText}>BOOKINGS</Text>
+          </PressableScale>
         </View>
         <View style={styles.titleBlock}>
           <Text style={styles.eyebrow}>HOST FLEET MANAGEMENT</Text>
@@ -257,6 +266,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  bookingsButton: {
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  bookingsButtonText: {
+    color: colors.gold,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   badge: {
     alignItems: 'center',
