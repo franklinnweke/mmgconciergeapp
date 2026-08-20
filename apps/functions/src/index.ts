@@ -5,8 +5,13 @@ import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { createBookingIntent as createBookingIntentService } from './booking/create-booking-intent-service.js';
-import { requireVerifiedRenter } from './booking/callable-auth.js';
+import { requirePaidBookingActor, requireVerifiedRenter } from './booking/callable-auth.js';
 import { FirestoreBookingIntentRepository } from './booking/firestore-booking-intent-repository.js';
+import { FirestorePaidBookingResponseRepository } from './booking/firestore-paid-booking-response-repository.js';
+import {
+  confirmBooking as confirmBookingService,
+  rejectBooking as rejectBookingService,
+} from './booking/paid-booking-response-service.js';
 import {
   getOwnerVehicleCalendar as getOwnerVehicleCalendarService,
   getVehicleCalendar as getVehicleCalendarService,
@@ -48,6 +53,7 @@ import { AdminVehicleStorageGateway } from './vehicle/vehicle-storage-gateway.js
 initializeApp();
 
 const bookingRepository = new FirestoreBookingIntentRepository();
+const paidBookingResponseRepository = new FirestorePaidBookingResponseRepository();
 const ownerRepository = new FirestoreOwnerRepository();
 const vehicleRepository = new FirestoreVehicleRepository();
 const renterRepository = new FirestoreRenterRepository();
@@ -232,6 +238,77 @@ export const removeVehicleAvailabilityBlock = onCall(
       }
       logger.error('vehicle_availability.block_remove_failed');
       throw new HttpsError('internal', 'Vehicle availability block could not be removed.');
+    }
+  },
+);
+
+export const confirmBooking = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const actor = requirePaidBookingActor(request.auth);
+      const result = await confirmBookingService(request.data, actor, {
+        repository: paidBookingResponseRepository,
+      });
+      logger.info('booking.owner_confirmed', {
+        requestId: result.requestId,
+        uid: actor.uid,
+        bookingId: result.result.bookingId,
+        fromState: result.result.fromState,
+        toState: result.result.toState,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('booking.owner_confirmation_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.owner_confirmation_failed');
+      throw new HttpsError('internal', 'Booking could not be confirmed.');
+    }
+  },
+);
+
+export const rejectBooking = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const actor = requirePaidBookingActor(request.auth);
+      const result = await rejectBookingService(request.data, actor, {
+        repository: paidBookingResponseRepository,
+      });
+      logger.info('booking.owner_rejected', {
+        requestId: result.requestId,
+        uid: actor.uid,
+        bookingId: result.result.bookingId,
+        caseId: result.result.caseId,
+        fromState: result.result.fromState,
+        toState: result.result.toState,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('booking.owner_rejection_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking.owner_rejection_failed');
+      throw new HttpsError('internal', 'Booking could not be sent to concierge intervention.');
     }
   },
 );

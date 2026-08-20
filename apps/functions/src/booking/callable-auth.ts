@@ -14,3 +14,20 @@ export function requireVerifiedRenter(auth: CallableAuth): string {
   }
   return auth.uid;
 }
+
+export function requirePaidBookingActor(auth: CallableAuth): {
+  uid: string;
+  isSuperAdmin: boolean;
+} {
+  if (!auth?.uid) {
+    throw new BookingCommandError('UNAUTHENTICATED', 'Sign in to respond to booking requests.');
+  }
+  if (auth.token.email_verified !== true) {
+    throw new BookingCommandError(
+      'FORBIDDEN',
+      'Verify your email before responding to booking requests.',
+      { reason: 'email_unverified' },
+    );
+  }
+  return { uid: auth.uid, isSuperAdmin: auth.token.super_admin === true };
+}

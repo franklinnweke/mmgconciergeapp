@@ -5,6 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createBookingIntent } from './create-booking-intent-service.js';
 import { BookingCommandError } from './errors.js';
 import { FirestoreBookingIntentRepository } from './firestore-booking-intent-repository.js';
+import { FirestorePaidBookingResponseRepository } from './firestore-paid-booking-response-repository.js';
+import { confirmBooking, rejectBooking } from './paid-booking-response-service.js';
 import {
   getOwnerVehicleCalendar,
   getVehicleCalendar,
@@ -18,8 +20,11 @@ async function clearCollections(database: Firestore) {
   for (const name of [
     'auditEvents',
     'bookingBlocks',
+    'bookingCases',
     'bookingIntents',
+    'bookings',
     'idempotencyKeys',
+    'notificationOutbox',
     'systemConfig',
     'vehicleAvailability',
     'vehicles',
@@ -32,12 +37,14 @@ async function clearCollections(database: Firestore) {
 describeWithEmulator('Firestore booking-intent transaction', () => {
   let database: Firestore;
   let repository: FirestoreBookingIntentRepository;
+  let paidBookingRepository: FirestorePaidBookingResponseRepository;
 
   beforeAll(() => {
     const app = getApps().find((candidate) => candidate.name === 'booking-emulator') ??
       initializeApp({ projectId: 'mmg-concierge' }, 'booking-emulator');
     database = getFirestore(app);
     repository = new FirestoreBookingIntentRepository(database);
+    paidBookingRepository = new FirestorePaidBookingResponseRepository(database);
   });
 
   beforeEach(async () => {
@@ -241,5 +248,97 @@ describeWithEmulator('Firestore booking-intent transaction', () => {
       now: () => new Date('2026-08-13T12:00:00.000Z'),
     })).rejects.toMatchObject<Partial<BookingCommandError>>({ code: 'FAILED_PRECONDITION' });
     expect((await database.collection('bookingIntents').get()).size).toBe(0);
+  });
+
+  it('confirms a server-seeded paid booking and its block in one transaction', async () => {
+    await database.doc('bookings/booking-paid-one').set({
+      renterId: 'renter-one',
+      ownerId: 'owner-one',
+      vehicleId: 'vehicle-one',
+      state: 'paid_pending_owner',
+      version: 2,
+      blockId: 'paid-block-one',
+    });
+    await database.doc('bookingBlocks/paid-block-one').set({
+      vehicleId: 'vehicle-one',
+      startDate: '2026-09-10',
+      endDate: '2026-09-13',
+      state: 'paid',
+    });
+    await database.doc('vehicleAvailability/vehicle-one').set({ version: 5 });
+
+    const result = await confirmBooking({
+      schemaVersion: 1,
+      idempotencyKey: 'confirm-paid-booking-emulator-001',
+      data: { bookingId: 'booking-paid-one', expectedVersion: 2 },
+    }, { uid: 'owner-one', isSuperAdmin: false }, {
+      repository: paidBookingRepository,
+      now: () => new Date('2026-08-20T12:00:00.000Z'),
+      createId: () => 'outbox-confirm-emulator-one',
+      createRequestId: () => 'request-confirm-emulator-one',
+    });
+
+    expect(result.result.toState).toBe('confirmed');
+    expect((await database.doc('bookings/booking-paid-one').get()).data()).toMatchObject({
+      state: 'confirmed',
+      version: 3,
+      lastOwnerDecisionReason: null,
+    });
+    expect((await database.doc('bookingBlocks/paid-block-one').get()).data()?.state).toBe('confirmed');
+    expect((await database.doc('vehicleAvailability/vehicle-one').get()).data()?.version).toBe(6);
+    expect((await database.collection('auditEvents').get()).size).toBe(1);
+    expect((await database.doc('notificationOutbox/outbox-confirm-emulator-one').get()).data())
+      .toMatchObject({ status: 'unavailable', reason: 'fcm_not_in_sequence_2_3' });
+  });
+
+  it('releases rejected paid dates and opens an intervention case before a new hold can win', async () => {
+    await database.doc('bookings/booking-paid-one').set({
+      renterId: 'renter-one',
+      ownerId: 'owner-one',
+      vehicleId: 'vehicle-one',
+      state: 'paid_pending_owner',
+      version: 1,
+      blockId: 'paid-block-one',
+    });
+    await database.doc('bookingBlocks/paid-block-one').set({
+      vehicleId: 'vehicle-one',
+      startDate: '2026-09-01',
+      endDate: '2026-09-04',
+      state: 'paid',
+    });
+    await database.doc('vehicleAvailability/vehicle-one').set({ version: 4 });
+    const generatedIds = ['case-owner-rejection-one', 'outbox-rejection-one'];
+
+    await rejectBooking({
+      schemaVersion: 1,
+      idempotencyKey: 'reject-paid-booking-emulator-001',
+      data: {
+        bookingId: 'booking-paid-one',
+        expectedVersion: 1,
+        reason: 'The assigned chauffeur is no longer available.',
+      },
+    }, { uid: 'owner-one', isSuperAdmin: false }, {
+      repository: paidBookingRepository,
+      now: () => new Date('2026-08-20T12:00:00.000Z'),
+      createId: () => generatedIds.shift()!,
+      createRequestId: () => 'request-reject-emulator-one',
+    });
+
+    expect((await database.doc('bookingBlocks/paid-block-one').get()).exists).toBe(false);
+    expect((await database.doc('bookings/booking-paid-one').get()).data()).toMatchObject({
+      state: 'intervention_required',
+      version: 2,
+    });
+    expect((await database.doc('bookingCases/case-owner-rejection-one').get()).data()).toMatchObject({
+      status: 'open',
+      type: 'owner_rejection',
+    });
+
+    await expect(createBookingIntent(command('booking-after-owner-rejection'), 'renter-two', {
+      repository,
+      createId: () => 'intent-after-owner-rejection',
+      createRequestId: () => 'request-after-owner-rejection',
+      now: () => new Date('2026-08-20T12:01:00.000Z'),
+    })).resolves.toMatchObject({ result: { state: 'intent_created' } });
   });
 });
