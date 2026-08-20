@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { OwnerVerificationStatus } from '@mmg/contracts';
 import {
-  ShieldCheck,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -34,15 +33,15 @@ export type OwnerVerificationQueueProps = {
 
 const STATUS_CONFIG: Record<
   OwnerVerificationStatus,
-  { label: string; bg: string; text: string; icon: typeof CheckCircle2 }
+  { label: string; text: string; icon: typeof CheckCircle2 }
 > = {
-  draft: { label: 'Draft', bg: '#1E222B', text: '#9AA0A6', icon: FileText },
-  submitted: { label: 'Submitted', bg: 'rgba(234, 179, 8, 0.12)', text: '#EAB308', icon: Clock },
-  under_review: { label: 'Under Review', bg: 'rgba(59, 130, 246, 0.12)', text: '#60A5FA', icon: UserCheck },
-  approved: { label: 'Approved', bg: 'rgba(34, 197, 94, 0.12)', text: '#4ADE80', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', bg: 'rgba(239, 68, 68, 0.12)', text: '#F87171', icon: XCircle },
-  suspended: { label: 'Suspended', bg: 'rgba(249, 115, 22, 0.12)', text: '#FB923C', icon: AlertTriangle },
-  revoked: { label: 'Revoked', bg: 'rgba(220, 38, 38, 0.18)', text: '#EF4444', icon: XCircle },
+  draft: { label: 'Draft', text: '#9AA0A6', icon: FileText },
+  submitted: { label: 'Submitted', text: '#EAB308', icon: Clock },
+  under_review: { label: 'Under Review', text: '#60A5FA', icon: UserCheck },
+  approved: { label: 'Approved', text: '#4ADE80', icon: CheckCircle2 },
+  rejected: { label: 'Rejected', text: '#F87171', icon: XCircle },
+  suspended: { label: 'Suspended', text: '#FB923C', icon: AlertTriangle },
+  revoked: { label: 'Revoked', text: '#EF4444', icon: XCircle },
 };
 
 export function OwnerVerificationQueue({
@@ -93,54 +92,9 @@ export function OwnerVerificationQueue({
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
       {/* Top Header */}
-      <header
-        style={{
-          borderBottom: '1px solid #1E232E',
-          backgroundColor: '#101318',
-          padding: '16px 32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                backgroundColor: '#C89D46',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#090A0C',
-              }}
-            >
-              <ShieldCheck size={18} />
-            </div>
-            <div>
-              <span style={{ fontSize: '15px', fontWeight: '700', letterSpacing: '-0.02em' }}>
-                MMG Operations
-              </span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  marginLeft: '8px',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#1E232E',
-                  color: '#C89D46',
-                  fontWeight: '600',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Owner Desk
-              </span>
-            </div>
-          </div>
-
-          <nav style={{ display: 'flex', gap: '16px', marginLeft: '16px' }}>
+      <header style={{ borderBottom: '1px solid #1E232E', backgroundColor: '#101318', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
+        <nav aria-label="Operations navigation" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <Link href="/" style={{ fontSize: '13px', fontWeight: '500', color: '#8E95A3', textDecoration: 'none', padding: '0 12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', borderRadius: '6px' }}>Bookings</Link>
             <Link
               href="/vehicles"
               style={{
@@ -148,48 +102,41 @@ export function OwnerVerificationQueue({
                 fontWeight: '500',
                 color: '#8E95A3',
                 textDecoration: 'none',
-                padding: '6px 12px',
+                padding: '0 12px',
+                minHeight: '44px',
+                display: 'inline-flex',
+                alignItems: 'center',
                 borderRadius: '6px',
               }}
             >
-              Vehicle Moderation
+                Vehicles
             </Link>
             <Link
               href="/owners"
+              aria-current="page"
               style={{
                 fontSize: '13px',
                 fontWeight: '600',
                 color: '#F3F4F6',
                 textDecoration: 'none',
-                padding: '6px 12px',
+                padding: '0 12px',
+                minHeight: '44px',
+                display: 'inline-flex',
+                alignItems: 'center',
                 borderRadius: '6px',
                 backgroundColor: '#181D26',
               }}
             >
-              Owner Verification
+              Owners
             </Link>
-            <Link
-              href="/"
-              style={{
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#8E95A3',
-                textDecoration: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-              }}
-            >
-              Bookings
-            </Link>
-          </nav>
-        </div>
+        </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '12px', fontWeight: '600', color: '#F3F4F6' }}>
               {staffEmail || 'Staff Operator'}
             </div>
-            <div style={{ fontSize: '11px', color: '#7E8695' }}>{staffRole || 'verification_admin'}</div>
+            <div style={{ fontSize: '12px', color: '#7E8695' }}>{staffRole || 'verification_admin'}</div>
           </div>
           <button
             onClick={handleLogout}
@@ -203,6 +150,7 @@ export function OwnerVerificationQueue({
               padding: '8px 12px',
               color: '#A0A8B8',
               fontSize: '12px',
+              minHeight: '44px',
               cursor: 'pointer',
             }}
           >
@@ -227,11 +175,8 @@ export function OwnerVerificationQueue({
         >
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: '700', letterSpacing: '-0.02em', margin: 0 }}>
-              Owner Applications & Verification
+              Owner verification
             </h1>
-            <p style={{ fontSize: '13px', color: '#8E95A3', margin: '4px 0 0' }}>
-              Review government identification and approve Lagos vehicle hosts
-            </p>
           </div>
 
           <div style={{ position: 'relative', width: '320px' }}>
@@ -249,6 +194,7 @@ export function OwnerVerificationQueue({
                 borderRadius: '8px',
                 color: '#F3F4F6',
                 fontSize: '13px',
+                minHeight: '44px',
                 outline: 'none',
               }}
             />
@@ -276,8 +222,9 @@ export function OwnerVerificationQueue({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 14px',
-                  borderRadius: '20px',
+                  padding: '0 14px',
+                  minHeight: '44px',
+                  borderRadius: '6px',
                   border: isSelected ? '1px solid #C89D46' : '1px solid #232936',
                   backgroundColor: isSelected ? 'rgba(200, 157, 70, 0.15)' : '#12151B',
                   color: isSelected ? '#C89D46' : '#8E95A3',
@@ -294,7 +241,7 @@ export function OwnerVerificationQueue({
                     color: isSelected ? '#090A0C' : '#8E95A3',
                     padding: '1px 6px',
                     borderRadius: '10px',
-                    fontSize: '10px',
+                    fontSize: '12px',
                     fontWeight: '700',
                   }}
                 >
@@ -311,28 +258,28 @@ export function OwnerVerificationQueue({
             backgroundColor: '#12151B',
             border: '1px solid #1E232E',
             borderRadius: '12px',
-            overflow: 'hidden',
+            overflowX: 'auto',
           }}
         >
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #1E232E', backgroundColor: '#161A22', color: '#8E95A3' }}>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Owner / Identity
                 </th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Lagos Location
                 </th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Status
                 </th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Submitted At
                 </th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Updated
                 </th>
-                <th style={{ padding: '14px 20px', textAlign: 'right', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '14px 20px', textAlign: 'right', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Action
                 </th>
               </tr>
@@ -374,7 +321,7 @@ export function OwnerVerificationQueue({
                         <div style={{ fontWeight: '600', color: '#FFFFFF' }}>{item.legalName}</div>
                         <div style={{ fontSize: '12px', color: '#8E95A3' }}>{item.emailMasked}</div>
                         {item.phoneMasked && (
-                          <div style={{ fontSize: '11px', color: '#C89D46', fontFamily: 'monospace', marginTop: '2px' }}>
+                          <div style={{ fontSize: '12px', color: '#C89D46', fontFamily: 'monospace', marginTop: '2px' }}>
                             {item.phoneMasked}
                           </div>
                         )}
@@ -390,11 +337,9 @@ export function OwnerVerificationQueue({
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '5px',
-                            padding: '4px 10px',
-                            borderRadius: '12px',
-                            backgroundColor: statusInfo.bg,
+                            padding: '0',
                             color: statusInfo.text,
-                            fontSize: '11px',
+                            fontSize: '12px',
                             fontWeight: '600',
                           }}
                         >
@@ -407,7 +352,7 @@ export function OwnerVerificationQueue({
                         {formattedSubmitted}
                       </td>
 
-                      <td style={{ padding: '16px 20px', color: '#7E8695', fontSize: '11px' }}>
+                      <td style={{ padding: '16px 20px', color: '#7E8695', fontSize: '12px' }}>
                         {formattedUpdated}
                       </td>
 
@@ -421,7 +366,8 @@ export function OwnerVerificationQueue({
                             backgroundColor: '#1E232E',
                             color: '#F3F4F6',
                             border: '1px solid #2B3242',
-                            padding: '6px 14px',
+                            padding: '0 14px',
+                            minHeight: '44px',
                             borderRadius: '6px',
                             fontSize: '12px',
                             fontWeight: '600',
@@ -469,6 +415,8 @@ export function OwnerVerificationQueue({
                   color: '#A0A8B8',
                   border: '1px solid #232936',
                   padding: '8px 14px',
+                  minHeight: '44px',
+                  justifyContent: 'center',
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: '600',
@@ -491,6 +439,8 @@ export function OwnerVerificationQueue({
                   color: '#F3F4F6',
                   border: '1px solid #2B3242',
                   padding: '8px 14px',
+                  minHeight: '44px',
+                  justifyContent: 'center',
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: '600',
