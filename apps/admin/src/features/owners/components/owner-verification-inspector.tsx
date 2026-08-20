@@ -33,15 +33,15 @@ export type OwnerVerificationInspectorProps = {
 
 const STATUS_CONFIG: Record<
   OwnerVerificationStatus,
-  { label: string; bg: string; text: string; icon: typeof CheckCircle2 }
+  { label: string; text: string; icon: typeof CheckCircle2 }
 > = {
-  draft: { label: 'Draft', bg: '#1E222B', text: '#9AA0A6', icon: FileText },
-  submitted: { label: 'Submitted', bg: 'rgba(234, 179, 8, 0.12)', text: '#EAB308', icon: Clock },
-  under_review: { label: 'Under Review', bg: 'rgba(59, 130, 246, 0.12)', text: '#60A5FA', icon: UserCheck },
-  approved: { label: 'Approved', bg: 'rgba(34, 197, 94, 0.12)', text: '#4ADE80', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', bg: 'rgba(239, 68, 68, 0.12)', text: '#F87171', icon: XCircle },
-  suspended: { label: 'Suspended', bg: 'rgba(249, 115, 22, 0.12)', text: '#FB923C', icon: AlertTriangle },
-  revoked: { label: 'Revoked', bg: 'rgba(220, 38, 38, 0.18)', text: '#EF4444', icon: XCircle },
+  draft: { label: 'Draft', text: '#9AA0A6', icon: FileText },
+  submitted: { label: 'Submitted', text: '#EAB308', icon: Clock },
+  under_review: { label: 'Under Review', text: '#60A5FA', icon: UserCheck },
+  approved: { label: 'Approved', text: '#4ADE80', icon: CheckCircle2 },
+  rejected: { label: 'Rejected', text: '#F87171', icon: XCircle },
+  suspended: { label: 'Suspended', text: '#FB923C', icon: AlertTriangle },
+  revoked: { label: 'Revoked', text: '#EF4444', icon: XCircle },
 };
 
 export function OwnerVerificationInspector({
@@ -97,9 +97,10 @@ export function OwnerVerificationInspector({
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
+    <div className="owner-inspector-page" style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
       {/* Top Header */}
       <header
+        className="owner-inspector-header"
         style={{
           borderBottom: '1px solid #1E232E',
           backgroundColor: '#101318',
@@ -109,8 +110,9 @@ export function OwnerVerificationInspector({
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="owner-inspector-header-main" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <Link
+            className="owner-inspector-back"
             href="/owners"
             style={{
               display: 'flex',
@@ -128,7 +130,12 @@ export function OwnerVerificationInspector({
             <span>Back to Queue</span>
           </Link>
 
-          <div>
+          <nav aria-label="Operations navigation" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '8px' }}>
+            <Link href="/" style={{ color: '#8E95A3', textDecoration: 'none', fontSize: '12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', padding: '0 10px' }}>Bookings</Link>
+            <Link href="/vehicles" style={{ color: '#8E95A3', textDecoration: 'none', fontSize: '12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', padding: '0 10px' }}>Vehicles</Link>
+            <Link aria-current="page" href="/owners" style={{ color: '#F3F4F6', textDecoration: 'none', fontSize: '12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', padding: '0 10px', backgroundColor: '#181D26', borderRadius: '6px' }}>Owners</Link>
+          </nav>
+          <div className="owner-inspector-heading">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <h1 style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.02em', margin: 0 }}>
                 {detail.legalName || 'Owner Inspection'}
@@ -140,39 +147,23 @@ export function OwnerVerificationInspector({
                   gap: '4px',
                   padding: '3px 8px',
                   borderRadius: '10px',
-                  backgroundColor: statusInfo.bg,
                   color: statusInfo.text,
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: '600',
                 }}
               >
                 <StatusIcon size={12} />
                 <span>{statusInfo.label}</span>
               </span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontFamily: 'monospace',
-                  color: '#6B7280',
-                  backgroundColor: '#181D26',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                }}
-              >
-                v{detail.version}
-              </span>
-            </div>
-            <div style={{ fontSize: '11px', color: '#7E8695', marginTop: '2px', fontFamily: 'monospace' }}>
-              UID: {detail.ownerId}
             </div>
           </div>
         </div>
 
-        <div style={{ textAlign: 'right' }}>
+        <div className="owner-inspector-staff" style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '12px', fontWeight: '600', color: '#F3F4F6' }}>
             {staffEmail || 'Staff Operator'}
           </div>
-          <div style={{ fontSize: '11px', color: '#7E8695' }}>{staffRole || 'verification_admin'}</div>
+          <div style={{ fontSize: '12px', color: '#7E8695' }}>{staffRole || 'verification_admin'}</div>
         </div>
       </header>
 
@@ -199,6 +190,7 @@ export function OwnerVerificationInspector({
         )}
 
         <div
+          className="owner-inspector-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: '360px 1fr 380px',
@@ -207,7 +199,7 @@ export function OwnerVerificationInspector({
           }}
         >
           {/* Column 1: Owner Profile & Terms */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="owner-inspector-column" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Identity Card */}
             <div
               style={{
@@ -223,12 +215,12 @@ export function OwnerVerificationInspector({
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#7E8695', textTransform: 'uppercase' }}>Full Legal Name</div>
+                  <div className="owner-field-label" style={{ fontSize: '11px', color: '#7E8695', textTransform: 'uppercase' }}>Full Legal Name</div>
                   <div style={{ fontWeight: '600', color: '#FFFFFF', marginTop: '2px' }}>{detail.legalName}</div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '11px', color: '#7E8695', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="owner-field-label" style={{ fontSize: '11px', color: '#7E8695', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Mail size={12} />
                     <span>Email Address</span>
                   </div>
@@ -236,7 +228,7 @@ export function OwnerVerificationInspector({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '11px', color: '#7E8695', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="owner-field-label" style={{ fontSize: '11px', color: '#7E8695', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Phone size={12} />
                     <span>Verified Nigerian Phone</span>
                   </div>
@@ -246,7 +238,7 @@ export function OwnerVerificationInspector({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '11px', color: '#7E8695', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="owner-field-label" style={{ fontSize: '11px', color: '#7E8695', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <MapPin size={12} />
                     <span>Lagos Address</span>
                   </div>
@@ -303,7 +295,7 @@ export function OwnerVerificationInspector({
           </div>
 
           {/* Column 2: Government ID Private Viewer */}
-          <div
+          <div className="owner-inspector-column"
             style={{
               backgroundColor: '#12151B',
               border: '1px solid #1E232E',
@@ -318,7 +310,7 @@ export function OwnerVerificationInspector({
                   Government Identification Document
                 </h2>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#7E8695' }}>
+              <div className="owner-security-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#7E8695' }}>
                 <Lock size={12} />
                 <span>Zero-Client Signed URL (15m)</span>
               </div>
@@ -447,7 +439,7 @@ export function OwnerVerificationInspector({
             )}
 
             {/* Decision History & Audit Trail */}
-            <div style={{ marginTop: '28px' }}>
+            <div className="owner-audit" style={{ marginTop: '28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <History size={16} color="#7E8695" />
                 <h3 style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#7E8695', margin: 0 }}>
@@ -498,7 +490,7 @@ export function OwnerVerificationInspector({
                     border: '1px solid rgba(245, 158, 11, 0.3)',
                     borderRadius: '6px',
                     padding: '10px 14px',
-                    fontSize: '11px',
+                  fontSize: '12px',
                     color: '#F59E0B',
                   }}
                 >
@@ -540,7 +532,7 @@ export function OwnerVerificationInspector({
           </div>
 
           {/* Column 3: Decision Console */}
-          <div
+          <div className="owner-inspector-column"
             style={{
               backgroundColor: '#12151B',
               border: '1px solid #1E232E',
@@ -711,7 +703,7 @@ export function OwnerVerificationInspector({
                     marginBottom: '20px',
                   }}
                 >
-                  This host is currently approved and authorized on MMG Concierge.
+                  Status: Approved. Further changes require a reasoned review action.
                 </div>
 
                 {/* Suspend Section */}
