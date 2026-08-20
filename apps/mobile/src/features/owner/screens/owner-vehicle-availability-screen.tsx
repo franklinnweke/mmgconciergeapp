@@ -64,6 +64,17 @@ function statusLabel(day: OwnerVehicleCalendarDay) {
   return 'Available';
 }
 
+function safeAvailabilityErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (message.includes('stale') || message.includes('version') || message.includes('conflict')) {
+    return 'The calendar changed while you were working. It has been refreshed; please try again.';
+  }
+  if (message.includes('permission') || message.includes('forbidden')) {
+    return 'You are not authorized to manage this vehicle calendar.';
+  }
+  return 'Availability is temporarily unavailable. Please try again.';
+}
+
 export function OwnerVehicleAvailabilityScreen() {
   const router = useRouter();
   const { width: viewportWidth } = useWindowDimensions();
@@ -102,7 +113,7 @@ export function OwnerVehicleAvailabilityScreen() {
       });
       setCalendar(result);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Availability could not be loaded.');
+      setError(safeAvailabilityErrorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -137,7 +148,7 @@ export function OwnerVehicleAvailabilityScreen() {
       setNotes('');
       await loadCalendar();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Availability could not be updated.');
+      setError(safeAvailabilityErrorMessage(caught));
       await loadCalendar();
     } finally {
       setSubmitting(false);
@@ -165,7 +176,7 @@ export function OwnerVehicleAvailabilityScreen() {
             }, createIdempotencyKey('owner_availability_remove'))
               .then(() => loadCalendar())
               .catch((caught: unknown) => {
-                setError(caught instanceof Error ? caught.message : 'Block could not be removed.');
+                setError(safeAvailabilityErrorMessage(caught));
                 return loadCalendar();
               })
               .finally(() => setSubmitting(false));
@@ -187,7 +198,6 @@ export function OwnerVehicleAvailabilityScreen() {
           <Ionicons color={colors.ivory} name="arrow-back" size={20} />
         </PressableScale>
         <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>OWNER CALENDAR</Text>
           <Text style={styles.title}>Vehicle availability</Text>
         </View>
         <PressableScale
@@ -407,7 +417,6 @@ const styles = StyleSheet.create({
   errorBanner: { alignItems: 'center', backgroundColor: 'rgba(209,133,120,0.09)', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
   errorText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
   existingSection: { borderTopColor: colors.graphiteRaised, borderTopWidth: 1, marginTop: spacing.xl, paddingTop: spacing.xl },
-  eyebrow: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   headerCopy: { flex: 1 },
   iconButton: { alignItems: 'center', backgroundColor: colors.graphite, borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },

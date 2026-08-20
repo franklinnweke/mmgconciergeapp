@@ -20,6 +20,14 @@ import { PressableScale } from '@/components/pressable-scale';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
 
+function safeVehicleErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (message.includes('not found')) return 'This vehicle could not be found.';
+  if (message.includes('permission') || message.includes('forbidden')) return 'You are not authorized to view this vehicle.';
+  if (message.includes('stale') || message.includes('modified')) return 'This vehicle changed while you were viewing it. Return to Fleet and refresh.';
+  return 'Vehicle details are unavailable. Please try again.';
+}
+
 export function OwnerVehicleDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,9 +49,9 @@ export function OwnerVehicleDetailScreen() {
         setVehicle(v);
         setLoading(false);
       })
-      .catch((err: Error) => {
+      .catch((err: unknown) => {
         if (!isMounted) return;
-        setErrorMsg(err.message || 'Failed to load vehicle details.');
+        setErrorMsg(safeVehicleErrorMessage(err));
         setLoading(false);
       });
 
@@ -62,10 +70,10 @@ export function OwnerVehicleDetailScreen() {
         expectedVersion: vehicle.version,
         visibility: target,
       });
-      setVehicle((prev) => (prev ? { ...prev, visibility: target, version: prev.version + 1 } : null));
+      const refreshed = await gateway.getOwnerVehicle(vehicle.vehicleId);
+      setVehicle(refreshed);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Visibility change failed.';
-      Alert.alert('Update Failed', msg);
+      Alert.alert('Update Failed', safeVehicleErrorMessage(err));
     } finally {
       setActionLoading(false);
     }
@@ -391,14 +399,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.black,
     flex: 1,
   },
-  sectionCard: {
-    backgroundColor: '#141414',
-    borderColor: '#262626',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-  },
+  sectionCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: spacing.md, paddingBottom: spacing.md },
   sectionHeader: {
     color: colors.goldStrong,
     fontFamily: typography.body,
@@ -407,14 +408,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: spacing.sm,
   },
-  statusCard: {
-    backgroundColor: '#141414',
-    borderColor: '#262626',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-  },
+  statusCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: spacing.md, paddingBottom: spacing.md },
   statusHeading: {
     color: colors.muted,
     fontFamily: typography.body,
