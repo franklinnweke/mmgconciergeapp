@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import { VehicleSummary } from '@mmg/contracts';
+import { type CreateBookingIntentResult, type VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,9 +19,14 @@ import {
 } from '@/features/discovery/data/lagos-destinations';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
-import { useBookings } from '../booking-context';
+import {
+  BookingIntentSubmissionKey,
+  createBookingIntentGateway,
+  type BookingIntentGateway,
+} from '../data/booking-intent-gateway';
 
 type BookingReviewScreenProps = {
+  bookingIntentGateway?: BookingIntentGateway;
   endDate?: string;
   startDate?: string;
   vehicleId: string;
@@ -45,11 +50,20 @@ function resolveJourney(startDate?: string, endDate?: string) {
   }
 }
 
-export default function BookingReviewScreen({ endDate, startDate, vehicleId }: BookingReviewScreenProps) {
+export default function BookingReviewScreen({
+  bookingIntentGateway,
+  endDate,
+  startDate,
+  vehicleId,
+}: BookingReviewScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { requestAvailability } = useBookings();
   const gateway = useMemo(() => createDiscoveryGateway(), []);
+  const intentGateway = useMemo(
+    () => bookingIntentGateway ?? createBookingIntentGateway(),
+    [bookingIntentGateway],
+  );
+  const submissionKey = useRef(new BookingIntentSubmissionKey());
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -63,20 +77,13 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
 
   const journey = useMemo(() => resolveJourney(startDate, endDate), [endDate, startDate]);
   const validDuration = journey.durationDays;
-  const [requested, setRequested] = useState(false);
+  const [intentResult, setIntentResult] = useState<CreateBookingIntentResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!vehicleId) {
-      setLoading(false);
-      setVehicle(null);
-      setFetchError(null);
-      return;
-    }
+    if (!vehicleId) return;
     let isMounted = true;
-    setLoading(true);
-    setFetchError(null);
 
     gateway
       .getVehicleById(vehicleId)
@@ -106,6 +113,7 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
     () => (vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, validDuration) : null),
     [validDuration, vehicle],
   );
+  const authoritativePrice = intentResult?.result.priceSnapshot ?? null;
 
   if (loading) {
     return (
@@ -180,10 +188,10 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
         </View>
 
         <View style={styles.intro}>
-          <Text style={styles.eyebrow}>EARLIER REQUEST FLOW</Text>
-          <Text style={styles.title}>Review your availability request.</Text>
+          <Text style={styles.eyebrow}>SECURE BOOKING HOLD</Text>
+          <Text style={styles.title}>Review your Prado journey.</Text>
           <Text style={styles.subtitle}>
-            This development path saves an estimate only. It does not hold dates, take payment, or confirm a booking.
+            MMG will recalculate the price on the server and hold these dates for 15 minutes. Creating the hold does not take payment or confirm the ride.
           </Text>
         </View>
 
@@ -227,31 +235,47 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>QUOTE SUMMARY</Text>
+          <Text style={styles.sectionLabel}>
+            {authoritativePrice ? 'SERVER-VERIFIED HOLD' : 'QUOTE ESTIMATE'}
+          </Text>
           <View style={styles.quoteCard}>
-            <QuoteRow label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${validDuration} days`} value={formatNairaFromKobo(quote.rentalKobo)} />
-            <QuoteRow label="Service and protection" value={formatNairaFromKobo(quote.serviceFeeKobo)} />
+            <QuoteRow
+              label={`${formatNairaFromKobo(authoritativePrice?.ownerDailyRateKobo ?? vehicle.dailyRateKobo)} × ${authoritativePrice?.chargedDays ?? validDuration} days`}
+              value={formatNairaFromKobo(authoritativePrice?.baseRentalKobo ?? quote.rentalKobo)}
+            />
+            <QuoteRow
+              label="Service and protection"
+              value={formatNairaFromKobo(authoritativePrice?.serviceFeeKobo ?? quote.serviceFeeKobo)}
+            />
             <View style={styles.rule} />
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Estimated total</Text>
-              <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
+              <Text style={styles.totalLabel}>
+                {authoritativePrice ? 'Held total' : 'Estimated total'}
+              </Text>
+              <Text style={styles.totalValue}>
+                {formatNairaFromKobo(authoritativePrice?.renterTotalKobo ?? quote.totalKobo)}
+              </Text>
             </View>
           </View>
         </View>
 
         {errorMessage ? (
-          <View style={styles.errorBox}>
+          <View accessibilityLiveRegion="polite" style={styles.errorBox}>
             <Ionicons color={colors.danger} name="alert-circle" size={16} />
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
         ) : null}
 
-        {requested ? (
-          <View style={styles.successCard}>
+        {intentResult ? (
+          <View accessibilityLiveRegion="polite" style={styles.successCard}>
             <Ionicons color={colors.success} name="checkmark-circle" size={24} />
-            <Text style={styles.successTitle}>Availability Request Sent</Text>
+            <Text style={styles.successTitle}>Booking hold created</Text>
             <Text style={styles.successText}>
-              {'Your request has been logged. In the live system, the owner is contacted to confirm their chauffeur\'s schedule.'}
+              Dates are held until {new Date(intentResult.result.expiresAt).toLocaleTimeString('en-NG', {
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZone: 'Africa/Lagos',
+              })} Lagos time. No payment was taken, and your ride is not confirmed.
             </Text>
           </View>
         ) : (
@@ -261,17 +285,22 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
               setSubmitting(true);
               setErrorMessage(null);
               try {
-                await requestAvailability({
-                  dailyRateKobo: vehicle.dailyRateKobo,
-                  durationDays: validDuration,
-                  pickupAt: journey.startDate,
-                  returnAt: journey.endDate,
-                  totalKobo: quote.totalKobo,
+                const intentData = {
+                  endDate: journey.endDate,
+                  startDate: journey.startDate,
                   vehicleId: vehicle.id,
-                });
-                setRequested(true);
+                };
+                const result = await intentGateway.createIntent(
+                  intentData,
+                  submissionKey.current.forData(intentData),
+                );
+                submissionKey.current.markSucceeded();
+                setIntentResult(result);
               } catch (err: unknown) {
-                setErrorMessage(err instanceof Error ? err.message : 'Could not submit request.');
+                const reason = err instanceof Error ? err.message : 'The booking service is unavailable.';
+                setErrorMessage(
+                  `${reason} No booking intent or date hold was created, and no charge was attempted.`,
+                );
               } finally {
                 setSubmitting(false);
               }
@@ -279,7 +308,7 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
           >
             <View style={[styles.ctaButton, submitting && { opacity: 0.6 }]}>
               <Text style={styles.ctaText}>
-                {submitting ? 'LOGGING REQUEST...' : 'REQUEST AVAILABILITY'}
+                {submitting ? 'CREATING SECURE HOLD...' : 'CREATE 15-MINUTE HOLD'}
               </Text>
               <Ionicons color={colors.black} name="arrow-forward" size={16} />
             </View>
