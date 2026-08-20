@@ -1,7 +1,7 @@
 import 'server-only';
 
 import Link from 'next/link';
-import { ArrowRight, ShieldAlert } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 import {
   requireLiveStaffSession,
@@ -53,26 +53,10 @@ export default async function AccessDeniedPage({
           backgroundColor: '#151A22',
           border: '1px solid #232A36',
           borderRadius: '14px',
-          padding: '34px 32px',
+          padding: '32px',
         }}
       >
-        <div
-          style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '10px',
-            backgroundColor: 'rgba(201, 167, 91, 0.12)',
-            border: '1px solid rgba(201, 167, 91, 0.28)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#C9A75B',
-          }}
-        >
-          <ShieldAlert size={22} aria-hidden />
-        </div>
-
-        <h1 style={{ fontSize: '22px', fontWeight: 650, margin: '20px 0 10px', letterSpacing: '-0.01em' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 650, margin: '0 0 10px', letterSpacing: '-0.01em' }}>
           You do not have access to {requestedLabel || 'this workspace'}
         </h1>
 
@@ -100,7 +84,7 @@ export default async function AccessDeniedPage({
           <div style={{ marginTop: '26px', borderTop: '1px solid #232A36', paddingTop: '20px' }}>
             <p
               style={{
-                fontSize: '10px',
+                fontSize: '12px',
                 fontWeight: 800,
                 letterSpacing: '0.16em',
                 color: '#765E2D',
@@ -120,6 +104,7 @@ export default async function AccessDeniedPage({
                       justifyContent: 'space-between',
                       gap: '12px',
                       padding: '12px 14px',
+                      minHeight: '44px',
                       borderRadius: '8px',
                       backgroundColor: '#0E1117',
                       border: '1px solid #232A36',
