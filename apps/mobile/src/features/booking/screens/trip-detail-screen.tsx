@@ -139,28 +139,24 @@ export default function TripDetailScreen({
                   <Ionicons color={colors.ivory} name="arrow-back" size={20} />
                 </View>
               </PressableScale>
-              <View style={styles.syncPill}>
+              {mode !== 'ready' ? <View style={styles.syncPill}>
                 <RadarPulseDot
                   color={mode === 'offline' || mode === 'preview' ? colors.goldStrong : colors.success}
                   glowColor={mode === 'offline' || mode === 'preview' ? 'rgba(227,195,101,0.35)' : 'rgba(74,222,128,0.35)'}
                   size={6}
                 />
                 <Text style={styles.syncText}>
-                  {mode === 'preview' ? 'STATE PREVIEW' : mode === 'offline' ? 'OFFLINE COPY' : 'TRIP DESK'}
+                  {mode === 'preview' ? 'STATE PREVIEW' : 'OFFLINE COPY'}
                 </Text>
-              </View>
+              </View> : null}
             </View>
             <View style={styles.heroCopy}>
-              <View style={[styles.statePill, trip.group === 'intervention' && styles.statePillAttention]}>
-                <Text style={styles.statePillText}>{copy.label}</Text>
-              </View>
               <Text accessibilityRole="header" style={styles.vehicleName}>{vehicle.displayName}</Text>
               <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · Chauffeur included</Text>
             </View>
           </View>
 
           <View style={styles.body}>
-            <Text style={styles.eyebrow}>CURRENT STATUS</Text>
             <Text style={styles.title}>{copy.title}</Text>
             <Text style={styles.subtitle}>{copy.body}</Text>
 
@@ -187,7 +183,7 @@ export default function TripDetailScreen({
               <DatePoint label="RETURN" value={formatDate(trip.endDate)} />
             </View>
 
-            <SectionTitle label="JOURNEY TIMELINE" />
+            <SectionTitle label="Timeline" />
             <View style={styles.timeline}>
               {timeline.map((step, index) => (
                 <View key={step.id} style={styles.timelineRow}>
@@ -214,7 +210,7 @@ export default function TripDetailScreen({
               ))}
             </View>
 
-            <SectionTitle label="VERIFIED PRICE SNAPSHOT" />
+            <SectionTitle label="Price" />
             <View style={styles.priceCard}>
               <PriceRow
                 label={`${trip.priceSnapshot.chargedDays} charged day${trip.priceSnapshot.chargedDays === 1 ? '' : 's'}`}
@@ -392,12 +388,11 @@ const styles = StyleSheet.create({
   confirmCard: { backgroundColor: colors.graphiteRaised, borderColor: 'rgba(209,133,120,.36)', borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, marginTop: spacing.xl, padding: spacing.lg },
   confirmTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 22 },
   content: { backgroundColor: colors.black },
-  dateCard: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xl, padding: spacing.lg },
+  dateCard: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xl, paddingVertical: spacing.lg },
   dateDivider: { alignItems: 'center', flex: .45, minWidth: 36 },
   dateLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.4 },
   datePoint: { flex: 1, minWidth: 120 },
   dateValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 11, lineHeight: 17, marginTop: 5 },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.8, marginTop: spacing.sm },
   flex: { flex: 1 },
   goldButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, minHeight: 52, paddingHorizontal: spacing.lg },
   goldButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.2 },
@@ -411,7 +406,7 @@ const styles = StyleSheet.create({
   offlineNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
   previewNotice: { alignItems: 'center', borderBottomColor: colors.line, borderTopColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, paddingVertical: spacing.md },
   previewNoticeText: { color: colors.goldStrong, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.1, lineHeight: 12 },
-  priceCard: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, padding: spacing.lg },
+  priceCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.md },
   priceLabel: { color: colors.muted, flexShrink: 1, fontFamily: typography.body, fontSize: 11, paddingRight: spacing.md },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   priceRule: { backgroundColor: colors.lineStrong, height: StyleSheet.hairlineWidth, marginVertical: spacing.xs },
@@ -424,9 +419,6 @@ const styles = StyleSheet.create({
   sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.6 },
   sectionLine: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
   sectionTitle: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg, marginTop: spacing.xxl },
-  statePill: { alignSelf: 'flex-start', backgroundColor: 'rgba(4,4,4,.76)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, marginBottom: spacing.md, paddingHorizontal: spacing.md, paddingVertical: 9 },
-  statePillAttention: { borderColor: 'rgba(209,133,120,.58)' },
-  statePillText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.2 },
   subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 21, marginTop: spacing.sm },
   syncDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 6, width: 6 },
   syncDotOffline: { backgroundColor: colors.goldStrong },

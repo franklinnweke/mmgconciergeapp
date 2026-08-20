@@ -13,7 +13,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { LuxuryEmblemLoader } from '@/components/ui/luxury-emblem-loader';
 import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
-import { resolveVehicleImageSource, vehicleImages } from '@/features/discovery/data/vehicle-images';
+import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 import { groupTripsForDisplay, tripStateCopy, type RenterTrip } from '../domain/renter-trip';
@@ -32,7 +32,7 @@ function syncLabel(syncState: 'local-only' | 'syncing' | 'synced' | 'offline', i
   if (syncState === 'offline') return 'OFFLINE CACHE';
   if (syncState === 'syncing') return 'SYNCING';
   if (syncState === 'synced') return 'LIVE UPDATES';
-  return 'TRIP DESK';
+  return 'LOCAL COPY';
 }
 
 export default function TripsScreen() {
@@ -74,11 +74,7 @@ export default function TripsScreen() {
           </View>
         </View>
         <View style={styles.intro}>
-          <Text style={styles.eyebrow}>YOUR JOURNEYS</Text>
           <Text accessibilityRole="header" style={styles.title}>Trips</Text>
-          <Text style={styles.subtitle}>
-            Payment, confirmation, concierge intervention, and arrival details in one truthful timeline.
-          </Text>
         </View>
         {isPreview ? (
           <View accessibilityLiveRegion="polite" style={styles.previewNotice}>
@@ -133,16 +129,13 @@ function TripRow({ trip }: { trip: RenterTrip }) {
         <View style={styles.imageFrame}>
           <Image accessibilityLabel={vehicle.displayName} contentFit="cover" source={vehicleImage} style={StyleSheet.absoluteFill} />
           <LinearGradient colors={['transparent', 'rgba(4,4,4,.86)']} style={StyleSheet.absoluteFill} />
-          <View style={[styles.statePill, attention && styles.statePillAttention]}>
-            <Ionicons color={attention ? colors.danger : colors.goldStrong} name={attention ? 'alert-circle-outline' : 'time-outline'} size={13} />
-            <Text style={styles.statePillText}>{copy.label}</Text>
-          </View>
           <View style={styles.imageCopy}>
             <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
             <Text style={styles.area}>{vehicle.areaLabel} · Chauffeur included</Text>
           </View>
         </View>
-        <View style={styles.tripBody}>
+          <View style={styles.tripBody}>
+          <Text style={[styles.stateText, attention && styles.stateTextAttention]}>{copy.label}</Text>
           <View style={styles.dateRow}>
             <View>
               <Text style={styles.dateLabel}>PICKUP</Text>
@@ -163,10 +156,6 @@ function TripRow({ trip }: { trip: RenterTrip }) {
                 {trip.source === 'legacy' ? 'EARLIER ESTIMATE' : trip.source === 'preview' ? 'PREVIEW SNAPSHOT' : 'VERIFIED SNAPSHOT'}
               </Text>
             </View>
-            <View style={styles.viewAction}>
-              <Text style={styles.viewText}>VIEW JOURNEY</Text>
-              <Ionicons color={colors.black} name="arrow-forward" size={15} />
-            </View>
           </View>
         </View>
       </View>
@@ -177,18 +166,13 @@ function TripRow({ trip }: { trip: RenterTrip }) {
 function EmptyTrips({ onExplore }: { onExplore: () => void }) {
   return (
     <View style={styles.empty}>
-      <View style={styles.emptyVisual}>
-        <Image accessibilityLabel="MMG chauffeur-ready Toyota Prado" contentFit="cover" source={vehicleImages['hero-suv']} style={StyleSheet.absoluteFill} />
-        <LinearGradient colors={['transparent', 'rgba(4,4,4,.9)']} style={StyleSheet.absoluteFill} />
-        <Text style={styles.emptyVisualText}>YOUR NEXT ARRIVAL</Text>
-      </View>
       <Text style={styles.emptyTitle}>No journeys yet.</Text>
       <Text style={styles.emptyBody}>
-        Choose a chauffeur-ready vehicle and start with a current, server-verified booking intent.
+        Find a car and choose dates to start a journey.
       </Text>
       <PressableScale accessibilityRole="button" onPress={onExplore}>
         <View style={styles.emptyAction}>
-          <Text style={styles.emptyActionText}>EXPLORE THE FLEET</Text>
+          <Text style={styles.emptyActionText}>FIND A CAR</Text>
           <Ionicons color={colors.black} name="arrow-forward" size={17} />
         </View>
       </PressableScale>
@@ -198,6 +182,8 @@ function EmptyTrips({ onExplore }: { onExplore: () => void }) {
 
 const styles = StyleSheet.create({
   area: { color: colors.muted, fontFamily: typography.body, fontSize: 9, marginTop: 4 },
+  stateText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, marginBottom: spacing.xs },
+  stateTextAttention: { color: colors.danger },
   content: { paddingBottom: 120, paddingHorizontal: spacing.lg },
   dateLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.2 },
   dateLine: { backgroundColor: colors.lineStrong, flex: 1, height: StyleSheet.hairlineWidth },
@@ -208,9 +194,6 @@ const styles = StyleSheet.create({
   emptyActionText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.3 },
   emptyBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm },
   emptyTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 31, marginTop: spacing.lg },
-  emptyVisual: { borderRadius: radii.lg, height: 224, justifyContent: 'flex-end', overflow: 'hidden', padding: spacing.lg },
-  emptyVisualText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.8 },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.8 },
   footer: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between', marginTop: spacing.lg, paddingTop: spacing.md },
   imageCopy: { bottom: spacing.md, left: spacing.md, position: 'absolute', right: spacing.md },
   imageFrame: { height: 192, position: 'relative' },
@@ -224,14 +207,10 @@ const styles = StyleSheet.create({
   sectionCount: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 9 },
   sectionHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 8, letterSpacing: 1.7 },
-  statePill: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,.82)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 7, left: spacing.md, paddingHorizontal: 10, paddingVertical: 8, position: 'absolute', top: spacing.md },
-  statePillAttention: { borderColor: 'rgba(209,133,120,.45)' },
-  statePillText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.1 },
   statusDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 6, width: 6 },
   statusDotOffline: { backgroundColor: colors.goldStrong },
   statusPill: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 7, paddingHorizontal: 11, paddingVertical: 8 },
   statusPillText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.3 },
-  subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm },
   syncNotice: { alignItems: 'center', backgroundColor: 'rgba(227,195,101,.08)', borderColor: 'rgba(227,195,101,.28)', borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
   syncNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 45, letterSpacing: -1, marginTop: 5 },
@@ -240,8 +219,6 @@ const styles = StyleSheet.create({
   totalNote: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 6, letterSpacing: 1.1, marginTop: 3 },
   tripBody: { padding: spacing.md },
   tripList: { gap: spacing.lg },
-  tripRow: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  tripRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   vehicleName: { color: colors.ivory, fontFamily: typography.display, fontSize: 24 },
-  viewAction: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: 6, minHeight: 44, minWidth: 44, paddingHorizontal: spacing.md },
-  viewText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 7, letterSpacing: 1.1 },
 });
