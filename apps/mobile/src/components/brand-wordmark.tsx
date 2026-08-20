@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
   concierge: {
     color: colors.ivory,
     fontFamily: typography.bodyMedium,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 2.4,
   },
   mmg: {

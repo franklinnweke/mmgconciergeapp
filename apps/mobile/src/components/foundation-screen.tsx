@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 2.2,
   },
   footer: {

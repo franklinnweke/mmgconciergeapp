@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   journeyChip: {
     alignItems: 'center',
     borderRadius: radii.pill,
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: 'center',
   },
   journeyChipSelected: { backgroundColor: colors.graphiteRaised },

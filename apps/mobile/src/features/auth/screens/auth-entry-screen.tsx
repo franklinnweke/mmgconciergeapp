@@ -245,6 +245,7 @@ export function AuthEntryScreen() {
               accessibilityRole="button"
               disabled={busy}
               onPress={() => void handlePasswordReset()}
+              style={styles.forgotPressable}
             >
               <Text style={styles.forgotText}>Forgot password?</Text>
             </PressableScale>
@@ -331,13 +332,13 @@ const styles = StyleSheet.create({
   dividerText: {
     color: colors.muted,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1.8,
   },
   eyebrow: {
     color: colors.goldStrong,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 2.1,
     marginBottom: spacing.xs,
   },
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: colors.muted,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1.6,
     marginBottom: spacing.xs,
   },
@@ -372,6 +373,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   fields: { gap: spacing.lg },
+  forgotPressable: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   forgotText: {
     color: colors.gold,
     fontFamily: typography.bodyMedium,
@@ -429,10 +431,10 @@ const styles = StyleSheet.create({
   marketText: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1.4,
   },
-  modeButton: { alignItems: 'center', borderRadius: radii.pill, justifyContent: 'center', minHeight: 40 },
+  modeButton: { alignItems: 'center', borderRadius: radii.pill, justifyContent: 'center', minHeight: 44 },
   modeButtonActive: { backgroundColor: colors.ivory },
   modeButtonShell: { flex: 1 },
   modeButtonText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
@@ -459,7 +461,7 @@ const styles = StyleSheet.create({
   termsText: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
     paddingHorizontal: spacing.md,
     textAlign: 'center',

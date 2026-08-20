@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   deletionBadgeText: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1.2,
   },
   emailText: {
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   label: {
     color: colors.muted,
     fontFamily: typography.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1.2,
   },
   loadingContainer: {

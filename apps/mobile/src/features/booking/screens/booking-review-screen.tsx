@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: radii.pill,
     borderWidth: 1,
-    height: 38,
+    height: 44,
     justifyContent: 'center',
     width: 38,
   },
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   deliveryLabel: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1,
   },
   deliveryRow: {
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1.2,
   },
   intro: {
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   pointLabel: {
     color: colors.muted,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1,
   },
   pointValue: {
@@ -504,6 +504,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xs,
     marginTop: spacing.sm,
+    minHeight: 44,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
@@ -520,6 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
     marginTop: spacing.sm,
+    minHeight: 44,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
@@ -544,7 +546,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1.2,
   },
   sectionTitle: {
@@ -563,7 +565,7 @@ const styles = StyleSheet.create({
   stepText: {
     color: colors.goldStrong,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1.2,
   },
   subtitle: {
@@ -633,7 +635,7 @@ const styles = StyleSheet.create({
   vehicleCategory: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1,
   },
   vehicleCopy: {
