@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { VehicleModerationStatus } from '@mmg/contracts';
 import {
-  Car,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -31,13 +30,13 @@ export type VehicleModerationQueueProps = {
 
 const STATUS_CONFIG: Record<
   VehicleModerationStatus,
-  { label: string; bg: string; text: string; icon: typeof CheckCircle2 }
+  { label: string; text: string; icon: typeof CheckCircle2 }
 > = {
-  draft: { label: 'Draft', bg: '#1E222B', text: '#9AA0A6', icon: FileText },
-  pending_review: { label: 'Pending Review', bg: 'rgba(234, 179, 8, 0.12)', text: '#EAB308', icon: Clock },
-  approved: { label: 'Approved', bg: 'rgba(34, 197, 94, 0.12)', text: '#4ADE80', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', bg: 'rgba(239, 68, 68, 0.12)', text: '#F87171', icon: XCircle },
-  suspended: { label: 'Suspended', bg: 'rgba(220, 38, 38, 0.18)', text: '#EF4444', icon: AlertTriangle },
+  draft: { label: 'Draft', text: '#9AA0A6', icon: FileText },
+  pending_review: { label: 'Pending review', text: '#EAB308', icon: Clock },
+  approved: { label: 'Approved', text: '#4ADE80', icon: CheckCircle2 },
+  rejected: { label: 'Rejected', text: '#F87171', icon: XCircle },
+  suspended: { label: 'Suspended', text: '#EF4444', icon: AlertTriangle },
 };
 
 function formatNaira(kobo: number): string {
@@ -83,62 +82,39 @@ export function VehicleModerationQueue({
   });
 
   const handleSignOut = async () => {
-    await fetch('/api/auth/sign-out', { method: 'POST' });
+    await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/sign-in');
     router.refresh();
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
-      {/* Top Header */}
+    <div className="vehicle-moderation-page" style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
       <header
         style={{
           borderBottom: '1px solid #1E232E',
           backgroundColor: '#101318',
-          padding: '16px 32px',
+          padding: '14px 32px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
+        <nav className="vehicle-moderation-nav" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }} aria-label="Admin sections">
+            <Link
+              href="/"
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                backgroundColor: '#C89D46',
-                display: 'flex',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#9AA0A6',
+                textDecoration: 'none',
+                padding: '10px 12px',
+                minHeight: '44px',
+                display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                color: '#090A0C',
               }}
             >
-              <Car size={18} />
-            </div>
-            <div>
-              <span style={{ fontSize: '15px', fontWeight: '700', letterSpacing: '-0.02em' }}>
-                MMG Operations
-              </span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  marginLeft: '8px',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#1E232E',
-                  color: '#C89D46',
-                  fontWeight: '600',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Fleet Desk
-              </span>
-            </div>
-          </div>
-
-          <nav style={{ display: 'flex', gap: '12px', marginLeft: '16px' }}>
+              Bookings
+            </Link>
             <Link
               href="/vehicles"
               style={{
@@ -146,12 +122,15 @@ export function VehicleModerationQueue({
                 fontWeight: '600',
                 color: '#F3F4F6',
                 textDecoration: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                backgroundColor: '#181D26',
+                padding: '10px 12px',
+                minHeight: '44px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                borderBottom: '2px solid #C89D46',
               }}
+              aria-current="page"
             >
-              Vehicle Moderation
+              Vehicles
             </Link>
             <Link
               href="/owners"
@@ -160,27 +139,15 @@ export function VehicleModerationQueue({
                 fontWeight: '500',
                 color: '#9AA0A6',
                 textDecoration: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
+                padding: '10px 12px',
+                minHeight: '44px',
+                display: 'inline-flex',
+                alignItems: 'center',
               }}
             >
-              Owner Desk
-            </Link>
-            <Link
-              href="/"
-              style={{
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#9AA0A6',
-                textDecoration: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
-              }}
-            >
-              Bookings & Trips
+              Owners
             </Link>
           </nav>
-        </div>
 
         {/* Staff Profile & Sign Out */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -189,7 +156,7 @@ export function VehicleModerationQueue({
               <div style={{ fontSize: '12px', fontWeight: '600', color: '#F3F4F6' }}>
                 {staffEmail}
               </div>
-              <div style={{ fontSize: '10px', color: '#9AA0A6', textTransform: 'capitalize' }}>
+              <div style={{ fontSize: '12px', color: '#9AA0A6', textTransform: 'capitalize' }}>
                 {staffRole || 'Staff Operator'}
               </div>
             </div>
@@ -201,7 +168,8 @@ export function VehicleModerationQueue({
               background: 'none',
               border: '1px solid #1E232E',
               borderRadius: '6px',
-              padding: '6px 10px',
+              padding: '10px 12px',
+              minHeight: '44px',
               color: '#9AA0A6',
               cursor: 'pointer',
               display: 'flex',
@@ -216,11 +184,8 @@ export function VehicleModerationQueue({
         </div>
       </header>
 
-      {/* Main Container */}
       <main style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px' }}>
-        {/* Page Title & Stats */}
-        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div>
+        <div style={{ marginBottom: '24px' }}>
             <h1
               style={{
                 fontFamily: 'var(--font-display), Georgia, serif',
@@ -230,52 +195,13 @@ export function VehicleModerationQueue({
                 margin: '0 0 6px 0',
               }}
             >
-              Vehicle Moderation Queue
+              Vehicle moderation
             </h1>
-            <p style={{ margin: 0, fontSize: '14px', color: '#9AA0A6' }}>
-              Review luxury executive specifications, verify multi-angle photos, and inspect garaged Lagos locations.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div
-              style={{
-                backgroundColor: '#101318',
-                border: '1px solid #1E232E',
-                borderRadius: '8px',
-                padding: '10px 16px',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: '#EAB308', fontWeight: '600', textTransform: 'uppercase' }}>
-                Pending Review
-              </div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#F9FAFB' }}>
-                {counts.pending_review}
-              </div>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: '#101318',
-                border: '1px solid #1E232E',
-                borderRadius: '8px',
-                padding: '10px 16px',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: '#4ADE80', fontWeight: '600', textTransform: 'uppercase' }}>
-                Approved
-              </div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#F9FAFB' }}>
-                {counts.approved}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Filter Controls & Search */}
         <div
+          className="vehicle-moderation-filters"
           style={{
             backgroundColor: '#101318',
             border: '1px solid #1E232E',
@@ -306,7 +232,8 @@ export function VehicleModerationQueue({
                     border: '1px solid',
                     borderColor: isActive ? '#C89D46' : '#1E232E',
                     borderRadius: '6px',
-                    padding: '6px 12px',
+                    padding: '10px 12px',
+                    minHeight: '44px',
                     fontSize: '12px',
                     fontWeight: '600',
                     cursor: 'pointer',
@@ -318,10 +245,8 @@ export function VehicleModerationQueue({
                   <span>{label}</span>
                   <span
                     style={{
-                      fontSize: '10px',
-                      padding: '1px 5px',
-                      borderRadius: '4px',
-                      backgroundColor: isActive ? 'rgba(0,0,0,0.2)' : '#1E232E',
+                      fontSize: '12px',
+                      fontWeight: '700',
                       color: isActive ? '#090A0C' : '#D1D5DB',
                     }}
                   >
@@ -336,7 +261,7 @@ export function VehicleModerationQueue({
           <div
             style={{
               position: 'relative',
-              width: '320px',
+              width: 'min(320px, 100%)',
             }}
           >
             <Search
@@ -359,7 +284,8 @@ export function VehicleModerationQueue({
                 backgroundColor: '#181D26',
                 border: '1px solid #1E232E',
                 borderRadius: '6px',
-                padding: '8px 12px 8px 36px',
+                padding: '10px 12px 10px 36px',
+                minHeight: '44px',
                 fontSize: '13px',
                 color: '#F9FAFB',
                 outline: 'none',
@@ -374,12 +300,12 @@ export function VehicleModerationQueue({
             backgroundColor: '#101318',
             border: '1px solid #1E232E',
             borderRadius: '10px',
-            overflow: 'hidden',
+            overflowX: 'auto',
           }}
         >
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+          <table style={{ minWidth: '1040px', width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
             <thead>
-              <tr style={{ backgroundColor: '#141820', borderBottom: '1px solid #1E232E', color: '#9AA0A6', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ backgroundColor: '#141820', borderBottom: '1px solid #1E232E', color: '#9AA0A6', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <th style={{ padding: '14px 20px', fontWeight: '600' }}>Vehicle Specification</th>
                 <th style={{ padding: '14px 20px', fontWeight: '600' }}>Category</th>
                 <th style={{ padding: '14px 20px', fontWeight: '600' }}>Owner Legal Name</th>
@@ -428,8 +354,8 @@ export function VehicleModerationQueue({
                             <div style={{ fontWeight: '600', color: '#F9FAFB' }}>
                               {item.make} {item.model}
                             </div>
-                            <div style={{ fontSize: '11px', color: '#9AA0A6' }}>
-                              Year {item.year} · Plate: {item.plateMasked} · {item.imageCount} photos
+                            <div style={{ fontSize: '12px', color: '#9AA0A6' }}>
+                              Year {item.year} · Plate: {item.plateMasked} · {item.imageCount} photos · v{item.version}
                             </div>
                           </div>
                         </div>
@@ -439,7 +365,7 @@ export function VehicleModerationQueue({
                       <td style={{ padding: '16px 20px' }}>
                         <span
                           style={{
-                            fontSize: '11px',
+                            fontSize: '12px',
                             fontWeight: '600',
                             padding: '3px 8px',
                             borderRadius: '4px',
@@ -448,14 +374,14 @@ export function VehicleModerationQueue({
                             border: '1px solid #28303F',
                           }}
                         >
-                          {item.category === 'executive_suv' ? 'Executive SUV' : 'Executive Sedan'}
+                          {item.category === 'executive_suv' ? 'SUV' : 'Sedan'}
                         </span>
                       </td>
 
                       {/* Owner */}
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ color: '#F3F4F6', fontWeight: '500' }}>{item.ownerLegalName}</div>
-                        <div style={{ fontSize: '11px', color: '#6B7280' }}>ID: {item.ownerId.slice(0, 12)}…</div>
+                        <div style={{ fontSize: '12px', color: '#6B7280' }}>ID: {item.ownerId.slice(0, 12)}…</div>
                       </td>
 
                       {/* Base Area */}
@@ -468,9 +394,6 @@ export function VehicleModerationQueue({
                         <div style={{ fontWeight: '600', color: '#C89D46' }}>
                           {formatNaira(item.dailyRateKobo)}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                          Net 85%: {formatNaira(Math.round(item.dailyRateKobo * 0.85))}
-                        </div>
                       </td>
 
                       {/* Status */}
@@ -480,11 +403,9 @@ export function VehicleModerationQueue({
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '5px',
-                            fontSize: '11px',
+                            fontSize: '12px',
                             fontWeight: '600',
-                            padding: '4px 9px',
-                            borderRadius: '4px',
-                            backgroundColor: statusInfo.bg,
+                            minHeight: '44px',
                             color: statusInfo.text,
                           }}
                         >
@@ -504,7 +425,8 @@ export function VehicleModerationQueue({
                             backgroundColor: '#1E232E',
                             color: '#F9FAFB',
                             textDecoration: 'none',
-                            padding: '6px 12px',
+                            padding: '10px 12px',
+                            minHeight: '44px',
                             borderRadius: '6px',
                             fontSize: '12px',
                             fontWeight: '600',
@@ -548,7 +470,8 @@ export function VehicleModerationQueue({
                   color: isFirstPage ? '#4B5563' : '#F9FAFB',
                   border: '1px solid #1E232E',
                   borderRadius: '4px',
-                  padding: '5px 10px',
+                  padding: '10px 10px',
+                  minHeight: '44px',
                   cursor: isFirstPage ? 'default' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -567,7 +490,8 @@ export function VehicleModerationQueue({
                   color: !hasMore ? '#4B5563' : '#F9FAFB',
                   border: '1px solid #1E232E',
                   borderRadius: '4px',
-                  padding: '5px 10px',
+                  padding: '10px 10px',
+                  minHeight: '44px',
                   cursor: !hasMore ? 'default' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
