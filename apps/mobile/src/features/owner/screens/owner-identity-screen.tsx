@@ -338,6 +338,6 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
   termsSection: { borderTopColor: colors.line, borderTopWidth: 1, marginTop: spacing.md, paddingTop: spacing.lg },
   termsTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  termsVersion: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 0.8, marginTop: 4 },
+  termsVersion: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.8, marginTop: 4 },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 26, letterSpacing: -0.4, marginTop: 2 },
 });

@@ -190,14 +190,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
     borderRadius: radii.pill,
-    height: 40,
+    height: 44,
     justifyContent: 'center',
-    width: 40,
+    width: 44,
   },
   avatarPress: {
     flexShrink: 0,
-    height: 40,
-    width: 40,
+    height: 44,
+    width: 44,
   },
   avatarText: {
     color: colors.black,
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexShrink: 0,
     gap: 4,
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 8,
   },
   cityText: {

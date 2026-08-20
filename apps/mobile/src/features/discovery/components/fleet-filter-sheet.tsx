@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: 6,
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
   },
   chipActive: {
@@ -345,9 +345,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.graphiteRaised,
     borderRadius: radii.pill,
-    height: 38,
+    height: 44,
     justifyContent: 'center',
-    width: 38,
+    width: 44,
   },
   countBadge: {
     alignItems: 'center',

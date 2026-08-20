@@ -32,7 +32,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
 
         <View style={styles.titleRow}>
           <View style={styles.titleBlock}>
-            <Text numberOfLines={1} style={styles.title}>
+            <Text numberOfLines={2} style={styles.title}>
               {vehicle.displayName}
             </Text>
             <Text style={styles.meta}>
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   distanceText: {
     color: colors.ivory,
     fontFamily: typography.bodyMedium,
-    fontSize: 10,
+    fontSize: 11,
   },
   imageFrame: {
     backgroundColor: colors.graphiteRaised,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   included: {
     color: colors.gold,
     fontFamily: typography.bodyMedium,
-    fontSize: 10,
+    fontSize: 11,
   },
   includedSpacer: {
     flex: 1,

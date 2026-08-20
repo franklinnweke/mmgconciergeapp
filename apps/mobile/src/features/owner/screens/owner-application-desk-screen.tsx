@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   loadingBox: { alignItems: 'center', paddingVertical: spacing.xxl },
   loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
   previewBanner: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.12)', borderColor: colors.lineStrong, borderBottomWidth: 1, borderTopWidth: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  previewBannerText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 1 },
+  previewBannerText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
   reasonCard: { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, marginVertical: spacing.md, padding: spacing.md },

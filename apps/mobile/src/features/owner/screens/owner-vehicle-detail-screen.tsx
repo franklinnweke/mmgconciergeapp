@@ -346,9 +346,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#1E1E1E',
     borderRadius: 20,
-    height: 40,
+    height: 44,
     justifyContent: 'center',
-    width: 40,
+    width: 44,
   },
   itemLabel: {
     color: colors.muted,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   statusHeading: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
   },

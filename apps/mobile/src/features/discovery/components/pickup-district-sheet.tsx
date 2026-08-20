@@ -150,9 +150,9 @@ const styles = StyleSheet.create({
     borderColor: colors.lineStrong,
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    height: 36,
+    height: 44,
     justifyContent: 'center',
-    width: 36,
+    width: 44,
   },
   eyebrow: {
     color: colors.goldStrong,

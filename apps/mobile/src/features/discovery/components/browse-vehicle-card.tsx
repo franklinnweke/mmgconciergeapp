@@ -37,7 +37,7 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
             style={StyleSheet.absoluteFill}
           />
           <View style={styles.imageCopy}>
-            <Text numberOfLines={1} style={styles.title}>
+            <Text numberOfLines={2} style={styles.title}>
               {vehicle.displayName}
             </Text>
           </View>
@@ -170,6 +170,7 @@ const styles = StyleSheet.create({
   locationBlock: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexShrink: 1,
     gap: 5,
   },
   metaDot: {

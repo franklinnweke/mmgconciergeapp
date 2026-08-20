@@ -32,7 +32,7 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
             style={StyleSheet.absoluteFill}
           />
           <View style={styles.imageCopy}>
-            <Text numberOfLines={1} style={styles.name}>
+            <Text numberOfLines={2} style={styles.name}>
               {vehicle.displayName}
             </Text>
             <Text style={styles.meta}>

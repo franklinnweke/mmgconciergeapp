@@ -422,9 +422,9 @@ const styles = StyleSheet.create({
     borderColor: colors.lineStrong,
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    height: 40,
+    height: 44,
     justifyContent: 'center',
-    width: 40,
+    width: 44,
   },
   clearAllText: {
     color: colors.goldStrong,
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   filterBadgeText: {
     color: colors.black,
     fontFamily: typography.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
   },
   filterButton: {
     alignItems: 'center',

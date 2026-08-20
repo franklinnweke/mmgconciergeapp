@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   fixtureText: {
     color: colors.black,
     flex: 1,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.5,
   },

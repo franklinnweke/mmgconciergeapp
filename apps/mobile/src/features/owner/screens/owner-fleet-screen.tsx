@@ -188,7 +188,7 @@ export function OwnerFleetScreen() {
 
                 <View style={styles.cardBody}>
                   <View style={styles.cardTopRow}>
-                    <Text numberOfLines={1} style={styles.vehicleName}>
+                    <Text numberOfLines={2} style={styles.vehicleName}>
                       {item.displayName}
                     </Text>
                     {item.moderationStatus === 'approved' ? (
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   bookingsButtonText: {
     color: colors.gold,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.6,
   },
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontFamily: typography.body,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   priceLabel: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
   },

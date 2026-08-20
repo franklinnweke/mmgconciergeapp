@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: spacing.xs,
   },
   presetChipActive: {

@@ -447,11 +447,11 @@ const styles = StyleSheet.create({
   selectedDay: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
   selectedDayText: { color: colors.black },
   selectionCopy: { flex: 1 },
-  selectionLabel: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  selectionLabel: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
   selectionSummary: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, borderTopColor: colors.graphiteRaised, borderTopWidth: 1, flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, minHeight: 72 },
   selectionValue: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, marginTop: 4 },
   stateText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm, textAlign: 'center' },
   stateTitle: { color: colors.ivory, fontFamily: typography.body, fontSize: 18, fontWeight: '700', marginTop: spacing.md },
   title: { color: colors.ivory, fontFamily: typography.display ?? typography.body, fontSize: 22, fontWeight: '600', marginTop: 2 },
-  weekday: { color: colors.muted, fontFamily: typography.body, fontSize: 10, fontWeight: '700' },
+  weekday: { color: colors.muted, fontFamily: typography.body, fontSize: 11, fontWeight: '700' },
 });

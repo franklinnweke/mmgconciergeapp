@@ -831,7 +831,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1.2,
     marginBottom: spacing.xs,
     marginTop: spacing.md,
@@ -957,7 +957,7 @@ const styles = StyleSheet.create({
   primaryCoverText: {
     color: colors.black,
     fontFamily: typography.bodySemiBold,
-    fontSize: 8,
+    fontSize: 11,
   },
   progressBar: {
     backgroundColor: colors.graphite,
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
   stepText: {
     color: colors.muted,
     fontFamily: typography.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1.2,
   },
   subtitle: {
