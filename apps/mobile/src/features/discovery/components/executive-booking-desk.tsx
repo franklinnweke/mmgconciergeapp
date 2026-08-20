@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
-import { LuxuryCard } from '@/components/ui/luxury-card';
 import { addDaysToDateOnly, formatLagosDateOnly, todayLagosDateOnly } from '../data/lagos-destinations';
 
 export type ExecutiveBookingDeskProps = {
@@ -18,13 +17,6 @@ export type ExecutiveBookingDeskProps = {
     journeyLabel: string;
   }): void;
 };
-
-const DURATION_PRESETS = [
-  { label: '1 Day', days: 1, caption: 'Daily Escort' },
-  { label: '3 Days', days: 3, caption: 'Weekend / Short' },
-  { label: '7 Days', days: 7, caption: 'Weekly Retainer' },
-  { label: '14 Days', days: 14, caption: 'Fortnight Escort' },
-];
 
 export function ExecutiveBookingDesk({
   areaLabel,
@@ -72,19 +64,15 @@ export function ExecutiveBookingDesk({
   };
 
   return (
-    <LuxuryCard style={styles.card}>
+    <View style={styles.card}>
       {/* Header Eyebrow & Title */}
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>CHAUFFEURED MOBILITY · LAGOS</Text>
-        <Text style={styles.title}>Reserve Executive Escort</Text>
-        <Text style={styles.subtitle}>
-          Tailored chauffeured transport with vetted executive security drivers across Lagos.
-        </Text>
+        <Text style={styles.title}>Plan your Lagos journey</Text>
       </View>
 
       {/* Lagos Dispatch Area Field */}
       <View style={styles.sectionGroup}>
-        <Text style={styles.sectionLabel}>DISPATCH REGION</Text>
+        <Text style={styles.sectionLabel}>PICKUP LOCATION</Text>
         <PressableScale
           accessibilityLabel={`Dispatch zone, ${areaLabel}`}
           accessibilityRole="button"
@@ -95,8 +83,7 @@ export function ExecutiveBookingDesk({
               <Ionicons color={colors.goldStrong} name="location-outline" size={18} />
             </View>
             <View style={styles.areaCopy}>
-              <Text style={styles.areaSub}>Lagos Pickup Location</Text>
-              <Text style={styles.areaValue}>{areaLabel}</Text>
+              <Text numberOfLines={1} style={styles.areaValue}>Lagos · {areaLabel}</Text>
             </View>
             <View style={styles.changeBadge}>
               <Text style={styles.changeBadgeText}>Change</Text>
@@ -108,7 +95,7 @@ export function ExecutiveBookingDesk({
 
       {/* Start Date Selector */}
       <View style={styles.sectionGroup}>
-        <Text style={styles.sectionLabel}>COMMENCEMENT DATE</Text>
+        <Text style={styles.sectionLabel}>START DATE</Text>
         <View style={styles.dateSegmentRow}>
           {[
             { label: 'Today', offset: 0 },
@@ -135,10 +122,10 @@ export function ExecutiveBookingDesk({
         </View>
       </View>
 
-      {/* Duration Stepper & Presets */}
+        {/* Duration stepper */}
       <View style={styles.sectionGroup}>
         <View style={styles.durationHeader}>
-          <Text style={styles.sectionLabel}>SERVICE DURATION</Text>
+          <Text style={styles.sectionLabel}>DURATION</Text>
           <Text style={styles.durationDaysValue}>
             {durationDays} {durationDays === 1 ? 'Day' : 'Days'}
           </Text>
@@ -184,27 +171,6 @@ export function ExecutiveBookingDesk({
           </PressableScale>
         </View>
 
-        {/* Quick Duration Preset Pills */}
-        <View style={styles.presetsRow}>
-          {DURATION_PRESETS.map((preset) => {
-            const isSelected = durationDays === preset.days;
-            return (
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                key={preset.label}
-                onPress={() => setDurationDays(preset.days)}
-                style={styles.presetFlex}
-              >
-                <View style={[styles.presetChip, isSelected && styles.presetChipActive]}>
-                  <Text style={[styles.presetText, isSelected && styles.presetTextActive]}>
-                    {preset.label}
-                  </Text>
-                </View>
-              </PressableScale>
-            );
-          })}
-        </View>
       </View>
 
       {/* Live Schedule Summary & Guarantee */}
@@ -221,14 +187,6 @@ export function ExecutiveBookingDesk({
           </View>
         </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.guaranteeRow}>
-          <Ionicons color={colors.goldStrong} name="shield-checkmark" size={14} />
-          <Text style={styles.guaranteeText}>
-            Dedicated security-vetted chauffeur & intra-Lagos journey support included.
-          </Text>
-        </View>
       </View>
 
       {/* Executive Call to Action */}
@@ -239,10 +197,10 @@ export function ExecutiveBookingDesk({
       >
         <View style={styles.exploreButton}>
           <Ionicons color={colors.black} name="car-sport" size={18} />
-          <Text style={styles.exploreText}>EXPLORE AVAILABLE FLEET</Text>
+          <Text style={styles.exploreText}>FIND CARS</Text>
         </View>
       </PressableScale>
-    </LuxuryCard>
+    </View>
   );
 }
 
@@ -254,9 +212,9 @@ const styles = StyleSheet.create({
     borderColor: colors.lineStrong,
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    height: 38,
+    height: 32,
     justifyContent: 'center',
-    width: 38,
+    width: 32,
   },
   areaRow: {
     alignItems: 'center',
@@ -266,20 +224,13 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 58,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  areaSub: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
   },
   areaValue: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-    marginTop: 2,
+    fontSize: fontSizes.sm,
   },
   card: {
     gap: spacing.lg,
@@ -292,9 +243,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
   changeBadgeText: {
     color: colors.goldStrong,

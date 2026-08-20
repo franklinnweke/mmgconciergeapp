@@ -9,7 +9,6 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '@/components/pressable-scale';
 
 import { resolveVehicleImageSource } from '../data/vehicle-images';
-import { vehicleEditorialClass } from '../data/lagos-destinations';
 
 type BrowseVehicleCardProps = {
   onPress(): void;
@@ -37,19 +36,7 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
             locations={[0.45, 1]}
             style={StyleSheet.absoluteFill}
           />
-          <View style={styles.topRow}>
-            <View style={styles.availabilityPill}>
-              <Text style={styles.availabilityText}>IN FLEET</Text>
-            </View>
-            <View style={styles.distancePill}>
-              <Ionicons color={colors.ivory} name="navigate" size={11} />
-              <Text style={styles.distanceText}>{vehicle.distanceKm.toFixed(1)} km</Text>
-            </View>
-          </View>
           <View style={styles.imageCopy}>
-            <Text style={styles.category}>
-              {vehicleEditorialClass(vehicle.displayName, vehicle.category).toLocaleUpperCase()}
-            </Text>
             <Text numberOfLines={1} style={styles.title}>
               {vehicle.displayName}
             </Text>
@@ -69,18 +56,8 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
           </View>
         </View>
 
-        <View style={styles.inclusionRow}>
-          <View style={styles.inclusion}>
-            <Ionicons color={colors.gold} name="checkmark-circle-outline" size={14} />
-            <Text style={styles.inclusionText}>Chauffeur</Text>
-          </View>
-          <View style={styles.inclusion}>
-            <Ionicons color={colors.gold} name="checkmark-circle-outline" size={14} />
-            <Text style={styles.inclusionText}>Lagos delivery</Text>
-          </View>
-          <View style={styles.openButton}>
-            <Ionicons color={colors.black} name="arrow-forward" size={16} />
-          </View>
+        <View style={styles.serviceRow}>
+          <Text style={styles.serviceText}>Chauffeur · Lagos delivery included</Text>
         </View>
       </View>
     </PressableScale>
@@ -171,6 +148,16 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   inclusionText: {
+    color: colors.muted,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.xs,
+  },
+  serviceRow: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  serviceText: {
     color: colors.muted,
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.xs,

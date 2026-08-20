@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
-import { type VehicleCategory } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -14,16 +13,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
-import { LuxuryCard } from '@/components/ui/luxury-card';
 import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
 import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
-import { SectionHeader } from '@/components/ui/section-header';
 import { useAuth } from '@/core/auth/auth-context';
 import { useBookings } from '@/features/booking/booking-context';
 import {
   firstNameFromDisplayName,
-  formatLagosClock,
-  greetingForLagos,
   selectHomeJourney,
 } from '@/features/booking/domain/home-journey';
 
@@ -32,7 +27,6 @@ import { FeaturedVehicleCard } from '../components/featured-vehicle-card';
 import { LiveJourneyCard } from '../components/live-journey-card';
 import { PickupDistrictSheet } from '../components/pickup-district-sheet';
 import {
-  fleetCategories,
   journeyDates,
   journeyOptions,
   pickupDestinations,
@@ -49,25 +43,21 @@ export default function DiscoveryHomeScreen() {
   const { error, isLoading, vehicles } = useFeaturedVehicles();
   const [area, setArea] = useState(pickupDestinations[0].area);
   const journey = journeyOptions[1];
-  const [category, setCategory] = useState<VehicleCategory | undefined>();
   const [destinationsOpen, setDestinationsOpen] = useState(false);
   const liveTrip = useMemo(() => selectHomeJourney(trips), [trips]);
   const firstName = firstNameFromDisplayName(user?.displayName);
-  const featuredVehicles = useMemo(
-    () => (category ? vehicles.filter((vehicle) => vehicle.category === category) : vehicles),
-    [category, vehicles],
-  );
+  const featuredVehicles = vehicles;
   const { width: windowWidth } = useWindowDimensions();
+  const compactHeader = windowWidth < 360;
   const cardWidth = Math.min(328, Math.max(260, windowWidth - 56));
   const selectedJourneyDates = journeyDates(journey);
 
-  function openFleet(nextArea = area, nextCategory = category) {
+  function openFleet(nextArea = area) {
     router.push({
       pathname: '/(renter)/browse',
       params: {
         area: nextArea,
         journey: journey.label,
-        ...(nextCategory ? { category: nextCategory } : {}),
       },
     });
   }
@@ -80,7 +70,7 @@ export default function DiscoveryHomeScreen() {
       >
         <View style={styles.topBar}>
           <View style={styles.topRow}>
-            <BrandWordmark compact withLogo />
+            <BrandWordmark compact withLogo={!compactHeader} />
             <View style={styles.topActions}>
               <View style={styles.cityPill}>
                 <RadarPulseDot color={colors.goldStrong} glowColor="rgba(227,195,101,0.35)" size={6} />
@@ -97,12 +87,6 @@ export default function DiscoveryHomeScreen() {
                 </View>
               </PressableScale>
             </View>
-          </View>
-          <View style={styles.greetingBlock}>
-            <Text style={styles.kicker}>{formatLagosClock()}</Text>
-            <Text accessibilityRole="header" style={styles.greeting}>
-              {greetingForLagos()}, {firstName}
-            </Text>
           </View>
         </View>
 
@@ -123,7 +107,6 @@ export default function DiscoveryHomeScreen() {
                 startDate: plan.startDate,
                 endDate: plan.endDate,
                 journey: plan.journeyLabel,
-                ...(category ? { category } : {}),
               },
             });
           }}
@@ -137,37 +120,12 @@ export default function DiscoveryHomeScreen() {
           visible={destinationsOpen}
         />
 
-        <ScrollView
-          contentContainerStyle={styles.categoryRail}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.horizontalClip}
-        >
-          {fleetCategories.map((option) => {
-            const selected = category === option.value;
-            return (
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                key={option.label}
-                onPress={() => setCategory(option.value)}
-              >
-                <View style={[styles.categoryChip, selected && styles.categoryChipSelected]}>
-                  <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>
-                    {option.label}
-                  </Text>
-                </View>
-              </PressableScale>
-            );
-          })}
-        </ScrollView>
-
-        <SectionHeader
-          actionLabel="See all"
-          eyebrow="The Prado collection"
-          onAction={() => openFleet()}
-          title="Prado first. Luxury beyond."
-        />
+        <View style={styles.inventoryHeading}>
+          <Text accessibilityRole="header" style={styles.inventoryTitle}>Available in Lagos</Text>
+          <PressableScale accessibilityRole="button" onPress={() => openFleet()}>
+            <Text style={styles.viewAll}>View all</Text>
+          </PressableScale>
+        </View>
 
         {error ? (
           <View style={styles.errorBox}>
@@ -219,52 +177,15 @@ export default function DiscoveryHomeScreen() {
           </ScrollView>
         )}
 
-        <SectionHeader eyebrow="Lagos pickup" title="Districts & airport" />
-        <ScrollView
-          contentContainerStyle={styles.districtRail}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.horizontalClip}
-        >
-          {pickupDestinations.map((destination) => (
-            <PressableScale
-              accessibilityLabel={`Find cars for ${destination.label}`}
-              accessibilityRole="button"
-              key={destination.area}
-              onPress={() => {
-                setArea(destination.area);
-                openFleet(destination.area);
-              }}
-            >
-              <View style={styles.districtCard}>
-                <View style={styles.districtIcon}>
-                  <Ionicons color={colors.goldStrong} name={destination.icon} size={18} />
-                </View>
-                <Text style={styles.districtLabel}>{destination.label}</Text>
-                <Text style={styles.districtHint}>Pickup here</Text>
-              </View>
-            </PressableScale>
-          ))}
-        </ScrollView>
-
-        <LuxuryCard style={styles.assurance}>
-          <View style={styles.assuranceIcon}>
-            <Ionicons color={colors.goldStrong} name="shield-checkmark-outline" size={20} />
-          </View>
-          <View style={styles.assuranceCopy}>
-            <Text style={styles.assuranceEyebrow}>The MMG standard</Text>
-            <Text style={styles.assuranceTitle}>Prado-led, chauffeur-ready, reviewed by MMG.</Text>
-            <Text style={styles.assuranceBody}>
-              Every Prado—and every executive vehicle beside it—includes Lagos delivery and a reviewed chauffeur.
-            </Text>
-          </View>
-        </LuxuryCard>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  inventoryHeading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  inventoryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
+  viewAll: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
   assurance: { flexDirection: 'row', gap: spacing.md },
   assuranceBody: {
     color: colors.muted,
@@ -349,9 +270,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     flexShrink: 0,
-    gap: 7,
+    gap: 4,
     minHeight: 40,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
   },
   cityText: {
     color: colors.ivory,

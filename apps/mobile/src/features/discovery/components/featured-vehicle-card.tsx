@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
 import { VehicleSummary } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
@@ -9,7 +8,6 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '@/components/pressable-scale';
 
 import { resolveVehicleImageSource } from '../data/vehicle-images';
-import { vehicleEditorialClass } from '../data/lagos-destinations';
 
 type FeaturedVehicleCardProps = {
   onPress(): void;
@@ -33,17 +31,6 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
             locations={[0.42, 1]}
             style={StyleSheet.absoluteFill}
           />
-          <View style={styles.topRow}>
-            <View style={styles.pill}>
-              <Ionicons color={colors.ivory} name="navigate" size={12} />
-              <Text style={styles.pillText}>{vehicle.distanceKm.toFixed(1)} km</Text>
-            </View>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>
-                {vehicleEditorialClass(vehicle.displayName, vehicle.category)}
-              </Text>
-            </View>
-          </View>
           <View style={styles.imageCopy}>
             <Text numberOfLines={1} style={styles.name}>
               {vehicle.displayName}
@@ -58,10 +45,6 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
             <Text style={styles.price}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
             <Text style={styles.perDay}>per day · chauffeur included</Text>
           </View>
-          <View style={styles.bookChip}>
-            <Text style={styles.bookText}>View</Text>
-            <Ionicons color={colors.black} name="arrow-forward" size={15} />
-          </View>
         </View>
       </View>
     </PressableScale>
@@ -69,20 +52,6 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
 }
 
 const styles = StyleSheet.create({
-  bookChip: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
-  bookText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
   card: {
     backgroundColor: colors.graphite,
     borderColor: colors.line,
@@ -124,33 +93,9 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     marginTop: 3,
   },
-  pill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(4,4,4,0.72)',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  pillText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
   price: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.md,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    left: spacing.sm,
-    position: 'absolute',
-    right: spacing.sm,
-    top: spacing.sm,
   },
 });

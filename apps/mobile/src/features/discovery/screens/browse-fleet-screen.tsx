@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
 import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
-import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 
 import { BrowseVehicleCard } from '../components/browse-vehicle-card';
@@ -28,7 +27,6 @@ import {
 import {
   areaFilters,
   firstRouteParam,
-  formatLagosDateOnly,
   journeyDates,
   parseFleetCategory,
   parseJourneyLabel,
@@ -101,7 +99,6 @@ export default function BrowseFleetScreen() {
     }
     return journeyDates(journey);
   }, [journey, routeStartDate, routeEndDate]);
-  const pickupLabel = formatLagosDateOnly(selectedJourneyDates.startDate);
 
   const [query, setQuery] = useState('');
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
@@ -178,19 +175,10 @@ export default function BrowseFleetScreen() {
             </PressableScale>
             <BrandWordmark compact withLogo />
           </View>
-          <View style={styles.datePill}>
-            <RadarPulseDot color={colors.goldStrong} glowColor="rgba(227,195,101,0.35)" size={6} />
-            <Text style={styles.datePillText}>{pickupLabel}</Text>
-          </View>
         </View>
 
         {/* Screen Title */}
-        <View style={styles.titleBlock}>
-          <Text style={styles.eyebrow}>PRADO-LED LAGOS FLEET</Text>
-          <Text accessibilityRole="header" style={styles.title}>
-            Choose your ride
-          </Text>
-        </View>
+        <Text accessibilityRole="header" style={styles.title}>Available in Lagos</Text>
 
         {/* Search & Filter Trigger Row */}
         <View style={styles.searchFilterRow}>
@@ -313,10 +301,6 @@ export default function BrowseFleetScreen() {
               ? 'Finding available fleet…'
               : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle available' : 'vehicles available'}`}
           </Text>
-          <View style={styles.sortIndicator}>
-            <Ionicons color={colors.gold} name="swap-vertical" size={13} />
-            <Text style={styles.sortText}>Nearest first</Text>
-          </View>
         </View>
 
         {/* Vehicle Results Feed */}
@@ -365,16 +349,6 @@ export default function BrowseFleetScreen() {
           )}
         </View>
 
-        {/* Service Assurance */}
-        <View style={styles.assurance}>
-          <Ionicons color={colors.goldStrong} name="shield-checkmark-outline" size={20} />
-          <View style={styles.assuranceCopy}>
-            <Text style={styles.assuranceTitle}>A confirmed journey, not just a car.</Text>
-            <Text style={styles.assuranceBody}>
-              Vehicle, chauffeur, and Lagos delivery are reviewed before your booking is confirmed.
-            </Text>
-          </View>
-        </View>
       </Animated.ScrollView>
 
       {/* Filter Bottom Sheet */}
