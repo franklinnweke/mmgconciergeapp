@@ -149,6 +149,9 @@ implemented on `main`:
 - The prior owner/renter dynamic route collision was removed by placing owner
   vehicle operations under `/fleet/[id]`.
 
-This does **not** complete Sequence 3 or WP4. Trusted paid-booking creation,
-owner confirm/reject/intervention actions, response-SLA alerts, and the payment
-boundary are still pending. Paystack remains deliberately unavailable.
+This does **not** complete Sequence 3 or WP4. The trusted `confirmBooking` and
+`rejectBooking` services now exist and can only act on a server-established
+`paid_pending_owner` booking; rejection releases its date block and opens an
+intervention case atomically. Trusted paid-booking creation, the owner bookings
+desk, response-SLA alerts, and the payment boundary are still pending. Paystack
+remains deliberately unavailable.

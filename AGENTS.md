@@ -77,7 +77,7 @@ Snapshot date: **2026-08-20**. Verify against `git status`, `git log`, and [`doc
 | WP2 E — owner mobile fleet UI | ✅ Complete | Owner fleet list, 6-step create/submit wizard with image picking + upload session + binary PUT + finalize pipeline, authoritative version sync, live visibility toggling, vehicle inspector desk, router connections |
 | WP1 — renter profile/privacy/MFA | 🔶 Foundation complete | Profile/address/terms and deletion-request commands exist; verified phone, completed deletion/erasure workflow and MFA remain |
 | WP3 — live Lagos discovery | ✅ Complete | Strict live projections, Lagos search/ranking, native/web Firestore gateways, renter vehicle detail and booking review are connected; selected dates are checked through the privacy-safe vehicle calendar before quote review |
-| WP4 — availability and Paystack-ready booking | 🔶 Calendar + intent/hold foundation complete | Owner calendar reads and optimistic block commands are live; renter quote review is gated by availability; atomic booking intents/holds exist. Trusted paid-booking creation, owner confirm/reject/intervention, and the Paystack boundary remain incomplete |
+| WP4 — availability and Paystack-ready booking | 🔶 Calendar + trusted response services complete | Owner calendar and renter availability gates are live; atomic intents/holds exist. `confirmBooking` and `rejectBooking` are transactionally restricted to server-established `paid_pending_owner` bookings, with rejection releasing dates and opening intervention. Trusted paid-booking creation, owner bookings UI, SLA alerts, and Paystack remain incomplete |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
@@ -106,11 +106,12 @@ The merged `main` history currently contains:
 - `5d1a405` / `85237f6` — owner availability gateway and calendar UI
 - `1cced79` — owner/renter vehicle route collision repair
 - `0c2efc2` — renter selected-date availability gate
+- `33d399a` / `c017c02` — controlled owner-response contracts and transactional services
 
 `main` includes `cd82a07`, the reviewed renter-preview stability repair. The unmerged `codex/wp4-booking-operations` branch is a broad experimental payment/booking pass and must be reviewed and ported selectively. It is not evidence that WP4 or Paystack is complete. The following paths are **not safe to treat as live**:
 
 1. **Paystack Payments & Settlement**: Live NGN card charging, webhook handling, escrow capture, and refunds are not live. (WP4/ADR 0005).
-2. **Paid Booking State Progression**: Owner confirmation/rejection and later transitions (e.g. `confirmed`, `in_progress`, `completed`, `refunded`) are not backed by a trusted verified-payment event or live payment/escrow services.
+2. **Paid Booking Creation and Later Lifecycle**: No trusted verified-payment event currently creates `paid_pending_owner`. Owner response services exist but have no legitimate live input yet; later transitions such as `in_progress`, `completed`, and `refunded` remain unavailable.
 3. **In-App Messaging / Chat**: Live renter-owner-concierge chat channels are not live (WP5).
 4. **Real-Time GPS Vehicle Tracking**: Live telematics / driver tracking is not implemented.
 5. **Push Notifications (FCM / APNs)**: Production APNs certificates / outbox processors are not live (WP5).
@@ -134,7 +135,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The current 2026-08-20 availability checkpoint is **61 test files passed, 493 unit tests passed, 0 typecheck errors, 0 lint warnings**. A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The current 2026-08-20 owner-response checkpoint is **62 test files passed, 509 unit tests passed, 0 typecheck errors, 0 lint warnings**. A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules
