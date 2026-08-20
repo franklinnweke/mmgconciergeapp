@@ -6,12 +6,8 @@ import {
   Car,
   Check,
   ChevronRight,
-  CircleDollarSign,
   Clock3,
-  Command,
-  Headphones,
   LayoutList,
-  LogOut,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -143,7 +139,9 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
       setRejecting(false);
       setRejectionReason('');
     } catch (actionFailure) {
-      setActionError(actionFailure instanceof Error ? actionFailure.message : 'The command failed.');
+      setActionError(actionFailure instanceof AdminGatewayUnavailableError
+        ? actionFailure.message
+        : 'The booking command could not be completed. Refresh and try again.');
     } finally {
       setActionState('idle');
     }
@@ -155,21 +153,12 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
         <aside className="sidebar">
           <div className="brand-lockup" aria-label="MMG Concierge Operations">
             <span className="brand-mark">MMG</span>
-            <span className="brand-caption">CONCIERGE · OPS</span>
           </div>
           <nav aria-label="Operations navigation" className="primary-nav">
             <a aria-current="page" href="#queue"><LayoutList size={17} />Bookings<span className="nav-count">{bookings.length}</span></a>
             <Link href="/vehicles"><Car size={17} />Vehicle Moderation</Link>
             <Link href="/owners"><ShieldCheck size={17} />Owner Verification</Link>
-            <a href="#intervention"><AlertTriangle size={17} />Cases<span className="nav-count">{interventionCount}</span></a>
-            <a href="#payments"><CircleDollarSign size={17} />Payments</a>
-            <a href="#support"><Headphones size={17} />Support</a>
           </nav>
-          <div className="sidebar-foot">
-            <div className="operator-avatar" aria-hidden="true">FN</div>
-            <div><strong>Operations preview</strong><span>Session unavailable</span></div>
-            <button aria-label="Sign out unavailable in preview" disabled><LogOut size={16} /></button>
-          </div>
         </aside>
 
         <main className="workspace" id="queue">
@@ -180,9 +169,7 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
             transition={{ duration: 0.35 }}
           >
             <div>
-              <div className="eyebrow"><Command size={13} />BOOKING OPERATIONS</div>
-              <h1>Response queue</h1>
-              <p>Review verified payments and move only eligible bookings forward.</p>
+              <h1>Booking queue</h1>
             </div>
             <div className="header-status">
               <span className={`environment-dot ${mode === 'fixture' ? 'fixture' : ''}`} />
@@ -193,7 +180,6 @@ export function BookingOperations({ mode }: { mode: AdminDataMode }) {
           <section aria-label="Queue summary" className="summary-strip">
             <div><span>ACTION DUE</span><strong>{actionableCount}</strong><small>Verified, awaiting response</small></div>
             <div><span>INTERVENTION</span><strong>{interventionCount}</strong><small>Requires concierge review</small></div>
-            <div><span>QUEUE UPDATED</span><strong>{bookings.length ? formatTimestamp(bookings[0].updatedAt) : '—'}</strong><small>{mode === 'fixture' ? 'Fixture snapshot' : 'No live connection'}</small></div>
           </section>
 
           <div className="filters" aria-label="Booking filters">
