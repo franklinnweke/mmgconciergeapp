@@ -84,15 +84,8 @@ export default function VehicleDetailScreen({
   const gateway = useMemo(() => createDiscoveryGateway(), []);
 
   useEffect(() => {
-    if (!vehicleId) {
-      setLoading(false);
-      setVehicle(null);
-      setFetchError(null);
-      return;
-    }
+    if (!vehicleId) return;
     let isMounted = true;
-    setLoading(true);
-    setFetchError(null);
 
     gateway
       .getVehicleById(vehicleId)
