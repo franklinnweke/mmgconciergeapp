@@ -177,12 +177,13 @@ export function OwnerBookingDetailScreen() {
         >
           <Text style={styles.backText}>‹ BACK TO BOOKINGS</Text>
         </Pressable>
-        <Text style={styles.eyebrow}>BOOKING DETAIL</Text>
         <Text style={styles.title}>{booking.vehicleSnapshot.displayName}</Text>
-        <Text style={styles.muted}>
-          {booking.startDate} → {booking.endDate}
-        </Text>
+        <Text style={styles.sectionTitle}>Booking summary</Text>
         <View style={styles.card}>
+          <Text style={styles.label}>DATES</Text>
+          <Text style={styles.valueSmall}>
+            {booking.startDate} → {booking.endDate}
+          </Text>
           <Text style={styles.label}>BASE RENTAL</Text>
           <Text style={styles.value}>
             {formatNairaFromKobo(booking.priceSnapshot.baseRentalKobo)}
@@ -197,9 +198,14 @@ export function OwnerBookingDetailScreen() {
           </Text>
         </View>
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
-          </Text>
+          <View style={styles.errorRow}>
+            <Text accessibilityLiveRegion="polite" style={styles.error}>
+              {error}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={retry} style={styles.retryButton}>
+              <Text style={styles.retryText}>RETRY</Text>
+            </Pressable>
+          </View>
         ) : null}
         {pending ? (
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
@@ -280,19 +286,16 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1,
   },
-  eyebrow: {
-    color: colors.gold,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 2,
-  },
   title: { color: colors.ivory, fontSize: 30, fontWeight: "700" },
+  sectionTitle: { color: colors.gold, fontSize: 12, fontWeight: "800", letterSpacing: 1.2, marginTop: spacing.md },
   muted: { color: colors.muted, fontSize: 15, lineHeight: 22 },
   card: {
-    backgroundColor: colors.graphite,
-    borderRadius: radii.md,
+    borderBottomColor: colors.graphite,
+    borderBottomWidth: 1,
+    borderTopColor: colors.graphite,
+    borderTopWidth: 1,
     gap: 8,
-    padding: spacing.lg,
+    paddingVertical: spacing.md,
   },
   label: {
     color: colors.muted,
@@ -306,6 +309,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: spacing.sm,
   },
+  valueSmall: { color: colors.ivory, fontSize: 15, marginBottom: spacing.sm },
   button: {
     alignItems: "center",
     backgroundColor: colors.gold,
@@ -335,5 +339,8 @@ const styles = StyleSheet.create({
   },
   counter: { color: colors.muted, fontSize: 12, textAlign: "right" },
   error: { color: "#FCA5A5" },
+  errorRow: { gap: spacing.sm },
+  retryButton: { alignItems: "center", borderColor: colors.gold, borderRadius: radii.sm, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: spacing.md, alignSelf: "flex-start" },
+  retryText: { color: colors.gold, fontWeight: "800", letterSpacing: 1 },
   disabled: { opacity: 0.55 },
 });

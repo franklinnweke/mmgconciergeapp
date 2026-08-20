@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing } from "@mmg/brand";
+import { formatNairaFromKobo } from "@mmg/domain";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -19,6 +20,10 @@ import {
   type OwnerBookingSnapshot,
 } from "../data/owner-booking-repository";
 import { groupOwnerBookings } from "../domain/owner-booking";
+
+function formatNaira(value: number) {
+  return formatNairaFromKobo(value);
+}
 
 export function OwnerBookingsDeskScreen() {
   const router = useRouter();
@@ -75,12 +80,7 @@ export function OwnerBookingsDeskScreen() {
           />
         }
       >
-        <Text style={styles.eyebrow}>OWNER OPERATIONS</Text>
         <Text style={styles.title}>Booking desk</Text>
-        <Text style={styles.subtitle}>
-          Respond to confirmed payment requests for your chauffeured Prado-led
-          fleet.
-        </Text>
         {snapshot.source === "development_fixture" ? (
           <View style={styles.fixture}>
             <Ionicons color={colors.black} name="flask-outline" size={16} />
@@ -119,7 +119,6 @@ export function OwnerBookingsDeskScreen() {
         ) : null}
         {!loading && !error && snapshot.bookings.length === 0 ? (
           <View style={styles.empty}>
-            <Ionicons color={colors.gold} name="calendar-outline" size={40} />
             <Text style={styles.emptyTitle}>No paid bookings yet.</Text>
             <Text style={styles.muted}>
               Payment is not available in this release.
@@ -143,19 +142,15 @@ export function OwnerBookingsDeskScreen() {
                   }
                   style={styles.row}
                 >
-                  <View style={styles.rowIcon}>
-                    <Ionicons
-                      color={colors.gold}
-                      name="car-sport-outline"
-                      size={22}
-                    />
-                  </View>
                   <View style={styles.rowBody}>
                     <Text style={styles.vehicle}>
                       {booking.vehicleSnapshot.displayName}
                     </Text>
                     <Text style={styles.meta}>
                       {booking.startDate} → {booking.endDate}
+                    </Text>
+                    <Text style={styles.meta}>
+                      {booking.state.replaceAll('_', ' ')} · {formatNaira(booking.priceSnapshot.ownerEarningsKobo)}
                     </Text>
                   </View>
                   <Ionicons
@@ -176,14 +171,7 @@ export function OwnerBookingsDeskScreen() {
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.black, flex: 1 },
   content: { gap: spacing.md, padding: spacing.lg },
-  eyebrow: {
-    color: colors.gold,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 2,
-  },
   title: { color: colors.ivory, fontSize: 34, fontWeight: "700" },
-  subtitle: { color: colors.muted, fontSize: 15, lineHeight: 22 },
   fixture: {
     alignItems: "center",
     backgroundColor: colors.gold,
@@ -241,14 +229,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     minHeight: 72,
     padding: spacing.md,
-  },
-  rowIcon: {
-    alignItems: "center",
-    backgroundColor: colors.black,
-    borderRadius: 22,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
   },
   rowBody: { flex: 1, gap: 4 },
   vehicle: { color: colors.ivory, fontSize: 16, fontWeight: "700" },
