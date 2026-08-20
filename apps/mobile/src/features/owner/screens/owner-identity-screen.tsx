@@ -120,14 +120,9 @@ export function OwnerIdentityScreen() {
             </View>
           </PressableScale>
           <View>
-            <Text style={styles.eyebrow}>STEP 01 OF 03</Text>
             <Text style={styles.title}>Owner Profile & Terms</Text>
           </View>
         </View>
-
-        <Text style={styles.intro}>
-          Provide your legal identity and Lagos operating address. Contact details are verified against government records.
-        </Text>
 
         {errorMessage && (
           <View style={styles.errorBox}>
@@ -316,11 +311,9 @@ const styles = StyleSheet.create({
   checkboxActive: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
   errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 1.8 },
   fieldGroup: { marginBottom: spacing.md },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
   input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
-  intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginBottom: spacing.lg },
   label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
   modalContent: { backgroundColor: '#14181F', borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '60%', padding: spacing.lg },
   modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },

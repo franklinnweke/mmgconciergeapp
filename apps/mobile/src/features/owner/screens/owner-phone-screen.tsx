@@ -95,7 +95,6 @@ export function OwnerPhoneScreen() {
             </View>
           </PressableScale>
           <View>
-            <Text style={styles.eyebrow}>STEP 02 OF 03</Text>
             <Text style={styles.title}>Link Nigerian Phone</Text>
           </View>
         </View>
@@ -108,10 +107,6 @@ export function OwnerPhoneScreen() {
             </Text>
           </View>
         )}
-
-        <Text style={styles.intro}>
-          Nigerian regulation requires all vehicle hosts to have a verified local mobile number (+234) linked directly to their owner account.
-        </Text>
 
         {errorMessage && (
           <View style={styles.errorBox}>
@@ -238,11 +233,9 @@ const styles = StyleSheet.create({
   countryPillText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
   errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 1.8 },
   fieldGroup: { marginBottom: spacing.md },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
   input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
-  intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginBottom: spacing.lg },
   label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
   noticeBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.1)', borderColor: 'rgba(200,157,70,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
   noticeText: { color: colors.goldStrong, flex: 1, fontFamily: typography.body, fontSize: 13 },
@@ -254,7 +247,7 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.black, flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 26, letterSpacing: -0.4, marginTop: 2 },
-  verifiedCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
+  verifiedCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: spacing.lg },
   verifiedNote: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.xs },
   verifiedPhone: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 18, marginTop: 4 },
   verifiedTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15, marginTop: spacing.xs },

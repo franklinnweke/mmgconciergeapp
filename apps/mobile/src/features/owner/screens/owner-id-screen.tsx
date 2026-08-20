@@ -182,7 +182,6 @@ export function OwnerIdScreen() {
             </View>
           </PressableScale>
           <View>
-            <Text style={styles.eyebrow}>STEP 03 OF 03</Text>
             <Text style={styles.title}>Government Identification</Text>
           </View>
         </View>
@@ -289,7 +288,6 @@ const styles = StyleSheet.create({
   changeText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
   errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 1.8 },
   fileName: { color: colors.ivory, fontFamily: typography.body, fontSize: 12 },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
   kindCopy: { flex: 1 },

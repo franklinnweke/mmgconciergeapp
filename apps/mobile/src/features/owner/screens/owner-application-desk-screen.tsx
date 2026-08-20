@@ -109,11 +109,10 @@ export function OwnerApplicationDeskScreen() {
             colors={['rgba(4,4,4,0.18)', 'rgba(4,4,4,0.45)', colors.black]}
             style={StyleSheet.absoluteFill}
           />
-          <View style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}>
+          <View
+            style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}
+          >
             <BrandWordmark withLogo />
-            <View style={styles.ownerPill}>
-              <Text style={styles.ownerPillText}>OWNER</Text>
-            </View>
           </View>
         </View>
 
@@ -147,14 +146,7 @@ export function OwnerApplicationDeskScreen() {
             </View>
           ) : (
             <>
-              <View style={styles.statusRow}>
-                <Text style={styles.eyebrow}>{presentation.eyebrow}</Text>
-                {presentation.status !== 'draft' && (
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>{presentation.status.toUpperCase().replace('_', ' ')}</Text>
-                  </View>
-                )}
-              </View>
+              <Text style={styles.statusText}>{presentation.eyebrow}</Text>
 
               <Text style={styles.title}>{presentation.title}</Text>
               <Text style={styles.body}>{presentation.body}</Text>
@@ -182,7 +174,6 @@ export function OwnerApplicationDeskScreen() {
                         />
                       </View>
                       <View style={styles.stepCopy}>
-                        <Text style={styles.stepNumber}>01 · PROFILE & ADDRESS</Text>
                         <Text style={styles.stepTitle}>Owner Identity</Text>
                         <Text style={styles.stepDescription}>
                           {completeness.identityComplete
@@ -208,7 +199,6 @@ export function OwnerApplicationDeskScreen() {
                         />
                       </View>
                       <View style={styles.stepCopy}>
-                        <Text style={styles.stepNumber}>02 · VERIFICATION SMS</Text>
                         <Text style={styles.stepTitle}>Nigerian Phone Number</Text>
                         <Text style={styles.stepDescription}>
                           {completeness.phoneComplete
@@ -234,7 +224,6 @@ export function OwnerApplicationDeskScreen() {
                         />
                       </View>
                       <View style={styles.stepCopy}>
-                        <Text style={styles.stepNumber}>03 · SECURE VAULT</Text>
                         <Text style={styles.stepTitle}>Government Identification</Text>
                         <Text style={styles.stepDescription}>
                           {completeness.idUploaded
@@ -278,12 +267,9 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 2.1 },
   hero: { height: 210 },
   loadingBox: { alignItems: 'center', paddingVertical: spacing.xxl },
   loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  ownerPill: { backgroundColor: 'rgba(4,4,4,0.72)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
-  ownerPillText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.6 },
   previewBanner: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.12)', borderColor: colors.lineStrong, borderBottomWidth: 1, borderTopWidth: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   previewBannerText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 1 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
@@ -296,17 +282,14 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, justifyContent: 'center', minHeight: 52 },
   secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
-  statusBadge: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: 4, borderWidth: 1, paddingHorizontal: spacing.xs, paddingVertical: 2 },
-  statusBadgeText: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 1 },
-  statusRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs },
   stepCopy: { flex: 1 },
   stepDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
-  stepIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 42, justifyContent: 'center', width: 42 },
-  stepIconComplete: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
-  stepNumber: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.4 },
+  stepIcon: { alignItems: 'center', height: 42, justifyContent: 'center', width: 28 },
+  stepIconComplete: { backgroundColor: colors.goldStrong, borderRadius: radii.pill, width: 28 },
   stepPressable: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },
   stepRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
   stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginTop: 2 },
+  statusText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.xs },
   steps: { marginTop: spacing.lg },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 32, letterSpacing: -0.6, lineHeight: 38, marginBottom: spacing.xs, marginTop: spacing.xxs },
 });

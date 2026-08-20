@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { type Href, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +21,7 @@ const steps = [
 
 export function OwnerOnboardingScreen() {
   const auth = useAuth();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const [opacity] = useState(() => new Animated.Value(0));
@@ -41,16 +43,14 @@ export function OwnerOnboardingScreen() {
             colors={['rgba(4,4,4,0.18)', 'rgba(4,4,4,0.45)', colors.black]}
             style={StyleSheet.absoluteFill}
           />
-          <View style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}>
+          <View
+            style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}
+          >
             <BrandWordmark withLogo />
-            <View style={styles.ownerPill}>
-              <Text style={styles.ownerPillText}>OWNER</Text>
-            </View>
           </View>
         </View>
 
         <Animated.View style={[styles.content, { opacity }]}>
-          <Text style={styles.eyebrow}>WELCOME TO MMG PARTNERS</Text>
           <Text style={styles.title}>Prepare your owner profile.</Text>
           <Text style={styles.body}>
             We are building your dedicated owner workspace. Your vehicle will only become visible
@@ -58,13 +58,12 @@ export function OwnerOnboardingScreen() {
           </Text>
 
           <View style={styles.steps}>
-            {steps.map(([icon, title, description], index) => (
+            {steps.map(([icon, title, description]) => (
               <View key={title} style={styles.stepRow}>
                 <View style={styles.stepIcon}>
                   <Ionicons color={colors.goldStrong} name={icon} size={21} />
                 </View>
                 <View style={styles.stepCopy}>
-                  <Text style={styles.stepNumber}>0{index + 1}</Text>
                   <Text style={styles.stepTitle}>{title}</Text>
                   <Text style={styles.stepDescription}>{description}</Text>
                 </View>
@@ -72,12 +71,12 @@ export function OwnerOnboardingScreen() {
             ))}
           </View>
 
-          <View style={styles.notice}>
-            <Ionicons color={colors.goldStrong} name="sparkles-outline" size={20} />
-            <Text style={styles.noticeText}>
-              Owner applications are the next implementation phase. Your owner account is saved securely.
-            </Text>
-          </View>
+          <PressableScale onPress={() => router.push('/(owner)' as Href)}>
+            <View style={styles.primaryButton}>
+              <Text style={styles.primaryText}>OPEN OWNER APPLICATION</Text>
+              <Ionicons color={colors.black} name="arrow-forward" size={18} />
+            </View>
+          </PressableScale>
 
           <PressableScale onPress={() => void auth.signOut()}>
             <View style={styles.secondaryButton}>
@@ -94,12 +93,9 @@ const styles = StyleSheet.create({
   body: { color: colors.muted, fontFamily: typography.body, fontSize: 15, lineHeight: 24 },
   brandRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   content: { paddingHorizontal: spacing.lg },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 2.1 },
   hero: { height: 250 },
-  notice: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginVertical: spacing.lg, padding: spacing.md },
-  noticeText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 19 },
-  ownerPill: { backgroundColor: 'rgba(4,4,4,0.72)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
-  ownerPillText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.6 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54 },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
   screen: { backgroundColor: colors.black, flex: 1 },
   scroll: { paddingBottom: spacing.xl },
   scrollView: { flex: 1 },
@@ -108,7 +104,6 @@ const styles = StyleSheet.create({
   stepCopy: { flex: 1 },
   stepDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: spacing.xxs },
   stepIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 46, justifyContent: 'center', width: 46 },
-  stepNumber: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 9, letterSpacing: 1.4 },
   stepRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
   stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15, marginTop: 2 },
   steps: { marginTop: spacing.lg },

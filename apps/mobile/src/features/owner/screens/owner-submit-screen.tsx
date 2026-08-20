@@ -116,7 +116,6 @@ export function OwnerSubmitScreen() {
             </View>
           </PressableScale>
           <View>
-            <Text style={styles.eyebrow}>FINAL REVIEW</Text>
             <Text style={styles.title}>Review & Submit</Text>
           </View>
         </View>
@@ -232,14 +231,13 @@ const styles = StyleSheet.create({
   cardHeader: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.md, textTransform: 'uppercase' },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
   errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 1.8 },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
   intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginBottom: spacing.lg },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
   screen: { backgroundColor: colors.black, flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  summaryCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
+  summaryCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm },
   summaryLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 13 },
   summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
   summarySubValue: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: 2 },
