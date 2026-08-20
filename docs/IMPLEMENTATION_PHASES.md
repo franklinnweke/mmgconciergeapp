@@ -152,6 +152,9 @@ implemented on `main`:
 This does **not** complete Sequence 3 or WP4. The trusted `confirmBooking` and
 `rejectBooking` services now exist and can only act on a server-established
 `paid_pending_owner` booking; rejection releases its date block and opens an
-intervention case atomically. Trusted paid-booking creation, the owner bookings
-desk, response-SLA alerts, and the payment boundary are still pending. Paystack
-remains deliberately unavailable.
+intervention case atomically. The owner bookings desk now reads strict
+owner-scoped projections, groups trusted states, and exposes confirm/decline
+only while a booking is `paid_pending_owner`; development web fixtures are
+explicitly labelled and production web fails closed. Trusted paid-booking
+creation, response-SLA alerts, and the payment boundary are still pending.
+Paystack remains deliberately unavailable.

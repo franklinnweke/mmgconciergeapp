@@ -112,11 +112,11 @@
 
 ## Last recorded validation matrix
 
-The following was freshly reproduced at the 2026-08-20 owner-response checkpoint.
+The following was freshly reproduced at the 2026-08-20 owner-bookings checkpoint.
 
 ```bash
-npm run check  # ✅ 509 tests passed (62 files), 0 type errors, 0 lint warnings
-  ├── npm test              # 509 passed, 42 skipped (emulator-only)
+npm run check  # ✅ 519 tests passed (67 files), 0 type errors, 0 lint warnings
+  ├── npm test              # 519 passed, 42 skipped (emulator-only)
   ├── npm run typecheck     # 0 errors (mobile)
   ├── npm run lint          # 0 warnings (mobile - expo lint)
   ├── functions:typecheck   # 0 errors
@@ -151,7 +151,7 @@ npm run check  # ✅ 509 tests passed (62 files), 0 type errors, 0 lint warnings
 | WP1 | 🔶 Foundation complete | Profile/address/terms and deletion-request workflow exist; verified linked phone, completed deletion/erasure operations and MFA remain |
 | WP2 | 🔶 Sequence 2 Pass Complete | Batches A, B, C, D (core), E, F delivered and hardened; abandoned upload cleanup remaining |
 | WP3 | ✅ Complete | Strict live Lagos discovery and renter detail/review flows are connected. A privacy-safe selected-date calendar check now gates quote review without exposing private owner blocks or booking references |
-| WP4 | 🔶 Calendar + trusted response services complete | Intents/holds, versioned availability and renter gating are delivered. Confirm/reject services accept only server-established `paid_pending_owner`, enforce ownership/version/idempotency, and open intervention transactionally. Trusted paid-booking creation, owner bookings UI, SLA alerts, and Paystack remain incomplete |
+| WP4 | 🔶 Calendar + owner-response slice complete | Intents/holds, versioned availability, renter gating, strict owner booking projection, live native owner desk, and confirm/decline UI are delivered. Web fixtures are development-only and visibly labelled. Trusted paid-booking creation, SLA alerts, and Paystack remain incomplete |
 | WP5 | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules pending |

@@ -77,7 +77,7 @@ Snapshot date: **2026-08-20**. Verify against `git status`, `git log`, and [`doc
 | WP2 E — owner mobile fleet UI | ✅ Complete | Owner fleet list, 6-step create/submit wizard with image picking + upload session + binary PUT + finalize pipeline, authoritative version sync, live visibility toggling, vehicle inspector desk, router connections |
 | WP1 — renter profile/privacy/MFA | 🔶 Foundation complete | Profile/address/terms and deletion-request commands exist; verified phone, completed deletion/erasure workflow and MFA remain |
 | WP3 — live Lagos discovery | ✅ Complete | Strict live projections, Lagos search/ranking, native/web Firestore gateways, renter vehicle detail and booking review are connected; selected dates are checked through the privacy-safe vehicle calendar before quote review |
-| WP4 — availability and Paystack-ready booking | 🔶 Calendar + trusted response services complete | Owner calendar and renter availability gates are live; atomic intents/holds exist. `confirmBooking` and `rejectBooking` are transactionally restricted to server-established `paid_pending_owner` bookings, with rejection releasing dates and opening intervention. Trusted paid-booking creation, owner bookings UI, SLA alerts, and Paystack remain incomplete |
+| WP4 — availability and Paystack-ready booking | 🔶 Calendar + owner-response slice complete | Owner calendar, renter availability gates, atomic intents/holds, and the privacy-safe owner bookings desk are connected. Confirm/reject remain restricted to server-established `paid_pending_owner`; rejection releases dates and opens intervention. Trusted paid-booking creation, SLA alerts, and Paystack remain incomplete |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
@@ -107,6 +107,7 @@ The merged `main` history currently contains:
 - `1cced79` — owner/renter vehicle route collision repair
 - `0c2efc2` — renter selected-date availability gate
 - `33d399a` / `c017c02` — controlled owner-response contracts and transactional services
+- `0ae6186` / `30bf349` — privacy-safe owner booking data boundary and owner bookings desk
 
 `main` includes `cd82a07`, the reviewed renter-preview stability repair. The unmerged `codex/wp4-booking-operations` branch is a broad experimental payment/booking pass and must be reviewed and ported selectively. It is not evidence that WP4 or Paystack is complete. The following paths are **not safe to treat as live**:
 
@@ -135,7 +136,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The current 2026-08-20 owner-response checkpoint is **62 test files passed, 509 unit tests passed, 0 typecheck errors, 0 lint warnings**. A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The current 2026-08-20 owner-bookings checkpoint is **67 test files passed, 519 unit tests passed, 0 typecheck errors, 0 lint warnings**. A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules
