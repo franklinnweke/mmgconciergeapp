@@ -34,6 +34,8 @@ import {
   ownerMayMutateProfile,
   ownerMaySubmit,
   ownerVerificationTransitions,
+  projectOwnerVehicleCalendar,
+  projectRenterVehicleCalendar,
   rankVehiclesByDiscoveryScore,
   renterMayRequestDeletion,
   requiresApprovalChecklist,
@@ -44,6 +46,71 @@ import {
   vehicleReviewTargetStatus,
   type PaidBookingState,
 } from './index';
+
+describe('vehicle calendar projection', () => {
+  const now = new Date('2026-08-20T12:00:00.000Z');
+  const intervals = [
+    {
+      blockId: 'owner-block-1',
+      startDate: '2026-09-02',
+      endDate: '2026-09-04',
+      kind: 'owner_block' as const,
+      reason: 'maintenance' as const,
+    },
+    {
+      startDate: '2026-09-04',
+      endDate: '2026-09-05',
+      kind: 'held' as const,
+      expiresAt: new Date('2026-08-20T12:15:00.000Z'),
+    },
+    {
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      kind: 'held' as const,
+      expiresAt: new Date('2026-08-20T11:59:00.000Z'),
+    },
+  ];
+
+  it('projects only availability to renters and ignores expired holds', () => {
+    expect(projectRenterVehicleCalendar('2026-09-01', '2026-09-06', intervals, now)).toEqual([
+      { date: '2026-09-01', available: true },
+      { date: '2026-09-02', available: false },
+      { date: '2026-09-03', available: false },
+      { date: '2026-09-04', available: false },
+      { date: '2026-09-05', available: true },
+    ]);
+  });
+
+  it('shows owners their manual block but keeps booking holds coarse', () => {
+    expect(projectOwnerVehicleCalendar('2026-09-01', '2026-09-06', intervals, now)).toEqual([
+      { date: '2026-09-01', status: 'available' },
+      {
+        date: '2026-09-02',
+        status: 'owner_block',
+        ownerBlockId: 'owner-block-1',
+        reason: 'maintenance',
+      },
+      {
+        date: '2026-09-03',
+        status: 'owner_block',
+        ownerBlockId: 'owner-block-1',
+        reason: 'maintenance',
+      },
+      { date: '2026-09-04', status: 'reserved' },
+      { date: '2026-09-05', status: 'available' },
+    ]);
+  });
+
+  it('preserves half-open boundaries and rejects invalid windows', () => {
+    expect(projectRenterVehicleCalendar(
+      '2026-09-01',
+      '2026-09-03',
+      [{ startDate: '2026-09-03', endDate: '2026-09-04', kind: 'booked' }],
+      now,
+    ).every((day) => day.available)).toBe(true);
+    expect(() => projectRenterVehicleCalendar('2026-09-03', '2026-09-03', [], now)).toThrow();
+  });
+});
 
 describe('formatNairaFromKobo', () => {
   it('formats integer kobo as whole Nigerian naira', () => {

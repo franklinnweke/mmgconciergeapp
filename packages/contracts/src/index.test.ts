@@ -25,19 +25,110 @@ import {
   maskPhone,
   nigerianE164Schema,
   nigerianE164PhoneSchema,
+  getOwnerVehicleCalendarResultSchema,
+  getVehicleCalendarResultSchema,
   ownerAddressSchema,
   ownerLegalNameSchema,
   ownerTermsAcceptanceSchema,
   ownerVisibleProfileSchema,
   priceSnapshotSchema,
+  removeVehicleAvailabilityBlockCommandSchema,
   renterVisibleBookingIntentSchema,
   renterVisibleBookingSchema,
   renterVisibleVehicleToSummary,
   reviewOwnerVerificationCommandSchema,
   reviewOwnerVerificationResultSchema,
+  setVehicleAvailabilityBlockCommandSchema,
   submitOwnerVerificationCommandSchema,
   submitOwnerVerificationResultSchema,
 } from './index';
+
+describe('vehicle availability contracts', () => {
+  it('keeps renter calendar output coarse and rejects private block metadata', () => {
+    const calendar = {
+      vehicleId: 'vehicle-prado-250',
+      windowStartDate: '2026-09-01',
+      windowEndDate: '2026-09-04',
+      days: [
+        { date: '2026-09-01', available: true },
+        { date: '2026-09-02', available: false },
+        { date: '2026-09-03', available: false },
+      ],
+    };
+
+    expect(getVehicleCalendarResultSchema.parse(calendar)).toEqual(calendar);
+    expect(getVehicleCalendarResultSchema.safeParse({
+      ...calendar,
+      days: [{ date: '2026-09-02', available: false, blockId: 'private-block' }],
+    }).success).toBe(false);
+  });
+
+  it('allows owner block detail only on owner-blocked days', () => {
+    const calendar = {
+      vehicleId: 'vehicle-prado-250',
+      windowStartDate: '2026-09-01',
+      windowEndDate: '2026-09-03',
+      availabilityVersion: 4,
+      days: [
+        {
+          date: '2026-09-01',
+          status: 'owner_block',
+          ownerBlockId: 'block-owner-1',
+          reason: 'maintenance',
+        },
+        { date: '2026-09-02', status: 'reserved' },
+      ],
+      ownerBlocks: [{
+        blockId: 'block-owner-1',
+        vehicleId: 'vehicle-prado-250',
+        startDate: '2026-09-01',
+        endDate: '2026-09-02',
+        reason: 'maintenance',
+        notes: null,
+        version: 1,
+        createdAt: '2026-08-20T12:00:00.000Z',
+        updatedAt: '2026-08-20T12:00:00.000Z',
+      }],
+    } as const;
+
+    expect(getOwnerVehicleCalendarResultSchema.parse(calendar)).toEqual(calendar);
+    expect(getOwnerVehicleCalendarResultSchema.safeParse({
+      ...calendar,
+      days: [{ date: '2026-09-02', status: 'reserved', ownerBlockId: 'leak' }],
+    }).success).toBe(false);
+  });
+
+  it('requires optimistic versions and rejects client-owned fields', () => {
+    const setCommand = {
+      schemaVersion: 1,
+      idempotencyKey: 'availability_block_0001',
+      data: {
+        vehicleId: 'vehicle-prado-250',
+        startDate: '2026-09-01',
+        endDate: '2026-09-03',
+        reason: 'owner_use',
+        notes: 'Private family engagement',
+        expectedAvailabilityVersion: 3,
+      },
+    };
+    expect(setVehicleAvailabilityBlockCommandSchema.parse(setCommand)).toEqual(setCommand);
+    expect(setVehicleAvailabilityBlockCommandSchema.safeParse({
+      ...setCommand,
+      data: { ...setCommand.data, state: 'confirmed', renterId: 'other-user' },
+    }).success).toBe(false);
+
+    expect(removeVehicleAvailabilityBlockCommandSchema.parse({
+      schemaVersion: 1,
+      idempotencyKey: 'availability_remove_0001',
+      data: {
+        vehicleId: 'vehicle-prado-250',
+        blockId: 'block-owner-1',
+        expectedBlockVersion: 1,
+        expectedAvailabilityVersion: 4,
+      },
+    }).data.expectedBlockVersion).toBe(1);
+  });
+});
 
 describe('authentication contracts', () => {
   it('accepts only public renter and owner account types', () => {

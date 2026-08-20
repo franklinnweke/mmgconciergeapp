@@ -198,6 +198,131 @@ export type BookingTimelineEvent = z.infer<typeof bookingTimelineEventSchema>;
 export const isoDateTimeSchema = z.string().datetime({ offset: true });
 export const boundedIdSchema = z.string().trim().min(1).max(128);
 
+export const availabilityBlockReasonSchema = z.enum([
+  'maintenance',
+  'owner_use',
+  'offline',
+  'other',
+]);
+export type AvailabilityBlockReason = z.infer<typeof availabilityBlockReasonSchema>;
+
+export const setVehicleAvailabilityBlockDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  startDate: dateOnlySchema,
+  endDate: dateOnlySchema,
+  reason: availabilityBlockReasonSchema,
+  notes: z.string().trim().min(1).max(500).optional(),
+  expectedAvailabilityVersion: z.number().int().nonnegative(),
+}).strict();
+export type SetVehicleAvailabilityBlockData = z.infer<typeof setVehicleAvailabilityBlockDataSchema>;
+
+export const setVehicleAvailabilityBlockCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: setVehicleAvailabilityBlockDataSchema,
+}).strict();
+export type SetVehicleAvailabilityBlockCommand = z.infer<typeof setVehicleAvailabilityBlockCommandSchema>;
+
+export const ownerAvailabilityBlockSchema = z.object({
+  blockId: boundedIdSchema,
+  vehicleId: boundedIdSchema,
+  startDate: dateOnlySchema,
+  endDate: dateOnlySchema,
+  reason: availabilityBlockReasonSchema,
+  notes: z.string().max(500).nullable(),
+  version: z.number().int().positive(),
+  createdAt: isoDateTimeSchema,
+  updatedAt: isoDateTimeSchema,
+}).strict();
+export type OwnerAvailabilityBlock = z.infer<typeof ownerAvailabilityBlockSchema>;
+
+export const setVehicleAvailabilityBlockResultSchema = z.object({
+  requestId: boundedIdSchema,
+  result: z.object({
+    block: ownerAvailabilityBlockSchema,
+    availabilityVersion: z.number().int().positive(),
+  }).strict(),
+}).strict();
+export type SetVehicleAvailabilityBlockResult = z.infer<typeof setVehicleAvailabilityBlockResultSchema>;
+
+export const removeVehicleAvailabilityBlockDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  blockId: boundedIdSchema,
+  expectedBlockVersion: z.number().int().positive(),
+  expectedAvailabilityVersion: z.number().int().nonnegative(),
+}).strict();
+export type RemoveVehicleAvailabilityBlockData = z.infer<typeof removeVehicleAvailabilityBlockDataSchema>;
+
+export const removeVehicleAvailabilityBlockCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: removeVehicleAvailabilityBlockDataSchema,
+}).strict();
+export type RemoveVehicleAvailabilityBlockCommand = z.infer<typeof removeVehicleAvailabilityBlockCommandSchema>;
+
+export const removeVehicleAvailabilityBlockResultSchema = z.object({
+  requestId: boundedIdSchema,
+  result: z.object({
+    vehicleId: boundedIdSchema,
+    blockId: boundedIdSchema,
+    removed: z.literal(true),
+    availabilityVersion: z.number().int().positive(),
+  }).strict(),
+}).strict();
+export type RemoveVehicleAvailabilityBlockResult = z.infer<typeof removeVehicleAvailabilityBlockResultSchema>;
+
+export const getVehicleCalendarDataSchema = z.object({
+  vehicleId: boundedIdSchema,
+  windowStartDate: dateOnlySchema,
+  windowEndDate: dateOnlySchema,
+}).strict();
+export type GetVehicleCalendarData = z.infer<typeof getVehicleCalendarDataSchema>;
+
+export const getVehicleCalendarCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  data: getVehicleCalendarDataSchema,
+}).strict();
+export type GetVehicleCalendarCommand = z.infer<typeof getVehicleCalendarCommandSchema>;
+
+export const renterVehicleCalendarDaySchema = z.object({
+  date: dateOnlySchema,
+  available: z.boolean(),
+}).strict();
+export type RenterVehicleCalendarDay = z.infer<typeof renterVehicleCalendarDaySchema>;
+
+export const getVehicleCalendarResultSchema = z.object({
+  vehicleId: boundedIdSchema,
+  windowStartDate: dateOnlySchema,
+  windowEndDate: dateOnlySchema,
+  days: z.array(renterVehicleCalendarDaySchema).max(365),
+}).strict();
+export type GetVehicleCalendarResult = z.infer<typeof getVehicleCalendarResultSchema>;
+
+export const ownerVehicleCalendarDaySchema = z.object({
+  date: dateOnlySchema,
+  status: z.enum(['available', 'owner_block', 'reserved']),
+  ownerBlockId: boundedIdSchema.optional(),
+  reason: availabilityBlockReasonSchema.optional(),
+}).strict().superRefine((day, context) => {
+  if (day.status === 'owner_block' && (!day.ownerBlockId || !day.reason)) {
+    context.addIssue({ code: 'custom', message: 'Owner-blocked days require block details.' });
+  }
+  if (day.status !== 'owner_block' && (day.ownerBlockId || day.reason)) {
+    context.addIssue({ code: 'custom', message: 'Only owner-blocked days expose block details.' });
+  }
+});
+export type OwnerVehicleCalendarDay = z.infer<typeof ownerVehicleCalendarDaySchema>;
+
+export const getOwnerVehicleCalendarResultSchema = z.object({
+  vehicleId: boundedIdSchema,
+  windowStartDate: dateOnlySchema,
+  windowEndDate: dateOnlySchema,
+  availabilityVersion: z.number().int().nonnegative(),
+  days: z.array(ownerVehicleCalendarDaySchema).max(365),
+  ownerBlocks: z.array(ownerAvailabilityBlockSchema).max(365),
+}).strict();
+export type GetOwnerVehicleCalendarResult = z.infer<typeof getOwnerVehicleCalendarResultSchema>;
+
 export const renterVisibleBookingIntentSchema = z.object({
   id: boundedIdSchema,
   renterId: boundedIdSchema,

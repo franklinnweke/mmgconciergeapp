@@ -597,3 +597,85 @@ export function rankVehiclesByDiscoveryScore<
     return scoreA - scoreB;
   });
 }
+
+export type AvailabilityProjectionInterval = {
+  blockId?: string;
+  startDate: string;
+  endDate: string;
+  kind: 'owner_block' | 'held' | 'booked';
+  reason?: 'maintenance' | 'owner_use' | 'offline' | 'other';
+  expiresAt?: Date;
+};
+
+export type RenterCalendarProjectionDay = {
+  date: string;
+  available: boolean;
+};
+
+export type OwnerCalendarProjectionDay = {
+  date: string;
+  status: 'available' | 'owner_block' | 'reserved';
+  ownerBlockId?: string;
+  reason?: 'maintenance' | 'owner_use' | 'offline' | 'other';
+};
+
+function activeAvailabilityIntervals(
+  intervals: readonly AvailabilityProjectionInterval[],
+  now: Date,
+): readonly AvailabilityProjectionInterval[] {
+  return intervals.filter((interval) =>
+    interval.kind !== 'held' || Boolean(interval.expiresAt && interval.expiresAt > now));
+}
+
+function datesInWindow(windowStartDate: string, windowEndDate: string): string[] {
+  const startDay = dateOnlyToEpochDay(windowStartDate);
+  const dayCount = calculateChargedDays(windowStartDate, windowEndDate);
+  return Array.from({ length: dayCount }, (_, offset) =>
+    new Date((startDay + offset) * 86_400_000).toISOString().slice(0, 10));
+}
+
+export function projectRenterVehicleCalendar(
+  windowStartDate: string,
+  windowEndDate: string,
+  intervals: readonly AvailabilityProjectionInterval[],
+  now: Date,
+): RenterCalendarProjectionDay[] {
+  const activeIntervals = activeAvailabilityIntervals(intervals, now);
+  return datesInWindow(windowStartDate, windowEndDate).map((date) => ({
+    date,
+    available: !activeIntervals.some((interval) =>
+      intervalsOverlap(
+        { startDate: date, endDate: new Date((dateOnlyToEpochDay(date) + 1) * 86_400_000).toISOString().slice(0, 10) },
+        interval,
+      )),
+  }));
+}
+
+export function projectOwnerVehicleCalendar(
+  windowStartDate: string,
+  windowEndDate: string,
+  intervals: readonly AvailabilityProjectionInterval[],
+  now: Date,
+): OwnerCalendarProjectionDay[] {
+  const activeIntervals = activeAvailabilityIntervals(intervals, now);
+  return datesInWindow(windowStartDate, windowEndDate).map((date) => {
+    const dayInterval = {
+      startDate: date,
+      endDate: new Date((dateOnlyToEpochDay(date) + 1) * 86_400_000).toISOString().slice(0, 10),
+    };
+    const overlaps = activeIntervals.filter((interval) => intervalsOverlap(dayInterval, interval));
+    if (overlaps.some((interval) => interval.kind !== 'owner_block')) {
+      return { date, status: 'reserved' as const };
+    }
+    const ownerBlock = overlaps.find((interval) => interval.kind === 'owner_block');
+    if (ownerBlock?.blockId && ownerBlock.reason) {
+      return {
+        date,
+        status: 'owner_block' as const,
+        ownerBlockId: ownerBlock.blockId,
+        reason: ownerBlock.reason,
+      };
+    }
+    return { date, status: 'available' as const };
+  });
+}
