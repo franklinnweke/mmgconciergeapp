@@ -19,6 +19,7 @@ import { BookingCommandError } from './errors.js';
 export type TrustedVehicle = {
   id: string;
   ownerId: string;
+  approved: boolean;
   active: boolean;
   ownerDailyRateKobo: number;
   vehicleSnapshot: RenterVehicleSnapshot;
@@ -35,15 +36,22 @@ export type TrustedBookingConfig = {
 };
 
 export type BlockingInterval = {
+  blockId?: string;
+  ownerId?: string;
   startDate: string;
   endDate: string;
-  state: 'held' | 'paid' | 'confirmed';
+  state: 'held' | 'paid' | 'confirmed' | 'owner_block';
+  reason?: 'maintenance' | 'owner_use' | 'offline' | 'other';
+  notes?: string;
+  version?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
   expiresAt?: Date;
 };
 
 export type StoredIdempotency = {
   requestHash: string;
-  result: CreateBookingIntentResult;
+  result: unknown;
 };
 
 export type NewIntentRecord = {
@@ -61,17 +69,49 @@ export type NewIntentRecord = {
   expiresAt: Date;
 };
 
+export type StoredOwnerAvailabilityBlock = {
+  blockId: string;
+  vehicleId: string;
+  ownerId: string;
+  startDate: string;
+  endDate: string;
+  state: 'owner_block';
+  reason: 'maintenance' | 'owner_use' | 'offline' | 'other';
+  notes?: string;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type AvailabilityAuditEvent = {
+  actorId: string;
+  entityId: string;
+  eventType: 'availability_block.created' | 'availability_block.removed';
+  fromState: 'owner_block' | null;
+  toState: 'owner_block' | 'available';
+  requestId: string;
+  occurredAt: Date;
+  vehicleId: string;
+  startDate: string;
+  endDate: string;
+  reason?: StoredOwnerAvailabilityBlock['reason'];
+};
+
 export interface BookingIntentTransaction {
   getIdempotency(documentId: string): Promise<StoredIdempotency | null>;
   getVehicle(vehicleId: string): Promise<TrustedVehicle | null>;
   getBookingConfig(): Promise<TrustedBookingConfig | null>;
-  readAvailabilitySentinel(vehicleId: string): Promise<void>;
+  readAvailabilitySentinel(vehicleId: string): Promise<number>;
   listBlockingIntervals(vehicleId: string, exclusiveEndDate: string): Promise<readonly BlockingInterval[]>;
-  writeAvailabilitySentinel(vehicleId: string, updatedAt: Date): void;
+  getAvailabilityBlock(blockId: string): Promise<StoredOwnerAvailabilityBlock | null>;
+  createOwnerAvailabilityBlock(record: StoredOwnerAvailabilityBlock): void;
+  deleteOwnerAvailabilityBlock(blockId: string): void;
+  writeAvailabilitySentinel(vehicleId: string, updatedAt: Date, version: number): void;
   createIntent(record: NewIntentRecord): void;
   createHeldBlock(record: NewIntentRecord): void;
   createAuditEvent(record: NewIntentRecord, requestId: string): void;
-  saveIdempotency(documentId: string, requestHash: string, result: CreateBookingIntentResult, createdAt: Date): void;
+  createAvailabilityAuditEvent(event: AvailabilityAuditEvent): void;
+  saveIdempotency(documentId: string, requestHash: string, result: unknown, createdAt: Date): void;
 }
 
 export interface BookingIntentRepository {
@@ -154,7 +194,7 @@ export async function createBookingIntent(
       throw new BookingCommandError('CONFIGURATION_UNAVAILABLE', 'Booking configuration is unavailable.');
     }
 
-    await transaction.readAvailabilitySentinel(vehicle.id);
+    const availabilityVersion = await transaction.readAvailabilitySentinel(vehicle.id);
     const blocks = await transaction.listBlockingIntervals(vehicle.id, command.data.endDate);
     if (blocks.some((block) => isActiveBlockingInterval(block, now) && intervalsOverlap(command.data, block))) {
       throw new BookingCommandError('VEHICLE_UNAVAILABLE', 'Vehicle is no longer available for these dates.');
@@ -200,7 +240,7 @@ export async function createBookingIntent(
       },
     });
 
-    transaction.writeAvailabilitySentinel(vehicle.id, now);
+    transaction.writeAvailabilitySentinel(vehicle.id, now, availabilityVersion + 1);
     transaction.createIntent(record);
     transaction.createHeldBlock(record);
     transaction.createAuditEvent(record, requestId);

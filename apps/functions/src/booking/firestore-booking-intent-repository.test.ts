@@ -42,6 +42,7 @@ describe('FirestoreBookingIntentRepository vehicle schema compatibility', () => 
     expect(vehicle).toEqual({
       id: 'veh-live-prado',
       ownerId: 'owner-lagos-1',
+      approved: true,
       active: true,
       ownerDailyRateKobo: 25_000_000,
       vehicleSnapshot: {

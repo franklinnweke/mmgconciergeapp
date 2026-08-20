@@ -5,6 +5,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createBookingIntent } from './create-booking-intent-service.js';
 import { BookingCommandError } from './errors.js';
 import { FirestoreBookingIntentRepository } from './firestore-booking-intent-repository.js';
+import {
+  getOwnerVehicleCalendar,
+  getVehicleCalendar,
+  removeVehicleAvailabilityBlock,
+  setVehicleAvailabilityBlock,
+} from './vehicle-availability-service.js';
 
 const describeWithEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
@@ -96,6 +102,109 @@ describeWithEmulator('Firestore booking-intent transaction', () => {
     });
     expect((await database.collection('bookingIntents').get()).size).toBe(1);
     expect((await database.collection('bookingBlocks').get()).size).toBe(1);
+    expect((await database.doc('vehicleAvailability/vehicle-one').get()).data()?.version).toBe(1);
+  });
+
+  it('serializes competing owner blocks and exposes only privacy-safe renter calendar days', async () => {
+    const baseCommand = {
+      schemaVersion: 1,
+      data: {
+        vehicleId: 'vehicle-one',
+        startDate: '2026-09-01',
+        endDate: '2026-09-03',
+        reason: 'owner_use',
+        notes: 'Private family event',
+        expectedAvailabilityVersion: 0,
+      },
+    } as const;
+    const attempts = await Promise.allSettled([
+      setVehicleAvailabilityBlock({ ...baseCommand, idempotencyKey: 'owner-block-command-1' }, 'owner-one', {
+        repository,
+        createId: () => 'owner-block-one',
+        createRequestId: () => 'owner-request-one',
+        now: () => new Date('2026-08-20T12:00:00.000Z'),
+      }),
+      setVehicleAvailabilityBlock({
+        ...baseCommand,
+        idempotencyKey: 'owner-block-command-2',
+        data: {
+          ...baseCommand.data,
+          startDate: '2026-09-04',
+          endDate: '2026-09-06',
+        },
+      }, 'owner-one', {
+        repository,
+        createId: () => 'owner-block-two',
+        createRequestId: () => 'owner-request-two',
+        now: () => new Date('2026-08-20T12:00:00.000Z'),
+      }),
+    ]);
+
+    expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
+    expect(attempts.find((attempt) => attempt.status === 'rejected')).toMatchObject({
+      reason: expect.objectContaining<Partial<BookingCommandError>>({
+        code: 'FAILED_PRECONDITION',
+        safeDetails: { reason: 'stale_version' },
+      }),
+    });
+
+    const renterCalendar = await getVehicleCalendar({
+      schemaVersion: 1,
+      data: {
+        vehicleId: 'vehicle-one',
+        windowStartDate: '2026-09-01',
+        windowEndDate: '2026-09-07',
+      },
+    }, { repository, now: () => new Date('2026-08-20T12:00:00.000Z') });
+    expect(JSON.stringify(renterCalendar)).not.toMatch(/owner-block|owner_use|family/i);
+    expect(renterCalendar.days.some((day) => !day.available)).toBe(true);
+  });
+
+  it('round-trips versioned owner block details and removes the matching block atomically', async () => {
+    const created = await setVehicleAvailabilityBlock({
+      schemaVersion: 1,
+      idempotencyKey: 'owner-block-round-trip',
+      data: {
+        vehicleId: 'vehicle-one',
+        startDate: '2026-09-08',
+        endDate: '2026-09-10',
+        reason: 'maintenance',
+        expectedAvailabilityVersion: 0,
+      },
+    }, 'owner-one', {
+      repository,
+      createId: () => 'owner-block-round-trip',
+      createRequestId: () => 'owner-request-create',
+      now: () => new Date('2026-08-20T12:00:00.000Z'),
+    });
+    const ownerCalendar = await getOwnerVehicleCalendar({
+      schemaVersion: 1,
+      data: {
+        vehicleId: 'vehicle-one',
+        windowStartDate: '2026-09-01',
+        windowEndDate: '2026-09-12',
+      },
+    }, 'owner-one', { repository, now: () => new Date('2026-08-20T12:00:00.000Z') });
+
+    expect(ownerCalendar.ownerBlocks).toEqual([created.result.block]);
+    const removed = await removeVehicleAvailabilityBlock({
+      schemaVersion: 1,
+      idempotencyKey: 'owner-block-remove-round-trip',
+      data: {
+        vehicleId: 'vehicle-one',
+        blockId: created.result.block.blockId,
+        expectedBlockVersion: created.result.block.version,
+        expectedAvailabilityVersion: ownerCalendar.availabilityVersion,
+      },
+    }, 'owner-one', {
+      repository,
+      createRequestId: () => 'owner-request-remove',
+      now: () => new Date('2026-08-20T12:05:00.000Z'),
+    });
+
+    expect(removed.result.availabilityVersion).toBe(2);
+    expect((await database.doc('bookingBlocks/owner-block-round-trip').get()).exists).toBe(false);
+    expect((await database.collection('auditEvents').get()).size).toBe(2);
   });
 
   it('replays an identical idempotent command from stored transaction output', async () => {

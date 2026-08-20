@@ -27,6 +27,7 @@ class InMemoryTransaction implements BookingIntentTransaction {
   vehicle: TrustedVehicle | null = {
     id: 'vehicle-one',
     ownerId: 'owner-one',
+    approved: true,
     active: true,
     ownerDailyRateKobo: 38_500_000,
     vehicleSnapshot: {
@@ -56,12 +57,18 @@ class InMemoryTransaction implements BookingIntentTransaction {
   async getIdempotency(documentId: string) { return this.idempotency.get(documentId) ?? null; }
   async getVehicle() { return this.vehicle; }
   async getBookingConfig() { return this.config; }
-  async readAvailabilitySentinel() { this.sentinelReads += 1; }
+  async readAvailabilitySentinel() { this.sentinelReads += 1; return this.sentinelWrites; }
   async listBlockingIntervals() { return this.blocks; }
-  writeAvailabilitySentinel() { this.sentinelWrites += 1; }
+  writeAvailabilitySentinel(_vehicleId: string, _updatedAt: Date, version: number) {
+    this.sentinelWrites = version;
+  }
   createIntent(record: NewIntentRecord) { this.intents.push(record); }
+  async getAvailabilityBlock() { return null; }
+  createOwnerAvailabilityBlock() {}
+  deleteOwnerAvailabilityBlock() {}
   createHeldBlock(record: NewIntentRecord) { this.heldBlocks.push(record); }
   createAuditEvent() { this.auditWrites += 1; }
+  createAvailabilityAuditEvent() {}
   saveIdempotency(documentId: string, requestHash: string, result: CreateBookingIntentResult) {
     this.idempotency.set(documentId, { requestHash, result });
   }
@@ -143,6 +150,12 @@ describe('createBookingIntent service', () => {
     transaction.blocks = [{ startDate: '2026-09-03', endDate: '2026-09-05', state: 'paid' }];
     await expect(execute({ ...command, idempotencyKey: 'booking_01JABCDEFGHIJK_PAID' }))
       .rejects.toMatchObject<Partial<BookingCommandError>>({ code: 'VEHICLE_UNAVAILABLE' });
+
+    transaction.blocks = [{
+      startDate: '2026-09-03', endDate: '2026-09-05', state: 'owner_block',
+    }];
+    await expect(execute({ ...command, idempotencyKey: 'booking_01JABCDEFGHIJK_OWNER_BLOCK' }))
+      .rejects.toMatchObject<Partial<BookingCommandError>>({ code: 'VEHICLE_UNAVAILABLE' });
   });
 
   it('rejects a booking start date before the current Lagos calendar day', async () => {
@@ -158,7 +171,7 @@ describe('createBookingIntent service', () => {
     await expect(execute()).rejects.toMatchObject<Partial<BookingCommandError>>({ code: 'NOT_FOUND' });
 
     transaction.vehicle = {
-      id: 'vehicle-one', ownerId: 'owner-one', active: false, ownerDailyRateKobo: 1,
+      id: 'vehicle-one', ownerId: 'owner-one', approved: true, active: false, ownerDailyRateKobo: 1,
       vehicleSnapshot: new InMemoryTransaction().vehicle!.vehicleSnapshot,
     };
     await expect(execute()).rejects.toMatchObject<Partial<BookingCommandError>>({ code: 'NOT_FOUND' });

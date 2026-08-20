@@ -7,6 +7,12 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { createBookingIntent as createBookingIntentService } from './booking/create-booking-intent-service.js';
 import { requireVerifiedRenter } from './booking/callable-auth.js';
 import { FirestoreBookingIntentRepository } from './booking/firestore-booking-intent-repository.js';
+import {
+  getOwnerVehicleCalendar as getOwnerVehicleCalendarService,
+  getVehicleCalendar as getVehicleCalendarService,
+  removeVehicleAvailabilityBlock as removeVehicleAvailabilityBlockService,
+  setVehicleAvailabilityBlock as setVehicleAvailabilityBlockService,
+} from './booking/vehicle-availability-service.js';
 import { resolveSearchPlaceService } from './discovery/resolve-search-place-service.js';
 import {
   FirestoreDiscoveryVehicleSource,
@@ -92,6 +98,140 @@ export const createBookingIntent = onCall(
       }
       logger.error('booking_intent.failed');
       throw new HttpsError('internal', 'Booking intent could not be created.');
+    }
+  },
+);
+
+export const getVehicleCalendar = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const renter = requireAuthenticatedRenter(request.auth);
+      const result = await getVehicleCalendarService(request.data, { repository: bookingRepository });
+      logger.info('vehicle_calendar.renter_viewed', {
+        uid: renter.uid,
+        vehicleId: result.vehicleId,
+        windowStartDate: result.windowStartDate,
+        windowEndDate: result.windowEndDate,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('vehicle_calendar.renter_view_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('vehicle_calendar.renter_view_failed');
+      throw new HttpsError('internal', 'Vehicle calendar could not be loaded.');
+    }
+  },
+);
+
+export const getOwnerVehicleCalendar = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const owner = requireVerifiedEmailOwnerAuth(request.auth);
+      const result = await getOwnerVehicleCalendarService(request.data, owner.uid, {
+        repository: bookingRepository,
+      });
+      logger.info('vehicle_calendar.owner_viewed', {
+        uid: owner.uid,
+        vehicleId: result.vehicleId,
+        windowStartDate: result.windowStartDate,
+        windowEndDate: result.windowEndDate,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('vehicle_calendar.owner_view_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('vehicle_calendar.owner_view_failed');
+      throw new HttpsError('internal', 'Owner vehicle calendar could not be loaded.');
+    }
+  },
+);
+
+export const setVehicleAvailabilityBlock = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const owner = requireVerifiedEmailOwnerAuth(request.auth);
+      const result = await setVehicleAvailabilityBlockService(request.data, owner.uid, {
+        repository: bookingRepository,
+      });
+      logger.info('vehicle_availability.block_created', {
+        requestId: result.requestId,
+        uid: owner.uid,
+        vehicleId: result.result.block.vehicleId,
+        blockId: result.result.block.blockId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('vehicle_availability.block_create_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('vehicle_availability.block_create_failed');
+      throw new HttpsError('internal', 'Vehicle availability could not be updated.');
+    }
+  },
+);
+
+export const removeVehicleAvailabilityBlock = onCall(
+  {
+    region: 'africa-south1',
+    enforceAppCheck: true,
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const owner = requireVerifiedEmailOwnerAuth(request.auth);
+      const result = await removeVehicleAvailabilityBlockService(request.data, owner.uid, {
+        repository: bookingRepository,
+      });
+      logger.info('vehicle_availability.block_removed', {
+        requestId: result.requestId,
+        uid: owner.uid,
+        vehicleId: result.result.vehicleId,
+        blockId: result.result.blockId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('vehicle_availability.block_remove_rejected', { code: error.code });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('vehicle_availability.block_remove_failed');
+      throw new HttpsError('internal', 'Vehicle availability block could not be removed.');
     }
   },
 );

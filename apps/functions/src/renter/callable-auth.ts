@@ -9,7 +9,7 @@ export type AuthenticatedRenter = {
 
 export function requireAuthenticatedRenter(auth: AuthData | undefined): AuthenticatedRenter {
   if (!auth) {
-    throw new CommandError('UNAUTHENTICATED', 'Sign in to complete renter profile.');
+    throw new CommandError('UNAUTHENTICATED', 'Sign in to continue.');
   }
 
   if (auth.token.email_verified !== true) {
