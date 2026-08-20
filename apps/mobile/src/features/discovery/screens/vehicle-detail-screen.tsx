@@ -30,6 +30,10 @@ import {
 } from '../data/lagos-destinations';
 import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
 import { resolveVehicleImageSource, vehicleImages } from '../data/vehicle-images';
+import {
+  createVehicleCalendarGateway,
+  type VehicleCalendarGateway,
+} from '../data/vehicle-calendar-gateway';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -41,6 +45,7 @@ const durationOptions = [
 ] as const;
 
 export type VehicleDetailScreenProps = {
+  calendarGateway?: VehicleCalendarGateway;
   endDate?: string;
   startDate?: string;
   vehicleId: string;
@@ -63,6 +68,7 @@ function initialJourney(startDate?: string, endDate?: string) {
 }
 
 export default function VehicleDetailScreen({
+  calendarGateway: injectedCalendarGateway,
   endDate: propEndDate,
   startDate: propStartDate,
   vehicleId,
@@ -82,6 +88,10 @@ export default function VehicleDetailScreen({
   }, []);
 
   const gateway = useMemo(() => createDiscoveryGateway(), []);
+  const calendarGateway = useMemo(
+    () => injectedCalendarGateway ?? createVehicleCalendarGateway(),
+    [injectedCalendarGateway],
+  );
 
   useEffect(() => {
     if (!vehicleId) return;
@@ -115,8 +125,36 @@ export default function VehicleDetailScreen({
   );
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [availabilityReloadKey, setAvailabilityReloadKey] = useState(0);
+  const [availability, setAvailability] = useState<{
+    error: string | null;
+    status: 'loading' | 'available' | 'unavailable' | 'error';
+  }>({ error: null, status: 'loading' });
 
   const returnDate = useMemo(() => addDaysToDateOnly(pickupDate, durationDays), [pickupDate, durationDays]);
+
+  useEffect(() => {
+    if (!vehicleId) return;
+    let isMounted = true;
+    calendarGateway.getCalendar({
+      vehicleId,
+      windowStartDate: pickupDate,
+      windowEndDate: returnDate,
+    }).then((result) => {
+      if (!isMounted) return;
+      const fullyAvailable = result.days.length === durationDays && result.days.every((day) => day.available);
+      setAvailability({ error: null, status: fullyAvailable ? 'available' : 'unavailable' });
+    }).catch((caught: unknown) => {
+      if (!isMounted) return;
+      setAvailability({
+        error: caught instanceof Error ? caught.message : 'Availability could not be checked.',
+        status: 'error',
+      });
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [availabilityReloadKey, calendarGateway, durationDays, pickupDate, returnDate, vehicleId]);
 
   const quote = useMemo(() => {
     if (!vehicle) return null;
@@ -344,7 +382,10 @@ export default function VehicleDetailScreen({
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                     key={option.label}
-                    onPress={() => setJourney({ durationDays: option.days, startDate: pickupDate })}
+                    onPress={() => {
+                      setAvailability({ error: null, status: 'loading' });
+                      setJourney({ durationDays: option.days, startDate: pickupDate });
+                    }}
                     style={styles.durationFlex}
                   >
                     <View style={[styles.durationButton, selected && styles.durationButtonSelected]}>
@@ -368,6 +409,58 @@ export default function VehicleDetailScreen({
                 <Text style={styles.dateColLabel}>RETURN</Text>
                 <Text style={styles.dateColValue}>{returnFormatted}</Text>
               </View>
+            </View>
+
+            <View
+              accessibilityLiveRegion="polite"
+              style={[
+                styles.availabilityNotice,
+                availability.status === 'unavailable' && styles.availabilityNoticeUnavailable,
+                availability.status === 'error' && styles.availabilityNoticeError,
+              ]}
+            >
+              {availability.status === 'loading' ? (
+                <ActivityIndicator color={colors.goldStrong} size="small" />
+              ) : (
+                <Ionicons
+                  color={availability.status === 'available' ? colors.success : colors.danger}
+                  name={availability.status === 'available' ? 'checkmark-circle' : 'alert-circle'}
+                  size={18}
+                />
+              )}
+              <View style={styles.availabilityNoticeCopy}>
+                <Text style={styles.availabilityNoticeTitle}>
+                  {availability.status === 'loading'
+                    ? 'Checking trusted calendar…'
+                    : availability.status === 'available'
+                      ? 'Dates currently available'
+                      : availability.status === 'unavailable'
+                        ? 'Choose different dates'
+                        : 'Availability check unavailable'}
+                </Text>
+                <Text style={styles.availabilityNoticeBody}>
+                  {availability.status === 'available'
+                    ? 'Final availability is secured only when MMG creates your 15-minute hold.'
+                    : availability.status === 'unavailable'
+                      ? 'The selected period is unavailable. Private calendar details are not shown.'
+                      : availability.status === 'error'
+                        ? availability.error
+                        : 'This does not reserve the vehicle.'}
+                </Text>
+              </View>
+              {availability.status === 'error' ? (
+                <PressableScale
+                  accessibilityLabel="Retry availability check"
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setAvailability({ error: null, status: 'loading' });
+                    setAvailabilityReloadKey((key) => key + 1);
+                  }}
+                  style={styles.availabilityRetry}
+                >
+                  <Ionicons color={colors.goldStrong} name="refresh" size={18} />
+                </PressableScale>
+              ) : null}
             </View>
           </View>
 
@@ -402,7 +495,7 @@ export default function VehicleDetailScreen({
             </View>
 
             <Text style={styles.quoteNote}>
-              This is a server-aligned quote estimate. Payment is completed securely before owner and chauffeur confirmation.
+              This is a configuration-aligned estimate. The next step creates a short server hold only; it does not take payment or confirm the journey.
             </Text>
           </View>
         </View>
@@ -417,16 +510,23 @@ export default function VehicleDetailScreen({
 
         <PressableScale
           accessibilityRole="button"
+          disabled={availability.status !== 'available'}
           onPress={() =>
             router.push({
               pathname: '/booking/review',
               params: { endDate: returnDate, startDate: pickupDate, vehicleId: vehicle.id },
             })
           }
-          style={styles.stickyActionFlex}
+          style={[styles.stickyActionFlex, availability.status !== 'available' && styles.stickyActionDisabled]}
         >
           <View style={styles.primaryButton}>
-            <Text style={styles.primaryText}>Review Quote</Text>
+            <Text style={styles.primaryText}>
+              {availability.status === 'loading'
+                ? 'Checking Dates'
+                : availability.status === 'available'
+                  ? 'Review Quote'
+                  : 'Dates Unavailable'}
+            </Text>
             <Ionicons color={colors.black} name="arrow-forward" size={18} />
           </View>
         </PressableScale>
@@ -474,6 +574,34 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  availabilityNotice: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    minHeight: 68,
+    paddingVertical: spacing.sm,
+  },
+  availabilityNoticeBody: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  availabilityNoticeCopy: { flex: 1 },
+  availabilityNoticeError: { borderBottomColor: colors.danger, borderTopColor: colors.danger },
+  availabilityNoticeTitle: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.sm,
+  },
+  availabilityNoticeUnavailable: { borderBottomColor: colors.danger, borderTopColor: colors.danger },
+  availabilityRetry: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   availableDot: {
     backgroundColor: colors.success,
     borderRadius: radii.pill,
@@ -851,6 +979,9 @@ const styles = StyleSheet.create({
   },
   stickyActionFlex: {
     flex: 1,
+  },
+  stickyActionDisabled: {
+    opacity: 0.48,
   },
   stickyBar: {
     alignItems: 'center',
