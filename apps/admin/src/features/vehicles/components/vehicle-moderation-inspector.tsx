@@ -28,14 +28,21 @@ export type VehicleModerationInspectorProps = {
 
 const STATUS_CONFIG: Record<
   VehicleModerationStatus,
-  { label: string; bg: string; text: string; icon: typeof CheckCircle2 }
+  { label: string; text: string; icon: typeof CheckCircle2 }
 > = {
-  draft: { label: 'Draft', bg: '#1E222B', text: '#9AA0A6', icon: FileText },
-  pending_review: { label: 'Pending Review', bg: 'rgba(234, 179, 8, 0.12)', text: '#EAB308', icon: Clock },
-  approved: { label: 'Approved', bg: 'rgba(34, 197, 94, 0.12)', text: '#4ADE80', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', bg: 'rgba(239, 68, 68, 0.12)', text: '#F87171', icon: XCircle },
-  suspended: { label: 'Suspended', bg: 'rgba(220, 38, 38, 0.18)', text: '#EF4444', icon: AlertTriangle },
+  draft: { label: 'Draft', text: '#9AA0A6', icon: FileText },
+  pending_review: { label: 'Pending review', text: '#EAB308', icon: Clock },
+  approved: { label: 'Approved', text: '#4ADE80', icon: CheckCircle2 },
+  rejected: { label: 'Rejected', text: '#F87171', icon: XCircle },
+  suspended: { label: 'Suspended', text: '#EF4444', icon: AlertTriangle },
 };
+
+function safeActionError(status: number): string {
+  if (status === 409) return 'This vehicle changed while you were reviewing it. Refresh and review the current record.';
+  if (status === 401 || status === 403) return 'Your staff session cannot perform this review action.';
+  if (status >= 500) return 'The review service is temporarily unavailable. Try again.';
+  return 'The review action could not be completed. Check the current record and try again.';
+}
 
 function formatNaira(kobo: number): string {
   const naira = Math.floor(kobo / 100);
@@ -97,8 +104,7 @@ export function VehicleModerationInspector({
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to approve vehicle listing.');
+        throw new Error(safeActionError(res.status));
       }
 
       // Publication is a second step after the decision commits, and it can
@@ -108,11 +114,11 @@ export function VehicleModerationInspector({
       if (typeof body.warning === 'string' && body.warning) {
         setErrorMsg(body.warning);
       } else {
-        setSuccessMsg('Vehicle listing has been approved and published to the fleet.');
+        setSuccessMsg('Approval recorded. Reloading the authoritative vehicle state.');
       }
       router.refresh();
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : 'Failed to approve vehicle listing.');
+      setErrorMsg(error instanceof Error ? error.message : safeActionError(500));
     } finally {
       setIsSubmitting(false);
     }
@@ -139,18 +145,17 @@ export function VehicleModerationInspector({
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to record decision.');
+        throw new Error(safeActionError(res.status));
       }
 
       // Owner messaging is not live: reviewVehicle records the decision and
       // reason on the listing but enqueues no notification. Do not claim a
       // dispatch that did not happen.
-      setSuccessMsg('Review decision and rationale recorded on the listing. No owner notification has been sent — owner messaging is not live yet.');
+      setSuccessMsg('Review decision recorded. Reloading the authoritative vehicle state.');
       setShowRejectForm(false);
       router.refresh();
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : 'Failed to record review decision.');
+      setErrorMsg(error instanceof Error ? error.message : safeActionError(500));
     } finally {
       setIsSubmitting(false);
     }
@@ -177,20 +182,19 @@ export function VehicleModerationInspector({
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to suspend vehicle.');
+        throw new Error(safeActionError(res.status));
       }
 
       const body = (await res.json().catch(() => ({}))) as { warning?: string };
       if (typeof body.warning === 'string' && body.warning) {
         setErrorMsg(body.warning);
       } else {
-        setSuccessMsg('Vehicle listing has been suspended and withdrawn from the fleet.');
+        setSuccessMsg('Suspension recorded. Reloading the authoritative vehicle state.');
       }
       setShowSuspendForm(false);
       router.refresh();
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : 'Failed to suspend vehicle.');
+      setErrorMsg(error instanceof Error ? error.message : safeActionError(500));
     } finally {
       setIsSubmitting(false);
     }
@@ -211,19 +215,18 @@ export function VehicleModerationInspector({
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to restore vehicle.');
+        throw new Error(safeActionError(res.status));
       }
 
       const body = (await res.json().catch(() => ({}))) as { warning?: string };
       if (typeof body.warning === 'string' && body.warning) {
         setErrorMsg(body.warning);
       } else {
-        setSuccessMsg('Vehicle listing has been restored to approved status.');
+        setSuccessMsg('Restore recorded. Reloading the authoritative vehicle state.');
       }
       router.refresh();
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : 'Failed to restore vehicle.');
+      setErrorMsg(error instanceof Error ? error.message : safeActionError(500));
     } finally {
       setIsSubmitting(false);
     }
@@ -234,8 +237,7 @@ export function VehicleModerationInspector({
   const activeImage = vehicle.images[activeImageIndex] || { previewUrl: vehicle.thumbnailUrl, originalFileName: 'photo.jpg' };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
-      {/* Top Header */}
+    <div className="vehicle-inspector-page" style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
       <header
         style={{
           borderBottom: '1px solid #1E232E',
@@ -246,7 +248,7 @@ export function VehicleModerationInspector({
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="vehicle-inspector-header-main" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <Link
             href="/vehicles"
             style={{
@@ -256,7 +258,8 @@ export function VehicleModerationInspector({
               color: '#9AA0A6',
               textDecoration: 'none',
               fontSize: '13px',
-              padding: '6px 12px',
+              padding: '10px 12px',
+              minHeight: '44px',
               borderRadius: '6px',
               backgroundColor: '#181D26',
               border: '1px solid #1E232E',
@@ -265,17 +268,18 @@ export function VehicleModerationInspector({
             <ArrowLeft size={14} />
             <span>Back to Queue</span>
           </Link>
-          <div style={{ height: '16px', width: '1px', backgroundColor: '#28303F' }} />
-          <div style={{ fontSize: '13px', color: '#9AA0A6' }}>
-            Vehicle ID: <span style={{ color: '#F9FAFB', fontFamily: 'monospace' }}>{vehicle.vehicleId}</span>
-          </div>
+          <nav className="vehicle-inspector-nav" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }} aria-label="Admin sections">
+            <Link href="/" style={{ color: '#9AA0A6', textDecoration: 'none', fontSize: '13px', padding: '10px 12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>Bookings</Link>
+            <Link href="/vehicles" aria-current="page" style={{ color: '#F3F4F6', textDecoration: 'none', fontSize: '13px', fontWeight: '600', padding: '10px 12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', borderBottom: '2px solid #C89D46' }}>Vehicles</Link>
+            <Link href="/owners" style={{ color: '#9AA0A6', textDecoration: 'none', fontSize: '13px', padding: '10px 12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>Owners</Link>
+          </nav>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="vehicle-inspector-staff" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {staffEmail && (
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '12px', fontWeight: '600', color: '#F3F4F6' }}>{staffEmail}</div>
-              <div style={{ fontSize: '10px', color: '#9AA0A6', textTransform: 'capitalize' }}>
+              <div style={{ fontSize: '12px', color: '#9AA0A6', textTransform: 'capitalize' }}>
                 {staffRole || 'Staff Operator'}
               </div>
             </div>
@@ -285,23 +289,22 @@ export function VehicleModerationInspector({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: '600',
-              padding: '4px 10px',
-              borderRadius: '4px',
-              backgroundColor: statusInfo.bg,
+              minHeight: '44px',
               color: statusInfo.text,
             }}
           >
             <StatusIcon size={13} />
             {statusInfo.label}
           </span>
-          <div style={{ fontSize: '12px', color: '#6B7280' }}>Version {vehicle.version}</div>
+          <div style={{ fontSize: '12px', color: '#6B7280' }}>v{vehicle.version}</div>
         </div>
       </header>
 
       {/* Main Grid */}
       <main
+        className="vehicle-inspector-grid"
         style={{
           maxWidth: '1440px',
           margin: '0 auto',
@@ -343,7 +346,7 @@ export function VehicleModerationInspector({
                   backgroundColor: 'rgba(9,10,12,0.85)',
                   padding: '4px 10px',
                   borderRadius: '4px',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: '600',
                   color: '#C89D46',
                   border: '1px solid #28303F',
@@ -361,7 +364,9 @@ export function VehicleModerationInspector({
                   top: '12px',
                   right: '12px',
                   backgroundColor: 'rgba(9,10,12,0.85)',
-                  padding: '6px',
+                  padding: '10px',
+                  minHeight: '44px',
+                  minWidth: '44px',
                   borderRadius: '4px',
                   color: '#F9FAFB',
                   border: '1px solid #28303F',
@@ -382,7 +387,7 @@ export function VehicleModerationInspector({
                   backgroundColor: 'rgba(9,10,12,0.75)',
                   padding: '3px 8px',
                   borderRadius: '4px',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   color: '#9AA0A6',
                 }}
               >
@@ -439,12 +444,12 @@ export function VehicleModerationInspector({
                   {vehicle.make} {vehicle.model}
                 </h2>
                 <div style={{ fontSize: '12px', color: '#9AA0A6' }}>
-                  Model Year {vehicle.year} · {vehicle.category === 'executive_suv' ? 'Executive SUV' : 'Executive Sedan'}
+                  Model year {vehicle.year} · {vehicle.category === 'executive_suv' ? 'SUV' : 'Sedan'}
                 </div>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: '#9AA0A6', textTransform: 'uppercase' }}>Daily Rate</div>
+                <div style={{ fontSize: '12px', color: '#9AA0A6' }}>Daily rate</div>
                 <div style={{ fontSize: '18px', fontWeight: '700', color: '#C89D46' }}>
                   {formatNaira(vehicle.dailyRateKobo)}
                 </div>
@@ -465,36 +470,30 @@ export function VehicleModerationInspector({
               }}
             >
               <div>
-                <div style={{ color: '#6B7280', fontSize: '11px' }}>REGISTRATION PLATE</div>
+                <div style={{ color: '#6B7280', fontSize: '12px' }}>Registration plate</div>
                 <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.plateMasked}</div>
               </div>
               <div>
-                <div style={{ color: '#6B7280', fontSize: '11px' }}>SEATING CAPACITY</div>
+                <div style={{ color: '#6B7280', fontSize: '12px' }}>Seating capacity</div>
                 <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.seats} Passengers</div>
               </div>
               <div>
-                <div style={{ color: '#6B7280', fontSize: '11px' }}>TRANSMISSION</div>
+                <div style={{ color: '#6B7280', fontSize: '12px' }}>Transmission</div>
                 <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.transmission}</div>
               </div>
               <div>
-                <div style={{ color: '#6B7280', fontSize: '11px' }}>EXTERIOR COLOUR</div>
+                <div style={{ color: '#6B7280', fontSize: '12px' }}>Exterior colour</div>
                 <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.colour}</div>
               </div>
               <div>
-                <div style={{ color: '#6B7280', fontSize: '11px' }}>LAGOS DISPATCH AREA</div>
+                <div style={{ color: '#6B7280', fontSize: '12px' }}>Lagos dispatch area</div>
                 <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.areaLabel}</div>
-              </div>
-              <div>
-                <div style={{ color: '#6B7280', fontSize: '11px' }}>NET OWNER PAYOUT (85%)</div>
-                <div style={{ color: '#4ADE80', fontWeight: '600', marginTop: '2px' }}>
-                  {formatNaira(Math.round(vehicle.dailyRateKobo * 0.85))}
-                </div>
               </div>
             </div>
 
             {vehicle.description && (
               <div>
-                <div style={{ fontSize: '11px', color: '#9AA0A6', fontWeight: '600', marginBottom: '6px', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '12px', color: '#9AA0A6', fontWeight: '600', marginBottom: '6px' }}>
                   Owner Listing Description
                 </div>
                 <p style={{ margin: 0, fontSize: '13px', color: '#D1D5DB', lineHeight: '1.6', backgroundColor: '#141820', padding: '12px', borderRadius: '6px', border: '1px solid #1E232E' }}>
@@ -544,9 +543,12 @@ export function VehicleModerationInspector({
               {VEHICLE_CHECKLIST_ITEMS.map((item) => {
                 const isChecked = Boolean(checkedKeys[item.key]);
                 return (
-                  <div
+                  <button
                     key={item.key}
                     onClick={() => toggleCheck(item.key)}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={isChecked}
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
@@ -558,6 +560,9 @@ export function VehicleModerationInspector({
                       borderColor: isChecked ? 'rgba(34, 197, 94, 0.3)' : '#1E232E',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
+                      textAlign: 'left',
+                      width: '100%',
+                      minHeight: '44px',
                     }}
                   >
                     <div
@@ -581,11 +586,11 @@ export function VehicleModerationInspector({
                       <div style={{ fontSize: '13px', fontWeight: '600', color: isChecked ? '#F9FAFB' : '#D1D5DB' }}>
                         {item.label}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#9AA0A6', marginTop: '2px', lineHeight: '1.4' }}>
+                      <div style={{ fontSize: '12px', color: '#9AA0A6', marginTop: '2px', lineHeight: '1.4' }}>
                         {item.description}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -596,6 +601,7 @@ export function VehicleModerationInspector({
                 style={{
                   marginTop: '16px',
                   padding: '12px',
+                  minHeight: '44px',
                   borderRadius: '6px',
                   backgroundColor: 'rgba(239, 68, 68, 0.1)',
                   border: '1px solid rgba(239, 68, 68, 0.25)',
@@ -664,6 +670,7 @@ export function VehicleModerationInspector({
                     border: '1px solid rgba(239, 68, 68, 0.3)',
                     borderRadius: '6px',
                     padding: '10px',
+                    minHeight: '44px',
                     fontSize: '12px',
                     fontWeight: '600',
                     cursor: 'pointer',
@@ -688,7 +695,7 @@ export function VehicleModerationInspector({
                     gap: '10px',
                   }}
                 >
-                  <label style={{ fontSize: '11px', fontWeight: '600', color: '#F87171' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: '#F87171' }}>
                     REASON FOR REJECTION / REQUIRED CHANGES
                   </label>
                   <textarea
@@ -715,8 +722,9 @@ export function VehicleModerationInspector({
                         color: '#9AA0A6',
                         border: '1px solid #28303F',
                         borderRadius: '4px',
-                        padding: '6px 10px',
-                        fontSize: '11px',
+                        padding: '10px',
+                        minHeight: '44px',
+                        fontSize: '12px',
                         cursor: 'pointer',
                       }}
                     >
@@ -730,8 +738,9 @@ export function VehicleModerationInspector({
                         color: '#FFFFFF',
                         border: 'none',
                         borderRadius: '4px',
-                        padding: '6px 12px',
-                        fontSize: '11px',
+                        padding: '10px 12px',
+                        minHeight: '44px',
+                        fontSize: '12px',
                         fontWeight: '700',
                         cursor: 'pointer',
                       }}
@@ -752,6 +761,7 @@ export function VehicleModerationInspector({
                     border: '1px solid rgba(239, 68, 68, 0.3)',
                     borderRadius: '6px',
                     padding: '10px',
+                    minHeight: '44px',
                     fontSize: '12px',
                     fontWeight: '600',
                     cursor: 'pointer',
@@ -778,7 +788,7 @@ export function VehicleModerationInspector({
                     gap: '10px',
                   }}
                 >
-                  <label style={{ fontSize: '11px', fontWeight: '600', color: '#EF4444' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: '#EF4444' }}>
                     REASON FOR SUSPENSION (REQUIRED)
                   </label>
                   <textarea
@@ -805,8 +815,9 @@ export function VehicleModerationInspector({
                         color: '#9AA0A6',
                         border: '1px solid #28303F',
                         borderRadius: '4px',
-                        padding: '6px 10px',
-                        fontSize: '11px',
+                        padding: '10px',
+                        minHeight: '44px',
+                        fontSize: '12px',
                         cursor: 'pointer',
                       }}
                     >
@@ -820,8 +831,9 @@ export function VehicleModerationInspector({
                         color: '#FFFFFF',
                         border: 'none',
                         borderRadius: '4px',
-                        padding: '6px 12px',
-                        fontSize: '11px',
+                        padding: '10px 12px',
+                        minHeight: '44px',
+                        fontSize: '12px',
                         fontWeight: '700',
                         cursor: 'pointer',
                       }}
@@ -843,6 +855,7 @@ export function VehicleModerationInspector({
                     border: '1px solid rgba(34, 197, 94, 0.3)',
                     borderRadius: '6px',
                     padding: '12px',
+                    minHeight: '44px',
                     fontSize: '13px',
                     fontWeight: '700',
                     cursor: 'pointer',

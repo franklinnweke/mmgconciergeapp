@@ -9,6 +9,8 @@ type RouteContext = {
   params: Promise<{ vehicleId: string }>;
 };
 
+const GENERIC_REVIEW_ERROR = 'The vehicle review action could not be completed. Please try again.';
+
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { vehicleId } = await context.params;
@@ -68,7 +70,10 @@ export async function POST(request: Request, context: RouteContext) {
 
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Vehicle review could not be completed.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    // The action already maps known domain errors to safe messages. Any
+    // unexpected exception must remain server-side and never cross the API
+    // boundary through Error.message.
+    void error;
+    return NextResponse.json({ error: GENERIC_REVIEW_ERROR }, { status: 500 });
   }
 }
