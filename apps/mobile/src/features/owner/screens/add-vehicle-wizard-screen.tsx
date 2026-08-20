@@ -119,8 +119,6 @@ export function AddVehicleWizardScreen() {
   const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
 
   const rateKobo = (parseInt(dailyRateNaira.replace(/[^0-9]/g, ''), 10) || 0) * 100;
-  const ownerCommissionKobo = Math.round(rateKobo * 0.15);
-  const ownerNetTakeHomeKobo = rateKobo - ownerCommissionKobo;
 
   const toggleFeature = (feat: VehicleFeatureKey) => {
     setFeatures((prev) =>
@@ -207,7 +205,7 @@ export function AddVehicleWizardScreen() {
       setStep(4);
     } else if (step === 4) {
       if (description.trim().length < 40) {
-        setErrorMsg('Description must be at least 40 characters detailing the executive experience.');
+        setErrorMsg('Description must be at least 40 characters.');
         return;
       }
       if (description.trim().length > 2000) {
@@ -357,13 +355,11 @@ export function AddVehicleWizardScreen() {
           {step === 1 && (
             <View style={styles.stepContainer}>
               <Text style={styles.title}>Vehicle Specifications</Text>
-              <Text style={styles.subtitle}>
-                Specify the executive vehicle make, model, category, and capacity.
-              </Text>
-
               <Text style={styles.fieldLabel}>CATEGORY</Text>
               <View style={styles.pillRow}>
                 <PressableScale
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: category === 'executive_suv' }}
                   onPress={() => setCategory('executive_suv')}
                   style={[styles.pill, category === 'executive_suv' && styles.pillSelected]}
                 >
@@ -377,6 +373,8 @@ export function AddVehicleWizardScreen() {
                   </Text>
                 </PressableScale>
                 <PressableScale
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: category === 'executive_sedan' }}
                   onPress={() => setCategory('executive_sedan')}
                   style={[styles.pill, category === 'executive_sedan' && styles.pillSelected]}
                 >
@@ -449,6 +447,8 @@ export function AddVehicleWizardScreen() {
               <View style={styles.pillRow}>
                 {(['automatic', 'manual'] as const).map((t) => (
                   <PressableScale
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: transmission === t }}
                     key={t}
                     onPress={() => setTransmission(t)}
                     style={[styles.pill, transmission === t && styles.pillSelected]}
@@ -464,6 +464,8 @@ export function AddVehicleWizardScreen() {
               <View style={styles.pillRow}>
                 {(['petrol', 'diesel', 'hybrid'] as const).map((f) => (
                   <PressableScale
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: fuelType === f }}
                     key={f}
                     onPress={() => setFuelType(f)}
                     style={[styles.pill, fuelType === f && styles.pillSelected]}
@@ -490,6 +492,8 @@ export function AddVehicleWizardScreen() {
                 <View style={styles.pillRow}>
                   {LAGOS_AREA_LABELS.map((area) => (
                     <PressableScale
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: areaLabel === area }}
                       key={area}
                       onPress={() => setAreaLabel(area)}
                       style={[styles.pill, areaLabel === area && styles.pillSelected]}
@@ -532,10 +536,7 @@ export function AddVehicleWizardScreen() {
           {/* STEP 3: Pricing */}
           {step === 3 && (
             <View style={styles.stepContainer}>
-              <Text style={styles.title}>Chauffeured Daily Rate</Text>
-              <Text style={styles.subtitle}>
-                Set your daily rental rate in Nigerian Naira. Uniformed executive chauffeur and delivery are included.
-              </Text>
+              <Text style={styles.title}>Daily rate</Text>
 
               <Text style={styles.fieldLabel}>DAILY RATE (NGN)</Text>
               <View style={styles.currencyInputContainer}>
@@ -555,21 +556,9 @@ export function AddVehicleWizardScreen() {
                   <Text style={styles.breakdownLabel}>Gross Daily Rate</Text>
                   <Text style={styles.breakdownValue}>{formatNairaFromKobo(rateKobo)}</Text>
                 </View>
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>MMG Commission (15%)</Text>
-                  <Text style={[styles.breakdownValue, { color: colors.muted }]}>
-                    - {formatNairaFromKobo(ownerCommissionKobo)}
-                  </Text>
-                </View>
-                <View style={styles.breakdownDivider} />
-                <View style={styles.breakdownRow}>
-                  <Text style={[styles.breakdownLabel, { color: colors.goldStrong, fontFamily: typography.bodySemiBold }]}>
-                    Your Net Take-Home
-                  </Text>
-                  <Text style={[styles.breakdownValue, { color: colors.goldStrong, fontFamily: typography.display, fontSize: 18 }]}>
-                    {formatNairaFromKobo(ownerNetTakeHomeKobo)} / day
-                  </Text>
-                </View>
+                <Text style={styles.helperText}>
+                  Booking earnings are calculated from the active server pricing and owner terms.
+                </Text>
               </View>
             </View>
           )}
@@ -577,17 +566,16 @@ export function AddVehicleWizardScreen() {
           {/* STEP 4: Features & Description */}
           {step === 4 && (
             <View style={styles.stepContainer}>
-              <Text style={styles.title}>Amenities & Description</Text>
-              <Text style={styles.subtitle}>
-                Highlight luxury cabin features and write an executive description for VIP renters.
-              </Text>
+              <Text style={styles.title}>Features and description</Text>
 
-              <Text style={styles.fieldLabel}>LUXURY AMENITIES</Text>
+              <Text style={styles.fieldLabel}>FEATURES</Text>
               <View style={styles.featureGrid}>
                 {(Object.keys(FEATURE_LABELS) as VehicleFeatureKey[]).map((feat) => {
                   const selected = features.includes(feat);
                   return (
                     <PressableScale
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected }}
                       key={feat}
                       onPress={() => toggleFeature(feat)}
                       style={[styles.featurePill, selected && styles.featurePillSelected]}
@@ -605,12 +593,12 @@ export function AddVehicleWizardScreen() {
                 })}
               </View>
 
-              <Text style={styles.fieldLabel}>EXECUTIVE DESCRIPTION (MIN 40 CHARS)</Text>
+              <Text style={styles.fieldLabel}>DESCRIPTION (MIN 40 CHARS)</Text>
               <TextInput
                 multiline
                 numberOfLines={4}
                 onChangeText={setDescription}
-                placeholder="Describe vehicle condition, chauffeur standards, interior comfort, and suited executive occasions..."
+                placeholder="Describe the vehicle condition, interior, and service details."
                 placeholderTextColor={colors.muted}
                 style={[styles.input, styles.textArea]}
                 value={description}
@@ -622,27 +610,21 @@ export function AddVehicleWizardScreen() {
           {/* STEP 5: Photos */}
           {step === 5 && (
             <View style={styles.stepContainer}>
-              <Text style={styles.title}>Vehicle Photos</Text>
-              <Text style={styles.subtitle}>
-                Upload 1 to 20 pristine exterior and cabin photos. The first photo will be used as the primary cover.
-              </Text>
+              <Text style={styles.title}>Photos</Text>
+              <Text style={styles.subtitle}>Add 1–20 photos. The first is the cover.</Text>
 
               <PressableScale onPress={pickPhotos} style={styles.photoPickerButton}>
                 <Ionicons color={colors.goldStrong} name="images-outline" size={24} />
                 <Text style={styles.photoPickerText}>
                   {photos.length === 0 ? 'Select Photos from Library' : 'Add More Photos'}
                 </Text>
-                <Text style={styles.photoPickerSubtext}>High-resolution JPEG or PNG · Max 10MB each</Text>
+                <Text style={styles.photoPickerSubtext}>JPEG or PNG · Max 10MB each</Text>
               </PressableScale>
 
               <Text style={styles.fieldLabel}>SELECTED PHOTOS ({photos.length} / 20)</Text>
 
               {photos.length === 0 ? (
-                <View style={styles.emptyPhotosBox}>
-                  <Ionicons color={colors.muted} name="car-outline" size={36} />
-                  <Text style={styles.emptyPhotosText}>No photos selected yet.</Text>
-                  <Text style={styles.emptyPhotosSubtext}>At least 1 photo is required to submit for moderation.</Text>
-                </View>
+                <Text style={styles.emptyPhotosText}>Add at least one photo to continue.</Text>
               ) : (
                 <View style={styles.photoGrid}>
                   {photos.map((p, idx) => (
@@ -667,9 +649,6 @@ export function AddVehicleWizardScreen() {
           {step === 6 && (
             <View style={styles.stepContainer}>
               <Text style={styles.title}>Review & Submit</Text>
-              <Text style={styles.subtitle}>
-                Confirm your listing details before sending to the MMG operations desk.
-              </Text>
 
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryTitle}>{`${year} ${make} ${model}`}</Text>
@@ -700,12 +679,6 @@ export function AddVehicleWizardScreen() {
                   <Text style={styles.summaryValue}>{photos.length} photos</Text>
                 </View>
 
-                <View style={styles.summaryDivider} />
-
-                <View style={styles.includedRow}>
-                  <Ionicons color={colors.success} name="shield-checkmark" size={16} />
-                  <Text style={styles.includedText}>Executive Chauffeur & Lagos Delivery Included</Text>
-                </View>
               </View>
 
               {submitting && submissionProgress ? (
@@ -734,7 +707,7 @@ export function AddVehicleWizardScreen() {
                   <ActivityIndicator color={colors.black} size="small" />
                 ) : (
                   <>
-                    <Text style={styles.primaryButtonText}>SUBMIT FOR EXECUTIVE REVIEW</Text>
+                    <Text style={styles.primaryButtonText}>SUBMIT FOR REVIEW</Text>
                     <Ionicons color={colors.black} name="checkmark-circle" size={18} />
                   </>
                 )}
@@ -755,20 +728,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     paddingBottom: spacing.xxl,
   },
-  breakdownCard: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    padding: spacing.md,
-  },
-  breakdownDivider: {
-    backgroundColor: colors.line,
-    height: 1,
-    marginVertical: spacing.xs,
-  },
+  breakdownCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, marginTop: spacing.md, paddingVertical: spacing.md },
   breakdownLabel: {
     color: colors.muted,
     fontFamily: typography.body,
@@ -816,22 +776,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.display,
     fontSize: 22,
   },
-  emptyPhotosBox: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    gap: spacing.xs,
-    justifyContent: 'center',
-    paddingVertical: spacing.xl,
-  },
-  emptyPhotosSubtext: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 11,
-  },
   emptyPhotosText: {
     color: colors.ivory,
     fontFamily: typography.bodyMedium,
@@ -867,6 +811,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -905,16 +850,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.body,
     fontSize: 11,
     marginTop: 4,
-  },
-  includedRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  includedText: {
-    color: colors.success,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
   },
   input: {
     backgroundColor: colors.graphite,
@@ -973,6 +908,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -1084,14 +1020,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: spacing.sm,
   },
-  summaryCard: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
+  summaryCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs, paddingVertical: spacing.md },
   summaryCategory: {
     color: colors.muted,
     fontFamily: typography.body,

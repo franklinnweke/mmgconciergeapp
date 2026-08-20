@@ -117,13 +117,7 @@ export function OwnerFleetScreen() {
             <Text style={styles.bookingsButtonText}>BOOKINGS</Text>
           </PressableScale>
         </View>
-        <View style={styles.titleBlock}>
-          <Text style={styles.eyebrow}>HOST FLEET MANAGEMENT</Text>
-          <Text style={styles.title}>My Luxury Fleet</Text>
-          <Text style={styles.subtitle}>
-            Chauffeured luxury vehicles registered to your MMG owner account.
-          </Text>
-        </View>
+        <Text style={styles.title}>Fleet</Text>
       </View>
 
       {syncError ? (
@@ -145,12 +139,9 @@ export function OwnerFleetScreen() {
           keyExtractor={(item) => item.vehicleId}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <View style={styles.emptyIconContainer}>
-                <Ionicons color={colors.goldStrong} name="car-sport-outline" size={44} />
-              </View>
               <Text style={styles.emptyTitle}>No Vehicles Registered</Text>
-              <Text style={styles.emptyBody}>
-                You haven’t listed any luxury chauffeured vehicles yet. Add your first vehicle to begin earning on MMG Concierge.
+              <Text style={styles.emptyCopy}>
+                Add an approved chauffeured vehicle to begin managing your Lagos inventory.
               </Text>
               <PressableScale onPress={handleAddVehicle} style={styles.emptyButton}>
                 <Ionicons color={colors.black} name="add-circle" size={20} />
@@ -319,14 +310,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  emptyBody: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
   emptyButton: {
     alignItems: 'center',
     backgroundColor: colors.gold,
@@ -344,14 +327,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  emptyIconContainer: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(212,175,55,0.1)',
-    borderRadius: 40,
-    height: 80,
-    justifyContent: 'center',
-    width: 80,
-  },
+  emptyCopy: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: spacing.xs, textAlign: 'center' },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -382,13 +358,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: typography.body,
     fontSize: 12,
-  },
-  eyebrow: {
-    color: colors.goldStrong,
-    fontFamily: typography.body,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -465,13 +434,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.black,
     flex: 1,
   },
-  subtitle: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 2,
-  },
   switchLabel: {
     color: colors.muted,
     fontFamily: typography.body,
@@ -488,9 +450,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     marginTop: 2,
-  },
-  titleBlock: {
-    marginTop: spacing.md,
   },
   topRow: {
     alignItems: 'center',
