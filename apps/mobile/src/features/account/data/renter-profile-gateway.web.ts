@@ -13,25 +13,54 @@ import {
   doc,
   getDoc,
   getFirestore,
+  type Firestore,
 } from 'firebase/firestore';
 import {
   getFunctions,
   httpsCallable,
+  type Functions,
 } from 'firebase/functions';
 
 import { RenterProfileGateway } from './renter-profile-gateway';
+
+export const PREVIEW_RENTER_PROFILE: RenterProfileRecord = {
+  renterId: 'preview-renter',
+  fullName: 'Preview Guest',
+  email: 'preview@mmgconcierge.local',
+  phone: '+2348000000000',
+  defaultDeliveryAddress: {
+    streetAddress: '15 Queens Drive, Ikoyi',
+    areaLabel: 'Victoria Island',
+  },
+  acceptedRenterTermsVersion: '2026-03-01',
+  acceptedPrivacyNoticeVersion: '2026-03-01',
+  accountStatus: 'active',
+  deletionReason: null,
+  deletionRequestedAt: null,
+  profileVersion: 1,
+  createdAt: '2026-08-01T00:00:00.000Z',
+  updatedAt: '2026-08-01T00:00:00.000Z',
+};
 
 function generateIdempotencyKey(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 }
 
 export class WebRenterProfileGateway implements RenterProfileGateway {
-  private get firestore() {
-    return getFirestore();
+  private customFirestore?: Firestore;
+  private customFunctions?: Functions;
+
+  constructor(firestore?: Firestore, functions?: Functions) {
+    this.customFirestore = firestore;
+    this.customFunctions = functions;
   }
 
-  private get functions() {
-    return getFunctions(undefined, 'africa-south1');
+  private get firestore(): Firestore {
+    return this.customFirestore ?? getFirestore();
+  }
+
+  private get functions(): Functions {
+    return this.customFunctions ?? getFunctions(undefined, 'africa-south1');
   }
 
   async getRenterProfile(renterId: string): Promise<RenterProfileRecord | null> {
@@ -92,6 +121,23 @@ export class WebRenterProfileGateway implements RenterProfileGateway {
   }
 }
 
-export function createRenterProfileGateway(): RenterProfileGateway {
-  return new WebRenterProfileGateway();
+export class PreviewRenterProfileGateway implements RenterProfileGateway {
+  async getRenterProfile(renterId: string): Promise<RenterProfileRecord | null> {
+    return renterId === PREVIEW_RENTER_PROFILE.renterId ? PREVIEW_RENTER_PROFILE : null;
+  }
+
+  async completeProfile(): Promise<CompleteRenterProfileResult> {
+    throw new Error('Profile changes are unavailable in web preview mode. Use a native development build.');
+  }
+
+  async requestDeletion(): Promise<RequestAccountDeletionResult> {
+    throw new Error('Account deletion is unavailable in web preview mode. Use a native development build.');
+  }
+}
+
+export function createRenterProfileGateway(firestore?: Firestore, functions?: Functions): RenterProfileGateway {
+  if (firestore || functions) {
+    return new WebRenterProfileGateway(firestore, functions);
+  }
+  return new PreviewRenterProfileGateway();
 }

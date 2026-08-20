@@ -12,7 +12,7 @@ export type PickupDistrictSheetProps = {
   onClose(): void;
 };
 
-const DISTRICTS: {
+export const DISTRICTS: {
   area: string;
   name: string;
   subtitle: string;
@@ -60,25 +60,34 @@ export function PickupDistrictSheet({
 
   return (
     <Modal
+      accessibilityViewIsModal
       animationType="fade"
       onRequestClose={onClose}
       transparent
       visible={visible}
     >
       <View style={styles.overlay}>
-        <Pressable onPress={onClose} style={StyleSheet.absoluteFill} />
+        <Pressable
+          accessibilityLabel="Dismiss district selection"
+          accessibilityRole="button"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
 
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
           <View style={styles.handle} />
 
           {/* Header */}
           <View style={styles.header}>
-            <div>
+            <View style={styles.headerTitleGroup}>
               <Text style={styles.eyebrow}>LAGOS DISPATCH</Text>
-              <Text style={styles.title}>Select Pickup Region</Text>
-            </div>
+              <Text accessibilityRole="header" style={styles.title}>
+                Select Pickup Region
+              </Text>
+            </View>
             <Pressable
               accessibilityLabel="Close district selection"
+              accessibilityRole="button"
               onPress={onClose}
               style={styles.closeButton}
             >
@@ -95,6 +104,7 @@ export function PickupDistrictSheet({
 
               return (
                 <PressableScale
+                  accessibilityLabel={`${item.name}. ${item.subtitle}`}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
                   key={item.area}
@@ -163,6 +173,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
+  },
+  headerTitleGroup: {
+    flex: 1,
   },
   itemCopy: {
     flex: 1,

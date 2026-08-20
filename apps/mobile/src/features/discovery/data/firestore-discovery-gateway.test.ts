@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WebFirestoreDiscoveryGateway } from './firestore-discovery-gateway.web';
+import {
+  WebFirestoreDiscoveryGateway,
+  createDiscoveryGateway,
+} from './firestore-discovery-gateway.web';
 
 const mockDocs = [
   {
@@ -197,5 +200,24 @@ describe('WebFirestoreDiscoveryGateway', () => {
     expect(vehicle).not.toBeNull();
     expect(vehicle!.id).toBe('veh-live-1');
     expect(vehicle!.areaLabel).toBe('Ikoyi');
+  });
+});
+
+describe('web preview discovery boundary', () => {
+  it('uses the Prado-led deterministic fleet by default', async () => {
+    const gateway = createDiscoveryGateway();
+    const vehicles = await gateway.getFeaturedVehicles();
+
+    expect(vehicles.length).toBeGreaterThan(0);
+    expect(vehicles[0].id).toMatch(/^preview-/);
+    expect(vehicles.some((vehicle) => vehicle.displayName.includes('Prado'))).toBe(true);
+  });
+
+  it('keeps preview list and detail identifiers consistent', async () => {
+    const gateway = createDiscoveryGateway();
+    const [first] = await gateway.getFeaturedVehicles();
+
+    await expect(gateway.getVehicleById(first.id)).resolves.toEqual(first);
+    await expect(gateway.getVehicleById('missing-preview-vehicle')).resolves.toBeNull();
   });
 });

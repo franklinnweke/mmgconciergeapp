@@ -4,7 +4,7 @@ import { VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,7 +51,16 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
   const { requestAvailability } = useBookings();
   const gateway = useMemo(() => createDiscoveryGateway(), []);
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(vehicleId));
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const retryFetch = useCallback(() => {
+    setFetchError(null);
+    setLoading(true);
+    setReloadKey((k) => k + 1);
+  }, []);
+
   const journey = useMemo(() => resolveJourney(startDate, endDate), [endDate, startDate]);
   const validDuration = journey.durationDays;
   const [requested, setRequested] = useState(false);
@@ -59,26 +68,39 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!vehicleId) {
+      setLoading(false);
+      setVehicle(null);
+      setFetchError(null);
+      return;
+    }
     let isMounted = true;
+    setLoading(true);
+    setFetchError(null);
+
     gateway
       .getVehicleById(vehicleId)
       .then((v) => {
         if (isMounted) {
           setVehicle(v);
           setLoading(false);
+          setFetchError(null);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (isMounted) {
           setVehicle(null);
           setLoading(false);
+          setFetchError(
+            err instanceof Error ? err.message : 'Unable to connect to fleet services. Please try again.',
+          );
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, [gateway, vehicleId]);
+  }, [gateway, vehicleId, reloadKey]);
 
   const quote = useMemo(
     () => (vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, validDuration) : null),
@@ -94,6 +116,29 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
     );
   }
 
+  if (fetchError) {
+    return (
+      <View style={[styles.missing, { paddingTop: insets.top + spacing.lg }]}>
+        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
+          <View style={styles.backButton}>
+            <Ionicons color={colors.ivory} name="arrow-back" size={19} />
+          </View>
+        </PressableScale>
+        <Ionicons color={colors.danger} name="cloud-offline-outline" size={36} />
+        <Text style={styles.missingTitle}>Connection Error</Text>
+        <Text style={styles.subtitle}>
+          Unable to retrieve vehicle quotation. Please check your connection and try again.
+        </Text>
+        <PressableScale accessibilityLabel="Retry loading quote" accessibilityRole="button" onPress={retryFetch}>
+          <View style={styles.retryButton}>
+            <Ionicons color={colors.black} name="refresh" size={16} />
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </View>
+        </PressableScale>
+      </View>
+    );
+  }
+
   if (!vehicle || !quote) {
     return (
       <View style={[styles.missing, { paddingTop: insets.top + spacing.lg }]}>
@@ -102,7 +147,16 @@ export default function BookingReviewScreen({ endDate, startDate, vehicleId }: B
             <Ionicons color={colors.ivory} name="arrow-back" size={19} />
           </View>
         </PressableScale>
+        <Ionicons color={colors.goldStrong} name="car-sport-outline" size={36} />
         <Text style={styles.missingTitle}>This vehicle listing is no longer available.</Text>
+        <Text style={styles.subtitle}>
+          Return to the fleet to select another chauffeur-ready option.
+        </Text>
+        <PressableScale accessibilityLabel="Return to fleet" accessibilityRole="button" onPress={() => router.back()}>
+          <View style={styles.returnButton}>
+            <Text style={styles.returnButtonText}>Return to Fleet</Text>
+          </View>
+        </PressableScale>
       </View>
     );
   }
@@ -418,6 +472,38 @@ const styles = StyleSheet.create({
   quoteValue: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+  },
+  retryButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.goldStrong,
+    borderRadius: radii.pill,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  retryButtonText: {
+    color: colors.black,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+  },
+  returnButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.graphiteRaised,
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  returnButtonText: {
+    color: colors.ivory,
+    fontFamily: typography.bodyMedium,
     fontSize: 13,
   },
   rule: {

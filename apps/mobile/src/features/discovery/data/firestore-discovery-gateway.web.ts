@@ -22,6 +22,8 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 
+import { previewDiscoveryGateway } from './preview-discovery-gateway';
+
 const DEFAULT_LAGOS_ORIGIN = { lat: 6.4281, lng: 3.4219 };
 const MAX_DISCOVERY_FETCH_LIMIT = 30;
 
@@ -204,5 +206,8 @@ export class WebFirestoreDiscoveryGateway implements DiscoveryGateway {
 }
 
 export function createDiscoveryGateway(firestore?: Firestore): DiscoveryGateway {
-  return new WebFirestoreDiscoveryGateway(firestore);
+  if (firestore) {
+    return new WebFirestoreDiscoveryGateway(firestore);
+  }
+  return previewDiscoveryGateway;
 }

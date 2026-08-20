@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WebRenterProfileGateway } from './renter-profile-gateway.web';
+import {
+  PreviewRenterProfileGateway,
+  WebRenterProfileGateway,
+  createRenterProfileGateway,
+} from './renter-profile-gateway.web';
 
 const mockProfileData = {
   renterId: 'renter-1',
@@ -98,5 +102,25 @@ describe('WebRenterProfileGateway', () => {
     });
 
     expect(result.result.accountStatus).toBe('deletion_requested');
+  });
+});
+
+describe('web preview renter profile boundary', () => {
+  it('uses the deterministic preview adapter unless live dependencies are explicitly injected', async () => {
+    const gateway = createRenterProfileGateway();
+
+    expect(gateway).toBeInstanceOf(PreviewRenterProfileGateway);
+    await expect(gateway.getRenterProfile('preview-renter')).resolves.toMatchObject({
+      renterId: 'preview-renter',
+      accountStatus: 'active',
+    });
+  });
+
+  it('fails honestly instead of simulating profile mutations', async () => {
+    const gateway = createRenterProfileGateway();
+
+    await expect(
+      gateway.requestDeletion({ confirmation: true, reason: 'Preview check' }),
+    ).rejects.toThrow('unavailable in web preview mode');
   });
 });

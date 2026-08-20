@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
+import { type VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -68,29 +70,52 @@ export default function VehicleDetailScreen({
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [vehicle, setVehicle] = useState<any>(null);
+  const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
+  const [loading, setLoading] = useState(Boolean(vehicleId));
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const retryFetch = useCallback(() => {
+    setFetchError(null);
+    setLoading(true);
+    setReloadKey((k) => k + 1);
+  }, []);
 
   const gateway = useMemo(() => createDiscoveryGateway(), []);
 
   useEffect(() => {
-    if (!vehicleId) return;
+    if (!vehicleId) {
+      setLoading(false);
+      setVehicle(null);
+      setFetchError(null);
+      return;
+    }
     let isMounted = true;
+    setLoading(true);
+    setFetchError(null);
+
     gateway
       .getVehicleById(vehicleId)
       .then((v) => {
         if (isMounted) {
           setVehicle(v);
+          setLoading(false);
+          setFetchError(null);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (isMounted) {
           setVehicle(null);
+          setLoading(false);
+          setFetchError(
+            err instanceof Error ? err.message : 'Unable to connect to fleet services. Please try again.',
+          );
         }
       });
     return () => {
       isMounted = false;
     };
-  }, [gateway, vehicleId]);
+  }, [gateway, vehicleId, reloadKey]);
 
   const [{ durationDays, startDate: pickupDate }, setJourney] = useState(() =>
     initialJourney(propStartDate, propEndDate),
@@ -135,6 +160,47 @@ export default function VehicleDetailScreen({
     }
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
+        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
+          <View style={styles.roundButton}>
+            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
+          </View>
+        </PressableScale>
+        <View style={styles.missingCopy}>
+          <ActivityIndicator color={colors.goldStrong} size="large" />
+          <Text style={styles.loadingText}>Retrieving vehicle specifications…</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
+        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
+          <View style={styles.roundButton}>
+            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
+          </View>
+        </PressableScale>
+        <View style={styles.missingCopy}>
+          <Ionicons color={colors.danger} name="cloud-offline-outline" size={36} />
+          <Text style={styles.missingTitle}>Connection Error</Text>
+          <Text style={styles.missingBody}>
+            Unable to connect to the fleet registry. Please check your network and try again.
+          </Text>
+          <PressableScale accessibilityLabel="Retry loading vehicle" accessibilityRole="button" onPress={retryFetch}>
+            <View style={styles.retryButton}>
+              <Ionicons color={colors.black} name="refresh" size={16} />
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </View>
+          </PressableScale>
+        </View>
+      </View>
+    );
+  }
+
   if (!vehicle || !quote) {
     return (
       <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
@@ -147,6 +213,11 @@ export default function VehicleDetailScreen({
           <Ionicons color={colors.goldStrong} name="car-sport-outline" size={36} />
           <Text style={styles.missingTitle}>Vehicle unavailable.</Text>
           <Text style={styles.missingBody}>Return to the fleet to choose another chauffeur-ready option.</Text>
+          <PressableScale accessibilityLabel="Return to fleet" accessibilityRole="button" onPress={() => router.back()}>
+            <View style={styles.returnButton}>
+              <Text style={styles.returnButtonText}>Return to Fleet</Text>
+            </View>
+          </PressableScale>
         </View>
       </View>
     );
@@ -573,6 +644,12 @@ const styles = StyleSheet.create({
     height: 4,
     width: 4,
   },
+  loadingText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.sm,
+    marginTop: spacing.md,
+  },
   missingBody: {
     color: colors.muted,
     fontFamily: typography.body,
@@ -596,6 +673,38 @@ const styles = StyleSheet.create({
     color: colors.ivory,
     fontFamily: typography.display,
     fontSize: fontSizes.display,
+  },
+  retryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.goldStrong,
+    borderRadius: radii.pill,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.xl,
+  },
+  retryButtonText: {
+    color: colors.black,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.sm,
+  },
+  returnButton: {
+    alignItems: 'center',
+    backgroundColor: colors.graphiteRaised,
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.xl,
+  },
+  returnButtonText: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.sm,
   },
   primaryButton: {
     alignItems: 'center',
