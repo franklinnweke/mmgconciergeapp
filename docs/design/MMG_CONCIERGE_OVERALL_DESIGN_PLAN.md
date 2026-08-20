@@ -1,6 +1,6 @@
 # MMG Concierge — Overall Design Plan
 
-**Version:** 1.2
+**Version:** 1.3
 **Updated:** 2026-08-20
 **Surfaces:** React Native / Expo mobile app (`apps/mobile`), Next.js staff admin (`apps/admin`), shared brand system (`packages/brand`)  
 **Product:** Lagos-first marketplace for chauffeured luxury vehicle journeys  
@@ -488,6 +488,28 @@ The four-pass roadmap is:
 | S4 | Admin | Review and operate the marketplace with role-scoped information | Admin accessibility, privacy, and operational QA |
 
 Each pass requires a named job statement, essential inventory list, subtraction review, focused tests, and rendered QA. Subtraction never authorizes changing backend contracts or making an unavailable provider appear live.
+
+### 13.1 Implementation checkpoint — 2026-08-20
+
+The product-wide subtraction pass is now implemented across the current renter, owner, and Admin surfaces:
+
+| Slice | Completed surface | Design outcome |
+|---|---|---|
+| S1 | Renter discovery and vehicle decision | Pickup/dates, credible Prado-led inventory, comparison, detail, availability, and quote boundaries remain while duplicate rails, greetings, assurance filler, and card layers were removed. |
+| S2 | Renter auth, profile, and trips | Sign-in, account setup, profile, trips, and trip detail now prioritize the single task and preserve truthful identity, deletion, payment, and trip-state copy. |
+| S3 | Owner verification, fleet, calendar, and bookings | Owner workflows retain privacy, upload, version, availability, and trusted-response behavior in plain sections with clear state and action boundaries. |
+| S4 | Admin bookings, owners, vehicles, and staff auth | Staff queues, inspectors, and access states use compact role navigation, readable decision content, safe errors, and responsive layouts. |
+| S5 | Safe-error, canonical-terms, and accessibility hardening | Provider errors are mapped to safe copy, fixtures use locked contract versions, meaningful text floors and 44 pt targets are enforced, and client payout percentages are absent. |
+
+The enforced product rules are now explicit: no greeting or “MMG Standard” filler, Prado leadership through credible inventory and imagery rather than repeated labels, a minimum 11 pt meaningful mobile text / 12 px meaningful Admin text floor, 44 pt interactive targets, safe provider-error mapping, and no client-derived payout or commission percentages. These presentation rules do not change the underlying `executive_suv` / `executive_sedan` categories or backend security and payment boundaries.
+
+Evidence from the current source checkpoint:
+
+- Root validation: **72 passed, 3 skipped**; **531 tests passed, 42 skipped**.
+- Admin validation: **10 test files, 66 tests passed**.
+- Expo web export: **34 routes**.
+
+Protected owner and Admin rendered device/browser QA remains a release-checklist item. Authenticated sessions and local fixture preview were unavailable for that pass, so this checkpoint is not staging sign-off and does not claim Paystack, live payment, or settlement completion. The next release gate is authenticated rendered QA at 320/390 mobile widths and supported Admin/browser widths, followed by the existing release-hardening checks.
 
 ## 14. Implementation roadmap
 
