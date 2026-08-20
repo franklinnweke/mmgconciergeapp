@@ -6,6 +6,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/core/auth/auth-context';
+import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { createRenterProfileGateway } from '../data/renter-profile-gateway';
 
 export function useRenterProfile() {
@@ -36,7 +37,7 @@ export function useRenterProfile() {
       setProfileState((prev) => ({
         ...prev,
         isLoading: false,
-        errorMessage: err instanceof Error ? err.message : 'Failed to load profile.',
+        errorMessage: safeProviderError(err, 'Failed to load profile.'),
       }));
     }
   }, [gateway, user]);
@@ -60,7 +61,7 @@ export function useRenterProfile() {
           setProfileState({
             profile: null,
             isLoading: false,
-            errorMessage: err instanceof Error ? err.message : 'Failed to load profile.',
+            errorMessage: safeProviderError(err, 'Failed to load profile.'),
           });
         }
       });
@@ -79,7 +80,7 @@ export function useRenterProfile() {
       }
       return res;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save renter profile.';
+      const msg = safeProviderError(err, 'Failed to save renter profile.');
       setProfileState((prev) => ({ ...prev, errorMessage: msg }));
       throw err;
     } finally {
@@ -96,7 +97,7 @@ export function useRenterProfile() {
       }
       return res;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to request account deletion.';
+      const msg = safeProviderError(err, 'Failed to request account deletion.');
       setProfileState((prev) => ({ ...prev, errorMessage: msg }));
       throw err;
     } finally {

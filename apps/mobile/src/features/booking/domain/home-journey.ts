@@ -18,20 +18,6 @@ export function selectHomeJourney(trips: readonly RenterTrip[]): RenterTrip | nu
   })[0] ?? null;
 }
 
-export function greetingForLagos(now = new Date()) {
-  const hour = Number(
-    new Intl.DateTimeFormat('en-GB', {
-      hour: 'numeric',
-      hourCycle: 'h23',
-      timeZone: 'Africa/Lagos',
-    }).formatToParts(now).find((part) => part.type === 'hour')?.value ?? '12',
-  );
-
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
 export function formatLagosClock(now = new Date()) {
   const time = new Intl.DateTimeFormat('en-NG', {
     hour: 'numeric',

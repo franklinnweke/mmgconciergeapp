@@ -2,6 +2,7 @@ import { VehicleSummary } from '@mmg/contracts';
 import { useEffect, useState } from 'react';
 
 import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
+import { safeProviderError } from '@/core/errors/safe-provider-error';
 
 export function useFeaturedVehicles() {
   const [vehicles, setVehicles] = useState<readonly VehicleSummary[]>([]);
@@ -23,7 +24,7 @@ export function useFeaturedVehicles() {
       })
       .catch((err: unknown) => {
         if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Failed to retrieve available fleet.');
+          setError(safeProviderError(err, 'Failed to retrieve available fleet.'));
           setVehicles([]);
           setIsLoading(false);
         }

@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { safeProviderError } from '@/core/errors/safe-provider-error';
 
 import {
   addDaysToDateOnly,
@@ -111,7 +112,7 @@ export default function VehicleDetailScreen({
           setVehicle(null);
           setLoading(false);
           setFetchError(
-            err instanceof Error ? err.message : 'Unable to connect to fleet services. Please try again.',
+            safeProviderError(err, 'Unable to connect to fleet services. Please try again.'),
           );
         }
       });
@@ -147,7 +148,7 @@ export default function VehicleDetailScreen({
     }).catch((caught: unknown) => {
       if (!isMounted) return;
       setAvailability({
-        error: caught instanceof Error ? caught.message : 'Availability could not be checked.',
+        error: vehicleCalendarErrorMessage(caught),
         status: 'error',
       });
     });

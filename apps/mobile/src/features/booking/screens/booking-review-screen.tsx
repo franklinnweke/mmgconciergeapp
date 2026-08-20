@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 import {
   addDaysToDateOnly,
@@ -100,7 +101,7 @@ export default function BookingReviewScreen({
           setVehicle(null);
           setLoading(false);
           setFetchError(
-            err instanceof Error ? err.message : 'Unable to connect to fleet services. Please try again.',
+            safeProviderError(err, 'Unable to connect to fleet services. Please try again.'),
           );
         }
       });

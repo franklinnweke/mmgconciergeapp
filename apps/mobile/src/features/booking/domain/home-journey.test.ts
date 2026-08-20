@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { previewRenterTrips } from '../data/preview-renter-trips';
-import { firstNameFromDisplayName, greetingForLagos, selectHomeJourney } from './home-journey';
+import { firstNameFromDisplayName, selectHomeJourney } from './home-journey';
 import type { RenterTrip } from './renter-trip';
 
 function withGroup(trip: RenterTrip, group: RenterTrip['group'], updatedAt = trip.updatedAt): RenterTrip {
@@ -30,12 +30,9 @@ describe('selectHomeJourney', () => {
   });
 });
 
-describe('home greeting helpers', () => {
-  it('uses the first name and a Lagos-aware greeting', () => {
+describe('home identity helpers', () => {
+  it('uses the first name when available', () => {
     expect(firstNameFromDisplayName('Preview Guest')).toBe('Preview');
     expect(firstNameFromDisplayName('  ')).toBe('there');
-    expect(greetingForLagos(new Date('2026-08-13T08:15:00+01:00'))).toBe('Good morning');
-    expect(greetingForLagos(new Date('2026-08-13T14:15:00+01:00'))).toBe('Good afternoon');
-    expect(greetingForLagos(new Date('2026-08-13T19:15:00+01:00'))).toBe('Good evening');
   });
 });

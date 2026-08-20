@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { OwnerVisibleVehicle, VehicleVisibility } from '@mmg/contracts';
 
 import { useAuth } from '@/core/auth/auth-context';
+import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { createOwnerFleetGateway, OwnerFleetGateway } from '../data/owner-fleet-gateway';
 
 export function useOwnerFleet(gateway: OwnerFleetGateway = createOwnerFleetGateway()) {
@@ -27,7 +28,7 @@ export function useOwnerFleet(gateway: OwnerFleetGateway = createOwnerFleetGatew
       },
       (err) => {
         setLoading(false);
-        setSyncError(err.message || 'Unable to synchronize fleet records.');
+        setSyncError(safeProviderError(err, 'Unable to synchronize fleet records.'));
       },
     );
 
@@ -48,7 +49,7 @@ export function useOwnerFleet(gateway: OwnerFleetGateway = createOwnerFleetGatew
           visibility: targetVisibility,
         });
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to update vehicle visibility.';
+        const message = safeProviderError(err, 'Failed to update vehicle visibility.');
         setSyncError(message);
         throw err;
       } finally {

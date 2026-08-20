@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { OwnerVisibleProfile } from '@mmg/contracts';
+import {
+  CURRENT_COMMISSION_TERMS_VERSION,
+  CURRENT_OWNER_TERMS_VERSION,
+  CURRENT_PRIVACY_NOTICE_VERSION,
+  type OwnerVisibleProfile,
+} from '@mmg/contracts';
 
 import {
   computeApplicationCompleteness,
@@ -45,9 +50,9 @@ describe('owner application domain', () => {
       verificationStatus: 'draft',
       verificationUpdatedAt: '2026-08-15T12:00:00.000Z',
       lastDecisionReason: null,
-      ownerTermsVersion: '2026-04-01-v1',
-      commissionTermsVersion: '2026-04-01-v1',
-      privacyNoticeVersion: '2026-04-01-v1',
+      ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
       termsAcceptedAt: '2026-08-15T12:00:00.000Z',
       governmentId: null,
       createdAt: '2026-08-15T12:00:00.000Z',

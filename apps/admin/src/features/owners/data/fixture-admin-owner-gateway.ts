@@ -1,4 +1,10 @@
-import { maskEmail, maskPhone } from '@mmg/contracts';
+import {
+  CURRENT_COMMISSION_TERMS_VERSION,
+  CURRENT_OWNER_TERMS_VERSION,
+  CURRENT_PRIVACY_NOTICE_VERSION,
+  maskEmail,
+  maskPhone,
+} from '@mmg/contracts';
 
 import type {
   OwnerVerificationDetail,
@@ -31,9 +37,9 @@ export const FIXTURE_OWNER_VERIFICATIONS: OwnerVerificationDetail[] = [
     previousDecisionReason: null,
     reviewChecklist: null,
     termsAcceptedAt: '2026-08-15T10:15:00.000Z',
-    ownerTermsVersion: '2026-04-01-v1',
-    commissionTermsVersion: '2026-04-01-v1',
-    privacyNoticeVersion: '2026-04-01-v1',
+    ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+    commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+    privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
     governmentId: {
       uploadId: 'upload-adeleke-nin-01',
       documentKind: 'national_id',
@@ -70,9 +76,9 @@ export const FIXTURE_OWNER_VERIFICATIONS: OwnerVerificationDetail[] = [
     previousDecisionReason: null,
     reviewChecklist: null,
     termsAcceptedAt: '2026-08-15T08:50:00.000Z',
-    ownerTermsVersion: '2026-04-01-v1',
-    commissionTermsVersion: '2026-04-01-v1',
-    privacyNoticeVersion: '2026-04-01-v1',
+    ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+    commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+    privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
     governmentId: {
       uploadId: 'upload-folashade-dl-01',
       documentKind: 'drivers_licence',
@@ -124,9 +130,9 @@ export const FIXTURE_OWNER_VERIFICATIONS: OwnerVerificationDetail[] = [
       no_fraud_indicators: true,
     },
     termsAcceptedAt: '2026-08-14T13:40:00.000Z',
-    ownerTermsVersion: '2026-04-01-v1',
-    commissionTermsVersion: '2026-04-01-v1',
-    privacyNoticeVersion: '2026-04-01-v1',
+    ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+    commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+    privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
     governmentId: {
       uploadId: 'upload-babatunde-pass-01',
       documentKind: 'international_passport',
@@ -172,9 +178,9 @@ export const FIXTURE_OWNER_VERIFICATIONS: OwnerVerificationDetail[] = [
     previousDecisionReason: null,
     reviewChecklist: null,
     termsAcceptedAt: '2026-08-13T10:45:00.000Z',
-    ownerTermsVersion: '2026-04-01-v1',
-    commissionTermsVersion: '2026-04-01-v1',
-    privacyNoticeVersion: '2026-04-01-v1',
+    ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+    commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+    privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
     governmentId: {
       uploadId: 'upload-emeka-pass-01',
       documentKind: 'international_passport',

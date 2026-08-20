@@ -2,6 +2,7 @@ import { VehicleCategory, VehicleSummary } from '@mmg/contracts';
 import { useEffect, useState } from 'react';
 
 import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
+import { safeProviderError } from '@/core/errors/safe-provider-error';
 
 export type VehicleSearchInput = {
   areaLabel?: string;
@@ -62,7 +63,7 @@ export function useVehicleSearch(criteria: VehicleSearchInput) {
       .catch((err: unknown) => {
         if (isMounted) {
           setState({
-            error: err instanceof Error ? err.message : 'Search query failed.',
+            error: safeProviderError(err, 'Search query failed.'),
             isLoading: false,
             vehicles: [],
           });

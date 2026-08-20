@@ -6,6 +6,8 @@ import type {
 } from '@mmg/contracts';
 import { createContext, PropsWithChildren, useContext, useMemo, useState } from 'react';
 
+import { safeProviderError } from '@/core/errors/safe-provider-error';
+
 type PreviewUser = {
   displayName: string;
   email: string;
@@ -74,7 +76,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
       },
       errorMessage(error) {
-        return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+        return safeProviderError(error, 'Something went wrong. Please try again.');
       },
       initializing: false,
       async refreshUser() {},
