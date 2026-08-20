@@ -17,6 +17,8 @@ import {
   commandSafeReasonSchema,
   completeOwnerProfileCommandSchema,
   completeOwnerProfileResultSchema,
+  confirmBookingCommandSchema,
+  confirmBookingResultSchema,
   createBookingIntentCommandSchema,
   dateOnlySchema,
   emailPasswordRegistrationSchema,
@@ -32,6 +34,8 @@ import {
   ownerTermsAcceptanceSchema,
   ownerVisibleProfileSchema,
   priceSnapshotSchema,
+  rejectBookingCommandSchema,
+  rejectBookingResultSchema,
   removeVehicleAvailabilityBlockCommandSchema,
   renterVisibleBookingIntentSchema,
   renterVisibleBookingSchema,
@@ -42,6 +46,67 @@ import {
   submitOwnerVerificationCommandSchema,
   submitOwnerVerificationResultSchema,
 } from './index';
+
+describe('paid booking owner-response contracts', () => {
+  it('requires optimistic concurrency and preserves the controlled confirmation transition', () => {
+    const command = {
+      schemaVersion: 1,
+      idempotencyKey: 'confirm-booking-prado-001',
+      data: { bookingId: 'booking-prado-001', expectedVersion: 3 },
+    };
+    const result = {
+      requestId: 'request-confirm-001',
+      result: {
+        bookingId: 'booking-prado-001',
+        fromState: 'paid_pending_owner',
+        toState: 'confirmed',
+        decidedAt: '2026-08-20T12:00:00.000Z',
+        version: 4,
+      },
+    };
+
+    expect(confirmBookingCommandSchema.parse(command)).toEqual(command);
+    expect(confirmBookingResultSchema.parse(result)).toEqual(result);
+    expect(confirmBookingCommandSchema.safeParse({
+      ...command,
+      data: { bookingId: 'booking-prado-001' },
+    }).success).toBe(false);
+  });
+
+  it('requires a meaningful rejection reason and exposes only the intervention case ID', () => {
+    const command = {
+      schemaVersion: 1,
+      idempotencyKey: 'reject-booking-prado-001',
+      data: {
+        bookingId: 'booking-prado-001',
+        expectedVersion: 3,
+        reason: 'The assigned chauffeur is no longer available.',
+      },
+    };
+    const result = {
+      requestId: 'request-reject-001',
+      result: {
+        bookingId: 'booking-prado-001',
+        caseId: 'case-owner-rejection-001',
+        fromState: 'paid_pending_owner',
+        toState: 'intervention_required',
+        decidedAt: '2026-08-20T12:00:00.000Z',
+        version: 4,
+      },
+    };
+
+    expect(rejectBookingCommandSchema.parse(command)).toEqual(command);
+    expect(rejectBookingResultSchema.parse(result)).toEqual(result);
+    expect(rejectBookingCommandSchema.safeParse({
+      ...command,
+      data: { ...command.data, reason: 'No driver' },
+    }).success).toBe(false);
+    expect(rejectBookingResultSchema.safeParse({
+      ...result,
+      result: { ...result.result, ownerReason: command.data.reason },
+    }).success).toBe(false);
+  });
+});
 
 describe('vehicle availability contracts', () => {
   it('keeps renter calendar output coarse and rejects private block metadata', () => {

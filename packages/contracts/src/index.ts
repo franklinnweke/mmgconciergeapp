@@ -323,6 +323,58 @@ export const getOwnerVehicleCalendarResultSchema = z.object({
 }).strict();
 export type GetOwnerVehicleCalendarResult = z.infer<typeof getOwnerVehicleCalendarResultSchema>;
 
+export const confirmBookingDataSchema = z.object({
+  bookingId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+}).strict();
+export type ConfirmBookingData = z.infer<typeof confirmBookingDataSchema>;
+
+export const confirmBookingCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: confirmBookingDataSchema,
+}).strict();
+export type ConfirmBookingCommand = z.infer<typeof confirmBookingCommandSchema>;
+
+export const confirmBookingResultSchema = z.object({
+  requestId: boundedIdSchema,
+  result: z.object({
+    bookingId: boundedIdSchema,
+    fromState: z.literal('paid_pending_owner'),
+    toState: z.literal('confirmed'),
+    decidedAt: isoDateTimeSchema,
+    version: z.number().int().positive(),
+  }).strict(),
+}).strict();
+export type ConfirmBookingResult = z.infer<typeof confirmBookingResultSchema>;
+
+export const rejectBookingDataSchema = z.object({
+  bookingId: boundedIdSchema,
+  expectedVersion: z.number().int().positive(),
+  reason: z.string().trim().min(10).max(500),
+}).strict();
+export type RejectBookingData = z.infer<typeof rejectBookingDataSchema>;
+
+export const rejectBookingCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: rejectBookingDataSchema,
+}).strict();
+export type RejectBookingCommand = z.infer<typeof rejectBookingCommandSchema>;
+
+export const rejectBookingResultSchema = z.object({
+  requestId: boundedIdSchema,
+  result: z.object({
+    bookingId: boundedIdSchema,
+    caseId: boundedIdSchema,
+    fromState: z.literal('paid_pending_owner'),
+    toState: z.literal('intervention_required'),
+    decidedAt: isoDateTimeSchema,
+    version: z.number().int().positive(),
+  }).strict(),
+}).strict();
+export type RejectBookingResult = z.infer<typeof rejectBookingResultSchema>;
+
 export const renterVisibleBookingIntentSchema = z.object({
   id: boundedIdSchema,
   renterId: boundedIdSchema,
