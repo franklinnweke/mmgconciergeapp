@@ -1,5 +1,11 @@
 # UI-first implementation phases
 
+> **Historical checkpoint log.** This file records how the earlier sequences
+> were delivered and validated. It is not the current milestone authority.
+> Use `AGENTS.md` and
+> `docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md` for the evidence-based
+> current state and next delivery order.
+
 Firebase provisioning and the first identity slice are now connected to the
 mobile app. Native development builds use the registered Firebase iOS and
 Android apps; browser previews keep deterministic preview auth so visual work
@@ -119,7 +125,7 @@ Validation baseline for Sequence 1:
 
 ---
 
-### Upcoming Sequences in Phase 3 & Beyond
+### Originally planned subsequent sequences in Phase 3 & Beyond
 
 - **Sequence 2 — Vehicle Inventory & Lagos Inspection Workflow**: Vehicle listing creation, image upload pipeline, rate schedules, Lagos vehicle inspection and moderation state transitions.
 - **Sequence 3 — Host Availability Calendar & Booking Operations**: Host calendar management, availability blocks, rate overrides, and owner booking acceptance/rejection actions.

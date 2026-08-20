@@ -1,11 +1,11 @@
 # WP0 & WP2 Implementation Status
 
-**Date:** 2026-08-16
+**Date:** 2026-08-20
 **Plan reference:** `docs/implementation/PROJECT_COMPLETION_WITHOUT_PAYSTACK_IMPLEMENTATION_PLAN.md`
 
 ---
 
-## WP0 — Correct the foundation ✅ COMPLETE
+## WP0 — Correct the foundation 🔶 MOSTLY COMPLETE
 
 ### 1. Split terms schemas
 - **`packages/contracts/src/index.ts`**: Terms version fields in `completeOwnerProfileDataSchema` and `ownerTermsAcceptanceSchema` changed from `z.literal(CURRENT_*_VERSION)` to bounded `termsVersionSchema` (`z.string().trim().min(1).max(64)`). Stale versions now pass Zod validation; domain/service layer emits `FAILED_PRECONDITION` + `terms_stale`.
@@ -16,6 +16,7 @@
 ### 2. Replace hardcoded 8% pricing with canonical path
 - **`packages/domain/src/index.ts`**: `calculateBookingQuote` now delegates to `calculateAuthoritativePrice` using `DEFAULT_SERVICE_FEE_BPS` (800), `DEFAULT_SERVICE_FEE_FIXED_KOBO` (0), `DEFAULT_OWNER_COMMISSION_BPS` (1500).
 - **Test**: Parity property tests across 5 rates × 5 durations proving quote ↔ authoritative identity.
+- **Open correction**: the client preview still injects default fees and `client-preview` versions while the server reads versioned trusted configuration. Delegating to the same pure function does not guarantee parity when live configuration changes. The primary renter journey must consume a server quote or the same versioned inputs.
 
 ### 3. Consolidate PII masking
 - **`@mmg/domain`** is now the canonical source: `maskEmail()`, `maskPhoneE164()`.
@@ -109,7 +110,11 @@
 
 ---
 
-## Validation matrix at current checkpoint
+## Last recorded validation matrix
+
+The following is historical evidence from the prior implementation checkpoint,
+not a fresh 2026-08-20 pass. The deep review could not reproduce this gate
+because Vitest and TypeScript checks did not terminate in the review window.
 
 ```bash
 npm run check  # ✅ 458 tests passed (52 files), 0 type errors, 0 lint warnings
@@ -145,10 +150,10 @@ npm run check  # ✅ 458 tests passed (52 files), 0 type errors, 0 lint warnings
 
 | WP | Status | Notes |
 |---|---|---|
-| WP1 | ✅ Complete | Complete renter profile & Lagos delivery address, deletion/NDPR workflow, terms agreement, rules & Functions live |
+| WP1 | 🔶 Foundation complete | Profile/address/terms and deletion-request workflow exist; verified linked phone, completed deletion/erasure operations and MFA remain |
 | WP2 | 🔶 Sequence 2 Pass Complete | Batches A, B, C, D (core), E, F delivered and hardened; abandoned upload cleanup remaining |
-| WP3 | ✅ Hardened | Haversine distance, Lagos BBox validation, composite discovery ranking, live native/web FirestoreDiscoveryGateway with strict row validation (no preview fallback or fake field synthesis), resolveSearchPlace & searchVehicles functions, ExecutiveBookingDesk, PickupDistrictSheet |
-| WP4 | ⏳ Not started | Calendar, atomic holds, payment boundary, owner response/intervention |
+| WP3 | 🔶 Partial / validation pending | The native pickup-sheet host-component defect and deterministic renter web boundary were repaired in `cd82a07`; runtime smoke remains blocked, and callables/date-availability filtering are not integrated |
+| WP4 | 🔶 Foundation on `main` | Atomic booking-intent/hold service exists, but primary renter UI uses the legacy estimate path; the experimental Paystack branch is unmerged and not complete |
 | WP5 | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules pending |

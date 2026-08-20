@@ -99,7 +99,7 @@ These are enforced in several places at once; changing one without the others cr
 
 ## Deliberately not live
 
-Paystack (payments, escrow, payouts, refunds), MFA, vehicle inventory/catalog/availability calendar, owner booking acceptance, live Phone Auth SMS delivery.
+Paystack (payments, escrow, payouts, refunds), MFA, authoritative date-aware discovery/availability calendar, owner booking acceptance, completed account erasure, and production-verified Phone Auth SMS delivery. Vehicle inventory and moderation foundations exist, but their remaining gaps are tracked in `docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md`.
 
 Unimplemented paths must **fail honestly**. Existing adapters and copy never claim a charge, a sent message, or a state change that did not happen — tests assert this directly (e.g. `renter-trip-action-gateway.test.ts` → "never fakes payment, support, or cancellation success"). Preserve that behaviour rather than stubbing a success response.
 

@@ -63,21 +63,21 @@ If a status document conflicts with code or Git history, report the discrepancy,
 
 ## 5. Current milestone snapshot
 
-Snapshot date: **2026-08-18**. Verify against `git status`, `git log`, and the status documents before relying on it.
+Snapshot date: **2026-08-20**. Verify against `git status`, `git log`, and [`docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md`](docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md) before relying on it.
 
 | Milestone | Status | Evidence / next gate |
 |---|---|---|
 | Phase 1 — experience foundation | ✅ Complete | Expo workspace, brand system, navigation, discovery foundation, checks |
 | Sequence 1 — owner verification | ✅ Merged | Owner contracts, rules, Functions, mobile flow, Admin desk; merged to `main` |
 | Sequence 3 — renter trips/booking foundation | ✅ Foundation complete | Trusted read-only boundaries, truthful trip states, booking intent foundation; continue only through handoff exit gates |
-| WP0 — foundation corrections | ✅ Complete | Terms, pricing, masking, CSRF, pagination, ADRs |
+| WP0 — foundation corrections | 🔶 Mostly complete | Terms, masking, CSRF, pagination and ADRs are present; client quote defaults can diverge from versioned server pricing |
 | WP2 A–C — vehicle contracts, rules, Functions | ✅ Complete | Vehicle draft/upload/finalize/submit/review/visibility foundations and emulator coverage |
 | WP2 D — image processing/promotion | ✅ Complete in current implementation | Sharp variants, EXIF/GPS removal, approved-object promotion and renter projection |
 | WP2 F — Admin vehicle moderation | ✅ Complete | Live Firestore gateway rewritten against real flat/private schemas, server action wired to reviewVehicle + storage promotion, 7-point checklist enforced, 8/8 admin test files passing |
 | WP2 E — owner mobile fleet UI | ✅ Complete | Owner fleet list, 6-step create/submit wizard with image picking + upload session + binary PUT + finalize pipeline, authoritative version sync, live visibility toggling, vehicle inspector desk, router connections |
-| WP1 — renter profile/privacy/MFA | ✅ Complete | Complete renter profile & Lagos delivery address, deletion/NDPR workflow, terms agreement, rules & Functions live |
-| WP3 — live Lagos discovery | ✅ Complete | Haversine distance, Lagos BBox validation, composite discovery ranking, live native/web FirestoreDiscoveryGateway with strict row validation (no preview fallback, no category/coords/policy fabrication, limit(30) fetch), resolveSearchPlace & searchVehicles functions, ExecutiveBookingDesk, live BookingReviewScreen & VehicleDetailScreen, PickupDistrictSheet |
-| WP4 — availability and Paystack-ready booking | ⏳ Not started | Calendar, atomic holds, payment boundary, owner response/intervention |
+| WP1 — renter profile/privacy/MFA | 🔶 Foundation complete | Profile/address/terms and deletion-request commands exist; verified phone, completed deletion/erasure workflow and MFA remain |
+| WP3 — live Lagos discovery | 🔶 Partial / validation pending | Strict projections, ranking and deterministic renter web preview exist; current-source runtime smoke is blocked, callables are not integrated and date availability is not filtered |
+| WP4 — availability and Paystack-ready booking | 🔶 Foundation on `main`; experimental branch unmerged | Atomic intent/hold foundation exists, but primary renter UI still uses the legacy estimate path; `codex/wp4-booking-operations` is not merge/deploy ready |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
@@ -99,8 +99,11 @@ The merged `main` history currently contains:
 - `343b031` — vehicle foundation/workflow
 - `7d8003f` — app experience/auth/discovery
 - `71f88ae` — initial Admin vehicle moderation desk
+- `9c42061` — repository-wide agent context
+- `537e5a6` — renter privacy/profile foundation
+- `8c61703` — reviewed workstream integration baseline
 
-The uncommitted work in the repository is a **real Sequence 2 implementation pass** (contracts, Functions, Admin moderation desk, owner fleet UI, and live Lagos discovery) along with the WP1 renter profile foundation. **It is not Sequence 2+3 complete**, and the following paths are **not safe to treat as live**:
+`main` includes `cd82a07`, the reviewed renter-preview stability repair. The unmerged `codex/wp4-booking-operations` branch is a broad experimental payment/booking pass and must be reviewed and ported selectively. It is not evidence that WP4 or Paystack is complete. The following paths are **not safe to treat as live**:
 
 1. **Paystack Payments & Settlement**: Live NGN card charging, webhook handling, escrow capture, and refunds are not live. (WP4/ADR 0005).
 2. **Paid Booking State Progression**: Transitions past `intent_created` (e.g. `confirmed`, `in_progress`, `completed`, `refunded`) are not backed by live payment/escrow services.
@@ -127,7 +130,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests (Current baseline: **52 test files passed, 458 unit tests passed, 0 typecheck errors, 0 lint warnings**). A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The last recorded historical baseline was **52 test files passed, 458 unit tests passed, 0 typecheck errors, 0 lint warnings**; the 2026-08-20 review did not reproduce it because the local Vitest/TypeScript processes did not terminate. A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules

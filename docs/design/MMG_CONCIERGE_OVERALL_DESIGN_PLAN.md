@@ -1,7 +1,7 @@
 # MMG Concierge — Overall Design Plan
 
-**Version:** 1.1  
-**Updated:** 2026-08-16  
+**Version:** 1.2
+**Updated:** 2026-08-20
 **Surfaces:** React Native / Expo mobile app (`apps/mobile`), Next.js staff admin (`apps/admin`), shared brand system (`packages/brand`)  
 **Product:** Lagos-first marketplace for chauffeured luxury vehicle journeys  
 **Positioning:** **Prado first. Luxury beyond.**
@@ -474,11 +474,11 @@ This design roadmap follows the technical work packages; it does not create a se
 
 | Work package | Design deliverable | Current status |
 |---|---|---|
-| WP0 | Brand/token consistency, truthful terms/pricing/error copy | Complete; preserve |
-| WP2 | Owner fleet wizard, upload states, fleet hub, admin vehicle queue/inspector | In progress |
-| WP1 | Renter profile/address, privacy/deletion, admin MFA states | Not started |
-| WP3 | Live Lagos discovery, filter sheet, approved media gallery, exact-location privacy QA | Not started |
-| WP4 | Availability calendar, quote/hold boundaries, owner response, intervention UI | Not started |
+| WP0 | Brand/token consistency, truthful terms/pricing/error copy | Mostly complete; server/client price parity remains |
+| WP2 | Owner fleet wizard, upload states, fleet hub, admin vehicle queue/inspector | Substantially delivered; cleanup and approved-listing revision path remain |
+| WP1 | Renter profile/address, privacy/deletion, admin MFA states | Foundation delivered; verified phone, deletion completion and MFA remain |
+| WP3 | Live Lagos discovery, filter sheet, approved media gallery, exact-location privacy QA | Partial; source-level crash/preview repairs landed, but current-source runtime smoke remains blocked |
+| WP4 | Availability calendar, quote/hold boundaries, owner response, intervention UI | Trusted intent foundation only; experimental branch is unmerged |
 | WP5 | Payment-gated chat, notifications, journey timeline, completion states | Not started |
 | WP6 | Owner earnings, wallet ledger views, payout profile, withdrawal operations | Not started |
 | WP7 | Complete role-scoped admin workspace | Not started |
@@ -486,10 +486,10 @@ This design roadmap follows the technical work packages; it does not create a se
 
 Immediate design priority:
 
-1. Complete WP2 owner fleet and staff moderation surfaces using the Prado-led system.
-2. Refactor Browse from multiple visible rails toward one progressive filter sheet.
-3. Add vehicle-detail gallery/specification/sticky-action states when approved image data is available.
-4. Keep preview fixtures until live approved inventory replaces them; never present fixture availability as production truth.
+1. Restore a repeatable current-source web/iOS/Android smoke and validation gate for the repaired renter paths.
+2. Verify onboarding, product, pickup-sheet and booking-review behavior across supported development builds.
+3. Connect discovery dates and booking review to the authoritative search/quote/hold boundary.
+4. Preserve Prado-led preview fixtures for design review until approved live inventory is intentionally selected; never present fixture availability as production truth.
 
 ## 14. Design acceptance rubric
 
