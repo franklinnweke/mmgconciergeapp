@@ -11,7 +11,7 @@ import {
 } from '@mmg/contracts';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 
-import { parseCallableResult } from '@/core/firebase/parse-callable-result';
+import { parseCallableResult } from '../../../core/firebase/parse-callable-result';
 
 import {
   buildGetOwnerCalendarCommand,

@@ -46,13 +46,21 @@ const previewProfile: AccountProfile = {
   email: previewUser.email,
 };
 
+function initialPreviewProfile(): AccountProfile {
+  if (typeof window === 'undefined') return previewProfile;
+  const previewRole = new URLSearchParams(window.location.search).get('previewRole');
+  return previewRole === 'owner'
+    ? { ...previewProfile, accountType: 'owner' }
+    : previewProfile;
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Native builds use auth-context.tsx and Firebase. Web previews stay deterministic
 // so UI development and static rendering never require a configured Firebase app.
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<PreviewUser | null>(previewUser);
-  const [profile, setProfile] = useState<AccountProfile | null>(previewProfile);
+  const [profile, setProfile] = useState<AccountProfile | null>(initialPreviewProfile);
 
   const value = useMemo<AuthContextValue>(
     () => ({

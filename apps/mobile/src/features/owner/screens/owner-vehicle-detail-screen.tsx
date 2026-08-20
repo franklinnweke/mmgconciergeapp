@@ -71,6 +71,14 @@ export function OwnerVehicleDetailScreen() {
     }
   };
 
+  const handleManageAvailability = () => {
+    if (!vehicle) return;
+    router.push({
+      pathname: '/(owner)/vehicle/[id]/availability' as any,
+      params: { id: vehicle.vehicleId },
+    });
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -78,6 +86,7 @@ export function OwnerVehicleDetailScreen() {
           <ActivityIndicator color={colors.gold} size="large" />
           <Text style={styles.loadingText}>Loading vehicle record...</Text>
         </View>
+
       </SafeAreaView>
     );
   }
@@ -150,6 +159,24 @@ export function OwnerVehicleDetailScreen() {
           ) : null}
         </View>
 
+        {vehicle.moderationStatus === 'approved' ? (
+          <PressableScale
+            accessibilityHint="Opens the trusted booking and owner-block calendar"
+            accessibilityRole="button"
+            onPress={handleManageAvailability}
+            style={styles.availabilityRow}
+          >
+            <View style={styles.availabilityIcon}>
+              <Ionicons color={colors.goldStrong} name="calendar-outline" size={22} />
+            </View>
+            <View style={styles.availabilityCopy}>
+              <Text style={styles.availabilityTitle}>Manage availability</Text>
+              <Text style={styles.availabilityBody}>Block dates or review reserved journey dates.</Text>
+            </View>
+            <Ionicons color={colors.muted} name="chevron-forward" size={20} />
+          </PressableScale>
+        ) : null}
+
         {/* Specs Overview */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionHeader}>SPECIFICATIONS</Text>
@@ -185,17 +212,11 @@ export function OwnerVehicleDetailScreen() {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionHeader}>FINANCIAL TERMS</Text>
           <View style={styles.rateRow}>
-            <Text style={styles.rateLabel}>Daily Renter Price</Text>
+            <Text style={styles.rateLabel}>Owner daily rate</Text>
             <Text style={styles.rateValue}>{formatNairaFromKobo(vehicle.ownerDailyRateKobo ?? 0)}</Text>
           </View>
-          <View style={styles.rateRow}>
-            <Text style={styles.rateLabel}>Host Net Earnings (85%)</Text>
-            <Text style={[styles.rateValue, { color: colors.gold }]}>
-              {formatNairaFromKobo(Math.round((vehicle.ownerDailyRateKobo ?? 0) * 0.85))}
-            </Text>
-          </View>
           <Text style={styles.policyNotice}>
-            Chauffeured service and delivery are included in all MMG bookings.
+            Final renter totals and owner earnings are calculated by MMG from the active pricing configuration. Chauffeured service and delivery are included.
           </Text>
         </View>
       </ScrollView>
@@ -204,6 +225,38 @@ export function OwnerVehicleDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  availabilityBody: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+    marginTop: 3,
+  },
+  availabilityCopy: {
+    flex: 1,
+  },
+  availabilityIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.graphiteRaised,
+    borderRadius: radii.sm,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  availabilityRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.graphiteRaised,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    minHeight: 72,
+  },
+  availabilityTitle: {
+    color: colors.ivory,
+    fontFamily: typography.body,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   backBtn: {
     backgroundColor: colors.gold,
     borderRadius: radii.md,
