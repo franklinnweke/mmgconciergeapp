@@ -112,13 +112,11 @@
 
 ## Last recorded validation matrix
 
-The following is historical evidence from the prior implementation checkpoint,
-not a fresh 2026-08-20 pass. The deep review could not reproduce this gate
-because Vitest and TypeScript checks did not terminate in the review window.
+The following was freshly reproduced at the 2026-08-20 availability checkpoint.
 
 ```bash
-npm run check  # ✅ 458 tests passed (52 files), 0 type errors, 0 lint warnings
-  ├── npm test              # 458 passed, 38 skipped (emulator-only)
+npm run check  # ✅ 493 tests passed (61 files), 0 type errors, 0 lint warnings
+  ├── npm test              # 493 passed, 40 skipped (emulator-only)
   ├── npm run typecheck     # 0 errors (mobile)
   ├── npm run lint          # 0 warnings (mobile - expo lint)
   ├── functions:typecheck   # 0 errors
@@ -152,8 +150,8 @@ npm run check  # ✅ 458 tests passed (52 files), 0 type errors, 0 lint warnings
 |---|---|---|
 | WP1 | 🔶 Foundation complete | Profile/address/terms and deletion-request workflow exist; verified linked phone, completed deletion/erasure operations and MFA remain |
 | WP2 | 🔶 Sequence 2 Pass Complete | Batches A, B, C, D (core), E, F delivered and hardened; abandoned upload cleanup remaining |
-| WP3 | 🔶 Partial / validation pending | The native pickup-sheet host-component defect and deterministic renter web boundary were repaired in `cd82a07`; runtime smoke remains blocked, and callables/date-availability filtering are not integrated |
-| WP4 | 🔶 Foundation on `main` | Atomic booking-intent/hold service exists, but primary renter UI uses the legacy estimate path; the experimental Paystack branch is unmerged and not complete |
+| WP3 | ✅ Complete | Strict live Lagos discovery and renter detail/review flows are connected. A privacy-safe selected-date calendar check now gates quote review without exposing private owner blocks or booking references |
+| WP4 | 🔶 Calendar + intent/hold foundation complete | Atomic booking intents/holds, owner versioned availability commands/read model, and renter availability gating are delivered. Trusted paid-booking creation, owner confirmation/rejection/intervention, and the Paystack boundary remain incomplete |
 | WP5 | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules pending |

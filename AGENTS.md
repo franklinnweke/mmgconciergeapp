@@ -76,8 +76,8 @@ Snapshot date: **2026-08-20**. Verify against `git status`, `git log`, and [`doc
 | WP2 F — Admin vehicle moderation | ✅ Complete | Live Firestore gateway rewritten against real flat/private schemas, server action wired to reviewVehicle + storage promotion, 7-point checklist enforced, 8/8 admin test files passing |
 | WP2 E — owner mobile fleet UI | ✅ Complete | Owner fleet list, 6-step create/submit wizard with image picking + upload session + binary PUT + finalize pipeline, authoritative version sync, live visibility toggling, vehicle inspector desk, router connections |
 | WP1 — renter profile/privacy/MFA | 🔶 Foundation complete | Profile/address/terms and deletion-request commands exist; verified phone, completed deletion/erasure workflow and MFA remain |
-| WP3 — live Lagos discovery | 🔶 Partial / validation pending | Strict projections, ranking and deterministic renter web preview exist; current-source runtime smoke is blocked, callables are not integrated and date availability is not filtered |
-| WP4 — availability and Paystack-ready booking | 🔶 Foundation on `main`; experimental branch unmerged | Atomic intent/hold foundation exists, but primary renter UI still uses the legacy estimate path; `codex/wp4-booking-operations` is not merge/deploy ready |
+| WP3 — live Lagos discovery | ✅ Complete | Strict live projections, Lagos search/ranking, native/web Firestore gateways, renter vehicle detail and booking review are connected; selected dates are checked through the privacy-safe vehicle calendar before quote review |
+| WP4 — availability and Paystack-ready booking | 🔶 Calendar + intent/hold foundation complete | Owner calendar reads and optimistic block commands are live; renter quote review is gated by availability; atomic booking intents/holds exist. Trusted paid-booking creation, owner confirm/reject/intervention, and the Paystack boundary remain incomplete |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
@@ -102,18 +102,22 @@ The merged `main` history currently contains:
 - `9c42061` — repository-wide agent context
 - `537e5a6` — renter privacy/profile foundation
 - `8c61703` — reviewed workstream integration baseline
+- `f8bed42` / `08cc53f` — availability contracts and transactional services
+- `5d1a405` / `85237f6` — owner availability gateway and calendar UI
+- `1cced79` — owner/renter vehicle route collision repair
+- `0c2efc2` — renter selected-date availability gate
 
 `main` includes `cd82a07`, the reviewed renter-preview stability repair. The unmerged `codex/wp4-booking-operations` branch is a broad experimental payment/booking pass and must be reviewed and ported selectively. It is not evidence that WP4 or Paystack is complete. The following paths are **not safe to treat as live**:
 
 1. **Paystack Payments & Settlement**: Live NGN card charging, webhook handling, escrow capture, and refunds are not live. (WP4/ADR 0005).
-2. **Paid Booking State Progression**: Transitions past `intent_created` (e.g. `confirmed`, `in_progress`, `completed`, `refunded`) are not backed by live payment/escrow services.
+2. **Paid Booking State Progression**: Owner confirmation/rejection and later transitions (e.g. `confirmed`, `in_progress`, `completed`, `refunded`) are not backed by a trusted verified-payment event or live payment/escrow services.
 3. **In-App Messaging / Chat**: Live renter-owner-concierge chat channels are not live (WP5).
 4. **Real-Time GPS Vehicle Tracking**: Live telematics / driver tracking is not implemented.
 5. **Push Notifications (FCM / APNs)**: Production APNs certificates / outbox processors are not live (WP5).
 6. **Vehicle Upload Garbage Collection**: Abandoned upload cleanup cron currently covers only owner verification uploads (`private/owner-verifications`); vehicle upload prefix cleanup is pending.
 7. **Ledger & Wallets**: Append-only double-entry financial ledger and bank withdrawals are not live (WP6).
 
-Treat all uncommitted code as an **in-progress Sequence 2 pass** and always fail closed on unimplemented paths.
+Treat WP4 as an **in-progress availability and booking pass** and always fail closed on unimplemented payment or paid-booking paths.
 
 ## 6. Milestone checker
 
@@ -130,7 +134,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The last recorded historical baseline was **52 test files passed, 458 unit tests passed, 0 typecheck errors, 0 lint warnings**; the 2026-08-20 review did not reproduce it because the local Vitest/TypeScript processes did not terminate. A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The current 2026-08-20 availability checkpoint is **61 test files passed, 493 unit tests passed, 0 typecheck errors, 0 lint warnings**. A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules

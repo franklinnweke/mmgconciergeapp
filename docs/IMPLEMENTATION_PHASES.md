@@ -131,3 +131,24 @@ Validation baseline for Sequence 1:
 - **Sequence 3 — Host Availability Calendar & Booking Operations**: Host calendar management, availability blocks, rate overrides, and owner booking acceptance/rejection actions.
 - **Sequence 4 — Paystack Payments, Escrow & Authoritative Settlement**: Real Paystack transaction initialization, webhook verification, escrow holds, payout disbursements, and Nigerian tax/split accounting.
 - **Multi-Factor Authentication (MFA) & Staging Sign-Off**: MFA enforcement for privileged staff accounts, production environment isolation, and final pre-launch security audits.
+
+### Current Sequence 3 checkpoint — availability foundation delivered
+
+As of August 20, 2026, the owner/renter calendar portion of Sequence 3 is
+implemented on `main`:
+
+- Owners can read a private calendar, create and remove versioned availability
+  blocks, and see renter-held dates only as coarse `reserved` periods.
+- Renters receive date-level availability only. Owner reasons, notes, block IDs,
+  booking IDs, and storage details never cross the renter DTO boundary.
+- Booking intents and short date holds share the same per-vehicle transaction
+  sentinel as owner blocks, preventing concurrent availability writes from
+  bypassing each other.
+- Vehicle detail checks the selected range before enabling quote review and
+  uses truthful unavailable/payment-not-started copy.
+- The prior owner/renter dynamic route collision was removed by placing owner
+  vehicle operations under `/fleet/[id]`.
+
+This does **not** complete Sequence 3 or WP4. Trusted paid-booking creation,
+owner confirm/reject/intervention actions, response-SLA alerts, and the payment
+boundary are still pending. Paystack remains deliberately unavailable.
