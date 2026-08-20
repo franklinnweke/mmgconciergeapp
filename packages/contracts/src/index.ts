@@ -407,6 +407,32 @@ export const renterVisibleBookingSchema = z.object({
 });
 export type RenterVisibleBooking = z.infer<typeof renterVisibleBookingSchema>;
 
+/**
+ * Owner booking projections intentionally omit renter identity, payment/provider
+ * references, private addresses, and availability block identifiers. These are
+ * the only booking fields the owner client needs for operations.
+ */
+export const ownerBookingPriceSnapshotSchema = z.object({
+  currency: z.literal('NGN'),
+  ownerDailyRateKobo: safeKoboSchema,
+  baseRentalKobo: safeKoboSchema,
+  ownerCommissionBps: basisPointsSchema,
+  ownerEarningsKobo: safeKoboSchema,
+}).strict();
+export type OwnerBookingPriceSnapshot = z.infer<typeof ownerBookingPriceSnapshotSchema>;
+
+export const ownerVisibleBookingSchema = z.object({
+  id: boundedIdSchema,
+  vehicleId: boundedIdSchema,
+  startDate: dateOnlySchema,
+  endDate: dateOnlySchema,
+  state: paidBookingStateSchema,
+  version: z.number().int().positive(),
+  vehicleSnapshot: renterVehicleSnapshotSchema,
+  priceSnapshot: ownerBookingPriceSnapshotSchema,
+}).strict();
+export type OwnerVisibleBooking = z.infer<typeof ownerVisibleBookingSchema>;
+
 export type BookingRequestStatus =
   | 'availability_requested'
   | 'confirmed'

@@ -37,6 +37,9 @@ export function ownerCommandErrorMessage(error: unknown): string {
   }
 
   if (domainCode === 'FAILED_PRECONDITION') {
+    if (reason === 'not_paid') {
+      return 'Only a paid booking can be confirmed or declined.';
+    }
     if (reason === 'upload_invalid') {
       return 'The identity document could not be used. Take a clearer photo and try again.';
     }
