@@ -468,7 +468,28 @@ Run this named pass before accepting a redesigned surface:
 
 The final polish pass should usually remove visible UI.
 
-## 13. Implementation roadmap
+## 13. Product-wide subtraction mandate
+
+MMG should earn attention through vehicle proof, Lagos journey context, and truthful operations—not through repeated luxury language or decorative containers. Every redesign must make a deliberate subtraction pass before adding UI:
+
+- State the screen’s job in one sentence and retain only the essential inventory needed to complete it.
+- Review the visible surface for a 20–30% deletion opportunity: remove duplicate headings, assurance copy, badges, pills, rails, and explanatory layers before polishing.
+- Use cards only for selectable vehicle objects; use plain rows, dividers, and grouped typography for supporting information.
+- Preserve privacy, availability, quote, hold, and provider-failure boundaries while simplifying their presentation.
+- Review the rendered result at 390 × 844, a compact Android viewport, and a large-text setting. Record what was removed and any residual risk.
+
+The four-pass roadmap is:
+
+| Pass | Surface | Product job | Gate |
+|---|---|---|---|
+| S1 | Renter discovery and decision | Establish pickup/dates, compare credible cars, decide on one vehicle, then verify dates and quote/hold truth | Current renter screens, focused tests, rendered QA, 20–30% deletion review |
+| S2 | Renter auth, account, and trips | Complete identity and manage truthful trip/account states | Auth/privacy state review and rendered QA |
+| S3 | Owner | List, maintain availability, and respond to trusted booking operations | Owner workflow review and state/error QA |
+| S4 | Admin | Review and operate the marketplace with role-scoped information | Admin accessibility, privacy, and operational QA |
+
+Each pass requires a named job statement, essential inventory list, subtraction review, focused tests, and rendered QA. Subtraction never authorizes changing backend contracts or making an unavailable provider appear live.
+
+## 14. Implementation roadmap
 
 This design roadmap follows the technical work packages; it does not create a separate feature sequence.
 
