@@ -74,7 +74,7 @@ export function OwnerVehicleDetailScreen() {
   const handleManageAvailability = () => {
     if (!vehicle) return;
     router.push({
-      pathname: '/(owner)/vehicle/[id]/availability' as any,
+      pathname: '/(owner)/fleet/[id]/availability' as any,
       params: { id: vehicle.vehicleId },
     });
   };

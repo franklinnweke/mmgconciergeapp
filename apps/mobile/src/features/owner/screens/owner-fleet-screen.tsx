@@ -92,7 +92,7 @@ export function OwnerFleetScreen() {
       });
     } else {
       router.push({
-        pathname: '/(owner)/vehicle/[id]' as any,
+        pathname: '/(owner)/fleet/[id]' as any,
         params: { id: vehicle.vehicleId },
       });
     }
