@@ -22,32 +22,32 @@ import type { VehicleImageRecord, VehicleRecord } from './vehicle-repository.js'
  * omit them.
  *
  * Photo URLs come only from `publicVariantPaths`, which `image-promotion.ts`
- * stamps after the bytes are in the world-readable prefix. A private variant path
- * is never turned into a URL: nothing outside the Admin SDK can read it, so a DTO
- * naming one would be a broken image in the app and a claim the bucket denies.
+ * stamps after the bytes are in the renter-readable prefix. A private variant
+ * path is never turned into a URL.
  */
 
-/** Maps a public object path to the URL a renter's client can fetch. */
+/** Maps a renter-readable Firebase Storage object path to a media URL. */
 export type PublicObjectUrl = (publicPath: string) => string;
 
 /**
- * Public URLs for a bucket's world-readable objects.
+ * Media URLs for objects exposed by Firebase Storage Rules.
  *
- * `storage.googleapis.com/<bucket>/<path>` rather than a signed or tokenised
- * download URL: these objects are `allow read: if true` in `storage.rules`, so
- * there is no token to mint and no expiry to manage. The bucket name is required
- * rather than defaulted — a hardcoded fallback would silently point production
- * clients at another project's bucket.
+ * `allow read: if true` is a Firebase Storage Rules decision. It does not make
+ * the same object anonymously readable through the raw `storage.googleapis.com`
+ * Cloud Storage endpoint, which is governed by GCS IAM. Use the Firebase Storage
+ * media endpoint so the request is evaluated against the repository's Storage
+ * Rules instead of relying on bucket-level public IAM.
  */
 export function googleCloudStoragePublicUrl(bucketName: string): PublicObjectUrl {
   if (!bucketName) {
     throw new Error('googleCloudStoragePublicUrl: bucket name is required.');
   }
+
+  const encodedBucket = encodeURIComponent(bucketName);
   return (publicPath: string) =>
-    `https://storage.googleapis.com/${bucketName}/${publicPath
-      .split('/')
-      .map(encodeURIComponent)
-      .join('/')}`;
+    `https://firebasestorage.googleapis.com/v0/b/${encodedBucket}/o/${encodeURIComponent(
+      publicPath,
+    )}?alt=media`;
 }
 
 /** Why a listing was not renter-visible. Reported, never guessed at by callers. */

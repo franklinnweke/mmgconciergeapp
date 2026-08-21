@@ -25,9 +25,9 @@ function liveVehicle(overrides = {}) {
 }
 
 describe('googleCloudStoragePublicUrl', () => {
-  it('builds a public object URL for the bucket', () => {
+  it('builds a Firebase Storage media URL for the bucket', () => {
     expect(publicUrl('public/vehicles/veh-01/approved/img-01/card')).toBe(
-      'https://storage.googleapis.com/mmg-test.appspot.com/public/vehicles/veh-01/approved/img-01/card',
+      'https://firebasestorage.googleapis.com/v0/b/mmg-test.appspot.com/o/public%2Fvehicles%2Fveh-01%2Fapproved%2Fimg-01%2Fcard?alt=media',
     );
   });
 
@@ -44,7 +44,7 @@ describe('toRenterVisibleVehicle', () => {
     expect(dto).not.toBeNull();
     expect(dto!.vehicleId).toBe('veh-01');
     expect(dto!.imageUrls).toEqual([
-      'https://storage.googleapis.com/mmg-test.appspot.com/public/vehicles/veh-01/approved/img-01/card',
+      'https://firebasestorage.googleapis.com/v0/b/mmg-test.appspot.com/o/public%2Fvehicles%2Fveh-01%2Fapproved%2Fimg-01%2Fcard?alt=media',
     ]);
     expect(dto!.primaryImageUrl).toBe(dto!.imageUrls[0]);
     expect(dto!.approxLatitude).toBe(6.43);
