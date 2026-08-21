@@ -1,13 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
 import { VehicleSummary } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
 
-import { resolveVehicleImageSource } from '../data/vehicle-images';
+import {
+  resolveVehicleFallbackImageSource,
+  resolveVehicleImageSource,
+} from '../data/vehicle-images';
 
 type FeaturedVehicleCardProps = {
   onPress(): void;
@@ -16,6 +21,12 @@ type FeaturedVehicleCardProps = {
 };
 
 export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicleCardProps) {
+  const [useFallbackImage, setUseFallbackImage] = useState(false);
+
+  useEffect(() => {
+    setUseFallbackImage(false);
+  }, [vehicle.id, vehicle.imageUrl, vehicle.imageUrls, vehicle.primaryImageUrl]);
+
   return (
     <PressableScale
       accessibilityHint="Opens vehicle details"
@@ -25,7 +36,23 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
     >
       <View style={[styles.card, { width }]}>
         <View style={styles.imageFrame}>
-          <Image contentFit="cover" source={resolveVehicleImageSource(vehicle)} style={StyleSheet.absoluteFill} />
+          {useFallbackImage && !vehicle.imageKey ? (
+            <View style={[StyleSheet.absoluteFill, styles.imageUnavailable]}>
+              <Ionicons color={colors.muted} name="image-outline" size={30} />
+            </View>
+          ) : (
+            <Image
+              contentFit="cover"
+              onError={() => setUseFallbackImage(true)}
+              source={
+                useFallbackImage
+                  ? resolveVehicleFallbackImageSource(vehicle)
+                  : resolveVehicleImageSource(vehicle)
+              }
+              style={StyleSheet.absoluteFill}
+              transition={180}
+            />
+          )}
           <LinearGradient
             colors={['transparent', 'rgba(4,4,4,0.88)']}
             locations={[0.42, 1]}
@@ -73,7 +100,13 @@ const styles = StyleSheet.create({
     right: spacing.md,
   },
   imageFrame: {
+    backgroundColor: colors.graphiteRaised,
     height: 214,
+  },
+  imageUnavailable: {
+    alignItems: 'center',
+    backgroundColor: colors.graphiteRaised,
+    justifyContent: 'center',
   },
   meta: {
     color: colors.silver,

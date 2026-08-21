@@ -4,11 +4,15 @@ import { VehicleSummary } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
 
-import { resolveVehicleImageSource } from '../data/vehicle-images';
+import {
+  resolveVehicleFallbackImageSource,
+  resolveVehicleImageSource,
+} from '../data/vehicle-images';
 
 type BrowseVehicleCardProps = {
   onPress(): void;
@@ -16,6 +20,12 @@ type BrowseVehicleCardProps = {
 };
 
 export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) {
+  const [useFallbackImage, setUseFallbackImage] = useState(false);
+
+  useEffect(() => {
+    setUseFallbackImage(false);
+  }, [vehicle.id, vehicle.imageUrl, vehicle.imageUrls, vehicle.primaryImageUrl]);
+
   return (
     <PressableScale
       accessibilityHint="Opens vehicle details"
@@ -25,12 +35,23 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
     >
       <View style={styles.card}>
         <View style={styles.imageFrame}>
-          <Image
-            contentFit="cover"
-            source={resolveVehicleImageSource(vehicle)}
-            style={StyleSheet.absoluteFill}
-            transition={220}
-          />
+          {useFallbackImage && !vehicle.imageKey ? (
+            <View style={[StyleSheet.absoluteFill, styles.imageUnavailable]}>
+              <Ionicons color={colors.muted} name="image-outline" size={30} />
+            </View>
+          ) : (
+            <Image
+              contentFit="cover"
+              onError={() => setUseFallbackImage(true)}
+              source={
+                useFallbackImage
+                  ? resolveVehicleFallbackImageSource(vehicle)
+                  : resolveVehicleImageSource(vehicle)
+              }
+              style={StyleSheet.absoluteFill}
+              transition={180}
+            />
+          )}
           <LinearGradient
             colors={['transparent', 'rgba(4,4,4,0.88)']}
             locations={[0.45, 1]}
@@ -65,29 +86,6 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
 }
 
 const styles = StyleSheet.create({
-  availabilityDot: {
-    backgroundColor: colors.success,
-    borderRadius: radii.pill,
-    height: 5,
-    width: 5,
-  },
-  availabilityPill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(4,4,4,0.72)',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  availabilityText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 0.7,
-  },
   card: {
     backgroundColor: colors.graphite,
     borderColor: colors.line,
@@ -95,35 +93,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
-  category: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1,
-    marginBottom: 5,
-  },
   detailRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
-  },
-  distancePill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(4,4,4,0.72)',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  distanceText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
   },
   imageCopy: {
     bottom: spacing.md,
@@ -135,32 +110,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.graphiteRaised,
     height: 220,
   },
-  inclusion: {
+  imageUnavailable: {
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: 5,
-  },
-  inclusionRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  inclusionText: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
-  serviceRow: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  serviceText: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
+    backgroundColor: colors.graphiteRaised,
+    justifyContent: 'center',
   },
   location: {
     color: colors.silver,
@@ -179,15 +132,6 @@ const styles = StyleSheet.create({
     height: 3,
     marginHorizontal: 2,
     width: 3,
-  },
-  openButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    height: 34,
-    justifyContent: 'center',
-    marginLeft: 'auto',
-    width: 34,
   },
   perDay: {
     color: colors.muted,
@@ -208,18 +152,20 @@ const styles = StyleSheet.create({
     fontFamily: typography.body,
     fontSize: fontSizes.sm,
   },
+  serviceRow: {
+    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  serviceText: {
+    color: colors.muted,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.xs,
+  },
   title: {
     color: colors.ivory,
     fontFamily: typography.display,
     fontSize: fontSizes.xl,
     letterSpacing: -0.4,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    left: spacing.sm,
-    position: 'absolute',
-    right: spacing.sm,
-    top: spacing.sm,
   },
 });
