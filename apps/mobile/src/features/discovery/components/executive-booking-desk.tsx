@@ -1,10 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
-import { addDaysToDateOnly, formatLagosDateOnly, todayLagosDateOnly } from '../data/lagos-destinations';
+import {
+  addDaysToDateOnly,
+  formatLagosDateOnly,
+  todayLagosDateOnly,
+} from '../data/lagos-destinations';
 
 export type ExecutiveBookingDeskProps = {
   areaLabel: string;
@@ -18,41 +22,88 @@ export type ExecutiveBookingDeskProps = {
   }): void;
 };
 
+type DateOption = {
+  date: string;
+  offset: number;
+  primary: string;
+  secondary: string;
+};
+
+function dateOptionCopy(dateOnly: string, offset: number): Omit<DateOption, 'date' | 'offset'> {
+  const date = new Date(`${dateOnly}T12:00:00+01:00`);
+  const primary =
+    offset === 0
+      ? 'Today'
+      : offset === 1
+        ? 'Tomorrow'
+        : new Intl.DateTimeFormat('en-NG', {
+            timeZone: 'Africa/Lagos',
+            weekday: 'short',
+          }).format(date);
+  const secondary = new Intl.DateTimeFormat('en-NG', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Africa/Lagos',
+  }).format(date);
+
+  return { primary, secondary };
+}
+
 export function ExecutiveBookingDesk({
   areaLabel,
   onPressArea,
   onExploreFleet,
 }: ExecutiveBookingDeskProps) {
-  // Start date offset: 0 for Today, 1 for Tomorrow, 2 for Day After
-  const [startOffset, setStartOffset] = useState<0 | 1 | 2>(0);
-  const [durationDays, setDurationDays] = useState<number>(3);
+  const [startOffset, setStartOffset] = useState(0);
+  const [durationDays, setDurationDays] = useState(3);
 
   const today = todayLagosDateOnly();
-  const startDate = useMemo(() => addDaysToDateOnly(today, startOffset), [today, startOffset]);
-  const endDate = useMemo(() => addDaysToDateOnly(startDate, durationDays), [startDate, durationDays]);
+  const dateOptions = useMemo<DateOption[]>(
+    () =>
+      Array.from({ length: 14 }, (_, offset) => {
+        const date = addDaysToDateOnly(today, offset);
+        return {
+          date,
+          offset,
+          ...dateOptionCopy(date, offset),
+        };
+      }),
+    [today],
+  );
 
-  const formattedStart = useMemo(() => formatLagosDateOnly(startDate), [startDate]);
-  const formattedEnd = useMemo(() => formatLagosDateOnly(endDate), [endDate]);
+  const startDate = useMemo(
+    () => addDaysToDateOnly(today, startOffset),
+    [startOffset, today],
+  );
+  const endDate = useMemo(
+    () => addDaysToDateOnly(startDate, durationDays),
+    [durationDays, startDate],
+  );
+
+  const formattedStart = useMemo(
+    () => formatLagosDateOnly(startDate),
+    [startDate],
+  );
+  const formattedEnd = useMemo(
+    () => formatLagosDateOnly(endDate),
+    [endDate],
+  );
 
   const handleDecreaseDays = () => {
     if (durationDays > 1) {
-      setDurationDays((prev) => prev - 1);
+      setDurationDays((previous) => previous - 1);
     }
   };
 
   const handleIncreaseDays = () => {
     if (durationDays < 30) {
-      setDurationDays((prev) => prev + 1);
+      setDurationDays((previous) => previous + 1);
     }
   };
 
   const handleExplore = () => {
     const journeyLabel =
-      durationDays === 1
-        ? startOffset === 0
-          ? 'Today'
-          : 'Tomorrow'
-        : `${durationDays} Days`;
+      startOffset === 0 ? 'Today' : startOffset === 1 ? 'Tomorrow' : formattedStart;
 
     onExploreFleet({
       area: areaLabel,
@@ -64,140 +115,130 @@ export function ExecutiveBookingDesk({
   };
 
   return (
-    <View style={styles.card}>
-      {/* Header Eyebrow & Title */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Plan your Lagos journey</Text>
-      </View>
+    <View style={styles.container}>
+      <PressableScale
+        accessibilityLabel={`Pickup location, ${areaLabel}, Lagos. Change pickup location`}
+        accessibilityRole="button"
+        onPress={onPressArea}
+      >
+        <View style={styles.areaRow}>
+          <View style={styles.areaIcon}>
+            <Ionicons color={colors.goldStrong} name="location-outline" size={20} />
+          </View>
+          <View style={styles.areaCopy}>
+            <Text style={styles.areaPrompt}>Where should we pick you up?</Text>
+            <Text numberOfLines={1} style={styles.areaValue}>
+              {areaLabel}, Lagos
+            </Text>
+          </View>
+          <Ionicons color={colors.muted} name="chevron-down" size={18} />
+        </View>
+      </PressableScale>
 
-      {/* Lagos Dispatch Area Field */}
-      <View style={styles.sectionGroup}>
-        <Text style={styles.sectionLabel}>PICKUP LOCATION</Text>
+      <ScrollView
+        contentContainerStyle={styles.dateRail}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.dateRailViewport}
+      >
+        {dateOptions.map((option) => {
+          const selected = option.offset === startOffset;
+
+          return (
+            <PressableScale
+              accessibilityLabel={`Start date ${option.primary}, ${option.secondary}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              key={option.date}
+              onPress={() => setStartOffset(option.offset)}
+            >
+              <View style={[styles.dateChip, selected && styles.dateChipSelected]}>
+                <Text style={[styles.datePrimary, selected && styles.datePrimarySelected]}>
+                  {option.primary}
+                </Text>
+                <Text style={[styles.dateSecondary, selected && styles.dateSecondarySelected]}>
+                  {option.secondary}
+                </Text>
+              </View>
+            </PressableScale>
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.stepperBox}>
         <PressableScale
-          accessibilityLabel={`Dispatch zone, ${areaLabel}`}
+          accessibilityLabel="Decrease rental duration"
           accessibilityRole="button"
-          onPress={onPressArea}
+          disabled={durationDays <= 1}
+          onPress={handleDecreaseDays}
         >
-          <View style={styles.areaRow}>
-            <View style={styles.areaIcon}>
-              <Ionicons color={colors.goldStrong} name="location-outline" size={18} />
-            </View>
-            <View style={styles.areaCopy}>
-              <Text numberOfLines={1} style={styles.areaValue}>Lagos · {areaLabel}</Text>
-            </View>
-            <View style={styles.changeBadge}>
-              <Text style={styles.changeBadgeText}>Change</Text>
-              <Ionicons color={colors.goldStrong} name="chevron-down" size={14} />
-            </View>
+          <View
+            style={[
+              styles.stepperButton,
+              durationDays <= 1 && styles.stepperButtonDisabled,
+            ]}
+          >
+            <Ionicons
+              color={durationDays <= 1 ? colors.muted : colors.ivory}
+              name="remove"
+              size={20}
+            />
+          </View>
+        </PressableScale>
+
+        <Text accessibilityLiveRegion="polite" style={styles.durationText}>
+          {durationDays} rental {durationDays === 1 ? 'day' : 'days'}
+        </Text>
+
+        <PressableScale
+          accessibilityLabel="Increase rental duration"
+          accessibilityRole="button"
+          disabled={durationDays >= 30}
+          onPress={handleIncreaseDays}
+        >
+          <View
+            style={[
+              styles.stepperButton,
+              durationDays >= 30 && styles.stepperButtonDisabled,
+            ]}
+          >
+            <Ionicons
+              color={durationDays >= 30 ? colors.muted : colors.ivory}
+              name="add"
+              size={20}
+            />
           </View>
         </PressableScale>
       </View>
 
-      {/* Start Date Selector */}
-      <View style={styles.sectionGroup}>
-        <Text style={styles.sectionLabel}>START DATE</Text>
-        <View style={styles.dateSegmentRow}>
-          {[
-            { label: 'Today', offset: 0 },
-            { label: 'Tomorrow', offset: 1 },
-            { label: 'In 2 Days', offset: 2 },
-          ].map((item) => {
-            const isSelected = startOffset === item.offset;
-            return (
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                key={item.label}
-                onPress={() => setStartOffset(item.offset as 0 | 1 | 2)}
-                style={styles.dateSegmentFlex}
-              >
-                <View style={[styles.dateSegmentChip, isSelected && styles.dateSegmentChipActive]}>
-                  <Text style={[styles.dateSegmentText, isSelected && styles.dateSegmentTextActive]}>
-                    {item.label}
-                  </Text>
-                </View>
-              </PressableScale>
-            );
-          })}
-        </View>
-      </View>
-
-        {/* Duration stepper */}
-      <View style={styles.sectionGroup}>
-        <View style={styles.durationHeader}>
-          <Text style={styles.sectionLabel}>DURATION</Text>
-          <Text style={styles.durationDaysValue}>
-            {durationDays} {durationDays === 1 ? 'Day' : 'Days'}
+      <View style={styles.scheduleSummary}>
+        <View style={[styles.scheduleCol, styles.scheduleColStart]}>
+          <Text style={styles.scheduleLabel}>Pickup</Text>
+          <Text numberOfLines={1} style={styles.scheduleValue}>
+            {formattedStart}
           </Text>
         </View>
 
-        {/* Stepper Controller */}
-        <View style={styles.stepperBox}>
-          <PressableScale
-            accessibilityLabel="Decrease duration"
-            accessibilityRole="button"
-            disabled={durationDays <= 1}
-            onPress={handleDecreaseDays}
-          >
-            <View style={[styles.stepperButton, durationDays <= 1 && styles.stepperButtonDisabled]}>
-              <Ionicons
-                color={durationDays <= 1 ? colors.muted : colors.ivory}
-                name="remove"
-                size={20}
-              />
-            </View>
-          </PressableScale>
-
-          <View style={styles.stepperCenter}>
-            <Text style={styles.stepperNumber}>{durationDays}</Text>
-            <Text style={styles.stepperLabel}>
-              {durationDays === 1 ? 'Chauffeured Day' : 'Chauffeured Days'}
-            </Text>
-          </View>
-
-          <PressableScale
-            accessibilityLabel="Increase duration"
-            accessibilityRole="button"
-            disabled={durationDays >= 30}
-            onPress={handleIncreaseDays}
-          >
-            <View style={[styles.stepperButton, durationDays >= 30 && styles.stepperButtonDisabled]}>
-              <Ionicons
-                color={durationDays >= 30 ? colors.muted : colors.ivory}
-                name="add"
-                size={20}
-              />
-            </View>
-          </PressableScale>
-        </View>
-
-      </View>
-
-      {/* Live Schedule Summary & Guarantee */}
-      <View style={styles.scheduleSummaryBox}>
-        <View style={styles.scheduleRow}>
-          <View style={styles.scheduleCol}>
-            <Text style={styles.scheduleLabel}>PICKUP DATE</Text>
-            <Text style={styles.scheduleValue}>{formattedStart}</Text>
-          </View>
+        <View style={styles.scheduleArrow}>
           <Ionicons color={colors.goldStrong} name="arrow-forward" size={16} />
-          <View style={styles.scheduleCol}>
-            <Text style={styles.scheduleLabel}>RETURN DATE</Text>
-            <Text style={styles.scheduleValue}>{formattedEnd}</Text>
-          </View>
         </View>
 
+        <View style={[styles.scheduleCol, styles.scheduleColEnd]}>
+          <Text style={styles.scheduleLabel}>Return</Text>
+          <Text numberOfLines={1} style={styles.scheduleValue}>
+            {formattedEnd}
+          </Text>
+        </View>
       </View>
 
-      {/* Executive Call to Action */}
       <PressableScale
-        accessibilityLabel="Explore Available Fleet"
+        accessibilityLabel="Find cars"
         accessibilityRole="button"
         onPress={handleExplore}
       >
         <View style={styles.exploreButton}>
-          <Ionicons color={colors.black} name="car-sport" size={18} />
-          <Text style={styles.exploreText}>FIND CARS</Text>
+          <Text style={styles.exploreText}>Find cars</Text>
+          <Ionicons color={colors.black} name="arrow-forward" size={18} />
         </View>
       </PressableScale>
     </View>
@@ -205,16 +246,20 @@ export function ExecutiveBookingDesk({
 }
 
 const styles = StyleSheet.create({
-  areaCopy: { flex: 1 },
+  areaCopy: {
+    flex: 1,
+    gap: 2,
+  },
   areaIcon: {
     alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 32,
+    height: 44,
     justifyContent: 'center',
     width: 32,
+  },
+  areaPrompt: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
   },
   areaRow: {
     alignItems: 'center',
@@ -224,79 +269,68 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 44,
-    paddingHorizontal: spacing.sm,
+    minHeight: 64,
+    paddingHorizontal: spacing.md,
   },
   areaValue: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.base,
   },
-  card: {
-    gap: spacing.lg,
-    padding: spacing.lg,
+  container: {
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
   },
-  changeBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(227,195,101,0.1)',
-    borderColor: 'rgba(227,195,101,0.3)',
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  changeBadgeText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-  },
-  dateSegmentChip: {
+  dateChip: {
     alignItems: 'center',
     backgroundColor: colors.graphite,
     borderColor: colors.line,
-    borderRadius: radii.pill,
+    borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: 58,
+    minWidth: 88,
+    paddingHorizontal: spacing.sm,
   },
-  dateSegmentChipActive: {
+  dateChipSelected: {
     backgroundColor: colors.ivory,
     borderColor: colors.ivory,
   },
-  dateSegmentFlex: { flex: 1 },
-  dateSegmentRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  dateSegmentText: {
-    color: colors.silver,
-    fontFamily: typography.bodyMedium,
+  datePrimary: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.sm,
   },
-  dateSegmentTextActive: {
+  datePrimarySelected: {
     color: colors.black,
+  },
+  dateRail: {
+    gap: spacing.xs,
+    paddingRight: spacing.md,
+  },
+  dateRailViewport: {
+    marginRight: -spacing.md,
+  },
+  dateSecondary: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
+    marginTop: 3,
+  },
+  dateSecondarySelected: {
+    color: colors.graphiteRaised,
+  },
+  durationText: {
+    color: colors.ivory,
+    flex: 1,
     fontFamily: typography.bodySemiBold,
-  },
-  divider: {
-    backgroundColor: colors.line,
-    height: StyleSheet.hairlineWidth,
-  },
-  durationDaysValue: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  durationHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    fontSize: fontSizes.base,
+    textAlign: 'center',
   },
   exploreButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.md,
     flexDirection: 'row',
     gap: spacing.xs,
     justifyContent: 'center',
@@ -306,94 +340,45 @@ const styles = StyleSheet.create({
   exploreText: {
     color: colors.black,
     fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-    letterSpacing: 0.8,
+    fontSize: fontSizes.base,
   },
-  eyebrow: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1.4,
-  },
-  guaranteeRow: {
+  scheduleArrow: {
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  guaranteeText: {
-    color: colors.silver,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  header: {
-    gap: 4,
-  },
-  presetChip: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
+    flexBasis: 32,
+    flexGrow: 0,
+    flexShrink: 0,
     justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.xs,
-  },
-  presetChipActive: {
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.goldStrong,
-  },
-  presetFlex: { flex: 1 },
-  presetsRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  presetText: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
-  presetTextActive: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
   },
   scheduleCol: {
     flex: 1,
+    minWidth: 0,
+  },
+  scheduleColEnd: {
+    alignItems: 'flex-end',
+  },
+  scheduleColStart: {
+    alignItems: 'flex-start',
   },
   scheduleLabel: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 0.8,
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
   },
-  scheduleRow: {
+  scheduleSummary: {
     alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  scheduleSummaryBox: {
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: spacing.sm,
-    padding: spacing.md,
+    minHeight: 64,
+    paddingVertical: spacing.sm,
   },
   scheduleValue: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.sm,
-    marginTop: 2,
-  },
-  sectionGroup: {
-    gap: spacing.xs,
-  },
-  sectionLabel: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 0.8,
+    marginTop: 3,
   },
   stepperBox: {
     alignItems: 'center',
@@ -402,47 +387,19 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: spacing.sm,
+    minHeight: 56,
     padding: spacing.xs,
   },
   stepperButton: {
     alignItems: 'center',
     backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.sm,
     height: 44,
     justifyContent: 'center',
     width: 44,
   },
   stepperButtonDisabled: {
     opacity: 0.35,
-  },
-  stepperCenter: {
-    alignItems: 'center',
-  },
-  stepperLabel: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    marginTop: 1,
-  },
-  stepperNumber: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.xl,
-  },
-  subtitle: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    lineHeight: 20,
-    marginTop: 2,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.display,
-    letterSpacing: -0.5,
   },
 });
