@@ -49,7 +49,7 @@ export default function DiscoveryHomeScreen() {
   const featuredVehicles = vehicles;
   const { width: windowWidth } = useWindowDimensions();
   const compactHeader = windowWidth < 360;
-  const cardWidth = Math.min(328, Math.max(260, windowWidth - 56));
+  const cardWidth = Math.min(352, Math.max(280, windowWidth - 48));
   const selectedJourneyDates = journeyDates(journey);
 
   function openFleet(nextArea = area) {
@@ -68,33 +68,43 @@ export default function DiscoveryHomeScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topBar}>
-          <View style={styles.topRow}>
-            <BrandWordmark compact withLogo={!compactHeader} />
-            <View style={styles.topActions}>
-              <View style={styles.cityPill}>
-                <RadarPulseDot color={colors.goldStrong} glowColor="rgba(227,195,101,0.35)" size={6} />
-                <Text style={styles.cityText}>Lagos</Text>
-              </View>
-              <PressableScale
-                accessibilityLabel="Open account"
-                accessibilityRole="button"
-                onPress={() => router.push('/(renter)/account')}
-                style={styles.avatarPress}
-              >
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
+        <View style={styles.inset}>
+          <View style={styles.topBar}>
+            <View style={styles.topRow}>
+              <BrandWordmark compact withLogo={!compactHeader} />
+              <View style={styles.topActions}>
+                <View style={styles.cityPill}>
+                  <RadarPulseDot
+                    color={colors.goldStrong}
+                    glowColor="rgba(227,195,101,0.35)"
+                    size={6}
+                  />
+                  <Text style={styles.cityText}>Lagos</Text>
                 </View>
-              </PressableScale>
+                <PressableScale
+                  accessibilityLabel="Open account"
+                  accessibilityRole="button"
+                  onPress={() => router.push('/(renter)/account')}
+                  style={styles.avatarPress}
+                >
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {firstName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                </PressableScale>
+              </View>
             </View>
           </View>
         </View>
 
         {liveTrip ? (
-          <LiveJourneyCard
-            onPress={() => router.push(`/trip/${liveTrip.id}` as Href)}
-            trip={liveTrip}
-          />
+          <View style={styles.inset}>
+            <LiveJourneyCard
+              onPress={() => router.push(`/trip/${liveTrip.id}` as Href)}
+              trip={liveTrip}
+            />
+          </View>
         ) : null}
 
         <ExecutiveBookingDesk
@@ -120,15 +130,17 @@ export default function DiscoveryHomeScreen() {
           visible={destinationsOpen}
         />
 
-        <View style={styles.inventoryHeading}>
-          <Text accessibilityRole="header" style={styles.inventoryTitle}>Available in Lagos</Text>
+        <View style={[styles.inventoryHeading, styles.inset]}>
+          <Text accessibilityRole="header" style={styles.inventoryTitle}>
+            Available in Lagos
+          </Text>
           <PressableScale accessibilityRole="button" onPress={() => openFleet()}>
             <Text style={styles.viewAll}>View all</Text>
           </PressableScale>
         </View>
 
         {error ? (
-          <View style={styles.errorBox}>
+          <View style={[styles.errorBox, styles.inset]}>
             <Ionicons color={colors.danger} name="alert-circle" size={18} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
@@ -143,10 +155,14 @@ export default function DiscoveryHomeScreen() {
             <LuxuryShimmer height={310} width={cardWidth} />
           </ScrollView>
         ) : featuredVehicles.length === 0 ? (
-          <View style={styles.emptyFeaturedBox}>
+          <View style={[styles.emptyFeaturedBox, styles.inset]}>
             <Ionicons color={colors.goldStrong} name="car-outline" size={28} />
-            <Text style={styles.emptyFeaturedTitle}>No available listings in this category</Text>
-            <Text style={styles.emptyFeaturedSubtitle}>Check back soon or explore other vehicle categories.</Text>
+            <Text style={styles.emptyFeaturedTitle}>
+              No available listings in this category
+            </Text>
+            <Text style={styles.emptyFeaturedSubtitle}>
+              Check back soon or explore other vehicle categories.
+            </Text>
           </View>
         ) : (
           <ScrollView
@@ -176,16 +192,12 @@ export default function DiscoveryHomeScreen() {
             ))}
           </ScrollView>
         )}
-
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  inventoryHeading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  inventoryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
-  viewAll: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
@@ -206,7 +218,7 @@ const styles = StyleSheet.create({
   },
   carousel: {
     gap: carouselGap,
-    paddingRight: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   cityPill: {
     alignItems: 'center',
@@ -227,20 +239,6 @@ const styles = StyleSheet.create({
   content: {
     gap: spacing.lg,
     paddingBottom: 120,
-    paddingHorizontal: spacing.lg,
-  },
-  horizontalClip: {
-    alignSelf: 'stretch',
-    overflow: 'hidden',
-    width: '100%',
-  },
-  screen: { backgroundColor: colors.black, flex: 1, maxWidth: '100%', overflow: 'hidden', width: '100%' },
-  topActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  topBar: { gap: spacing.xs },
-  topRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   emptyFeaturedBox: {
     alignItems: 'center',
@@ -250,19 +248,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.xs,
     justifyContent: 'center',
-    marginHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
+  },
+  emptyFeaturedSubtitle: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
   },
   emptyFeaturedTitle: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.sm,
     marginTop: spacing.xs,
-  },
-  emptyFeaturedSubtitle: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
   },
   errorBox: {
     alignItems: 'center',
@@ -272,13 +269,55 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
     padding: spacing.md,
   },
   errorText: {
     color: colors.danger,
     flex: 1,
     fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.sm,
+  },
+  horizontalClip: {
+    alignSelf: 'stretch',
+    overflow: 'visible',
+    width: '100%',
+  },
+  inset: {
+    marginHorizontal: spacing.md,
+  },
+  inventoryHeading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  inventoryTitle: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.lg,
+  },
+  screen: {
+    backgroundColor: colors.black,
+    flex: 1,
+    maxWidth: '100%',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  topActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  topBar: {
+    gap: spacing.xs,
+  },
+  topRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  viewAll: {
+    color: colors.goldStrong,
+    fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.sm,
   },
 });
