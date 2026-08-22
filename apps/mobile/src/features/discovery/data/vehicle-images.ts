@@ -22,6 +22,17 @@ export const vehicleImages: Record<VehicleSummaryImageKey, ImageSource> = {
   'prado-graphite': pradoGraphite,
 };
 
+const bundledVehicleImageByLegacyPath: Record<string, ImageSource> = {
+  '/assets/images/fleet/graphite-executive-sedan.png': graphiteSedan,
+  '/assets/images/fleet/prado-150-graphite.png': pradoGraphite,
+  '/assets/images/fleet/prado-150-pearl.png': pearlSuv,
+  '/assets/images/fleet/prado-250-obsidian-hero.png': heroSuv,
+};
+
+function isLegacyBundledAssetPath(url: string): boolean {
+  return url.startsWith('/assets/images/fleet/');
+}
+
 export function normalizeVehicleImageUrl(url: string): string {
   const cloudStoragePrefix = 'https://storage.googleapis.com/';
   if (!url.startsWith(cloudStoragePrefix)) return url;
@@ -50,16 +61,33 @@ export function resolveVehicleFallbackImageSource(
   return vehicleImages['hero-suv'];
 }
 
+export function resolveVehicleImageUrlSource(
+  url: string,
+  vehicle: Partial<VehicleSummary>,
+): ImageSource {
+  const bundledSource = bundledVehicleImageByLegacyPath[url];
+  if (bundledSource) return bundledSource;
+
+  // Historical fixture documents stored web-root paths in Firestore. Those
+  // paths cannot be loaded by an installed iOS or Android app. Missing legacy
+  // files must fall back locally instead of being sent to the native loader.
+  if (isLegacyBundledAssetPath(url)) {
+    return resolveVehicleFallbackImageSource(vehicle);
+  }
+
+  return { uri: normalizeVehicleImageUrl(url) };
+}
+
 export function resolveVehicleImageSource(
   vehicle?: Partial<VehicleSummary> | null,
 ): ImageSource {
   if (!vehicle) return resolveVehicleFallbackImageSource(vehicle);
-  if (vehicle.imageUrl) return { uri: normalizeVehicleImageUrl(vehicle.imageUrl) };
+  if (vehicle.imageUrl) return resolveVehicleImageUrlSource(vehicle.imageUrl, vehicle);
   if (vehicle.primaryImageUrl) {
-    return { uri: normalizeVehicleImageUrl(vehicle.primaryImageUrl) };
+    return resolveVehicleImageUrlSource(vehicle.primaryImageUrl, vehicle);
   }
   if (vehicle.imageUrls && vehicle.imageUrls.length > 0 && vehicle.imageUrls[0]) {
-    return { uri: normalizeVehicleImageUrl(vehicle.imageUrls[0]) };
+    return resolveVehicleImageUrlSource(vehicle.imageUrls[0], vehicle);
   }
   return resolveVehicleFallbackImageSource(vehicle);
 }

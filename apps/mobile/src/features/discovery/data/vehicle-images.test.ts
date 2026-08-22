@@ -82,6 +82,31 @@ describe('resolveVehicleImageSource', () => {
     expect(suvSource).toBe(vehicleImages['hero-suv']);
   });
 
+  it('resolves tracked legacy web asset paths to bundled native assets', () => {
+    expect(
+      resolveVehicleImageSource({
+        category: 'executive_suv',
+        primaryImageUrl: '/assets/images/fleet/prado-150-pearl.png',
+      }),
+    ).toBe(vehicleImages['pearl-suv']);
+  });
+
+  it('does not pass missing legacy web asset paths to the native image loader', () => {
+    expect(
+      resolveVehicleImageSource({
+        category: 'executive_suv',
+        primaryImageUrl: '/assets/images/fleet/lc300-vxr-white.png',
+      }),
+    ).toBe(vehicleImages['hero-suv']);
+
+    expect(
+      resolveVehicleImageSource({
+        category: 'executive_sedan',
+        imageUrl: '/assets/images/fleet/mercedes-s580-black.png',
+      }),
+    ).toBe(vehicleImages['graphite-sedan']);
+  });
+
   it('gracefully handles null or undefined vehicle input without throwing', () => {
     expect(resolveVehicleImageSource(null)).toBe(vehicleImages['hero-suv']);
     expect(resolveVehicleImageSource(undefined)).toBe(vehicleImages['hero-suv']);

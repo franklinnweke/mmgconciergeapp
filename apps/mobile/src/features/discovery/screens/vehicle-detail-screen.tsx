@@ -29,7 +29,11 @@ import {
   todayLagosDateOnly,
 } from '../data/lagos-destinations';
 import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
-import { resolveVehicleImageSource, vehicleImages } from '../data/vehicle-images';
+import {
+  resolveVehicleImageSource,
+  resolveVehicleImageUrlSource,
+  vehicleImages,
+} from '../data/vehicle-images';
 import {
   createVehicleCalendarGateway,
   type VehicleCalendarGateway,
@@ -166,10 +170,12 @@ export default function VehicleDetailScreen({
   const galleryImages = useMemo(() => {
     if (!vehicle) return [];
     if (vehicle.imageUrls && vehicle.imageUrls.length > 0) {
-      return vehicle.imageUrls.map((url: string) => ({ uri: url }));
+      return vehicle.imageUrls.map((url: string) =>
+        resolveVehicleImageUrlSource(url, vehicle),
+      );
     }
     if (vehicle.imageUrl) {
-      return [{ uri: vehicle.imageUrl }];
+      return [resolveVehicleImageUrlSource(vehicle.imageUrl, vehicle)];
     }
     const primary = resolveVehicleImageSource(vehicle);
     const images = [primary];
