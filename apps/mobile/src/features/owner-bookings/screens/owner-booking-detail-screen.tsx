@@ -1,29 +1,52 @@
-import { colors, radii, spacing } from "@mmg/brand";
-import { formatNairaFromKobo } from "@mmg/domain";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radii, spacing, typography } from '@mmg/brand';
+import type { OwnerVisibleBooking } from '@mmg/contracts';
+import { formatNairaFromKobo } from '@mmg/domain';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ownerCommandErrorMessage } from "@/features/owner/domain/owner-errors";
-import { useAuth } from "@/core/auth/auth-context";
-import { createOwnerBookingGateway } from "../data/owner-booking-gateway";
-import { createOwnerBookingRepository } from "../data/owner-booking-repository";
-import type { OwnerVisibleBooking } from "@mmg/contracts";
+import {
+  FieldLabel,
+  InlineNotice,
+  MobileHeader,
+  PrimaryAction,
+  SecondaryAction,
+  SectionHeading,
+} from '@/components/ui/mobile-primitives';
+import { useAuth } from '@/core/auth/auth-context';
+import { ownerCommandErrorMessage } from '@/features/owner/domain/owner-errors';
+import { createOwnerBookingGateway } from '../data/owner-booking-gateway';
+import { createOwnerBookingRepository } from '../data/owner-booking-repository';
 import {
   canOwnerRespond,
   hasReachedExpectedState,
   isDeclineReasonValid,
-} from "../domain/owner-booking";
+} from '../domain/owner-booking';
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('en-NG', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'Africa/Lagos',
+  }).format(new Date(`${value}T12:00:00+01:00`));
+}
+
+function stateLabel(state: string) {
+  switch (state) {
+    case 'paid_pending_owner': return 'Awaiting your response';
+    case 'confirmed': return 'Confirmed';
+    case 'intervention_required': return 'MMG review needed';
+    case 'cancelled': return 'Cancelled';
+    case 'refund_pending': return 'Refund pending';
+    case 'refunded': return 'Refunded';
+    case 'in_progress': return 'In progress';
+    case 'completion_pending': return 'Completion pending';
+    case 'completed': return 'Completed';
+    default: return state.replaceAll('_', ' ');
+  }
+}
 
 export function OwnerBookingDetailScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
@@ -34,13 +57,14 @@ export function OwnerBookingDetailScreen() {
   const [booking, setBooking] = useState<OwnerVisibleBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<{
-    state: "confirmed" | "intervention_required";
+    state: 'confirmed' | 'intervention_required';
     version: number;
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
   const retry = () => {
     setError(null);
     setLoading(true);
@@ -52,24 +76,18 @@ export function OwnerBookingDetailScreen() {
     return repository.subscribe(
       user.uid,
       (snapshot) => {
-        const next =
-          snapshot.bookings.find((item) => item.id === bookingId) ?? null;
+        const next = snapshot.bookings.find((item) => item.id === bookingId) ?? null;
         setBooking(next);
         setLoading(false);
         setError(null);
         if (pending && hasReachedExpectedState(next, pending)) {
           setPending(null);
           setBusy(false);
-          Alert.alert(
-            "Booking updated",
-            "The booking record now reflects your response.",
-          );
+          Alert.alert('Booking updated', 'Your response is now reflected on the booking.');
         }
       },
       () => {
-        setError(
-          "This booking could not be refreshed. Your last action has not been confirmed.",
-        );
+        setError('This booking could not be refreshed. Your last action has not been confirmed.');
         setPending(null);
         setBusy(false);
         setLoading(false);
@@ -77,38 +95,36 @@ export function OwnerBookingDetailScreen() {
     );
   }, [bookingId, pending, refreshKey, repository, user?.uid]);
 
-  const act = async (kind: "confirm" | "reject") => {
+  const act = async (kind: 'confirm' | 'reject') => {
     if (!booking || busy) return;
-    if (kind === "reject" && !isDeclineReasonValid(reason)) {
-      setError(
-        `Add a decline reason between 10 and 500 characters (${reason.trim().length}/500).`,
-      );
+    if (kind === 'reject' && !isDeclineReasonValid(reason)) {
+      setError(`Add a decline reason between 10 and 500 characters (${reason.trim().length}/500).`);
       return;
     }
+
     setBusy(true);
     setError(null);
     const expected = {
-      state:
-        kind === "confirm"
-          ? ("confirmed" as const)
-          : ("intervention_required" as const),
+      state: kind === 'confirm' ? ('confirmed' as const) : ('intervention_required' as const),
       version: booking.version + 1,
     };
     setPending(expected);
+
     try {
-      if (kind === "confirm")
+      if (kind === 'confirm') {
         await gateway.confirm(
           booking.id,
           booking.version,
           `owner_confirm_${booking.id}_${booking.version}`,
         );
-      else
+      } else {
         await gateway.reject(
           booking.id,
           booking.version,
           reason.trim(),
           `owner_reject_${booking.id}_${booking.version}`,
         );
+      }
     } catch (caught) {
       setPending(null);
       setBusy(false);
@@ -116,231 +132,299 @@ export function OwnerBookingDetailScreen() {
     }
   };
 
-  if (loading)
+  if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color={colors.gold} />
-      </SafeAreaView>
-    );
-  if (error && !booking)
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.title}>Booking unavailable</Text>
-          <Text accessibilityLiveRegion="polite" style={styles.muted}>
-            {error}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={retry}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>RETRY</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.back()}
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>BACK</Text>
-          </Pressable>
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.goldStrong} size="small" />
+          <Text style={styles.centeredText}>Loading booking</Text>
         </View>
       </SafeAreaView>
     );
-  if (!booking)
+  }
+
+  if (!booking) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.title}>Booking unavailable</Text>
-          <Text style={styles.muted}>
-            This record may have changed or is not assigned to your fleet.
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.fallback}>
+          <Ionicons color={colors.danger} name="alert-circle-outline" size={30} />
+          <Text style={styles.fallbackTitle}>Booking unavailable</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.fallbackText}>
+            {error ?? 'This record may have changed or is not assigned to your fleet.'}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.back()}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>BACK</Text>
-          </Pressable>
+          <View style={styles.fallbackActions}>
+            {error ? <PrimaryAction icon="refresh" label="Try again" onPress={retry} /> : null}
+            <SecondaryAction label="Back to bookings" onPress={() => router.back()} />
+          </View>
         </View>
       </SafeAreaView>
     );
+  }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Pressable
-          accessibilityLabel="Back to booking desk"
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          style={styles.back}
-        >
-          <Text style={styles.backText}>‹ BACK TO BOOKINGS</Text>
-        </Pressable>
-        <Text style={styles.title}>{booking.vehicleSnapshot.displayName}</Text>
-        <Text style={styles.sectionTitle}>Booking summary</Text>
-        <View style={styles.card}>
-          <Text style={styles.label}>DATES</Text>
-          <Text style={styles.valueSmall}>
-            {booking.startDate} → {booking.endDate}
-          </Text>
-          <Text style={styles.label}>BASE RENTAL</Text>
-          <Text style={styles.value}>
-            {formatNairaFromKobo(booking.priceSnapshot.baseRentalKobo)}
-          </Text>
-          <Text style={styles.label}>MMG COMMISSION</Text>
-          <Text style={styles.value}>
-            {booking.priceSnapshot.ownerCommissionBps} bps
-          </Text>
-          <Text style={styles.label}>YOUR EARNINGS</Text>
-          <Text style={styles.value}>
-            {formatNairaFromKobo(booking.priceSnapshot.ownerEarningsKobo)}
-          </Text>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <MobileHeader onBack={() => router.back()} title="Booking" />
+
+        <View style={styles.intro}>
+          <Text accessibilityRole="header" style={styles.title}>{booking.vehicleSnapshot.displayName}</Text>
+          <Text style={styles.state}>{stateLabel(booking.state)}</Text>
         </View>
-        {error ? (
-          <View style={styles.errorRow}>
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {error}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={retry} style={styles.retryButton}>
-              <Text style={styles.retryText}>RETRY</Text>
-            </Pressable>
+
+        {error ? <InlineNotice icon="alert-circle-outline" tone="danger">{error}</InlineNotice> : null}
+        {pending ? <InlineNotice icon="sync-outline">Waiting for the refreshed booking status from MMG.</InlineNotice> : null}
+
+        <View style={styles.dateRow}>
+          <DatePoint label="Pickup" value={formatDate(booking.startDate)} />
+          <Ionicons color={colors.muted} name="arrow-forward" size={17} />
+          <DatePoint alignEnd label="Return" value={formatDate(booking.endDate)} />
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeading>Earnings</SectionHeading>
+          <ValueRow label="Base rental" value={formatNairaFromKobo(booking.priceSnapshot.baseRentalKobo)} />
+          <View style={styles.earningsTotal}>
+            <Text style={styles.earningsLabel}>Your earnings</Text>
+            <Text style={styles.earningsValue}>{formatNairaFromKobo(booking.priceSnapshot.ownerEarningsKobo)}</Text>
           </View>
-        ) : null}
-        {pending ? (
-          <Text accessibilityLiveRegion="polite" style={styles.muted}>
-            Refreshing booking status from MMG…
-          </Text>
-        ) : null}
+        </View>
+
         {canOwnerRespond(booking) ? (
-          <>
-            <Pressable
+          <View style={styles.actionsSection}>
+            <PrimaryAction
+              icon="checkmark"
+              label="Confirm booking"
+              loading={busy && pending?.state === 'confirmed'}
               disabled={busy}
-              onPress={() => void act("confirm")}
-              style={[styles.button, busy && styles.disabled]}
-            >
-              <Text style={styles.buttonText}>
-                {busy ? "WAITING FOR REFRESH…" : "CONFIRM BOOKING"}
-              </Text>
-            </Pressable>
-            <TextInput
-              accessibilityLabel="Decline reason"
-              accessibilityHint="Enter 10 to 500 characters"
-              editable={!busy}
-              maxLength={500}
-              multiline
-              onChangeText={setReason}
-              placeholder="Why can you not take this journey? (10–500 characters)"
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              value={reason}
+              onPress={() => void act('confirm')}
             />
-            <Text accessibilityLiveRegion="polite" style={styles.counter}>
-              {reason.trim().length}/500 characters
-            </Text>
-            <Pressable
-              disabled={busy}
-              onPress={() =>
-                Alert.alert(
-                  "Decline this booking?",
-                  "This releases the reserved dates and opens an MMG intervention case.",
-                  [
-                    { text: "Keep", style: "cancel" },
-                    {
-                      text: "Decline",
-                      style: "destructive",
-                      onPress: () => void act("reject"),
-                    },
-                  ],
-                )
-              }
-              style={styles.secondary}
-            >
-              <Text style={styles.secondaryText}>DECLINE</Text>
-            </Pressable>
-          </>
+
+            <View style={styles.declineSection}>
+              <FieldLabel>Cannot accept this journey?</FieldLabel>
+              <TextInput
+                accessibilityHint="Enter 10 to 500 characters"
+                accessibilityLabel="Decline reason"
+                editable={!busy}
+                maxLength={500}
+                multiline
+                onChangeText={setReason}
+                placeholder="Tell MMG why this vehicle cannot take the journey"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                value={reason}
+              />
+              <Text style={styles.counter}>{reason.trim().length}/500</Text>
+              <SecondaryAction
+                destructive
+                disabled={busy}
+                icon="close-circle-outline"
+                label="Decline booking"
+                onPress={() =>
+                  Alert.alert(
+                    'Decline this booking?',
+                    'This releases the reserved dates and opens an MMG intervention case.',
+                    [
+                      { text: 'Keep booking', style: 'cancel' },
+                      { text: 'Decline', style: 'destructive', onPress: () => void act('reject') },
+                    ],
+                  )
+                }
+              />
+            </View>
+          </View>
         ) : (
-          <Text style={styles.muted}>
-            This booking is no longer awaiting your response.
-          </Text>
+          <View style={styles.terminalRow}>
+            <Ionicons color={colors.muted} name="checkmark-circle-outline" size={18} />
+            <Text style={styles.terminalText}>This booking is no longer awaiting your response.</Text>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function DatePoint({ alignEnd, label, value }: { alignEnd?: boolean; label: string; value: string }) {
+  return (
+    <View style={[styles.datePoint, alignEnd && styles.datePointEnd]}>
+      <Text style={styles.dateLabel}>{label}</Text>
+      <Text style={styles.dateValue}>{value}</Text>
+    </View>
+  );
+}
+
+function ValueRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.valueRow}>
+      <Text style={styles.valueLabel}>{label}</Text>
+      <Text style={styles.valueText}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.black, flex: 1 },
-  content: { gap: spacing.md, padding: spacing.lg },
-  center: {
-    alignItems: "center",
-    flex: 1,
+  actionsSection: {
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
     gap: spacing.md,
-    justifyContent: "center",
-    padding: spacing.lg,
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
   },
-  back: { minHeight: 44, justifyContent: "center" },
-  backText: {
-    color: colors.gold,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1,
+  centered: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
   },
-  title: { color: colors.ivory, fontSize: 30, fontWeight: "700" },
-  sectionTitle: { color: colors.gold, fontSize: 12, fontWeight: "800", letterSpacing: 1.2, marginTop: spacing.md },
-  muted: { color: colors.muted, fontSize: 15, lineHeight: 22 },
-  card: {
-    borderBottomColor: colors.graphite,
-    borderBottomWidth: 1,
-    borderTopColor: colors.graphite,
-    borderTopWidth: 1,
-    gap: 8,
-    paddingVertical: spacing.md,
-  },
-  label: {
+  centeredText: {
     color: colors.muted,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.2,
+    fontFamily: typography.body,
+    fontSize: 13,
   },
-  value: {
-    color: colors.ivory,
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: spacing.sm,
-  },
-  valueSmall: { color: colors.ivory, fontSize: 15, marginBottom: spacing.sm },
-  button: {
-    alignItems: "center",
-    backgroundColor: colors.gold,
-    borderRadius: radii.sm,
-    justifyContent: "center",
-    minHeight: 48,
+  content: {
+    paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.md,
   },
-  buttonText: { color: colors.black, fontWeight: "800", letterSpacing: 1 },
-  secondary: {
-    alignItems: "center",
-    borderColor: colors.danger,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
+  counter: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 11,
+    marginTop: spacing.xs,
+    textAlign: 'right',
   },
-  secondaryText: { color: colors.danger, fontWeight: "800", letterSpacing: 1 },
-  input: {
-    borderColor: colors.graphite,
-    borderRadius: radii.sm,
-    borderWidth: 1,
+  dateLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+  },
+  datePoint: { flex: 1 },
+  datePointEnd: { alignItems: 'flex-end' },
+  dateRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  dateValue: {
     color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+    marginTop: 3,
+  },
+  declineSection: { marginTop: spacing.sm },
+  earningsLabel: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 14,
+  },
+  earningsTotal: {
+    alignItems: 'baseline',
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+    paddingTop: spacing.md,
+  },
+  earningsValue: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 26,
+  },
+  fallback: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  fallbackActions: {
+    alignSelf: 'stretch',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  fallbackText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  fallbackTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 27,
+    marginTop: spacing.md,
+  },
+  input: {
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    color: colors.ivory,
+    fontFamily: typography.body,
+    fontSize: 14,
     minHeight: 96,
     padding: spacing.md,
-    textAlignVertical: "top",
+    textAlignVertical: 'top',
   },
-  counter: { color: colors.muted, fontSize: 12, textAlign: "right" },
-  error: { color: "#FCA5A5" },
-  errorRow: { gap: spacing.sm },
-  retryButton: { alignItems: "center", borderColor: colors.gold, borderRadius: radii.sm, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: spacing.md, alignSelf: "flex-start" },
-  retryText: { color: colors.gold, fontWeight: "800", letterSpacing: 1 },
-  disabled: { opacity: 0.55 },
+  intro: { marginTop: spacing.lg },
+  screen: {
+    backgroundColor: colors.black,
+    flex: 1,
+  },
+  section: {
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+  },
+  state: {
+    color: colors.goldStrong,
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
+    marginTop: 5,
+  },
+  terminalRow: {
+    alignItems: 'center',
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    paddingTop: spacing.md,
+  },
+  terminalText: {
+    color: colors.muted,
+    flex: 1,
+    fontFamily: typography.body,
+    fontSize: 13,
+  },
+  title: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 31,
+    letterSpacing: -0.55,
+  },
+  valueLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+  },
+  valueRow: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+  },
+  valueText: {
+    color: colors.silver,
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
+  },
 });

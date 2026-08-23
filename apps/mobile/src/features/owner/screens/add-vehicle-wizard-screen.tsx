@@ -2,25 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import {
   LAGOS_AREA_LABELS,
-  LagosAreaLabel,
-  MIN_OWNER_DAILY_RATE_KOBO,
   MAX_OWNER_DAILY_RATE_KOBO,
+  MIN_OWNER_DAILY_RATE_KOBO,
   MIN_VEHICLE_YEAR,
-  VehicleCategory,
-  VehicleFeatureKey,
-  VehicleFuelType,
-  VehicleTransmission,
+  type LagosAreaLabel,
+  type VehicleCategory,
+  type VehicleFeatureKey,
+  type VehicleFuelType,
+  type VehicleTransmission,
 } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,21 +32,36 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import {
+  FieldLabel,
+  InlineNotice,
+  MobileHeader,
+  PrimaryAction,
+  SectionHeading,
+} from '@/components/ui/mobile-primitives';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
 
 const FEATURE_LABELS: Record<VehicleFeatureKey, string> = {
-  climate_control: 'Dual-Zone Climate Control',
-  leather: 'Executive Leather Upholstery',
-  privacy_glass: 'Executive Privacy Glass',
-  wifi: 'Onboard High-Speed Wi-Fi',
-  panoramic_roof: 'Panoramic Sunroof',
-  apple_carplay: 'Apple CarPlay Support',
-  android_auto: 'Android Auto Support',
-  third_row: 'Third Row Seating',
+  climate_control: 'Climate control',
+  leather: 'Leather upholstery',
+  privacy_glass: 'Privacy glass',
+  wifi: 'Onboard Wi-Fi',
+  panoramic_roof: 'Panoramic roof',
+  apple_carplay: 'Apple CarPlay',
+  android_auto: 'Android Auto',
+  third_row: 'Third-row seating',
 };
 
-type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
+const STEP_TITLES = [
+  'Vehicle details',
+  'Garage & registration',
+  'Daily rate',
+  'Features',
+  'Photos',
+  'Review',
+] as const;
 
+type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 type SelectedPhoto = {
   uri: string;
   fileName: string;
@@ -56,44 +73,40 @@ function mapVehicleError(err: unknown): string {
   if (!err) return 'An unexpected error occurred. Please try again.';
   const message = err instanceof Error ? err.message : String(err);
   const lower = message.toLowerCase();
-
   if (lower.includes('not_approved_owner') || lower.includes('must be approved')) {
     return 'Your owner verification must be approved before you can list a vehicle.';
   }
   if (lower.includes('listing_incomplete') || lower.includes('at least 1') || lower.includes('no images')) {
-    return 'Please add and upload at least one vehicle photo before submitting for review.';
+    return 'Add and upload at least one vehicle photo before submitting for review.';
   }
   if (lower.includes('terms_stale')) {
-    return 'Your owner agreement is outdated. Please review and accept the latest owner terms.';
+    return 'Your owner agreement is outdated. Review and accept the latest owner terms.';
   }
   if (lower.includes('stale') || lower.includes('modified by another') || lower.includes('refresh')) {
-    return 'The vehicle record was updated during submission. Please refresh and try again.';
+    return 'The vehicle record changed during submission. Refresh and try again.';
   }
   if (lower.includes('idempotency_conflict')) {
-    return 'A submission with this request is already in progress. Please refresh.';
+    return 'A submission for this request is already in progress. Please refresh.';
   }
   if (lower.includes('failed_precondition')) {
-    return 'Vehicle listing cannot be submitted in its current state. Please verify all details.';
+    return 'This listing cannot be submitted in its current state. Check the details and try again.';
   }
-  if (lower.includes('unauthenticated')) {
-    return 'Please sign in to list your vehicle.';
-  }
+  if (lower.includes('unauthenticated')) return 'Please sign in to list your vehicle.';
   if (lower.includes('permission') || lower.includes('forbidden')) {
     return 'You do not have authorization to perform this action.';
   }
-  return 'Failed to submit vehicle listing. Please check the vehicle details and try again.';
+  return 'The vehicle could not be submitted. Check the details and try again.';
 }
 
 export function AddVehicleWizardScreen() {
   const router = useRouter();
   const gateway = useMemo(() => createOwnerFleetGateway(), []);
-
   const [step, setStep] = useState<WizardStep>(1);
   const [submitting, setSubmitting] = useState(false);
-  const [submissionProgress, setSubmissionProgress] = useState<string>('');
+  const [submissionProgress, setSubmissionProgress] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [areaPickerVisible, setAreaPickerVisible] = useState(false);
 
-  // Step 1: Specs (Clean Empty State)
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
@@ -102,27 +115,21 @@ export function AddVehicleWizardScreen() {
   const [seats, setSeats] = useState('');
   const [transmission, setTransmission] = useState<VehicleTransmission>('automatic');
   const [fuelType, setFuelType] = useState<VehicleFuelType>('petrol');
-
-  // Step 2: Location & Plate (Clean Empty State)
   const [areaLabel, setAreaLabel] = useState<LagosAreaLabel>('Ikoyi');
   const [streetAddress, setStreetAddress] = useState('');
   const [plate, setPlate] = useState('');
-
-  // Step 3: Rate
   const [dailyRateNaira, setDailyRateNaira] = useState('');
-
-  // Step 4: Features & Description
   const [features, setFeatures] = useState<VehicleFeatureKey[]>([]);
   const [description, setDescription] = useState('');
-
-  // Step 5: Photos (1 to 20 Photos Required)
   const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
 
   const rateKobo = (parseInt(dailyRateNaira.replace(/[^0-9]/g, ''), 10) || 0) * 100;
 
-  const toggleFeature = (feat: VehicleFeatureKey) => {
-    setFeatures((prev) =>
-      prev.includes(feat) ? prev.filter((f) => f !== feat) : [...prev, feat],
+  const toggleFeature = (feature: VehicleFeatureKey) => {
+    setFeatures((current) =>
+      current.includes(feature)
+        ? current.filter((item) => item !== feature)
+        : [...current, feature],
     );
   };
 
@@ -132,116 +139,97 @@ export function AddVehicleWizardScreen() {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
-          'Photo Permission Required',
-          'MMG Concierge accesses your photo library to upload exterior and interior vehicle photos for moderation review.',
+          'Photo access required',
+          'MMG Concierge uses your photo library only so you can upload exterior and interior vehicle photos for review.',
         );
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.9,
         allowsMultipleSelection: true,
         selectionLimit: 20 - photos.length,
       });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newSelected: SelectedPhoto[] = result.assets.map((asset, idx) => ({
+      if (!result.canceled && result.assets?.length) {
+        const nextPhotos: SelectedPhoto[] = result.assets.map((asset, index) => ({
           uri: asset.uri,
-          fileName: asset.fileName || `vehicle-photo-${Date.now()}-${idx}.jpg`,
+          fileName: asset.fileName || `vehicle-photo-${Date.now()}-${index}.jpg`,
           mimeType: asset.mimeType || 'image/jpeg',
           fileSize: asset.fileSize,
         }));
-
-        setPhotos((prev) => [...prev, ...newSelected].slice(0, 20));
+        setPhotos((current) => [...current, ...nextPhotos].slice(0, 20));
       }
     } catch {
-      setErrorMsg('Could not open photo library. Please check device permissions.');
+      setErrorMsg('Could not open the photo library. Check device permissions and try again.');
     }
-  };
-
-  const removePhoto = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleNext = () => {
     setErrorMsg(null);
-
     if (step === 1) {
-      const yr = parseInt(year, 10);
-      const st = parseInt(seats, 10);
-      if (!make.trim()) { setErrorMsg('Enter the vehicle make.'); return; }
-      if (!model.trim()) { setErrorMsg('Enter the vehicle model.'); return; }
-      if (isNaN(yr) || yr < MIN_VEHICLE_YEAR || yr > 2026) {
-        setErrorMsg(`Year must be between ${MIN_VEHICLE_YEAR} and 2026.`);
-        return;
+      const vehicleYear = parseInt(year, 10);
+      const seatCount = parseInt(seats, 10);
+      if (!make.trim()) return setErrorMsg('Enter the vehicle make.');
+      if (!model.trim()) return setErrorMsg('Enter the vehicle model.');
+      if (Number.isNaN(vehicleYear) || vehicleYear < MIN_VEHICLE_YEAR || vehicleYear > 2026) {
+        return setErrorMsg(`Year must be between ${MIN_VEHICLE_YEAR} and 2026.`);
       }
-      if (!colour.trim()) { setErrorMsg('Enter the vehicle exterior colour.'); return; }
-      if (isNaN(st) || st < 2 || st > 8) {
-        setErrorMsg('Seats must be between 2 and 8.');
-        return;
+      if (!colour.trim()) return setErrorMsg('Enter the vehicle exterior colour.');
+      if (Number.isNaN(seatCount) || seatCount < 2 || seatCount > 8) {
+        return setErrorMsg('Passenger seats must be between 2 and 8.');
       }
       setStep(2);
-    } else if (step === 2) {
+      return;
+    }
+    if (step === 2) {
       if (!streetAddress.trim() || streetAddress.trim().length < 5) {
-        setErrorMsg('Enter the full Lagos garage street address.');
-        return;
+        return setErrorMsg('Enter the full Lagos garage street address.');
       }
       const cleanPlate = plate.trim().toUpperCase();
       if (!/^[A-Z]{3}-?\d{3}[A-Z]{2}$/.test(cleanPlate)) {
-        setErrorMsg('Enter a valid Nigerian registration plate (e.g. ABC-123XY or ABC123XY).');
-        return;
+        return setErrorMsg('Enter a valid Nigerian registration plate, for example ABC-123XY.');
       }
       setStep(3);
-    } else if (step === 3) {
+      return;
+    }
+    if (step === 3) {
       if (rateKobo < MIN_OWNER_DAILY_RATE_KOBO) {
-        setErrorMsg(`Daily rate must be at least ₦${(MIN_OWNER_DAILY_RATE_KOBO / 100).toLocaleString()}.`);
-        return;
+        return setErrorMsg(`Daily rate must be at least ₦${(MIN_OWNER_DAILY_RATE_KOBO / 100).toLocaleString()}.`);
       }
       if (rateKobo > MAX_OWNER_DAILY_RATE_KOBO) {
-        setErrorMsg(`Daily rate cannot exceed ₦${(MAX_OWNER_DAILY_RATE_KOBO / 100).toLocaleString()}.`);
-        return;
+        return setErrorMsg(`Daily rate cannot exceed ₦${(MAX_OWNER_DAILY_RATE_KOBO / 100).toLocaleString()}.`);
       }
       setStep(4);
-    } else if (step === 4) {
-      if (description.trim().length < 40) {
-        setErrorMsg('Description must be at least 40 characters.');
-        return;
-      }
-      if (description.trim().length > 2000) {
-        setErrorMsg('Description cannot exceed 2,000 characters.');
-        return;
-      }
+      return;
+    }
+    if (step === 4) {
+      if (description.trim().length < 40) return setErrorMsg('Description must be at least 40 characters.');
+      if (description.trim().length > 2000) return setErrorMsg('Description cannot exceed 2,000 characters.');
       setStep(5);
-    } else if (step === 5) {
-      if (photos.length < 1) {
-        setErrorMsg('Please select at least 1 high-resolution vehicle photo before proceeding.');
-        return;
-      }
+      return;
+    }
+    if (step === 5) {
+      if (!photos.length) return setErrorMsg('Add at least one vehicle photo before continuing.');
       setStep(6);
     }
   };
 
   const handleBack = () => {
     setErrorMsg(null);
-    if (step > 1) {
-      setStep((prev) => (prev - 1) as WizardStep);
-    } else {
-      router.back();
-    }
+    if (step > 1) setStep((current) => (current - 1) as WizardStep);
+    else router.back();
   };
 
   const handleSubmit = async () => {
     setSubmitting(true);
     setErrorMsg(null);
-
     try {
-      const normalizedPlate = plate.trim().toUpperCase().includes('-')
-        ? plate.trim().toUpperCase()
-        : `${plate.trim().toUpperCase().substring(0, 3)}-${plate.trim().toUpperCase().substring(3)}`;
+      const upperPlate = plate.trim().toUpperCase();
+      const normalizedPlate = upperPlate.includes('-')
+        ? upperPlate
+        : `${upperPlate.substring(0, 3)}-${upperPlate.substring(3)}`;
 
-      // 1. Create draft
-      setSubmissionProgress('Creating vehicle listing draft...');
+      setSubmissionProgress('Creating vehicle listing');
       const draftResult = await gateway.createDraft({
         specs: {
           make: make.trim(),
@@ -269,11 +257,9 @@ export function AddVehicleWizardScreen() {
       const vehicleId = draftResult.result.vehicleId;
       let latestVersion = draftResult.result.version;
 
-      // 2. Upload and finalize photos
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        setSubmissionProgress(`Uploading photo ${i + 1} of ${photos.length}...`);
-
+      for (let index = 0; index < photos.length; index += 1) {
+        const photo = photos[index];
+        setSubmissionProgress(`Uploading photo ${index + 1} of ${photos.length}`);
         const uploadSession = await gateway.createUploadSession({
           vehicleId,
           purpose: 'listing_image',
@@ -281,41 +267,29 @@ export function AddVehicleWizardScreen() {
           byteSize: photo.fileSize || 1024 * 500,
           originalFileName: photo.fileName,
         });
-
         await gateway.uploadVehiclePhoto(
           uploadSession.result.storagePath,
           photo.uri,
           photo.mimeType === 'image/png' ? 'image/png' : 'image/jpeg',
         );
-
-        setSubmissionProgress(`Processing image ${i + 1} of ${photos.length}...`);
+        setSubmissionProgress(`Processing photo ${index + 1} of ${photos.length}`);
         await gateway.finalizeImage({
           vehicleId,
           uploadId: uploadSession.result.uploadId,
-          order: i,
+          order: index,
         });
         latestVersion += 1;
       }
 
-      // 3. Confirm authoritative version from server before submit
       const currentVehicle = await gateway.getOwnerVehicle(vehicleId);
       const submitExpectedVersion = currentVehicle?.version ?? latestVersion;
-
-      setSubmissionProgress('Submitting listing for operations review...');
-      await gateway.submitForReview({
-        vehicleId,
-        expectedVersion: submitExpectedVersion,
-      });
+      setSubmissionProgress('Submitting for MMG review');
+      await gateway.submitForReview({ vehicleId, expectedVersion: submitExpectedVersion });
 
       Alert.alert(
-        'Listing Submitted',
-        'Your luxury vehicle and photos have been submitted to the MMG Concierge operations desk for review. You can track the listing review status directly from your Fleet desk.',
-        [
-          {
-            text: 'View Fleet',
-            onPress: () => router.replace('/(owner)/fleet' as any),
-          },
-        ],
+        'Vehicle submitted',
+        'Your vehicle and photos were sent to MMG operations for review. You can track the status from Fleet.',
+        [{ text: 'View fleet', onPress: () => router.replace('/(owner)/fleet' as never) }],
       );
     } catch (err: unknown) {
       setErrorMsg(mapVehicleError(err));
@@ -326,744 +300,677 @@ export function AddVehicleWizardScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.screen}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <View style={styles.header}>
-          <PressableScale accessibilityRole="button" onPress={handleBack} style={styles.backButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-          </PressableScale>
-          <View style={styles.stepIndicator}>
-            <Text style={styles.stepText}>STEP {step} OF 6</Text>
-            <View style={styles.progressBar}>
+          <MobileHeader onBack={handleBack} title="Add vehicle" />
+          <View style={styles.progressMeta}>
+            <Text style={styles.stepLabel}>Step {step} of 6 · {STEP_TITLES[step - 1]}</Text>
+            <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${(step / 6) * 100}%` }]} />
             </View>
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {errorMsg ? (
-            <View style={styles.errorBox}>
-              <Ionicons color={colors.danger} name="alert-circle" size={18} />
-              <Text style={styles.errorText}>{errorMsg}</Text>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {errorMsg ? <InlineNotice icon="alert-circle-outline" tone="danger">{errorMsg}</InlineNotice> : null}
+
+          {step === 1 ? (
+            <VehicleDetailsStep
+              category={category}
+              colour={colour}
+              fuelType={fuelType}
+              make={make}
+              model={model}
+              seats={seats}
+              setCategory={setCategory}
+              setColour={setColour}
+              setFuelType={setFuelType}
+              setMake={setMake}
+              setModel={setModel}
+              setSeats={setSeats}
+              setTransmission={setTransmission}
+              setYear={setYear}
+              transmission={transmission}
+              year={year}
+            />
+          ) : null}
+
+          {step === 2 ? (
+            <View>
+              <StepIntro title="Garage & registration" subtitle="Your exact garage and plate stay private. Renters only see the approximate Lagos area." />
+              <FieldGroup label="Operating area">
+                <PressableScale accessibilityRole="button" onPress={() => setAreaPickerVisible(true)}>
+                  <View style={styles.selector}>
+                    <Text style={styles.selectorText}>{areaLabel}</Text>
+                    <Ionicons color={colors.muted} name="chevron-down" size={18} />
+                  </View>
+                </PressableScale>
+              </FieldGroup>
+              <FieldGroup label="Garage street address">
+                <TextInput
+                  onChangeText={setStreetAddress}
+                  placeholder="15 Alexander Avenue, Ikoyi"
+                  placeholderTextColor={colors.muted}
+                  style={styles.input}
+                  value={streetAddress}
+                />
+              </FieldGroup>
+              <FieldGroup label="Nigerian registration plate">
+                <TextInput
+                  autoCapitalize="characters"
+                  onChangeText={setPlate}
+                  placeholder="ABC-123XY"
+                  placeholderTextColor={colors.muted}
+                  style={styles.input}
+                  value={plate}
+                />
+              </FieldGroup>
+              <InlineNotice icon="lock-closed-outline">Exact garage address and plate are private and used only for owner operations and moderation.</InlineNotice>
             </View>
           ) : null}
 
-          {/* STEP 1: Vehicle Specifications */}
-          {step === 1 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.title}>Vehicle Specifications</Text>
-              <Text style={styles.fieldLabel}>CATEGORY</Text>
-              <View style={styles.pillRow}>
-                <PressableScale
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: category === 'executive_suv' }}
-                  onPress={() => setCategory('executive_suv')}
-                  style={[styles.pill, category === 'executive_suv' && styles.pillSelected]}
-                >
-                  <Ionicons
-                    color={category === 'executive_suv' ? colors.black : colors.ivory}
-                    name="car-sport"
-                    size={16}
-                  />
-                  <Text style={[styles.pillText, category === 'executive_suv' && styles.pillTextSelected]}>
-                    Executive SUV
-                  </Text>
-                </PressableScale>
-                <PressableScale
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: category === 'executive_sedan' }}
-                  onPress={() => setCategory('executive_sedan')}
-                  style={[styles.pill, category === 'executive_sedan' && styles.pillSelected]}
-                >
-                  <Ionicons
-                    color={category === 'executive_sedan' ? colors.black : colors.ivory}
-                    name="car"
-                    size={16}
-                  />
-                  <Text style={[styles.pillText, category === 'executive_sedan' && styles.pillTextSelected]}>
-                    Executive Saloon
-                  </Text>
-                </PressableScale>
-              </View>
-
-              <Text style={styles.fieldLabel}>MAKE</Text>
-              <TextInput
-                onChangeText={setMake}
-                placeholder="e.g. Toyota, Mercedes-Benz, Lexus"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-                value={make}
-              />
-
-              <Text style={styles.fieldLabel}>MODEL</Text>
-              <TextInput
-                onChangeText={setModel}
-                placeholder="e.g. Land Cruiser Prado, S-Class, LX600"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-                value={model}
-              />
-
-              <View style={styles.twoColumnRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>YEAR ({MIN_VEHICLE_YEAR}–2026)</Text>
+          {step === 3 ? (
+            <View>
+              <StepIntro title="Daily rate" subtitle="Set the owner rate for one rental day. MMG calculates renter totals and owner earnings from the active pricing configuration." />
+              <FieldGroup label="Daily rate">
+                <View style={styles.currencyRow}>
+                  <Text style={styles.currencyPrefix}>₦</Text>
                   <TextInput
                     keyboardType="number-pad"
-                    maxLength={4}
-                    onChangeText={setYear}
-                    placeholder="2024"
+                    onChangeText={(value) => setDailyRateNaira(value.replace(/[^0-9]/g, ''))}
+                    placeholder="350,000"
                     placeholderTextColor={colors.muted}
-                    style={styles.input}
-                    value={year}
+                    style={styles.currencyInput}
+                    value={dailyRateNaira ? parseInt(dailyRateNaira, 10).toLocaleString() : ''}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>PASSENGER SEATS (2–8)</Text>
-                  <TextInput
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    onChangeText={setSeats}
-                    placeholder="7"
-                    placeholderTextColor={colors.muted}
-                    style={styles.input}
-                    value={seats}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.fieldLabel}>EXTERIOR COLOUR</Text>
-              <TextInput
-                onChangeText={setColour}
-                placeholder="e.g. Obsidian Black, Pearl White, Deep Navy"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-                value={colour}
-              />
-
-              <Text style={styles.fieldLabel}>TRANSMISSION</Text>
-              <View style={styles.pillRow}>
-                {(['automatic', 'manual'] as const).map((t) => (
-                  <PressableScale
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: transmission === t }}
-                    key={t}
-                    onPress={() => setTransmission(t)}
-                    style={[styles.pill, transmission === t && styles.pillSelected]}
-                  >
-                    <Text style={[styles.pillText, transmission === t && styles.pillTextSelected]}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </Text>
-                  </PressableScale>
-                ))}
-              </View>
-
-              <Text style={styles.fieldLabel}>FUEL TYPE</Text>
-              <View style={styles.pillRow}>
-                {(['petrol', 'diesel', 'hybrid'] as const).map((f) => (
-                  <PressableScale
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: fuelType === f }}
-                    key={f}
-                    onPress={() => setFuelType(f)}
-                    style={[styles.pill, fuelType === f && styles.pillSelected]}
-                  >
-                    <Text style={[styles.pillText, fuelType === f && styles.pillTextSelected]}>
-                      {f.charAt(0).toUpperCase() + f.slice(1)}
-                    </Text>
-                  </PressableScale>
-                ))}
+              </FieldGroup>
+              <View style={styles.ratePreview}>
+                <Text style={styles.ratePreviewLabel}>Owner daily rate</Text>
+                <Text style={styles.ratePreviewValue}>{formatNairaFromKobo(rateKobo)}</Text>
               </View>
             </View>
-          )}
+          ) : null}
 
-          {/* STEP 2: Base & Registration */}
-          {step === 2 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.title}>Base & Registration</Text>
-              <Text style={styles.subtitle}>
-                Specify the Lagos home garage for dispatch and the Nigerian registration plate.
-              </Text>
-
-              <Text style={styles.fieldLabel}>PRIMARY LAGOS DISTRICT</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
-                <View style={styles.pillRow}>
-                  {LAGOS_AREA_LABELS.map((area) => (
-                    <PressableScale
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: areaLabel === area }}
-                      key={area}
-                      onPress={() => setAreaLabel(area)}
-                      style={[styles.pill, areaLabel === area && styles.pillSelected]}
-                    >
-                      <Text style={[styles.pillText, areaLabel === area && styles.pillTextSelected]}>
-                        {area}
-                      </Text>
-                    </PressableScale>
+          {step === 4 ? (
+            <View>
+              <StepIntro title="Features & description" subtitle="Only select features that are actually present on this vehicle." />
+              <View style={styles.sectionBlock}>
+                <SectionHeading>Features</SectionHeading>
+                <View style={styles.choiceList}>
+                  {(Object.keys(FEATURE_LABELS) as VehicleFeatureKey[]).map((feature) => (
+                    <CheckRow
+                      checked={features.includes(feature)}
+                      key={feature}
+                      label={FEATURE_LABELS[feature]}
+                      onPress={() => toggleFeature(feature)}
+                    />
                   ))}
                 </View>
-              </ScrollView>
-
-              <Text style={styles.fieldLabel}>GARAGE STREET ADDRESS</Text>
-              <TextInput
-                onChangeText={setStreetAddress}
-                placeholder="e.g. 15 Alexander Avenue, Ikoyi, Lagos"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-                value={streetAddress}
-              />
-              <Text style={styles.helperText}>
-                The physical garage is kept private. Renters only see the approximate district.
-              </Text>
-
-              <Text style={styles.fieldLabel}>NIGERIAN REGISTRATION PLATE</Text>
-              <TextInput
-                autoCapitalize="characters"
-                onChangeText={setPlate}
-                placeholder="e.g. ABC-123XY"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-                value={plate}
-              />
-              <Text style={styles.helperText}>
-                Plates are masked on public discovery and verified during staff moderation.
-              </Text>
-            </View>
-          )}
-
-          {/* STEP 3: Pricing */}
-          {step === 3 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.title}>Daily rate</Text>
-
-              <Text style={styles.fieldLabel}>DAILY RATE (NGN)</Text>
-              <View style={styles.currencyInputContainer}>
-                <Text style={styles.currencyPrefix}>₦</Text>
+              </View>
+              <FieldGroup label="Description">
                 <TextInput
-                  keyboardType="number-pad"
-                  onChangeText={(val) => setDailyRateNaira(val.replace(/[^0-9]/g, ''))}
-                  placeholder="350,000"
+                  maxLength={2000}
+                  multiline
+                  numberOfLines={5}
+                  onChangeText={setDescription}
+                  placeholder="Describe the condition, interior and service experience."
                   placeholderTextColor={colors.muted}
-                  style={styles.currencyInput}
-                  value={dailyRateNaira ? parseInt(dailyRateNaira, 10).toLocaleString() : ''}
+                  style={[styles.input, styles.textArea]}
+                  value={description}
                 />
-              </View>
+                <Text style={styles.counter}>{description.length}/2,000 · minimum 40</Text>
+              </FieldGroup>
+            </View>
+          ) : null}
 
-              <View style={styles.breakdownCard}>
-                <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Gross Daily Rate</Text>
-                  <Text style={styles.breakdownValue}>{formatNairaFromKobo(rateKobo)}</Text>
+          {step === 5 ? (
+            <View>
+              <StepIntro title="Photos" subtitle="Add 1 to 20 clear exterior and interior photos. The first photo becomes the cover." />
+              <PressableScale accessibilityRole="button" haptic="light" onPress={() => void pickPhotos()}>
+                <View style={styles.photoAction}>
+                  <Ionicons color={colors.goldStrong} name="images-outline" size={24} />
+                  <View style={styles.photoActionCopy}>
+                    <Text style={styles.photoActionTitle}>{photos.length ? 'Add more photos' : 'Choose photos'}</Text>
+                    <Text style={styles.photoActionBody}>JPEG or PNG · up to 10 MB each</Text>
+                  </View>
+                  <Ionicons color={colors.muted} name="chevron-forward" size={18} />
                 </View>
-                <Text style={styles.helperText}>
-                  Booking earnings are calculated from the active server pricing and owner terms.
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* STEP 4: Features & Description */}
-          {step === 4 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.title}>Features and description</Text>
-
-              <Text style={styles.fieldLabel}>FEATURES</Text>
-              <View style={styles.featureGrid}>
-                {(Object.keys(FEATURE_LABELS) as VehicleFeatureKey[]).map((feat) => {
-                  const selected = features.includes(feat);
-                  return (
-                    <PressableScale
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: selected }}
-                      key={feat}
-                      onPress={() => toggleFeature(feat)}
-                      style={[styles.featurePill, selected && styles.featurePillSelected]}
-                    >
-                      <Ionicons
-                        color={selected ? colors.black : colors.muted}
-                        name={selected ? 'checkmark-circle' : 'add-circle-outline'}
-                        size={16}
-                      />
-                      <Text style={[styles.featureText, selected && styles.featureTextSelected]}>
-                        {FEATURE_LABELS[feat]}
-                      </Text>
-                    </PressableScale>
-                  );
-                })}
-              </View>
-
-              <Text style={styles.fieldLabel}>DESCRIPTION (MIN 40 CHARS)</Text>
-              <TextInput
-                multiline
-                numberOfLines={4}
-                onChangeText={setDescription}
-                placeholder="Describe the vehicle condition, interior, and service details."
-                placeholderTextColor={colors.muted}
-                style={[styles.input, styles.textArea]}
-                value={description}
-              />
-              <Text style={styles.charCountText}>{description.length} / 2,000 characters</Text>
-            </View>
-          )}
-
-          {/* STEP 5: Photos */}
-          {step === 5 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.title}>Photos</Text>
-              <Text style={styles.subtitle}>Add 1–20 photos. The first is the cover.</Text>
-
-              <PressableScale onPress={pickPhotos} style={styles.photoPickerButton}>
-                <Ionicons color={colors.goldStrong} name="images-outline" size={24} />
-                <Text style={styles.photoPickerText}>
-                  {photos.length === 0 ? 'Select Photos from Library' : 'Add More Photos'}
-                </Text>
-                <Text style={styles.photoPickerSubtext}>JPEG or PNG · Max 10MB each</Text>
               </PressableScale>
-
-              <Text style={styles.fieldLabel}>SELECTED PHOTOS ({photos.length} / 20)</Text>
-
-              {photos.length === 0 ? (
-                <Text style={styles.emptyPhotosText}>Add at least one photo to continue.</Text>
-              ) : (
+              <Text style={styles.photoCount}>{photos.length} of 20 selected</Text>
+              {photos.length ? (
                 <View style={styles.photoGrid}>
-                  {photos.map((p, idx) => (
-                    <View key={p.uri + idx} style={styles.photoThumbnailWrapper}>
-                      <Image source={{ uri: p.uri }} style={styles.photoThumbnail} />
-                      {idx === 0 && (
-                        <View style={styles.primaryCoverBadge}>
-                          <Text style={styles.primaryCoverText}>COVER</Text>
-                        </View>
-                      )}
-                      <PressableScale onPress={() => removePhoto(idx)} style={styles.removePhotoBadge}>
-                        <Ionicons color={colors.ivory} name="close" size={14} />
+                  {photos.map((photo, index) => (
+                    <View key={`${photo.uri}-${index}`} style={styles.photoTile}>
+                      <Image contentFit="cover" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} />
+                      {index === 0 ? <View style={styles.coverLabel}><Text style={styles.coverLabelText}>Cover</Text></View> : null}
+                      <PressableScale accessibilityLabel={`Remove photo ${index + 1}`} accessibilityRole="button" onPress={() => setPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                        <View style={styles.removePhoto}><Ionicons color={colors.ivory} name="close" size={16} /></View>
                       </PressableScale>
                     </View>
                   ))}
                 </View>
+              ) : (
+                <Text style={styles.emptyPhotos}>No photos selected yet.</Text>
               )}
             </View>
-          )}
+          ) : null}
 
-          {/* STEP 6: Review & Final Submission */}
-          {step === 6 && (
-            <View style={styles.stepContainer}>
-              <Text style={styles.title}>Review & Submit</Text>
-
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>{`${year} ${make} ${model}`}</Text>
-                <Text style={styles.summaryCategory}>{category.replace('_', ' ').toUpperCase()} · {seats} SEATS · {colour}</Text>
-
-                <View style={styles.summaryDivider} />
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Base District</Text>
-                  <Text style={styles.summaryValue}>{areaLabel}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Garage Address</Text>
-                  <Text style={styles.summaryValue}>{streetAddress}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Registration Plate</Text>
-                  <Text style={styles.summaryValue}>{plate.toUpperCase()}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Daily Rate</Text>
-                  <Text style={[styles.summaryValue, { color: colors.goldStrong, fontFamily: typography.display, fontSize: 16 }]}>
-                    {formatNairaFromKobo(rateKobo)} / day
-                  </Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Photos Attached</Text>
-                  <Text style={styles.summaryValue}>{photos.length} photos</Text>
-                </View>
-
+          {step === 6 ? (
+            <View>
+              <StepIntro title="Review your vehicle" subtitle="Check these details before sending the listing to MMG operations." />
+              <View style={styles.reviewSection}>
+                <SectionHeading>{`${year} ${make} ${model}`}</SectionHeading>
+                <ReviewRow label="Category" value={category === 'executive_suv' ? 'Executive SUV' : 'Executive sedan'} />
+                <ReviewRow label="Seats" value={seats} />
+                <ReviewRow label="Colour" value={colour} />
+                <ReviewRow label="Transmission" value={transmission.charAt(0).toUpperCase() + transmission.slice(1)} />
+                <ReviewRow label="Fuel" value={fuelType.charAt(0).toUpperCase() + fuelType.slice(1)} />
+                <ReviewRow label="Base area" value={areaLabel} />
+                <ReviewRow label="Garage address" value={streetAddress} />
+                <ReviewRow label="Registration" value={plate.toUpperCase()} />
+                <ReviewRow label="Daily rate" value={formatNairaFromKobo(rateKobo)} />
+                <ReviewRow label="Photos" value={`${photos.length}`} />
               </View>
-
               {submitting && submissionProgress ? (
-                <View style={styles.progressNotice}>
+                <View style={styles.submissionProgress} accessibilityLiveRegion="polite">
                   <ActivityIndicator color={colors.goldStrong} size="small" />
-                  <Text style={styles.progressNoticeText}>{submissionProgress}</Text>
+                  <Text style={styles.submissionProgressText}>{submissionProgress}</Text>
                 </View>
               ) : null}
             </View>
-          )}
+          ) : null}
 
-          {/* Action Button */}
-          <View style={styles.bottomBar}>
+          <View style={styles.primaryArea}>
             {step < 6 ? (
-              <PressableScale onPress={handleNext} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>CONTINUE</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={16} />
-              </PressableScale>
+              <PrimaryAction icon="arrow-forward" label="Continue" onPress={handleNext} />
             ) : (
-              <PressableScale
-                disabled={submitting}
-                onPress={handleSubmit}
-                style={[styles.primaryButton, submitting && { opacity: 0.6 }]}
-              >
-                {submitting ? (
-                  <ActivityIndicator color={colors.black} size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.primaryButtonText}>SUBMIT FOR REVIEW</Text>
-                    <Ionicons color={colors.black} name="checkmark-circle" size={18} />
-                  </>
-                )}
-              </PressableScale>
+              <PrimaryAction icon="checkmark" label="Submit for review" loading={submitting} onPress={() => void handleSubmit()} />
             )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal animationType="slide" onRequestClose={() => setAreaPickerVisible(false)} transparent visible={areaPickerVisible}>
+        <View style={styles.modalBackdrop}>
+          <Pressable onPress={() => setAreaPickerVisible(false)} style={StyleSheet.absoluteFill} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Operating area</Text>
+              <PressableScale accessibilityLabel="Close" accessibilityRole="button" onPress={() => setAreaPickerVisible(false)}>
+                <View style={styles.closeTarget}><Ionicons color={colors.ivory} name="close" size={22} /></View>
+              </PressableScale>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {LAGOS_AREA_LABELS.map((area) => (
+                <PressableScale
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: areaLabel === area }}
+                  key={area}
+                  onPress={() => {
+                    setAreaLabel(area);
+                    setAreaPickerVisible(false);
+                  }}
+                >
+                  <View style={styles.sheetRow}>
+                    <Text style={[styles.sheetRowText, areaLabel === area && styles.sheetRowTextSelected]}>{area}</Text>
+                    {areaLabel === area ? <Ionicons color={colors.goldStrong} name="checkmark" size={20} /> : null}
+                  </View>
+                </PressableScale>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
+function VehicleDetailsStep(props: {
+  category: VehicleCategory;
+  colour: string;
+  fuelType: VehicleFuelType;
+  make: string;
+  model: string;
+  seats: string;
+  transmission: VehicleTransmission;
+  year: string;
+  setCategory: (value: VehicleCategory) => void;
+  setColour: (value: string) => void;
+  setFuelType: (value: VehicleFuelType) => void;
+  setMake: (value: string) => void;
+  setModel: (value: string) => void;
+  setSeats: (value: string) => void;
+  setTransmission: (value: VehicleTransmission) => void;
+  setYear: (value: string) => void;
+}) {
+  return (
+    <View>
+      <StepIntro title="Vehicle details" subtitle="Enter the facts MMG will review before this vehicle can appear to renters." />
+      <View style={styles.sectionBlock}>
+        <SectionHeading>Category</SectionHeading>
+        <ChoiceRow label="Executive SUV" onPress={() => props.setCategory('executive_suv')} selected={props.category === 'executive_suv'} />
+        <ChoiceRow label="Executive sedan" onPress={() => props.setCategory('executive_sedan')} selected={props.category === 'executive_sedan'} />
+      </View>
+      <FieldGroup label="Make">
+        <TextInput onChangeText={props.setMake} placeholder="Toyota" placeholderTextColor={colors.muted} style={styles.input} value={props.make} />
+      </FieldGroup>
+      <FieldGroup label="Model">
+        <TextInput onChangeText={props.setModel} placeholder="Land Cruiser Prado" placeholderTextColor={colors.muted} style={styles.input} value={props.model} />
+      </FieldGroup>
+      <View style={styles.twoColumn}>
+        <View style={styles.flex}>
+          <FieldGroup label={`Year (${MIN_VEHICLE_YEAR}–2026)`}>
+            <TextInput keyboardType="number-pad" maxLength={4} onChangeText={props.setYear} placeholder="2024" placeholderTextColor={colors.muted} style={styles.input} value={props.year} />
+          </FieldGroup>
+        </View>
+        <View style={styles.flex}>
+          <FieldGroup label="Passenger seats">
+            <TextInput keyboardType="number-pad" maxLength={1} onChangeText={props.setSeats} placeholder="6" placeholderTextColor={colors.muted} style={styles.input} value={props.seats} />
+          </FieldGroup>
+        </View>
+      </View>
+      <FieldGroup label="Exterior colour">
+        <TextInput onChangeText={props.setColour} placeholder="Obsidian Black" placeholderTextColor={colors.muted} style={styles.input} value={props.colour} />
+      </FieldGroup>
+      <View style={styles.sectionBlock}>
+        <SectionHeading>Transmission</SectionHeading>
+        {(['automatic', 'manual'] as const).map((value) => (
+          <ChoiceRow key={value} label={value.charAt(0).toUpperCase() + value.slice(1)} onPress={() => props.setTransmission(value)} selected={props.transmission === value} />
+        ))}
+      </View>
+      <View style={styles.sectionBlock}>
+        <SectionHeading>Fuel</SectionHeading>
+        {(['petrol', 'diesel', 'hybrid'] as const).map((value) => (
+          <ChoiceRow key={value} label={value.charAt(0).toUpperCase() + value.slice(1)} onPress={() => props.setFuelType(value)} selected={props.fuelType === value} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function StepIntro({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <View style={styles.stepIntro}>
+      <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+      <Text style={styles.subtitle}>{subtitle}</Text>
+    </View>
+  );
+}
+
+function FieldGroup({ children, label }: { children: React.ReactNode; label: string }) {
+  return (
+    <View style={styles.fieldGroup}>
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </View>
+  );
+}
+
+function ChoiceRow({ label, onPress, selected }: { label: string; onPress: () => void; selected: boolean }) {
+  return (
+    <PressableScale accessibilityRole="radio" accessibilityState={{ selected }} onPress={onPress}>
+      <View style={styles.choiceRow}>
+        <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text>
+        <Ionicons color={selected ? colors.goldStrong : colors.lineStrong} name={selected ? 'radio-button-on' : 'radio-button-off'} size={20} />
+      </View>
+    </PressableScale>
+  );
+}
+
+function CheckRow({ checked, label, onPress }: { checked: boolean; label: string; onPress: () => void }) {
+  return (
+    <PressableScale accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={onPress}>
+      <View style={styles.choiceRow}>
+        <Text style={[styles.choiceText, checked && styles.choiceTextSelected]}>{label}</Text>
+        <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+          {checked ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
+        </View>
+      </View>
+    </PressableScale>
+  );
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.reviewRow}>
+      <Text style={styles.reviewLabel}>{label}</Text>
+      <Text style={styles.reviewValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  backButton: {
-    padding: spacing.xs,
-  },
-  bottomBar: {
-    marginTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-  },
-  breakdownCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, marginTop: spacing.md, paddingVertical: spacing.md },
-  breakdownLabel: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 13,
-  },
-  breakdownRow: {
+  checkbox: {
     alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.xs,
+    borderWidth: 1.5,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.goldStrong,
+    borderColor: colors.goldStrong,
+  },
+  choiceList: { marginTop: spacing.sm },
+  choiceRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 52,
   },
-  breakdownValue: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
+  choiceText: {
+    color: colors.silver,
+    fontFamily: typography.body,
     fontSize: 14,
   },
-  charCountText: {
+  choiceTextSelected: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+  },
+  closeTarget: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  content: {
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.md,
+  },
+  counter: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: 11,
     marginTop: spacing.xs,
     textAlign: 'right',
   },
-  content: {
-    padding: spacing.lg,
+  coverLabel: {
+    backgroundColor: 'rgba(4,4,4,.72)',
+    borderRadius: radii.xs,
+    left: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+    position: 'absolute',
+    top: spacing.xs,
+  },
+  coverLabelText: {
+    color: colors.ivory,
+    fontFamily: typography.bodyMedium,
+    fontSize: 10,
   },
   currencyInput: {
     color: colors.ivory,
     flex: 1,
     fontFamily: typography.display,
-    fontSize: 24,
-    paddingVertical: spacing.sm,
-  },
-  currencyInputContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    fontSize: 25,
+    paddingVertical: 0,
   },
   currencyPrefix: {
-    color: colors.goldStrong,
-    fontFamily: typography.display,
-    fontSize: 22,
-  },
-  emptyPhotosText: {
-    color: colors.ivory,
+    color: colors.muted,
     fontFamily: typography.bodyMedium,
-    fontSize: 14,
+    fontSize: 20,
   },
-  errorBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(209,133,120,0.12)',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-  },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  featureGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  featurePill: {
+  currencyRow: {
     alignItems: 'center',
     backgroundColor: colors.graphite,
     borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: 1,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: 6,
-    minHeight: 44,
+    gap: spacing.sm,
+    minHeight: 58,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
   },
-  featurePillSelected: {
-    backgroundColor: colors.goldStrong,
-    borderColor: colors.goldStrong,
-  },
-  featureText: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-  },
-  featureTextSelected: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-  },
-  fieldLabel: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    marginBottom: spacing.xs,
-    marginTop: spacing.md,
-  },
-  header: {
-    alignItems: 'center',
-    borderBottomColor: colors.line,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  helperText: {
+  emptyPhotos: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 11,
-    marginTop: 4,
+    fontSize: 13,
+    marginTop: spacing.lg,
   },
+  fieldGroup: { marginTop: spacing.md },
+  flex: { flex: 1 },
+  header: { paddingHorizontal: spacing.md },
   input: {
     backgroundColor: colors.graphite,
     borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
     color: colors.ivory,
     fontFamily: typography.body,
-    fontSize: 14,
-    minHeight: 48,
+    fontSize: 15,
+    minHeight: 50,
     paddingHorizontal: spacing.md,
+  },
+  modalBackdrop: {
+    backgroundColor: 'rgba(0,0,0,.68)',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  photoAction: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 74,
+    marginTop: spacing.lg,
+  },
+  photoActionBody: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  photoActionCopy: { flex: 1 },
+  photoActionTitle: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 14,
+  },
+  photoCount: {
+    color: colors.muted,
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
+    marginTop: spacing.md,
   },
   photoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    marginTop: spacing.md,
   },
-  photoPickerButton: {
-    alignItems: 'center',
+  photoTile: {
     backgroundColor: colors.graphite,
-    borderColor: colors.gold,
-    borderRadius: radii.md,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    gap: 4,
-    justifyContent: 'center',
-    paddingVertical: spacing.lg,
-  },
-  photoPickerSubtext: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 11,
-  },
-  photoPickerText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-  },
-  photoThumbnail: {
     borderRadius: radii.sm,
-    height: 90,
-    width: '100%',
-  },
-  photoThumbnailWrapper: {
-    borderColor: colors.line,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    position: 'relative',
-    width: '31%',
-  },
-  pill: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  pillSelected: {
-    backgroundColor: colors.goldStrong,
-    borderColor: colors.goldStrong,
-  },
-  pillText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-  },
-  pillTextSelected: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 52,
-  },
-  primaryButtonText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-    letterSpacing: 1.2,
-  },
-  primaryCoverBadge: {
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    left: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    position: 'absolute',
-    top: 4,
-  },
-  primaryCoverText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-  },
-  progressBar: {
-    backgroundColor: colors.graphite,
-    borderRadius: radii.pill,
-    height: 4,
+    height: 112,
     overflow: 'hidden',
-    width: 120,
+    width: '48%',
   },
+  primaryArea: { marginTop: spacing.xl },
   progressFill: {
     backgroundColor: colors.goldStrong,
     height: '100%',
   },
-  progressNotice: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(227,195,101,0.1)',
-    borderColor: colors.gold,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    padding: spacing.md,
+  progressMeta: { paddingBottom: spacing.sm },
+  progressTrack: {
+    backgroundColor: colors.line,
+    borderRadius: radii.pill,
+    height: 2,
+    marginTop: spacing.xs,
+    overflow: 'hidden',
   },
-  progressNoticeText: {
-    color: colors.gold,
+  ratePreview: {
+    alignItems: 'baseline',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  ratePreviewLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+  },
+  ratePreviewValue: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 23,
+  },
+  removePhoto: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(4,4,4,.74)',
+    borderRadius: radii.pill,
+    height: 32,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: spacing.xs,
+    top: spacing.xs,
+    width: 32,
+  },
+  reviewLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+    width: 108,
+  },
+  reviewRow: {
+    alignItems: 'flex-start',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+    minHeight: 54,
+    paddingVertical: spacing.md,
+  },
+  reviewSection: {
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  reviewValue: {
+    color: colors.silver,
     flex: 1,
     fontFamily: typography.bodyMedium,
-    fontSize: 12,
+    fontSize: 13,
+    textAlign: 'right',
   },
-  removePhotoBadge: {
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: radii.pill,
-    padding: 3,
-    position: 'absolute',
-    right: 4,
-    top: 4,
-  },
-  safeArea: {
+  screen: {
     backgroundColor: colors.black,
     flex: 1,
   },
-  stepContainer: {
-    gap: spacing.xs,
+  sectionBlock: {
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
   },
-  stepIndicator: {
-    alignItems: 'flex-end',
-    flex: 1,
-    gap: 4,
+  selector: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 50,
+    paddingHorizontal: spacing.md,
   },
-  stepText: {
-    color: colors.muted,
+  selectorText: {
+    color: colors.ivory,
+    fontFamily: typography.body,
+    fontSize: 15,
+  },
+  sheet: {
+    backgroundColor: colors.graphite,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    maxHeight: '72%',
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  sheetHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 56,
+  },
+  sheetRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 52,
+  },
+  sheetRowText: {
+    color: colors.silver,
+    fontFamily: typography.body,
+    fontSize: 15,
+  },
+  sheetRowTextSelected: {
+    color: colors.ivory,
     fontFamily: typography.bodySemiBold,
+  },
+  sheetTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 23,
+  },
+  stepIntro: { marginTop: spacing.lg },
+  stepLabel: {
+    color: colors.muted,
+    fontFamily: typography.bodyMedium,
     fontSize: 11,
-    letterSpacing: 1.2,
+  },
+  submissionProgress: {
+    alignItems: 'center',
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  submissionProgressText: {
+    color: colors.silver,
+    flex: 1,
+    fontFamily: typography.body,
+    fontSize: 13,
   },
   subtitle: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: spacing.sm,
-  },
-  summaryCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs, paddingVertical: spacing.md },
-  summaryCategory: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 12,
-  },
-  summaryDivider: {
-    backgroundColor: colors.line,
-    height: 1,
-    marginVertical: spacing.xs,
-  },
-  summaryLabel: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 13,
-  },
-  summaryRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  summaryTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 20,
-  },
-  summaryValue: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.xs,
   },
   textArea: {
-    minHeight: 100,
+    minHeight: 120,
     paddingTop: spacing.md,
     textAlignVertical: 'top',
   },
   title: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 24,
-    letterSpacing: -0.4,
+    fontSize: 31,
+    letterSpacing: -0.55,
   },
-  twoColumnRow: {
+  twoColumn: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
 });

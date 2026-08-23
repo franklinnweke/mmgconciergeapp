@@ -1,14 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import { OwnerVisibleVehicle, VehicleModerationStatus } from '@mmg/contracts';
+import type { OwnerVisibleVehicle, VehicleModerationStatus } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   StyleSheet,
   Switch,
   Text,
@@ -18,450 +16,390 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
-import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import { InlineNotice, PrimaryAction } from '@/components/ui/mobile-primitives';
+import { normalizeVehicleImageUrl } from '@/features/discovery/data/vehicle-images';
 import { useOwnerFleet } from '../hooks/use-owner-fleet';
 
-function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) {
+function statusCopy(status: VehicleModerationStatus, visibility: string) {
   switch (status) {
     case 'approved':
-      if (visibility === 'active') {
-        return {
-          label: 'APPROVED & LIVE',
-          color: colors.success ?? '#10B981',
-          bgColor: 'rgba(16, 185, 129, 0.12)',
-          borderColor: 'rgba(16, 185, 129, 0.3)',
-          icon: 'checkmark-circle' as const,
-        };
-      }
-      return {
-        label: 'APPROVED (PAUSED)',
-        color: colors.muted,
-        bgColor: 'rgba(160, 160, 160, 0.12)',
-        borderColor: 'rgba(160, 160, 160, 0.3)',
-        icon: 'pause-circle' as const,
-      };
+      return visibility === 'active'
+        ? { label: 'Live', color: colors.success }
+        : { label: 'Paused', color: colors.muted };
     case 'pending_review':
-      return {
-        label: 'UNDER REVIEW',
-        color: '#3B82F6',
-        bgColor: 'rgba(59, 130, 246, 0.12)',
-        borderColor: 'rgba(59, 130, 246, 0.3)',
-        icon: 'time' as const,
-      };
+      return { label: 'Under review', color: colors.goldStrong };
     case 'draft':
-      return {
-        label: 'DRAFT',
-        color: colors.goldStrong,
-        bgColor: 'rgba(212, 175, 55, 0.12)',
-        borderColor: 'rgba(212, 175, 55, 0.3)',
-        icon: 'document-text' as const,
-      };
+      return { label: 'Draft', color: colors.muted };
     case 'rejected':
-      return {
-        label: 'REVISION REQUIRED',
-        color: colors.danger ?? '#EF4444',
-        bgColor: 'rgba(239, 68, 68, 0.12)',
-        borderColor: 'rgba(239, 68, 68, 0.3)',
-        icon: 'alert-circle' as const,
-      };
+      return { label: 'Needs changes', color: colors.danger };
     case 'suspended':
-      return {
-        label: 'SUSPENDED',
-        color: colors.danger ?? '#EF4444',
-        bgColor: 'rgba(239, 68, 68, 0.12)',
-        borderColor: 'rgba(239, 68, 68, 0.3)',
-        icon: 'close-circle' as const,
-      };
+      return { label: 'Suspended', color: colors.danger };
   }
+}
+
+function ownerImageUrl(vehicle: OwnerVisibleVehicle): string | null {
+  const path = vehicle.primaryImagePath?.trim();
+  if (!path || !/^https?:\/\//i.test(path)) return null;
+  return normalizeVehicleImageUrl(path);
+}
+
+function ownerRateLabel(vehicle: OwnerVisibleVehicle): string {
+  return typeof vehicle.ownerDailyRateKobo === 'number' && vehicle.ownerDailyRateKobo > 0
+    ? formatNairaFromKobo(vehicle.ownerDailyRateKobo)
+    : 'Rate not set';
 }
 
 export function OwnerFleetScreen() {
   const router = useRouter();
   const { actionInProgress, loading, syncError, toggleVisibility, vehicles } = useOwnerFleet();
-  const [refreshing, setRefreshing] = useState(false);
 
-  const handleAddVehicle = () => {
-    router.push('/(owner)/add-vehicle' as any);
-  };
-
+  const handleAddVehicle = () => router.push('/(owner)/add-vehicle' as never);
   const handlePressVehicle = (vehicle: OwnerVisibleVehicle) => {
     if (vehicle.moderationStatus === 'draft' || vehicle.moderationStatus === 'rejected') {
       router.push({
-        pathname: '/(owner)/add-vehicle' as any,
+        pathname: '/(owner)/add-vehicle' as never,
         params: { vehicleId: vehicle.vehicleId },
       });
-    } else {
-      router.push({
-        pathname: '/(owner)/fleet/[id]' as any,
-        params: { id: vehicle.vehicleId },
-      });
+      return;
     }
+    router.push({
+      pathname: '/(owner)/fleet/[id]' as never,
+      params: { id: vehicle.vehicleId },
+    });
   };
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <View style={styles.header}>
-        <View style={styles.topRow}>
-          <BrandWordmark />
-          <PressableScale onPress={handleAddVehicle} style={styles.addButton}>
-            <Ionicons color={colors.black} name="add" size={18} />
-            <Text style={styles.addButtonText}>LIST VEHICLE</Text>
-          </PressableScale>
-          <PressableScale
-            accessibilityLabel="Open owner booking desk"
-            accessibilityRole="button"
-            onPress={() => router.push('/(owner)/owner-bookings' as any)}
-            style={styles.bookingsButton}
-          >
-            <Ionicons color={colors.gold} name="calendar-outline" size={18} />
-            <Text style={styles.bookingsButtonText}>BOOKINGS</Text>
-          </PressableScale>
-        </View>
-        <Text style={styles.title}>Fleet</Text>
-      </View>
-
-      {syncError ? (
-        <View style={styles.errorBanner}>
-          <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
-          <Text style={styles.errorText}>{syncError}</Text>
-        </View>
-      ) : null}
-
-      {loading && vehicles.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.gold} size="large" />
-          <Text style={styles.loadingText}>Synchronizing fleet listings...</Text>
-        </View>
-      ) : (
-        <FlatList
-          contentContainerStyle={styles.listContent}
-          data={vehicles}
-          keyExtractor={(item) => item.vehicleId}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No Vehicles Registered</Text>
-              <Text style={styles.emptyCopy}>
-                Add an approved chauffeured vehicle to begin managing your Lagos inventory.
-              </Text>
-              <PressableScale onPress={handleAddVehicle} style={styles.emptyButton}>
-                <Ionicons color={colors.black} name="add-circle" size={20} />
-                <Text style={styles.emptyButtonText}>REGISTER FIRST VEHICLE</Text>
-              </PressableScale>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.screen}>
+      <FlatList
+        contentContainerStyle={styles.listContent}
+        data={vehicles}
+        keyExtractor={(item) => item.vehicleId}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.topBar}>
+              <BrandWordmark compact withLogo />
+              <View style={styles.topActions}>
+                <PressableScale
+                  accessibilityLabel="Open bookings"
+                  accessibilityRole="button"
+                  onPress={() => router.push('/(owner)/owner-bookings' as never)}
+                >
+                  <View style={styles.iconTarget}>
+                    <Ionicons color={colors.ivory} name="calendar-outline" size={21} />
+                  </View>
+                </PressableScale>
+                <PressableScale
+                  accessibilityLabel="Add vehicle"
+                  accessibilityRole="button"
+                  haptic="light"
+                  onPress={handleAddVehicle}
+                >
+                  <View style={styles.addTarget}>
+                    <Ionicons color={colors.black} name="add" size={21} />
+                  </View>
+                </PressableScale>
+              </View>
             </View>
-          }
-          refreshControl={
-            <RefreshControl
-              onRefresh={() => {
-                setRefreshing(true);
-                setTimeout(() => setRefreshing(false), 800);
-              }}
-              refreshing={refreshing}
-              tintColor={colors.gold}
-            />
-          }
-          renderItem={({ item }) => {
-            const badge = statusBadgeConfig(item.moderationStatus, item.visibility);
-            const isToggling = actionInProgress === item.vehicleId;
-
-            return (
-              <PressableScale
-                accessibilityHint="Opens vehicle management details"
-                accessibilityLabel={`${item.displayName}, ${badge.label}`}
-                accessibilityRole="button"
-                onPress={() => handlePressVehicle(item)}
-                style={styles.card}
-              >
-                <View style={styles.cardMedia}>
-                  <Image
-                    contentFit="cover"
-                    source={resolveVehicleImageSource({
-                      imageUrl: item.primaryImagePath ?? undefined,
-                      category: item.category ?? undefined,
-                    })}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <View style={[styles.badge, { backgroundColor: badge.bgColor, borderColor: badge.borderColor }]}>
-                    <Ionicons color={badge.color} name={badge.icon} size={12} />
-                    <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.cardBody}>
-                  <View style={styles.cardTopRow}>
-                    <Text numberOfLines={2} style={styles.vehicleName}>
-                      {item.displayName}
-                    </Text>
-                    {item.moderationStatus === 'approved' ? (
-                      <View style={styles.switchRow}>
-                        <Text style={styles.switchLabel}>
-                          {item.visibility === 'active' ? 'Active' : 'Paused'}
-                        </Text>
-                        <Switch
-                          disabled={isToggling}
-                          onValueChange={() => void toggleVisibility(item)}
-                          thumbColor={item.visibility === 'active' ? colors.gold : colors.muted}
-                          trackColor={{ false: colors.graphite, true: 'rgba(212,175,55,0.4)' }}
-                          value={item.visibility === 'active'}
-                        />
-                      </View>
-                    ) : null}
-                  </View>
-
-                  <View style={styles.metaRow}>
-                    <Ionicons color={colors.gold} name="location-outline" size={13} />
-                    <Text style={styles.metaText}>{item.areaLabel ?? 'Lagos'}</Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Ionicons color={colors.gold} name="people-outline" size={13} />
-                    <Text style={styles.metaText}>{item.seats ?? 4} seats</Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Text style={styles.metaText}>{item.year ?? 2024}</Text>
-                  </View>
-
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>DAILY RATE</Text>
-                    <Text style={styles.priceValue}>{formatNairaFromKobo(item.ownerDailyRateKobo ?? 0)}</Text>
-                  </View>
-
-                  {item.moderationStatus === 'rejected' && item.lastDecisionReason ? (
-                    <View style={styles.rejectionBox}>
-                      <Ionicons color={colors.danger} name="information-circle" size={14} />
-                      <Text numberOfLines={2} style={styles.rejectionText}>
-                        Feedback: {item.lastDecisionReason}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </PressableScale>
-            );
-          }}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+            <View style={styles.intro}>
+              <Text accessibilityRole="header" style={styles.title}>Fleet</Text>
+              <Text style={styles.subtitle}>Manage your listed vehicles and availability.</Text>
+            </View>
+            {syncError ? <InlineNotice icon="cloud-offline-outline" tone="danger">{syncError}</InlineNotice> : null}
+            {!loading && vehicles.length ? (
+              <Text style={styles.count}>{vehicles.length} {vehicles.length === 1 ? 'vehicle' : 'vehicles'}</Text>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator color={colors.goldStrong} size="small" />
+              <Text style={styles.loadingText}>Loading fleet</Text>
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Ionicons color={colors.goldStrong} name="car-outline" size={27} />
+              <Text style={styles.emptyTitle}>No vehicles yet</Text>
+              <Text style={styles.emptyBody}>Add your first chauffeured vehicle to begin the MMG review process.</Text>
+              <View style={styles.emptyAction}>
+                <PrimaryAction icon="add" label="Add vehicle" onPress={handleAddVehicle} />
+              </View>
+            </View>
+          )
+        }
+        renderItem={({ item }) => (
+          <VehicleRow
+            actionInProgress={actionInProgress}
+            item={item}
+            onPress={() => handlePressVehicle(item)}
+            onToggle={() => void toggleVisibility(item)}
+          />
+        )}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 }
 
+function VehicleRow({
+  actionInProgress,
+  item,
+  onPress,
+  onToggle,
+}: {
+  actionInProgress: string | null;
+  item: OwnerVisibleVehicle;
+  onPress: () => void;
+  onToggle: () => void;
+}) {
+  const status = statusCopy(item.moderationStatus, item.visibility);
+  const imageUrl = ownerImageUrl(item);
+  const isToggling = actionInProgress === item.vehicleId;
+  const metadata = [
+    item.areaLabel,
+    item.seats ? `${item.seats} seats` : null,
+    item.year ? String(item.year) : null,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <View style={styles.vehicleBlock}>
+      <PressableScale
+        accessibilityHint="Opens vehicle management"
+        accessibilityLabel={`${item.displayName}, ${status.label}`}
+        accessibilityRole="button"
+        onPress={onPress}
+      >
+        <View>
+          <View style={styles.media}>
+            {imageUrl ? (
+              <Image contentFit="cover" source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} />
+            ) : (
+              <View style={styles.mediaFallback}>
+                <Ionicons color={colors.muted} name="image-outline" size={28} />
+                <Text style={styles.mediaFallbackText}>{item.imageCount ? 'Vehicle photo unavailable' : 'No vehicle photo yet'}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.vehicleCopy}>
+            <View style={styles.vehicleHeading}>
+              <View style={styles.nameBlock}>
+                <Text numberOfLines={2} style={styles.vehicleName}>{item.displayName}</Text>
+                <Text style={[styles.status, { color: status.color }]}>{status.label}</Text>
+              </View>
+              <Ionicons color={colors.muted} name="chevron-forward" size={19} />
+            </View>
+            {metadata ? <Text style={styles.meta}>{metadata}</Text> : null}
+            <View style={styles.rateRow}>
+              <Text style={styles.rate}>{ownerRateLabel(item)}</Text>
+              {typeof item.ownerDailyRateKobo === 'number' && item.ownerDailyRateKobo > 0 ? (
+                <Text style={styles.rateContext}>per day</Text>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </PressableScale>
+
+      {item.moderationStatus === 'approved' ? (
+        <View style={styles.visibilityRow}>
+          <View>
+            <Text style={styles.visibilityTitle}>{item.visibility === 'active' ? 'Visible to renters' : 'Listing paused'}</Text>
+            <Text style={styles.visibilityBody}>{item.visibility === 'active' ? 'Renters can discover this vehicle.' : 'The vehicle remains approved but hidden.'}</Text>
+          </View>
+          <Switch
+            accessibilityLabel="Vehicle visibility"
+            disabled={isToggling}
+            ios_backgroundColor={colors.graphiteRaised}
+            onValueChange={onToggle}
+            thumbColor={item.visibility === 'active' ? colors.goldStrong : colors.muted}
+            trackColor={{ false: colors.graphiteRaised, true: 'rgba(227,195,101,.38)' }}
+            value={item.visibility === 'active'}
+          />
+        </View>
+      ) : null}
+
+      {item.moderationStatus === 'rejected' && item.lastDecisionReason ? (
+        <InlineNotice icon="information-circle-outline" tone="danger">{item.lastDecisionReason}</InlineNotice>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  addButton: {
+  addTarget: {
     alignItems: 'center',
-    backgroundColor: colors.gold,
-    borderRadius: radii.pill ?? 999,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  addButtonText: {
-    color: colors.black,
-    fontFamily: typography.body,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  bookingsButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  bookingsButtonText: {
-    color: colors.gold,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  badge: {
-    alignItems: 'center',
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 4,
-    left: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    position: 'absolute',
-    top: spacing.sm,
-  },
-  badgeText: {
-    fontFamily: typography.body,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  card: {
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-  },
-  cardBody: {
-    padding: spacing.md,
-  },
-  cardMedia: {
-    backgroundColor: '#1E1E1E',
-    height: 160,
-    width: '100%',
-  },
-  cardTopRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  emptyButton: {
-    alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: colors.goldStrong,
     borderRadius: radii.md,
-    flexDirection: 'row',
-    gap: spacing.sm,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  count: {
+    color: colors.muted,
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
+    marginBottom: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  empty: {
+    alignItems: 'center',
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
     marginTop: spacing.lg,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.xl,
   },
-  emptyButtonText: {
-    color: colors.black,
+  emptyAction: {
+    alignSelf: 'stretch',
+    marginTop: spacing.lg,
+  },
+  emptyBody: {
+    color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  emptyCopy: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: spacing.xs, textAlign: 'center' },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xxl,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
   emptyTitle: {
     color: colors.ivory,
-    fontFamily: typography.display ?? typography.body,
-    fontSize: 18,
-    fontWeight: '600',
+    fontFamily: typography.display,
+    fontSize: 27,
     marginTop: spacing.md,
   },
-  errorBanner: {
+  iconTarget: {
     alignItems: 'center',
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    borderColor: 'rgba(239,68,68,0.3)',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 12,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+  intro: {
+    marginTop: spacing.xl,
   },
   listContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl + 40,
+    paddingBottom: spacing.xxl + 50,
+    paddingHorizontal: spacing.md,
   },
-  loadingContainer: {
+  loading: {
     alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.xxl,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
   },
   loadingText: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: 13,
-    marginTop: spacing.sm,
   },
-  metaDot: {
-    color: colors.muted,
+  media: {
+    backgroundColor: colors.graphite,
+    borderRadius: radii.md,
+    height: 196,
+    overflow: 'hidden',
   },
-  metaRow: {
+  mediaFallback: {
     alignItems: 'center',
-    flexDirection: 'row',
+    flex: 1,
     gap: spacing.xs,
-    marginTop: spacing.xs,
+    justifyContent: 'center',
   },
-  metaText: {
+  mediaFallbackText: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: 12,
   },
-  priceLabel: {
+  meta: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+    marginTop: spacing.xs,
+  },
+  nameBlock: { flex: 1 },
+  rate: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 15,
+  },
+  rateContext: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
   },
-  priceRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-    paddingTop: spacing.xs,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    borderTopWidth: 1,
-  },
-  priceValue: {
-    color: colors.ivory,
-    fontFamily: typography.body,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  rejectionBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(239,68,68,0.08)',
-    borderRadius: radii.sm,
+  rateRow: {
+    alignItems: 'baseline',
     flexDirection: 'row',
     gap: spacing.xs,
-    marginTop: spacing.sm,
-    padding: spacing.xs,
+    marginTop: spacing.md,
   },
-  rejectionText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 11,
-  },
-  safeArea: {
+  screen: {
     backgroundColor: colors.black,
     flex: 1,
   },
-  switchLabel: {
+  status: {
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
+    marginTop: 3,
+  },
+  subtitle: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 12,
+    fontSize: 13,
+    marginTop: 5,
   },
-  switchRow: {
+  title: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 32,
+    letterSpacing: -0.6,
+  },
+  topActions: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
   },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display ?? typography.body,
-    fontSize: 22,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  topRow: {
+  topBar: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingTop: spacing.sm,
+  },
+  vehicleBlock: {
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  vehicleCopy: {
+    paddingHorizontal: spacing.xs,
+    paddingTop: spacing.md,
+  },
+  vehicleHeading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   vehicleName: {
     color: colors.ivory,
-    flex: 1,
+    fontFamily: typography.display,
+    fontSize: 23,
+    letterSpacing: -0.3,
+  },
+  visibilityBody: {
+    color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 16,
-    fontWeight: '600',
-    marginRight: spacing.sm,
+    fontSize: 11,
+    marginTop: 2,
+    maxWidth: 255,
+  },
+  visibilityRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
+    paddingTop: spacing.md,
+  },
+  visibilityTitle: {
+    color: colors.silver,
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
   },
 });

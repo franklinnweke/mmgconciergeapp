@@ -10,19 +10,17 @@ import {
 } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import {
+  FieldLabel,
+  InlineNotice,
+  MobileHeader,
+  PrimaryAction,
+  SectionHeading,
+} from '@/components/ui/mobile-primitives';
 import { useAuth } from '@/core/auth/auth-context';
 import {
   COMMISSION_TERMS_SUMMARY,
@@ -36,25 +34,16 @@ import { ownerCommandErrorMessage } from '../domain/owner-errors';
 export function OwnerIdentityScreen() {
   const auth = useAuth();
   const router = useRouter();
-
   const [legalName, setLegalName] = useState(auth.profile?.displayName || '');
   const [areaLabel, setAreaLabel] = useState<LagosAreaLabel>('Lekki Phase 1');
   const [areaModalVisible, setAreaModalVisible] = useState(false);
   const [line1, setLine1] = useState('');
   const [line2, setLine2] = useState('');
-
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [commissionAccepted, setCommissionAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
-
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Frozen per mount (same pattern as the submit screen): a fresh Date.now()
-  // key per attempt defeats the backend's idempotency replay, so a
-  // lost-response retry becomes a brand-new command instead of returning the
-  // stored result. The service persists idempotency records only on success,
-  // so retrying a failed attempt under the same key still executes normally.
   const [idempotencyKey] = useState(
     () => `complete-profile-${auth.user?.uid || 'anon'}-${Date.now()}`,
   );
@@ -72,10 +61,8 @@ export function OwnerIdentityScreen() {
     if (!isFormValid || saving) return;
     setSaving(true);
     setErrorMessage(null);
-
     try {
       const gateway = createOwnerVerificationGateway();
-
       const command: CompleteOwnerProfileCommand = {
         schemaVersion: 1,
         idempotencyKey,
@@ -93,15 +80,9 @@ export function OwnerIdentityScreen() {
           acceptedPrivacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
         },
       };
-
       await gateway.completeOwnerProfile(command);
-
-      // Check if phone needs verification
-      if (!isNigerianE164(auth.user?.phoneNumber)) {
-        router.push('/(owner)/phone' as Href);
-      } else {
-        router.push('/(owner)' as Href);
-      }
+      if (!isNigerianE164(auth.user?.phoneNumber)) router.push('/(owner)/phone' as Href);
+      else router.push('/(owner)' as Href);
     } catch (err) {
       setErrorMessage(ownerCommandErrorMessage(err));
     } finally {
@@ -111,191 +92,129 @@ export function OwnerIdentityScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <PressableScale onPress={() => router.back()}>
-            <View style={styles.backButton}>
-              <Ionicons color={colors.ivory} name="arrow-back" size={20} />
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <MobileHeader onBack={() => router.back()} title="Owner profile" />
+        <View style={styles.intro}>
+          <Text accessibilityRole="header" style={styles.title}>Tell us about you</Text>
+          <Text style={styles.subtitle}>We use these details to verify who operates the vehicle in Lagos.</Text>
+        </View>
+
+        {errorMessage ? <InlineNotice icon="alert-circle-outline" tone="danger">{errorMessage}</InlineNotice> : null}
+
+        <View style={styles.section}>
+          <SectionHeading>Identity</SectionHeading>
+          <View style={styles.fieldGroup}>
+            <FieldLabel>Legal name or registered entity</FieldLabel>
+            <TextInput
+              autoCapitalize="words"
+              onChangeText={setLegalName}
+              placeholder="Name shown on official ID"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={legalName}
+            />
+          </View>
+          <View style={styles.readOnlyRow}>
+            <View style={styles.readOnlyCopy}>
+              <Text style={styles.readOnlyLabel}>Verified email</Text>
+              <Text style={styles.readOnlyValue}>{auth.user?.email || '—'}</Text>
             </View>
-          </PressableScale>
-          <View>
-            <Text style={styles.title}>Owner Profile & Terms</Text>
+            <Ionicons color={colors.success} name="checkmark-circle" size={18} />
           </View>
         </View>
 
-        {errorMessage && (
-          <View style={styles.errorBox}>
-            <Ionicons color="#EF4444" name="alert-circle-outline" size={18} />
-            <Text style={styles.errorText}>{errorMessage}</Text>
+        <View style={styles.section}>
+          <SectionHeading>Lagos address</SectionHeading>
+          <View style={styles.fieldGroup}>
+            <FieldLabel>Operating area</FieldLabel>
+            <PressableScale accessibilityRole="button" onPress={() => setAreaModalVisible(true)}>
+              <View style={styles.selector}>
+                <Text style={styles.selectorText}>{areaLabel}</Text>
+                <Ionicons color={colors.muted} name="chevron-down" size={18} />
+              </View>
+            </PressableScale>
           </View>
-        )}
+          <View style={styles.fieldGroup}>
+            <FieldLabel>Street address</FieldLabel>
+            <TextInput
+              onChangeText={setLine1}
+              placeholder="14 Admiralty Way"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={line1}
+            />
+          </View>
+          <View style={styles.fieldGroup}>
+            <FieldLabel>Building, suite or unit <Text style={styles.optional}>Optional</Text></FieldLabel>
+            <TextInput
+              onChangeText={setLine2}
+              placeholder="Additional address detail"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={line2}
+            />
+          </View>
+        </View>
 
-        {/* Legal Name */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Full Legal Name / Registered Entity</Text>
-          <TextInput
-            placeholder="As shown on official Nigerian ID"
-            placeholderTextColor={colors.muted}
-            value={legalName}
-            onChangeText={setLegalName}
-            style={styles.input}
+        <View style={styles.section}>
+          <SectionHeading>Agreements</SectionHeading>
+          <AgreementRow
+            accepted={termsAccepted}
+            description={OWNER_TERMS_SUMMARY.summary}
+            onPress={() => setTermsAccepted((value) => !value)}
+            title={OWNER_TERMS_SUMMARY.title}
+          />
+          <AgreementRow
+            accepted={commissionAccepted}
+            description={COMMISSION_TERMS_SUMMARY.summary}
+            onPress={() => setCommissionAccepted((value) => !value)}
+            title={COMMISSION_TERMS_SUMMARY.title}
+          />
+          <AgreementRow
+            accepted={privacyAccepted}
+            description={PRIVACY_NOTICE_SUMMARY.summary}
+            onPress={() => setPrivacyAccepted((value) => !value)}
+            title={PRIVACY_NOTICE_SUMMARY.title}
           />
         </View>
 
-        {/* Email (Read only) */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Verified Email Address</Text>
-          <View style={[styles.input, styles.readOnlyInput]}>
-            <Text style={styles.readOnlyText}>{auth.user?.email || 'owner@example.com'}</Text>
-            <Ionicons color={colors.goldStrong} name="checkmark-circle" size={16} />
-          </View>
-        </View>
-
-        {/* Lagos Operating Area Picker */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Primary Lagos Operating Area</Text>
-          <PressableScale onPress={() => setAreaModalVisible(true)}>
-            <View style={[styles.input, styles.pickerButton]}>
-              <Text style={styles.pickerText}>{areaLabel}</Text>
-              <Ionicons color={colors.muted} name="chevron-down" size={18} />
-            </View>
-          </PressableScale>
-        </View>
-
-        {/* Address Line 1 */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Street Address Line 1</Text>
-          <TextInput
-            placeholder="e.g. 14 Admiralty Way"
-            placeholderTextColor={colors.muted}
-            value={line1}
-            onChangeText={setLine1}
-            style={styles.input}
+        <View style={styles.primaryArea}>
+          <PrimaryAction
+            disabled={!isFormValid}
+            icon="arrow-forward"
+            label="Save and continue"
+            loading={saving}
+            onPress={() => void handleSave()}
           />
         </View>
-
-        {/* Address Line 2 */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Address Line 2 (Optional)</Text>
-          <TextInput
-            placeholder="Suite, building, or unit number"
-            placeholderTextColor={colors.muted}
-            value={line2}
-            onChangeText={setLine2}
-            style={styles.input}
-          />
-        </View>
-
-        {/* City & Country (Locked) */}
-        <View style={styles.rowFields}>
-          <View style={[styles.fieldGroup, { flex: 1 }]}>
-            <Text style={styles.label}>City</Text>
-            <View style={[styles.input, styles.readOnlyInput]}>
-              <Text style={styles.readOnlyText}>Lagos</Text>
-            </View>
-          </View>
-          <View style={[styles.fieldGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Country</Text>
-            <View style={[styles.input, styles.readOnlyInput]}>
-              <Text style={styles.readOnlyText}>Nigeria (NG)</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Legal Terms Checkboxes */}
-        <View style={styles.termsSection}>
-          <Text style={styles.sectionTitle}>Required Host Agreements</Text>
-
-          {/* Owner Terms */}
-          <Pressable
-            onPress={() => setTermsAccepted(!termsAccepted)}
-            style={styles.termsRow}
-          >
-            <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
-              {termsAccepted && <Ionicons color={colors.black} name="checkmark" size={14} />}
-            </View>
-            <View style={styles.termsCopy}>
-              <Text style={styles.termsTitle}>{OWNER_TERMS_SUMMARY.title}</Text>
-              <Text style={styles.termsDescription}>{OWNER_TERMS_SUMMARY.summary}</Text>
-              <Text style={styles.termsVersion}>Version: {OWNER_TERMS_SUMMARY.version}</Text>
-            </View>
-          </Pressable>
-
-          {/* Commission Schedule */}
-          <Pressable
-            onPress={() => setCommissionAccepted(!commissionAccepted)}
-            style={styles.termsRow}
-          >
-            <View style={[styles.checkbox, commissionAccepted && styles.checkboxActive]}>
-              {commissionAccepted && <Ionicons color={colors.black} name="checkmark" size={14} />}
-            </View>
-            <View style={styles.termsCopy}>
-              <Text style={styles.termsTitle}>{COMMISSION_TERMS_SUMMARY.title}</Text>
-              <Text style={styles.termsDescription}>{COMMISSION_TERMS_SUMMARY.summary}</Text>
-              <Text style={styles.termsVersion}>Version: {COMMISSION_TERMS_SUMMARY.version}</Text>
-            </View>
-          </Pressable>
-
-          {/* Privacy Notice */}
-          <Pressable
-            onPress={() => setPrivacyAccepted(!privacyAccepted)}
-            style={styles.termsRow}
-          >
-            <View style={[styles.checkbox, privacyAccepted && styles.checkboxActive]}>
-              {privacyAccepted && <Ionicons color={colors.black} name="checkmark" size={14} />}
-            </View>
-            <View style={styles.termsCopy}>
-              <Text style={styles.termsTitle}>{PRIVACY_NOTICE_SUMMARY.title}</Text>
-              <Text style={styles.termsDescription}>{PRIVACY_NOTICE_SUMMARY.summary}</Text>
-              <Text style={styles.termsVersion}>Version: {PRIVACY_NOTICE_SUMMARY.version}</Text>
-            </View>
-          </Pressable>
-        </View>
-
-        {/* Primary Action Button */}
-        <PressableScale
-          onPress={handleSave}
-          style={[{ marginTop: spacing.xl }, (!isFormValid || saving) && { opacity: 0.5 }]}
-        >
-          <View style={styles.primaryButton}>
-            {saving ? (
-              <ActivityIndicator color={colors.black} size="small" />
-            ) : (
-              <>
-                <Text style={styles.primaryText}>SAVE AND CONTINUE</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={18} />
-              </>
-            )}
-          </View>
-        </PressableScale>
       </ScrollView>
 
-      {/* Area Selection Modal */}
-      <Modal animationType="slide" transparent visible={areaModalVisible}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Lagos Area</Text>
-              <Pressable onPress={() => setAreaModalVisible(false)}>
-                <Ionicons color={colors.ivory} name="close" size={24} />
-              </Pressable>
+      <Modal animationType="slide" onRequestClose={() => setAreaModalVisible(false)} transparent visible={areaModalVisible}>
+        <View style={styles.modalBackdrop}>
+          <Pressable onPress={() => setAreaModalVisible(false)} style={StyleSheet.absoluteFill} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Operating area</Text>
+              <PressableScale accessibilityLabel="Close" accessibilityRole="button" onPress={() => setAreaModalVisible(false)}>
+                <View style={styles.closeTarget}><Ionicons color={colors.ivory} name="close" size={22} /></View>
+              </PressableScale>
             </View>
-            <ScrollView style={styles.modalList}>
-              {LAGOS_AREA_LABELS.map((item) => (
-                <Pressable
-                  key={item}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {LAGOS_AREA_LABELS.map((area) => (
+                <PressableScale
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: areaLabel === area }}
+                  key={area}
                   onPress={() => {
-                    setAreaLabel(item);
+                    setAreaLabel(area);
                     setAreaModalVisible(false);
                   }}
-                  style={styles.modalItem}
                 >
-                  <Text style={[styles.modalItemText, areaLabel === item && styles.modalItemTextActive]}>
-                    {item}
-                  </Text>
-                  {areaLabel === item && <Ionicons color={colors.goldStrong} name="checkmark" size={18} />}
-                </Pressable>
+                  <View style={styles.sheetRow}>
+                    <Text style={[styles.sheetRowText, areaLabel === area && styles.sheetRowTextSelected]}>{area}</Text>
+                    {areaLabel === area ? <Ionicons color={colors.goldStrong} name="checkmark" size={20} /> : null}
+                  </View>
+                </PressableScale>
               ))}
             </ScrollView>
           </View>
@@ -305,39 +224,203 @@ export function OwnerIdentityScreen() {
   );
 }
 
+function AgreementRow({
+  accepted,
+  description,
+  onPress,
+  title,
+}: {
+  accepted: boolean;
+  description: string;
+  onPress: () => void;
+  title: string;
+}) {
+  return (
+    <PressableScale accessibilityRole="checkbox" accessibilityState={{ checked: accepted }} onPress={onPress}>
+      <View style={styles.agreementRow}>
+        <View style={[styles.checkbox, accepted && styles.checkboxActive]}>
+          {accepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
+        </View>
+        <View style={styles.agreementCopy}>
+          <Text style={styles.agreementTitle}>{title}</Text>
+          <Text style={styles.agreementDescription}>{description}</Text>
+        </View>
+      </View>
+    </PressableScale>
+  );
+}
+
 const styles = StyleSheet.create({
-  backButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 44, justifyContent: 'center', minHeight: 44, minWidth: 44, width: 44 },
-  checkbox: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: 4, borderWidth: 1.5, height: 22, justifyContent: 'center', marginTop: 2, width: 22 },
-  checkboxActive: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
-  errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
-  fieldGroup: { marginBottom: spacing.md },
-  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
-  input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
-  label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
-  modalContent: { backgroundColor: '#14181F', borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '60%', padding: spacing.lg },
-  modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
-  modalItem: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
-  modalItemText: { color: colors.silver, fontFamily: typography.body, fontSize: 15 },
-  modalItemTextActive: { color: colors.goldStrong, fontFamily: typography.bodySemiBold },
-  modalList: { maxHeight: 300 },
-  modalOverlay: { backgroundColor: 'rgba(0,0,0,0.7)', flex: 1, justifyContent: 'flex-end' },
-  modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  pickerButton: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  pickerText: { color: colors.ivory, fontFamily: typography.body, fontSize: 14 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
-  readOnlyInput: { alignItems: 'center', backgroundColor: '#0D0F13', flexDirection: 'row', justifyContent: 'space-between' },
-  readOnlyText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  rowFields: { flexDirection: 'row', gap: spacing.md },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginBottom: spacing.md },
-  termsCopy: { flex: 1 },
-  termsDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
-  termsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
-  termsSection: { borderTopColor: colors.line, borderTopWidth: 1, marginTop: spacing.md, paddingTop: spacing.lg },
-  termsTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  termsVersion: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.8, marginTop: 4 },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 26, letterSpacing: -0.4, marginTop: 2 },
+  agreementCopy: { flex: 1 },
+  agreementDescription: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 3,
+  },
+  agreementRow: {
+    alignItems: 'flex-start',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  agreementTitle: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+  },
+  checkbox: {
+    alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.xs,
+    borderWidth: 1.5,
+    height: 22,
+    justifyContent: 'center',
+    marginTop: 2,
+    width: 22,
+  },
+  checkboxActive: {
+    backgroundColor: colors.goldStrong,
+    borderColor: colors.goldStrong,
+  },
+  closeTarget: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  content: {
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.md,
+  },
+  fieldGroup: {
+    marginTop: spacing.md,
+  },
+  input: {
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    color: colors.ivory,
+    fontFamily: typography.body,
+    fontSize: 15,
+    minHeight: 50,
+    paddingHorizontal: spacing.md,
+  },
+  intro: {
+    marginBottom: spacing.md,
+    marginTop: spacing.lg,
+  },
+  modalBackdrop: {
+    backgroundColor: 'rgba(0,0,0,.68)',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  optional: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 11,
+  },
+  primaryArea: {
+    marginTop: spacing.xl,
+  },
+  readOnlyCopy: { flex: 1 },
+  readOnlyLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+  },
+  readOnlyRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    minHeight: 54,
+  },
+  readOnlyValue: {
+    color: colors.silver,
+    fontFamily: typography.bodyMedium,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  screen: {
+    backgroundColor: colors.black,
+    flex: 1,
+  },
+  section: {
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  selector: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 50,
+    paddingHorizontal: spacing.md,
+  },
+  selectorText: {
+    color: colors.ivory,
+    fontFamily: typography.body,
+    fontSize: 15,
+  },
+  sheet: {
+    backgroundColor: colors.graphite,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    maxHeight: '72%',
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  sheetHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 56,
+  },
+  sheetRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 52,
+  },
+  sheetRowText: {
+    color: colors.silver,
+    fontFamily: typography.body,
+    fontSize: 15,
+  },
+  sheetRowTextSelected: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+  },
+  sheetTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 23,
+  },
+  subtitle: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.xs,
+    maxWidth: 350,
+  },
+  title: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 31,
+    letterSpacing: -0.55,
+  },
 });
