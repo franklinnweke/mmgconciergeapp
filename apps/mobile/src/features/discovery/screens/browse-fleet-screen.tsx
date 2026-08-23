@@ -1,29 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
-import { VehicleCategory } from '@mmg/contracts';
+import { colors, radii, spacing, typography } from '@mmg/brand';
+import { type VehicleCategory } from '@mmg/contracts';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Animated,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
-import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
-import { useReducedMotion } from '@/components/use-reduced-motion';
+import { InlineNotice, PrimaryAction } from '@/components/ui/mobile-primitives';
 
 import { BrowseVehicleCard } from '../components/browse-vehicle-card';
-import {
-  FleetFilterSheet,
-  type FleetFilterState,
-} from '../components/fleet-filter-sheet';
+import { FleetFilterSheet, type FleetFilterState } from '../components/fleet-filter-sheet';
 import {
   areaFilters,
   firstRouteParam,
@@ -55,81 +43,48 @@ export default function BrowseFleetScreen() {
   }>();
 
   const routeArea = firstRouteParam(params.area);
-  const resolvedRouteArea =
-    routeArea && pickupChoices.includes(routeArea) ? routeArea : 'All Lagos';
-
-  const [areaSelection, setAreaSelection] = useState<{
-    routeValue?: string;
-    value: string;
-  } | null>(null);
-  const area =
-    areaSelection && areaSelection.routeValue === routeArea
-      ? areaSelection.value
-      : resolvedRouteArea;
+  const resolvedRouteArea = routeArea && pickupChoices.includes(routeArea) ? routeArea : 'All Lagos';
+  const [areaSelection, setAreaSelection] = useState<{ routeValue?: string; value: string } | null>(null);
+  const area = areaSelection && areaSelection.routeValue === routeArea ? areaSelection.value : resolvedRouteArea;
 
   const routeCategory = parseFleetCategory(firstRouteParam(params.category));
   const [categorySelection, setCategorySelection] = useState<{
     routeValue?: string;
     value: VehicleCategory | undefined;
   } | null>(null);
-  const category =
-    categorySelection && categorySelection.routeValue === routeCategory
-      ? categorySelection.value
-      : routeCategory;
+  const category = categorySelection && categorySelection.routeValue === routeCategory
+    ? categorySelection.value
+    : routeCategory;
 
   const routeJourney = firstRouteParam(params.journey);
   const [journeySelection, setJourneySelection] = useState<{
     routeValue?: string;
     value: JourneyOption;
   } | null>(null);
-  const journey =
-    journeySelection && journeySelection.routeValue === routeJourney
-      ? journeySelection.value
-      : parseJourneyLabel(routeJourney);
+  const journey = journeySelection && journeySelection.routeValue === routeJourney
+    ? journeySelection.value
+    : parseJourneyLabel(routeJourney);
 
   const routeStartDate = firstRouteParam(params.startDate);
   const routeEndDate = firstRouteParam(params.endDate);
-
   const selectedJourneyDates = useMemo(() => {
-    if (routeStartDate && routeEndDate) {
-      return {
-        startDate: routeStartDate,
-        endDate: routeEndDate,
-      };
-    }
+    if (routeStartDate && routeEndDate) return { startDate: routeStartDate, endDate: routeEndDate };
     return journeyDates(journey);
-  }, [journey, routeStartDate, routeEndDate]);
+  }, [journey, routeEndDate, routeStartDate]);
 
   const [query, setQuery] = useState('');
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
-  const reduceMotion = useReducedMotion();
-  const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
-
   const { error, isLoading, vehicles } = useVehicleSearch({
     areaLabel: vehicleAreaForPickup(area),
     category,
     query,
   });
 
-  useEffect(() => {
-    if (reduceMotion) {
-      entrance.setValue(1);
-      return;
-    }
-    Animated.timing(entrance, {
-      duration: 380,
-      toValue: 1,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start();
-  }, [entrance, reduceMotion]);
-
   const activeFiltersCount =
     (area !== 'All Lagos' ? 1 : 0) +
     (category !== undefined ? 1 : 0) +
     (journey.label !== 'Tomorrow' && journey.label !== 'Today' ? 1 : 0);
-
-  const hasAnyFilterOrSearch =
-    area !== 'All Lagos' || category !== undefined || query.trim().length > 0;
+  const hasAnyFilterOrSearch = activeFiltersCount > 0 || query.trim().length > 0;
 
   const clearAllFilters = () => {
     setAreaSelection({ routeValue: routeArea, value: 'All Lagos' });
@@ -143,221 +98,121 @@ export default function BrowseFleetScreen() {
     setJourneySelection({ routeValue: routeJourney, value: newFilters.journey });
   };
 
+  const categoryLabel = category === 'executive_suv'
+    ? 'Executive SUV'
+    : category === 'executive_sedan'
+      ? 'Executive sedan'
+      : null;
+  const filterSummary = [area !== 'All Lagos' ? area : null, categoryLabel, journey.label].filter(Boolean).join(' · ');
+
   return (
     <View style={styles.screen}>
-      <Animated.ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + 110 },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        style={{
-          opacity: entrance,
-          transform: [
-            {
-              translateY: entrance.interpolate({
-                inputRange: [0, 1],
-                outputRange: [12, 0],
-              }),
-            },
-          ],
-        }}
       >
-        {/* Top Header */}
         <View style={styles.topBar}>
-          <View style={styles.headerLeft}>
-            <PressableScale
-              accessibilityLabel="Go back"
-              accessibilityRole="button"
-              onPress={() => router.back()}
-            >
-              <View style={styles.backButton}>
-                <Ionicons color={colors.ivory} name="arrow-back" size={19} />
-              </View>
-            </PressableScale>
-            <BrandWordmark compact withLogo />
-          </View>
+          <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
+            <View style={styles.backTarget}><Ionicons color={colors.ivory} name="arrow-back" size={22} /></View>
+          </PressableScale>
+          <BrandWordmark compact withLogo />
+          <View style={styles.headerSpacer} />
         </View>
 
-        {/* Screen Title */}
-        <Text accessibilityRole="header" style={styles.title}>Available in Lagos</Text>
+        <View style={styles.intro}>
+          <Text accessibilityRole="header" style={styles.title}>Available in Lagos</Text>
+          <Text style={styles.subtitle}>{filterSummary}</Text>
+        </View>
 
-        {/* Search & Filter Trigger Row */}
-        <View style={styles.searchFilterRow}>
+        <View style={styles.searchRow}>
           <View style={styles.searchBox}>
-            <Ionicons color={colors.goldStrong} name="search-outline" size={18} />
+            <Ionicons color={colors.muted} name="search-outline" size={19} />
             <TextInput
               accessibilityLabel="Search vehicles or Lagos areas"
               autoCapitalize="words"
               onChangeText={setQuery}
-              placeholder="Search Prado, sedan, or area..."
-              placeholderTextColor="rgba(180,174,164,0.68)"
+              placeholder="Search vehicle or area"
+              placeholderTextColor={colors.muted}
               returnKeyType="search"
               style={styles.searchInput}
               value={query}
             />
             {query ? (
-              <PressableScale
-                accessibilityLabel="Clear search"
-                accessibilityRole="button"
-                onPress={() => setQuery('')}
-              >
-                <View style={styles.clearSearch}>
-                  <Ionicons color={colors.muted} name="close" size={16} />
-                </View>
+              <PressableScale accessibilityLabel="Clear search" accessibilityRole="button" onPress={() => setQuery('')}>
+                <View style={styles.clearTarget}><Ionicons color={colors.muted} name="close" size={17} /></View>
               </PressableScale>
             ) : null}
           </View>
 
           <PressableScale
-            accessibilityHint="Opens filter sheet"
-            accessibilityLabel={`Filters${activeFiltersCount > 0 ? `, ${activeFiltersCount} applied` : ''}`}
+            accessibilityLabel={`Filters${activeFiltersCount ? `, ${activeFiltersCount} applied` : ''}`}
             accessibilityRole="button"
             onPress={() => setFilterSheetVisible(true)}
           >
             <View style={[styles.filterButton, activeFiltersCount > 0 && styles.filterButtonActive]}>
-              <Ionicons
-                color={activeFiltersCount > 0 ? colors.black : colors.ivory}
-                name="options-outline"
-                size={18}
-              />
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  activeFiltersCount > 0 && styles.filterButtonTextActive,
-                ]}
-              >
-                Filters
-              </Text>
-              {activeFiltersCount > 0 ? (
-                <View style={styles.filterBadge}>
-                  <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
-                </View>
-              ) : null}
+              <Ionicons color={activeFiltersCount > 0 ? colors.black : colors.ivory} name="options-outline" size={20} />
+              {activeFiltersCount > 0 ? <Text style={styles.filterCount}>{activeFiltersCount}</Text> : null}
             </View>
           </PressableScale>
         </View>
 
-        {/* Active Filter Chips Strip (Progressive Removable Tokens) */}
         {hasAnyFilterOrSearch ? (
-          <ScrollView
-            contentContainerStyle={styles.activeFiltersStrip}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            {area !== 'All Lagos' ? (
-              <PressableScale
-                accessibilityLabel={`Remove area filter ${area}`}
-                accessibilityRole="button"
-                onPress={() => setAreaSelection({ routeValue: routeArea, value: 'All Lagos' })}
-              >
-                <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>{area}</Text>
-                  <Ionicons color={colors.goldStrong} name="close" size={14} />
-                </View>
-              </PressableScale>
-            ) : null}
-
-            {category !== undefined ? (
-              <PressableScale
-                accessibilityLabel="Remove class filter"
-                accessibilityRole="button"
-                onPress={() => setCategorySelection({ routeValue: routeCategory, value: undefined })}
-              >
-                <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>
-                    {category === 'executive_suv' ? 'Executive SUV' : 'Executive Sedan'}
-                  </Text>
-                  <Ionicons color={colors.goldStrong} name="close" size={14} />
-                </View>
-              </PressableScale>
-            ) : null}
-
-            {query ? (
-              <PressableScale
-                accessibilityLabel="Clear search query"
-                accessibilityRole="button"
-                onPress={() => setQuery('')}
-              >
-                <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>“{query}”</Text>
-                  <Ionicons color={colors.goldStrong} name="close" size={14} />
-                </View>
-              </PressableScale>
-            ) : null}
-
-            <PressableScale
-              accessibilityLabel="Clear all filters"
-              accessibilityRole="button"
-              onPress={clearAllFilters}
-            >
-              <Text style={styles.clearAllText}>Clear all</Text>
+          <View style={styles.filterContextRow}>
+            <Text numberOfLines={1} style={styles.filterContext}>
+              {query ? `“${query}” · ` : ''}{filterSummary}
+            </Text>
+            <PressableScale accessibilityRole="button" onPress={clearAllFilters}>
+              <Text style={styles.clearAll}>Clear</Text>
             </PressableScale>
-          </ScrollView>
+          </View>
         ) : null}
 
-        {/* Results Header */}
         <View style={styles.resultsHeader}>
-          <Text style={styles.resultsTitle}>
-            {isLoading
-              ? 'Finding available fleet…'
-              : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle available' : 'vehicles available'}`}
+          <Text style={styles.resultsCount}>
+            {isLoading ? 'Searching' : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle' : 'vehicles'}`}
           </Text>
         </View>
 
-        {/* Vehicle Results Feed */}
-        <View style={styles.resultsList}>
-          {error ? (
-            <View style={styles.errorBox}>
-              <Ionicons color={colors.danger} name="alert-circle" size={18} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : isLoading ? (
-            <>
-              <LuxuryShimmer borderRadius={radii.lg} height={260} style={{ marginBottom: spacing.md }} />
-              <LuxuryShimmer borderRadius={radii.lg} height={260} />
-            </>
-          ) : vehicles.length ? (
-            vehicles.map((vehicle) => (
+        {error ? <InlineNotice icon="alert-circle-outline" tone="danger">{error}</InlineNotice> : null}
+
+        {isLoading ? (
+          <View accessibilityLiveRegion="polite" style={styles.loading}>
+            <ActivityIndicator color={colors.goldStrong} size="small" />
+            <Text style={styles.loadingText}>Finding available vehicles</Text>
+          </View>
+        ) : vehicles.length ? (
+          <View style={styles.resultsList}>
+            {vehicles.map((vehicle) => (
               <BrowseVehicleCard
                 key={vehicle.id}
                 onPress={() =>
                   router.push({
                     pathname: '/vehicle/[vehicleId]',
-                    params: {
-                      ...selectedJourneyDates,
-                      vehicleId: vehicle.id,
-                    },
+                    params: { ...selectedJourneyDates, vehicleId: vehicle.id },
                   })
                 }
                 vehicle={vehicle}
               />
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Ionicons color={colors.goldStrong} name="car-sport-outline" size={26} />
-              </View>
-              <Text style={styles.emptyTitle}>No exact match</Text>
-              <Text style={styles.emptyBody}>
-                Widen your area or vehicle class filters to see all available Prado and executive options.
-              </Text>
-              <PressableScale accessibilityRole="button" onPress={clearAllFilters}>
-                <View style={styles.emptyAction}>
-                  <Text style={styles.emptyActionText}>SHOW ALL VEHICLES</Text>
-                </View>
-              </PressableScale>
+            ))}
+          </View>
+        ) : !error ? (
+          <View style={styles.emptyState}>
+            <Ionicons color={colors.goldStrong} name="car-outline" size={26} />
+            <Text style={styles.emptyTitle}>No exact match</Text>
+            <Text style={styles.emptyBody}>Try a wider area or remove a vehicle filter.</Text>
+            <View style={styles.emptyAction}>
+              <PrimaryAction label="Show all vehicles" onPress={clearAllFilters} />
             </View>
-          )}
-        </View>
+          </View>
+        ) : null}
+      </ScrollView>
 
-      </Animated.ScrollView>
-
-      {/* Filter Bottom Sheet */}
       <FleetFilterSheet
-        currentFilters={{
-          area,
-          category,
-          journey,
-        }}
+        currentFilters={{ area, category, journey }}
         onApply={handleApplyFilters}
         onClose={() => setFilterSheetVisible(false)}
         totalResultsCount={vehicles.length}
@@ -368,219 +223,114 @@ export default function BrowseFleetScreen() {
 }
 
 const styles = StyleSheet.create({
-  activeFiltersStrip: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-  activeTag: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  activeTagText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
-  assurance: {
+  backTarget: {
     alignItems: 'flex-start',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: layout.sectionGap,
-    padding: spacing.lg,
-  },
-  assuranceBody: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  assuranceCopy: {
-    flex: 1,
-  },
-  assuranceTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-  },
-  backButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
     height: 44,
     justifyContent: 'center',
     width: 44,
   },
-  clearAllText: {
+  clearAll: {
     color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    marginLeft: spacing.xs,
-    textDecorationLine: 'underline',
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
   },
-  clearSearch: {
-    padding: spacing.xs,
+  clearTarget: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 36,
   },
   content: {
-    backgroundColor: colors.black,
-    gap: spacing.md,
-    paddingBottom: 120,
-    paddingHorizontal: layout.screenGutter,
-  },
-  datePill: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  datePillText: {
-    color: colors.silver,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 0.4,
+    paddingHorizontal: spacing.md,
   },
   emptyAction: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    minHeight: layout.primaryButtonHeight,
-    paddingHorizontal: spacing.xl,
-  },
-  emptyActionText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-    letterSpacing: 1.1,
+    alignSelf: 'stretch',
+    marginTop: spacing.lg,
   },
   emptyBody: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    lineHeight: 20,
-    maxWidth: 280,
+    fontSize: 14,
+    lineHeight: 21,
     marginTop: spacing.xs,
     textAlign: 'center',
   },
-  emptyIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderRadius: radii.pill,
-    height: 56,
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-    width: 56,
-  },
   emptyState: {
     alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: spacing.xs,
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
+    paddingTop: spacing.xl,
   },
   emptyTitle: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: fontSizes.xl,
-  },
-  eyebrow: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1.3,
-  },
-  filterBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    height: 20,
-    justifyContent: 'center',
-    minWidth: 20,
-    paddingHorizontal: 5,
-  },
-  filterBadgeText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
+    fontSize: 27,
+    marginTop: spacing.md,
   },
   filterButton: {
     alignItems: 'center',
-    backgroundColor: colors.graphite,
     borderColor: colors.lineStrong,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: 7,
+    gap: 3,
+    height: 50,
     justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: spacing.md,
+    minWidth: 50,
+    paddingHorizontal: spacing.sm,
   },
   filterButtonActive: {
     backgroundColor: colors.ivory,
     borderColor: colors.ivory,
   },
-  filterButtonText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
+  filterContext: {
+    color: colors.muted,
+    flex: 1,
+    fontFamily: typography.body,
+    fontSize: 12,
   },
-  filterButtonTextActive: {
+  filterContextRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  filterCount: {
     color: colors.black,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 11,
   },
-  headerLeft: {
+  headerSpacer: { width: 44 },
+  intro: {
+    marginTop: spacing.xl,
+  },
+  loading: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
+    paddingVertical: spacing.xl,
   },
-  liveDot: {
-    backgroundColor: colors.success,
-    borderRadius: radii.pill,
-    height: 6,
-    width: 6,
+  loadingText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
   },
-  loadingCard: {
-    backgroundColor: colors.graphite,
-    borderRadius: radii.lg,
-    height: 320,
+  resultsCount: {
+    color: colors.silver,
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
   },
   resultsHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    paddingTop: spacing.xs,
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   resultsList: {
-    gap: spacing.xl,
-    marginTop: spacing.sm,
-  },
-  resultsTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
+    gap: spacing.lg,
+    marginTop: spacing.md,
   },
   screen: {
     backgroundColor: colors.black,
@@ -589,67 +339,42 @@ const styles = StyleSheet.create({
   searchBox: {
     alignItems: 'center',
     backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.sm,
+    borderColor: colors.line,
+    borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     flex: 1,
     flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 50,
-    paddingHorizontal: spacing.md,
-  },
-  searchFilterRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+    gap: spacing.xs,
+    height: 50,
+    paddingLeft: spacing.md,
   },
   searchInput: {
     color: colors.ivory,
     flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.base,
+    fontFamily: typography.body,
+    fontSize: 14,
+    paddingVertical: 0,
   },
-  sortIndicator: {
-    alignItems: 'center',
+  searchRow: {
     flexDirection: 'row',
-    gap: 4,
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
-  sortText: {
-    color: colors.gold,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
+  subtitle: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+    marginTop: 5,
   },
   title: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: fontSizes.display,
+    fontSize: 32,
     letterSpacing: -0.6,
-    marginTop: 4,
-  },
-  titleBlock: {
-    marginTop: spacing.xs,
   },
   topBar: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingBottom: spacing.xs,
-  },
-  errorBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(209,133,120,0.12)',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
   },
 });

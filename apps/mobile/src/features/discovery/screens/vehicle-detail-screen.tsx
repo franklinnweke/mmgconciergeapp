@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
+import { colors, radii, spacing, typography } from '@mmg/brand';
 import { type VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
-import { Image } from 'expo-image';
+import { Image, type ImageSource } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,16 +20,21 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { InlineNotice, PrimaryAction, SectionHeading } from '@/components/ui/mobile-primitives';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
 
+import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
 import {
   addDaysToDateOnly,
   formatLagosDateOnly,
   parseDateOnly,
   todayLagosDateOnly,
 } from '../data/lagos-destinations';
-import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
-import { resolveVehicleImageSource, vehicleImages } from '../data/vehicle-images';
+import {
+  normalizeVehicleImageUrl,
+  resolveVehicleImageSource,
+  vehicleImages,
+} from '../data/vehicle-images';
 import {
   createVehicleCalendarGateway,
   type VehicleCalendarGateway,
@@ -39,10 +44,10 @@ import { vehicleCalendarErrorMessage } from '../data/vehicle-calendar-gateway-co
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const durationOptions = [
-  { days: 1, label: '1 Day' },
-  { days: 2, label: '2 Days' },
-  { days: 3, label: '3 Days' },
-  { days: 7, label: '1 Week' },
+  { days: 1, label: '1 day' },
+  { days: 2, label: '2 days' },
+  { days: 3, label: '3 days' },
+  { days: 7, label: '1 week' },
 ] as const;
 
 export type VehicleDetailScreenProps = {
@@ -58,9 +63,7 @@ function initialJourney(startDate?: string, endDate?: string) {
     const parsedEnd = parseDateOnly(endDate);
     const durationDays = parsedEnd ? calculateChargedDays(start, parsedEnd) : 1;
     return {
-      durationDays: durationOptions.some((option) => option.days === durationDays)
-        ? durationDays
-        : 1,
+      durationDays: durationOptions.some((option) => option.days === durationDays) ? durationDays : 1,
       startDate: start,
     };
   } catch {
@@ -76,55 +79,19 @@ export default function VehicleDetailScreen({
 }: VehicleDetailScreenProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-
-  const retryFetch = useCallback(() => {
-    setFetchError(null);
-    setLoading(true);
-    setReloadKey((k) => k + 1);
-  }, []);
-
   const gateway = useMemo(() => createDiscoveryGateway(), []);
   const calendarGateway = useMemo(
     () => injectedCalendarGateway ?? createVehicleCalendarGateway(),
     [injectedCalendarGateway],
   );
 
-  useEffect(() => {
-    if (!vehicleId) return;
-    let isMounted = true;
-
-    gateway
-      .getVehicleById(vehicleId)
-      .then((v) => {
-        if (isMounted) {
-          setVehicle(v);
-          setLoading(false);
-          setFetchError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (isMounted) {
-          setVehicle(null);
-          setLoading(false);
-          setFetchError(
-            safeProviderError(err, 'Unable to connect to fleet services. Please try again.'),
-          );
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [gateway, vehicleId, reloadKey]);
-
   const [{ durationDays, startDate: pickupDate }, setJourney] = useState(() =>
     initialJourney(propStartDate, propEndDate),
   );
-
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [availabilityReloadKey, setAvailabilityReloadKey] = useState(0);
   const [availability, setAvailability] = useState<{
@@ -132,55 +99,83 @@ export default function VehicleDetailScreen({
     status: 'loading' | 'available' | 'unavailable' | 'error';
   }>({ error: null, status: 'loading' });
 
-  const returnDate = useMemo(() => addDaysToDateOnly(pickupDate, durationDays), [pickupDate, durationDays]);
+  const retryFetch = useCallback(() => {
+    setFetchError(null);
+    setLoading(true);
+    setReloadKey((key) => key + 1);
+  }, []);
 
   useEffect(() => {
     if (!vehicleId) return;
     let isMounted = true;
-    calendarGateway.getCalendar({
-      vehicleId,
-      windowStartDate: pickupDate,
-      windowEndDate: returnDate,
-    }).then((result) => {
-      if (!isMounted) return;
-      const fullyAvailable = result.days.length === durationDays && result.days.every((day) => day.available);
-      setAvailability({ error: null, status: fullyAvailable ? 'available' : 'unavailable' });
-    }).catch((caught: unknown) => {
-      if (!isMounted) return;
-      setAvailability({
-        error: vehicleCalendarErrorMessage(caught),
-        status: 'error',
+    gateway
+      .getVehicleById(vehicleId)
+      .then((nextVehicle) => {
+        if (!isMounted) return;
+        setVehicle(nextVehicle);
+        setLoading(false);
+        setFetchError(null);
+      })
+      .catch((err: unknown) => {
+        if (!isMounted) return;
+        setVehicle(null);
+        setLoading(false);
+        setFetchError(safeProviderError(err, 'Unable to connect to fleet services. Please try again.'));
       });
-    });
+    return () => {
+      isMounted = false;
+    };
+  }, [gateway, reloadKey, vehicleId]);
+
+  const returnDate = useMemo(
+    () => addDaysToDateOnly(pickupDate, durationDays),
+    [durationDays, pickupDate],
+  );
+
+  useEffect(() => {
+    if (!vehicleId) return;
+    let isMounted = true;
+    calendarGateway
+      .getCalendar({
+        vehicleId,
+        windowStartDate: pickupDate,
+        windowEndDate: returnDate,
+      })
+      .then((result) => {
+        if (!isMounted) return;
+        const fullyAvailable =
+          result.days.length === durationDays && result.days.every((day) => day.available);
+        setAvailability({ error: null, status: fullyAvailable ? 'available' : 'unavailable' });
+      })
+      .catch((caught: unknown) => {
+        if (!isMounted) return;
+        setAvailability({ error: vehicleCalendarErrorMessage(caught), status: 'error' });
+      });
     return () => {
       isMounted = false;
     };
   }, [availabilityReloadKey, calendarGateway, durationDays, pickupDate, returnDate, vehicleId]);
 
-  const quote = useMemo(() => {
-    if (!vehicle) return null;
-    return calculateBookingQuote(vehicle.dailyRateKobo, durationDays);
-  }, [durationDays, vehicle]);
+  const quote = useMemo(
+    () => (vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, durationDays) : null),
+    [durationDays, vehicle],
+  );
 
-  // Build multi-image gallery array (using remote imageUrls or local bundled photography)
-  const galleryImages = useMemo(() => {
+  const galleryImages = useMemo<ImageSource[]>(() => {
     if (!vehicle) return [];
-    if (vehicle.imageUrls && vehicle.imageUrls.length > 0) {
-      return vehicle.imageUrls.map((url: string) => ({ uri: url }));
+    if (vehicle.imageUrls?.length) {
+      return vehicle.imageUrls.map((url) => ({ uri: normalizeVehicleImageUrl(url) }));
     }
-    if (vehicle.imageUrl) {
-      return [{ uri: vehicle.imageUrl }];
-    }
+    if (vehicle.imageUrl) return [{ uri: normalizeVehicleImageUrl(vehicle.imageUrl) }];
+
     const primary = resolveVehicleImageSource(vehicle);
-    const images = [primary];
+    const images: ImageSource[] = [primary];
     if (vehicle.imageKey === 'hero-suv') {
       images.push(vehicleImages['pearl-suv'], vehicleImages['prado-graphite']);
     } else if (vehicle.imageKey === 'pearl-suv') {
       images.push(vehicleImages['hero-suv'], vehicleImages['prado-graphite']);
     } else if (vehicle.imageKey === 'prado-graphite') {
       images.push(vehicleImages['hero-suv'], vehicleImages['pearl-suv']);
-    } else if (vehicle.imageKey === 'graphite-sedan') {
-      images.push(vehicleImages['graphite-sedan']);
     }
     return images;
   }, [vehicle]);
@@ -194,92 +189,52 @@ export default function VehicleDetailScreen({
 
   if (loading) {
     return (
-      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
-        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-          <View style={styles.roundButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-          </View>
-        </PressableScale>
-        <View style={styles.missingCopy}>
-          <ActivityIndicator color={colors.goldStrong} size="large" />
-          <Text style={styles.loadingText}>Retrieving vehicle specifications…</Text>
-        </View>
+      <View style={styles.centered}>
+        <ActivityIndicator color={colors.goldStrong} size="small" />
+        <Text style={styles.centeredText}>Loading vehicle</Text>
       </View>
     );
   }
 
-  if (fetchError) {
+  if (fetchError || !vehicle || !quote) {
     return (
-      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
+      <View style={[styles.fallback, { paddingTop: insets.top + spacing.sm }]}>
         <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-          <View style={styles.roundButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-          </View>
+          <View style={styles.fallbackBack}><Ionicons color={colors.ivory} name="arrow-back" size={22} /></View>
         </PressableScale>
-        <View style={styles.missingCopy}>
-          <Ionicons color={colors.danger} name="cloud-offline-outline" size={36} />
-          <Text style={styles.missingTitle}>Connection Error</Text>
-          <Text style={styles.missingBody}>
-            Unable to connect to the fleet registry. Please check your network and try again.
-          </Text>
-          <PressableScale accessibilityLabel="Retry loading vehicle" accessibilityRole="button" onPress={retryFetch}>
-            <View style={styles.retryButton}>
-              <Ionicons color={colors.black} name="refresh" size={16} />
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </View>
-          </PressableScale>
+        <View style={styles.fallbackCopy}>
+          <Ionicons color={fetchError ? colors.danger : colors.goldStrong} name={fetchError ? 'cloud-offline-outline' : 'car-outline'} size={30} />
+          <Text style={styles.fallbackTitle}>{fetchError ? 'Could not load this vehicle' : 'Vehicle unavailable'}</Text>
+          <Text style={styles.fallbackText}>{fetchError ?? 'Return to the fleet to choose another vehicle.'}</Text>
+          {fetchError ? <View style={styles.fallbackAction}><PrimaryAction icon="refresh" label="Try again" onPress={retryFetch} /></View> : null}
         </View>
       </View>
     );
   }
 
-  if (!vehicle || !quote) {
-    return (
-      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
-        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-          <View style={styles.roundButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-          </View>
-        </PressableScale>
-        <View style={styles.missingCopy}>
-          <Ionicons color={colors.goldStrong} name="car-sport-outline" size={36} />
-          <Text style={styles.missingTitle}>Vehicle unavailable.</Text>
-          <Text style={styles.missingBody}>Return to the fleet to choose another chauffeur-ready option.</Text>
-          <PressableScale accessibilityLabel="Return to fleet" accessibilityRole="button" onPress={() => router.back()}>
-            <View style={styles.returnButton}>
-              <Text style={styles.returnButtonText}>Return to Fleet</Text>
-            </View>
-          </PressableScale>
-        </View>
-      </View>
-    );
-  }
-
-  const pickupFormatted = formatLagosDateOnly(pickupDate);
-  const returnFormatted = formatLagosDateOnly(returnDate);
+  const detailRows = [
+    { label: 'Passengers', value: String(vehicle.seats) },
+    vehicle.year ? { label: 'Year', value: String(vehicle.year) } : null,
+    vehicle.make && vehicle.model ? { label: 'Vehicle', value: `${vehicle.make} ${vehicle.model}` } : null,
+    { label: 'Service', value: 'Chauffeur and Lagos delivery included' },
+  ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 116 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Swipeable Photo Gallery Hero */}
         <View style={styles.hero}>
           <FlatList
             data={galleryImages}
             horizontal
-            keyExtractor={(_, index) => `img-${index}`}
+            keyExtractor={(_, index) => `vehicle-image-${index}`}
             onScroll={handleScroll}
             pagingEnabled
             renderItem={({ item }) => (
               <View style={styles.gallerySlide}>
-                <Image
-                  contentFit="cover"
-                  source={item}
-                  style={StyleSheet.absoluteFill}
-                  transition={200}
-                />
+                <Image contentFit="cover" source={item} style={StyleSheet.absoluteFill} transition={180} />
               </View>
             )}
             scrollEventThrottle={16}
@@ -287,75 +242,46 @@ export default function VehicleDetailScreen({
             style={StyleSheet.absoluteFill}
           />
           <LinearGradient
-            colors={['rgba(4,4,4,0.45)', 'transparent', colors.black]}
-            locations={[0, 0.45, 1]}
+            colors={['rgba(4,4,4,.48)', 'transparent', colors.black]}
+            locations={[0, 0.46, 1]}
             style={StyleSheet.absoluteFill}
           />
-
-          {/* Top Bar Nav */}
           <View style={[styles.heroTop, { paddingTop: insets.top + spacing.sm }]}>
-            <PressableScale
-              accessibilityLabel="Go back to fleet"
-              accessibilityRole="button"
-              onPress={() => router.back()}
-            >
-              <View style={styles.roundButton}>
-                <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-              </View>
+            <PressableScale accessibilityLabel="Back to fleet" accessibilityRole="button" onPress={() => router.back()}>
+              <View style={styles.heroButton}><Ionicons color={colors.ivory} name="arrow-back" size={22} /></View>
             </PressableScale>
-
-            <View style={styles.topPillsRow}>
-              {galleryImages.length > 1 ? (
-                <View style={styles.counterPill}>
-                  <Text style={styles.counterText}>
-                    {activeImageIndex + 1} / {galleryImages.length}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
+            {galleryImages.length > 1 ? (
+              <Text style={styles.imageCounter}>{activeImageIndex + 1} / {galleryImages.length}</Text>
+            ) : <View />}
           </View>
-
-          {/* Hero Header Copy */}
           <View style={styles.heroCopy}>
-            <Text style={styles.title}>{vehicle.displayName}</Text>
-            <View style={styles.heroMeta}>
-              <Ionicons color={colors.goldStrong} name="location-outline" size={16} />
-              <Text style={styles.heroMetaText}>{vehicle.areaLabel}</Text>
-              <View style={styles.metaDot} />
-              <Text style={styles.heroMetaText}>{vehicle.distanceKm.toFixed(1)} km</Text>
-              <View style={styles.metaDot} />
-              <Text style={styles.heroMetaText}>{vehicle.seats} Seats</Text>
-            </View>
+            <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>{vehicle.displayName}</Text>
+            <Text style={styles.heroMeta}>
+              {vehicle.areaLabel} · {vehicle.distanceKm.toFixed(1)} km · {vehicle.seats} seats
+            </Text>
           </View>
         </View>
 
-        {/* Body Specifications & Details */}
         <View style={styles.body}>
-          {/* Daily Rate Header */}
-          <View style={styles.rateRow}>
-            <View>
-              <Text style={styles.label}>DAILY RATE</Text>
-              <Text style={styles.rate}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
+          <View style={styles.priceLead}>
+            <Text style={styles.rate}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
+            <Text style={styles.rateContext}>per rental day</Text>
+          </View>
+
+          <View style={styles.section}>
+            <SectionHeading>Details</SectionHeading>
+            <View style={styles.detailList}>
+              {detailRows.map((row) => <DetailRow key={row.label} {...row} />)}
             </View>
           </View>
 
-          {/* Service Promises Rail */}
-
-          {/* Key Specifications Grid */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Details</Text>
-            <View style={styles.detailsList}>
-              <DetailRow label="Capacity" value={`${vehicle.seats} passengers`} />
-              <DetailRow label="Transmission" value="Automatic" />
-              <DetailRow label="Luggage" value="3 large bags" />
-              <DetailRow label="Climate" value="Dual A/C system" />
-            </View>
-          </View>
-
-          {/* Journey Duration Selector */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Dates</Text>
-            <View style={styles.durationRail}>
+            <SectionHeading>Dates</SectionHeading>
+            <ScrollView
+              contentContainerStyle={styles.durationRail}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
               {durationOptions.map((option) => {
                 const selected = option.days === durationDays;
                 return (
@@ -367,145 +293,103 @@ export default function VehicleDetailScreen({
                       setAvailability({ error: null, status: 'loading' });
                       setJourney({ durationDays: option.days, startDate: pickupDate });
                     }}
-                    style={styles.durationFlex}
                   >
                     <View style={[styles.durationButton, selected && styles.durationButtonSelected]}>
-                      <Text style={[styles.durationText, selected && styles.durationTextSelected]}>
-                        {option.label}
-                      </Text>
+                      <Text style={[styles.durationText, selected && styles.durationTextSelected]}>{option.label}</Text>
                     </View>
                   </PressableScale>
                 );
               })}
+            </ScrollView>
+
+            <View style={styles.dateRow}>
+              <View style={styles.dateColumn}>
+                <Text style={styles.dateLabel}>Pickup</Text>
+                <Text style={styles.dateValue}>{formatLagosDateOnly(pickupDate)}</Text>
+              </View>
+              <Ionicons color={colors.muted} name="arrow-forward" size={17} />
+              <View style={[styles.dateColumn, styles.dateColumnEnd]}>
+                <Text style={styles.dateLabel}>Return</Text>
+                <Text style={styles.dateValue}>{formatLagosDateOnly(returnDate)}</Text>
+              </View>
             </View>
 
-            {/* Date Summary Card */}
-            <View style={styles.dateSummary}>
-              <View style={styles.dateCol}>
-                <Text style={styles.dateColLabel}>PICKUP</Text>
-                <Text style={styles.dateColValue}>{pickupFormatted}</Text>
-              </View>
-              <Ionicons color={colors.gold} name="arrow-forward" size={16} />
-              <View style={styles.dateCol}>
-                <Text style={styles.dateColLabel}>RETURN</Text>
-                <Text style={styles.dateColValue}>{returnFormatted}</Text>
-              </View>
-            </View>
-
-            <View
-              accessibilityLiveRegion="polite"
-              style={[
-                styles.availabilityNotice,
-                availability.status === 'unavailable' && styles.availabilityNoticeUnavailable,
-                availability.status === 'error' && styles.availabilityNoticeError,
-              ]}
-            >
-              {availability.status === 'loading' ? (
-                <ActivityIndicator color={colors.goldStrong} size="small" />
-              ) : (
-                <Ionicons
-                  color={availability.status === 'available' ? colors.success : colors.danger}
-                  name={availability.status === 'available' ? 'checkmark-circle' : 'alert-circle'}
-                  size={18}
-                />
-              )}
-              <View style={styles.availabilityNoticeCopy}>
-                <Text style={styles.availabilityNoticeTitle}>
-                  {availability.status === 'loading'
-                    ? 'Checking trusted calendar…'
-                    : availability.status === 'available'
-                      ? 'Dates currently available'
-                      : availability.status === 'unavailable'
-                        ? 'Choose different dates'
-                        : 'Availability check unavailable'}
-                </Text>
-                <Text style={styles.availabilityNoticeBody}>
-                  {availability.status === 'available'
-                    ? 'Final availability is secured only when MMG creates your 15-minute hold.'
-                    : availability.status === 'unavailable'
-                      ? 'The selected period is unavailable. Private calendar details are not shown.'
-                      : availability.status === 'error'
-                        ? vehicleCalendarErrorMessage(availability.error)
-                        : 'This does not reserve the vehicle.'}
-                </Text>
-              </View>
-              {availability.status === 'error' ? (
-                <PressableScale
-                  accessibilityLabel="Retry availability check"
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setAvailability({ error: null, status: 'loading' });
-                    setAvailabilityReloadKey((key) => key + 1);
-                  }}
-                  style={styles.availabilityRetry}
-                >
-                  <Ionicons color={colors.goldStrong} name="refresh" size={18} />
-                </PressableScale>
-              ) : null}
-            </View>
+            <AvailabilityNotice
+              availability={availability}
+              onRetry={() => {
+                setAvailability({ error: null, status: 'loading' });
+                setAvailabilityReloadKey((key) => key + 1);
+              }}
+            />
           </View>
 
-          {/* Server-Aligned Quote Breakdown Card */}
-          <View style={styles.quoteSection}>
-            <Text style={styles.sectionTitle}>Quote</Text>
-
+          <View style={styles.section}>
+            <SectionHeading>Estimate</SectionHeading>
             <QuoteRow
               label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${durationDays} ${durationDays === 1 ? 'day' : 'days'}`}
               value={formatNairaFromKobo(quote.rentalKobo)}
             />
-            <QuoteRow
-              label="Service and protection fee"
-              value={formatNairaFromKobo(quote.serviceFeeKobo)}
-            />
-            <QuoteRow
-              label="Chauffeur and Lagos delivery"
-              value="Included"
-            />
-
-            <View style={styles.totalRule} />
-
+            <QuoteRow label="Service and protection" value={formatNairaFromKobo(quote.serviceFeeKobo)} />
+            <QuoteRow label="Chauffeur and Lagos delivery" value="Included" />
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Estimated Total</Text>
+              <Text style={styles.totalLabel}>Estimated total</Text>
               <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
             </View>
-
-            <Text style={styles.quoteNote}>
-              This is a configuration-aligned estimate. The next step creates a short server hold only; it does not take payment or confirm the journey.
-            </Text>
+            <Text style={styles.quoteNote}>The next screen verifies the price and creates a short date hold. No payment is taken yet.</Text>
           </View>
         </View>
       </ScrollView>
 
-      {/* Sticky Bottom Purchase / Review Action Bar */}
-      <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-        <View style={styles.stickyQuoteBlock}>
-          <Text style={styles.stickyQuoteLabel}>TOTAL ESTIMATE</Text>
-          <Text style={styles.stickyQuoteValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
+      <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+        <View style={styles.stickyPrice}>
+          <Text style={styles.stickyTotal}>{formatNairaFromKobo(quote.totalKobo)}</Text>
+          <Text style={styles.stickyContext}>estimated total</Text>
         </View>
-
-        <PressableScale
-          accessibilityRole="button"
-          disabled={availability.status !== 'available'}
-          onPress={() =>
-            router.push({
-              pathname: '/booking/review',
-              params: { endDate: returnDate, startDate: pickupDate, vehicleId: vehicle.id },
-            })
-          }
-          style={[styles.stickyActionFlex, availability.status !== 'available' && styles.stickyActionDisabled]}
-        >
-          <View style={styles.primaryButton}>
-            <Text style={styles.primaryText}>
-              {availability.status === 'loading'
-                ? 'Checking Dates'
-                : availability.status === 'available'
-                  ? 'Review Quote'
-                  : 'Dates Unavailable'}
-            </Text>
-            <Ionicons color={colors.black} name="arrow-forward" size={18} />
-          </View>
-        </PressableScale>
+        <View style={styles.stickyAction}>
+          <PrimaryAction
+            disabled={availability.status !== 'available'}
+            icon="arrow-forward"
+            label={availability.status === 'loading' ? 'Checking dates' : availability.status === 'available' ? 'Review' : 'Change dates'}
+            onPress={() =>
+              router.push({
+                pathname: '/booking/review',
+                params: { endDate: returnDate, startDate: pickupDate, vehicleId: vehicle.id },
+              })
+            }
+          />
+        </View>
       </View>
+    </View>
+  );
+}
+
+function AvailabilityNotice({
+  availability,
+  onRetry,
+}: {
+  availability: { error: string | null; status: 'loading' | 'available' | 'unavailable' | 'error' };
+  onRetry: () => void;
+}) {
+  if (availability.status === 'loading') {
+    return (
+      <View style={styles.availabilityLoading} accessibilityLiveRegion="polite">
+        <ActivityIndicator color={colors.goldStrong} size="small" />
+        <Text style={styles.availabilityText}>Checking availability</Text>
+      </View>
+    );
+  }
+  if (availability.status === 'available') {
+    return <InlineNotice icon="checkmark-circle-outline" tone="success">These dates are currently available. A hold is only created on the next step.</InlineNotice>;
+  }
+  if (availability.status === 'unavailable') {
+    return <InlineNotice icon="calendar-outline" tone="danger">These dates are not available. Choose another duration or return to search.</InlineNotice>;
+  }
+  return (
+    <View>
+      <InlineNotice icon="cloud-offline-outline" tone="danger">{vehicleCalendarErrorMessage(availability.error)}</InlineNotice>
+      <PressableScale accessibilityRole="button" onPress={onRetry} style={styles.retryAvailability}>
+        <Text style={styles.retryAvailabilityText}>Try availability again</Text>
+      </PressableScale>
     </View>
   );
 }
@@ -529,7 +413,7 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  availabilityNotice: {
+  availabilityLoading: {
     alignItems: 'center',
     borderBottomColor: colors.line,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -538,485 +422,291 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.md,
-    minHeight: 68,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
   },
-  availabilityNoticeBody: {
-    color: colors.muted,
+  availabilityText: {
+    color: colors.silver,
     fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    lineHeight: 17,
-    marginTop: 2,
-  },
-  availabilityNoticeCopy: { flex: 1 },
-  availabilityNoticeError: { borderBottomColor: colors.danger, borderTopColor: colors.danger },
-  availabilityNoticeTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  availabilityNoticeUnavailable: { borderBottomColor: colors.danger, borderTopColor: colors.danger },
-  availabilityRetry: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
-  availableDot: {
-    backgroundColor: colors.success,
-    borderRadius: radii.pill,
-    height: 6,
-    width: 6,
-  },
-  availablePill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(4,4,4,0.72)',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  availableText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 0.8,
+    fontSize: 13,
   },
   body: {
-    gap: layout.componentGap,
-    paddingHorizontal: layout.screenGutter,
+    paddingHorizontal: spacing.md,
   },
-  category: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1.5,
-  },
-  content: {
+  centered: {
+    alignItems: 'center',
     backgroundColor: colors.black,
-  },
-  counterPill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(4,4,4,0.72)',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  counterText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-  },
-  dateCol: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  dateColLabel: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1,
-  },
-  dateColValue: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  dateSummary: {
-    alignItems: 'center',
-    borderColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: spacing.sm,
+    justifyContent: 'center',
+  },
+  centeredText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+  },
+  dateColumn: { flex: 1 },
+  dateColumnEnd: { alignItems: 'flex-end' },
+  dateLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+  },
+  dateRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
     marginTop: spacing.md,
+  },
+  dateValue: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+    marginTop: 3,
+  },
+  detailLabel: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 13,
+  },
+  detailList: {
+    marginTop: spacing.sm,
+  },
+  detailRow: {
+    alignItems: 'baseline',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.lg,
+    justifyContent: 'space-between',
     paddingVertical: spacing.md,
+  },
+  detailValue: {
+    color: colors.silver,
+    flex: 1,
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
+    textAlign: 'right',
   },
   durationButton: {
     alignItems: 'center',
-    backgroundColor: colors.graphite,
     borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
-    minHeight: 46,
+    minHeight: 44,
+    minWidth: 78,
+    paddingHorizontal: spacing.md,
   },
   durationButtonSelected: {
     backgroundColor: colors.ivory,
     borderColor: colors.ivory,
   },
-  durationFlex: {
-    flex: 1,
-  },
   durationRail: {
-    flexDirection: 'row',
     gap: spacing.xs,
-    marginTop: spacing.md,
+    paddingRight: spacing.md,
+    paddingTop: spacing.md,
   },
   durationText: {
     color: colors.silver,
     fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
+    fontSize: 13,
   },
   durationTextSelected: {
     color: colors.black,
     fontFamily: typography.bodySemiBold,
   },
+  fallback: {
+    backgroundColor: colors.black,
+    flex: 1,
+    paddingHorizontal: spacing.md,
+  },
+  fallbackAction: {
+    alignSelf: 'stretch',
+    marginTop: spacing.lg,
+  },
+  fallbackBack: {
+    alignItems: 'flex-start',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  fallbackCopy: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  fallbackText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  fallbackTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 27,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
   gallerySlide: {
-    height: 480,
+    height: '100%',
     width: SCREEN_WIDTH,
   },
   hero: {
-    height: 480,
-    justifyContent: 'space-between',
+    height: 450,
+  },
+  heroButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(4,4,4,.42)',
+    borderRadius: radii.md,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
   heroCopy: {
-    paddingBottom: spacing.xl,
-    paddingHorizontal: layout.screenGutter,
+    bottom: spacing.xl,
+    left: spacing.md,
+    position: 'absolute',
+    right: spacing.md,
   },
   heroMeta: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: spacing.sm,
-  },
-  heroMetaText: {
     color: colors.silver,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
+    fontFamily: typography.body,
+    fontSize: 13,
+    marginTop: 6,
   },
   heroTop: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: layout.screenGutter,
+    left: spacing.md,
+    position: 'absolute',
+    right: spacing.md,
+    top: 0,
   },
-  inclusionBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  inclusionBadgeText: {
+  imageCounter: {
     color: colors.ivory,
     fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
+    fontSize: 12,
   },
-  label: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1.2,
-  },
-  metaDot: {
-    backgroundColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    height: 4,
-    width: 4,
-  },
-  loadingText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    marginTop: spacing.md,
-  },
-  missingBody: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.base,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  missingCopy: {
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.md,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  missingScreen: {
-    backgroundColor: colors.black,
-    flex: 1,
-    paddingHorizontal: layout.screenGutter,
-  },
-  missingTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.display,
-  },
-  retryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
+  priceLead: {
+    alignItems: 'baseline',
     flexDirection: 'row',
     gap: spacing.xs,
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-    minHeight: 44,
-    paddingHorizontal: spacing.xl,
-  },
-  retryButtonText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  returnButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-    minHeight: 44,
-    paddingHorizontal: spacing.xl,
-  },
-  returnButtonText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: layout.primaryButtonHeight,
-  },
-  primaryText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-  },
-  promiseDivider: {
-    backgroundColor: colors.line,
-    height: 24,
-    width: StyleSheet.hairlineWidth,
-  },
-  promiseItem: {
-    alignItems: 'center',
-    flex: 1,
-    gap: 6,
-  },
-  promiseRail: {
-    alignItems: 'center',
-    borderBottomColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.line,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    paddingVertical: spacing.md,
-  },
-  promiseText: {
-    color: colors.silver,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
-  quoteHeading: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
   },
   quoteLabel: {
-    color: colors.silver,
+    color: colors.muted,
+    flex: 1,
     fontFamily: typography.body,
-    fontSize: fontSizes.sm,
+    fontSize: 13,
   },
   quoteNote: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: fontSizes.xs,
+    fontSize: 12,
     lineHeight: 18,
     marginTop: spacing.md,
   },
   quoteRow: {
-    alignItems: 'center',
+    alignItems: 'baseline',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-  },
-  quoteSection: {
-    borderBottomColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: spacing.md,
-    paddingTop: spacing.md,
-  },
-  quoteTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.xl,
-    marginTop: 4,
+    paddingVertical: spacing.sm,
   },
   quoteValue: {
-    color: colors.ivory,
+    color: colors.silver,
     fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
+    fontSize: 13,
   },
   rate: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: fontSizes.display,
-    marginTop: 2,
+    fontSize: 27,
   },
-  rateRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  rateContext: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
   },
-  roundButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(4,4,4,0.74)',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 44,
+  retryAvailability: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
     justifyContent: 'center',
-    width: 44,
+  },
+  retryAvailabilityText: {
+    color: colors.goldStrong,
+    fontFamily: typography.bodyMedium,
+    fontSize: 13,
   },
   screen: {
     backgroundColor: colors.black,
     flex: 1,
   },
   section: {
-    gap: spacing.xs,
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
   },
-  sectionEyebrow: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1.2,
-  },
-  sectionTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.xl,
-    letterSpacing: -0.4,
-  },
-  detailsList: {
-    marginTop: spacing.sm,
-  },
-  detailRow: {
-    alignItems: 'center',
-    borderBottomColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  detailLabel: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-  },
-  detailValue: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
-  },
-  specBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-    width: '48%',
-  },
-  specCopy: {
-    gap: 2,
-  },
-  specLabel: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-  },
-  specsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  specValue: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  stickyActionFlex: {
+  stickyAction: {
     flex: 1,
-  },
-  stickyActionDisabled: {
-    opacity: 0.48,
   },
   stickyBar: {
     alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderTopColor: colors.lineStrong,
+    backgroundColor: 'rgba(4,4,4,.98)',
+    borderTopColor: colors.line,
     borderTopWidth: StyleSheet.hairlineWidth,
     bottom: 0,
     flexDirection: 'row',
-    gap: spacing.lg,
+    gap: spacing.md,
     left: 0,
-    paddingHorizontal: layout.screenGutter,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     position: 'absolute',
     right: 0,
   },
-  stickyQuoteBlock: {
-    gap: 2,
+  stickyContext: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 10,
+    marginTop: 1,
   },
-  stickyQuoteLabel: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1,
+  stickyPrice: {
+    minWidth: 112,
   },
-  stickyQuoteValue: {
+  stickyTotal: {
     color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.xl,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 15,
   },
   title: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: fontSizes.displayLarge,
-    letterSpacing: -1,
-    lineHeight: 44,
-    marginTop: spacing.xs,
-  },
-  topPillsRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
+    fontSize: 34,
+    letterSpacing: -0.65,
   },
   totalLabel: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
+    fontSize: 14,
   },
   totalRow: {
     alignItems: 'baseline',
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-  },
-  totalRule: {
-    backgroundColor: colors.lineStrong,
-    height: StyleSheet.hairlineWidth,
-    marginVertical: spacing.sm,
+    marginTop: spacing.xs,
+    paddingTop: spacing.md,
   },
   totalValue: {
-    color: colors.goldStrong,
+    color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: fontSizes.xl,
+    fontSize: 25,
   },
 });

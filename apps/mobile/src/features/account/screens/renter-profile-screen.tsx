@@ -16,6 +16,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import {
+  FieldLabel,
+  InlineNotice,
+  PrimaryAction,
+  SecondaryAction,
+  SectionHeading,
+} from '@/components/ui/mobile-primitives';
 import { useAuth } from '@/core/auth/auth-context';
 import { useRenterProfile } from '../hooks/use-renter-profile';
 
@@ -54,9 +61,7 @@ function RenterProfileForm({
   onSignOut,
 }: RenterProfileFormProps) {
   const insets = useSafeAreaInsets();
-  const [fullName, setFullName] = useState(
-    () => profile?.fullName || userDisplayName || '',
-  );
+  const [fullName, setFullName] = useState(() => profile?.fullName || userDisplayName || '');
   const [phone, setPhone] = useState(() => profile?.phone || '+234');
   const [selectedArea, setSelectedArea] = useState<LagosAreaLabel>(
     () => (profile?.defaultDeliveryAddress?.areaLabel as LagosAreaLabel) || 'Victoria Island',
@@ -64,10 +69,8 @@ function RenterProfileForm({
   const [streetAddress, setStreetAddress] = useState(
     () => profile?.defaultDeliveryAddress?.streetAddress || '',
   );
-  const [landmark, setLandmark] = useState(
-    () => profile?.defaultDeliveryAddress?.landmark || '',
-  );
-
+  const [landmark, setLandmark] = useState(() => profile?.defaultDeliveryAddress?.landmark || '');
+  const [areaModalVisible, setAreaModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletionReason, setDeletionReason] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -76,17 +79,15 @@ function RenterProfileForm({
 
   const handleSave = async () => {
     if (!fullName.trim() || fullName.trim().length < 2) {
-      Alert.alert('Full Name Required', 'Please provide your full legal name.');
+      Alert.alert('Name required', 'Please enter your full name.');
       return;
     }
-
     if (!phone.startsWith('+234') || phone.length < 13) {
-      Alert.alert('Phone Number Required', 'Please provide a valid Nigerian phone number starting with +234.');
+      Alert.alert('Phone number required', 'Enter a valid Nigerian phone number beginning with +234.');
       return;
     }
-
     if (!streetAddress.trim() || streetAddress.trim().length < 5) {
-      Alert.alert('Delivery Address Required', 'Please enter your default street address for chauffeur delivery in Lagos.');
+      Alert.alert('Address required', 'Enter your default Lagos delivery address.');
       return;
     }
 
@@ -98,10 +99,10 @@ function RenterProfileForm({
         streetAddress: streetAddress.trim(),
         landmark: landmark.trim() || undefined,
       });
-      setSuccessToast('Profile saved successfully.');
+      setSuccessToast('Profile saved');
       setTimeout(() => setSuccessToast(null), 3000);
     } catch {
-      // Error handled by parent
+      // Parent hook exposes the safe error message.
     }
   };
 
@@ -110,11 +111,11 @@ function RenterProfileForm({
       await onRequestDeletion(deletionReason.trim() || undefined);
       setDeleteModalVisible(false);
       Alert.alert(
-        'Deletion Requested',
-        'Your account deletion request has been submitted. Any scheduled rentals must conclude before final anonymization.',
+        'Deletion requested',
+        'Your request has been submitted. Any active rentals must finish before final deletion can proceed.',
       );
     } catch {
-      // Error handled by parent
+      // Parent hook exposes the safe error message.
     }
   };
 
@@ -124,53 +125,44 @@ function RenterProfileForm({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      {/* Profile Header */}
-      <View style={styles.headerSection}>
+      <View style={styles.profileHeader}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {(fullName || userDisplayName || 'M').charAt(0).toUpperCase()}
-          </Text>
+          <Text style={styles.avatarText}>{(fullName || userDisplayName || 'M').charAt(0).toUpperCase()}</Text>
         </View>
-        <Text style={styles.title}>{fullName || userDisplayName || 'MMG Guest'}</Text>
-        <Text style={styles.emailText}>{userEmail}</Text>
-        {isDeletionPending ? (
-          <View style={styles.deletionBadge}>
-            <Ionicons color={colors.gold} name="alert-circle" size={13} />
-            <Text style={styles.deletionBadgeText}>DELETION REQUESTED</Text>
-          </View>
-        ) : null}
+        <View style={styles.profileCopy}>
+          <Text accessibilityRole="header" numberOfLines={1} style={styles.profileName}>
+            {fullName || userDisplayName || 'Your account'}
+          </Text>
+          <Text numberOfLines={1} style={styles.emailText}>{userEmail}</Text>
+        </View>
       </View>
 
-      {successToast && (
-        <View style={styles.successBanner}>
-          <Ionicons color={colors.success} name="checkmark-circle" size={16} />
-          <Text style={styles.successText}>{successToast}</Text>
-        </View>
-      )}
+      {successToast ? <InlineNotice icon="checkmark-circle-outline" tone="success">{successToast}</InlineNotice> : null}
+      {isDeletionPending ? (
+        <InlineNotice icon="time-outline">Account deletion is pending.</InlineNotice>
+      ) : null}
 
-      {/* Contact Details Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Personal details</Text>
-
+      <View style={styles.section}>
+        <SectionHeading>Personal details</SectionHeading>
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>FULL LEGAL NAME</Text>
+          <FieldLabel>Full name</FieldLabel>
           <TextInput
+            autoCapitalize="words"
             editable={!isSaving}
             onChangeText={setFullName}
-            placeholder="e.g. Babatunde Adeleke"
+            placeholder="Your full name"
             placeholderTextColor={colors.muted}
             style={styles.input}
             value={fullName}
           />
         </View>
-
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>NIGERIAN PHONE NUMBER (E.164)</Text>
+          <FieldLabel>Phone number</FieldLabel>
           <TextInput
             editable={!isSaving}
             keyboardType="phone-pad"
             onChangeText={setPhone}
-            placeholder="+2348012345678"
+            placeholder="+234 801 234 5678"
             placeholderTextColor={colors.muted}
             style={styles.input}
             value={phone}
@@ -178,51 +170,38 @@ function RenterProfileForm({
         </View>
       </View>
 
-      {/* Default Lagos Delivery Address */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Lagos delivery address</Text>
-
+      <View style={styles.section}>
+        <SectionHeading>Delivery address</SectionHeading>
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>PRIMARY LAGOS DISTRICT</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.areaScroll}>
-            {LAGOS_AREAS.map((area) => {
-              const isSelected = selectedArea === area;
-              return (
-                <PressableScale
-                  accessibilityLabel={`Select Lagos district ${area}`}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}
-                  key={area}
-                  onPress={() => setSelectedArea(area)}
-                  style={[styles.areaPill, isSelected && styles.areaPillSelected]}
-                >
-                  <Text style={[styles.areaPillText, isSelected && styles.areaPillTextSelected]}>
-                    {area}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </ScrollView>
+          <FieldLabel>Area</FieldLabel>
+          <PressableScale
+            accessibilityLabel={`Delivery area, ${selectedArea}`}
+            accessibilityRole="button"
+            onPress={() => setAreaModalVisible(true)}
+          >
+            <View style={styles.selector}>
+              <Text style={styles.selectorText}>{selectedArea}</Text>
+              <Ionicons color={colors.muted} name="chevron-down" size={18} />
+            </View>
+          </PressableScale>
         </View>
-
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>STREET ADDRESS</Text>
+          <FieldLabel>Street address</FieldLabel>
           <TextInput
             editable={!isSaving}
             onChangeText={setStreetAddress}
-            placeholder="e.g. 15 Queens Drive, Ikoyi"
+            placeholder="15 Queens Drive, Ikoyi"
             placeholderTextColor={colors.muted}
             style={styles.input}
             value={streetAddress}
           />
         </View>
-
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>NEARBY LANDMARK / BUILDING NAME</Text>
+          <FieldLabel>Landmark or building name <Text style={styles.optional}>Optional</Text></FieldLabel>
           <TextInput
             editable={!isSaving}
             onChangeText={setLandmark}
-            placeholder="e.g. Near Federal High Court"
+            placeholder="Nearby landmark"
             placeholderTextColor={colors.muted}
             style={styles.input}
             value={landmark}
@@ -230,103 +209,91 @@ function RenterProfileForm({
         </View>
       </View>
 
-      {/* Legal & Terms Badge */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Terms and privacy</Text>
-        <View style={styles.termsRow}>
-          <Ionicons color={colors.goldStrong} name="document-text-outline" size={18} />
-          <View style={styles.termsInfo}>
-            <Text style={styles.termsHeading}>Renter Terms & Privacy Notice</Text>
-          </View>
-          <Ionicons color={colors.success} name="checkmark-circle" size={18} />
+      <View style={styles.legalRow}>
+        <Ionicons color={colors.muted} name="document-text-outline" size={18} />
+        <View style={styles.legalCopy}>
+          <Text style={styles.legalTitle}>Terms and privacy</Text>
+          <Text style={styles.legalText}>Current renter terms and privacy notice accepted.</Text>
         </View>
       </View>
 
-      {/* Save Button */}
-      <PressableScale
-        accessibilityRole="button"
-        disabled={isSaving}
-        onPress={handleSave}
-        style={styles.savePressable}
-      >
-        <View style={styles.saveButton}>
-          {isSaving ? (
-            <ActivityIndicator color={colors.black} size="small" />
-          ) : (
-            <>
-              <Ionicons color={colors.black} name="save-outline" size={18} />
-              <Text style={styles.saveButtonText}>SAVE PROFILE</Text>
-            </>
-          )}
-        </View>
-      </PressableScale>
+      <PrimaryAction icon="checkmark" label="Save changes" loading={isSaving} onPress={() => void handleSave()} />
 
-      {/* Account Deletion / Data Rights */}
-      {!isDeletionPending && (
-        <PressableScale
-          accessibilityRole="button"
-          onPress={() => setDeleteModalVisible(true)}
-          style={styles.deletePressable}
-        >
-          <View style={styles.deleteButton}>
-            <Ionicons color={colors.danger} name="trash-outline" size={17} />
-            <Text style={styles.deleteButtonText}>Request Account Deletion</Text>
-          </View>
-        </PressableScale>
-      )}
+      <View style={styles.accountActions}>
+        {!isDeletionPending ? (
+          <SecondaryAction
+            destructive
+            icon="trash-outline"
+            label="Request account deletion"
+            onPress={() => setDeleteModalVisible(true)}
+          />
+        ) : null}
+        <SecondaryAction icon="log-out-outline" label="Sign out" onPress={onSignOut} />
+      </View>
 
-      {/* Sign Out */}
-      <PressableScale
-        accessibilityRole="button"
-        onPress={onSignOut}
-        style={styles.signOutPressable}
-      >
-        <View style={styles.signOutButton}>
-          <Ionicons color={colors.ivory} name="log-out-outline" size={18} />
-          <Text style={styles.signOutButtonText}>Sign Out</Text>
-        </View>
-      </PressableScale>
-
-      {/* Deletion Confirmation Modal */}
       <Modal
-        animationType="fade"
+        animationType="slide"
+        onRequestClose={() => setAreaModalVisible(false)}
+        transparent
+        visible={areaModalVisible}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Delivery area</Text>
+              <PressableScale accessibilityLabel="Close" accessibilityRole="button" onPress={() => setAreaModalVisible(false)}>
+                <View style={styles.closeTarget}><Ionicons color={colors.ivory} name="close" size={22} /></View>
+              </PressableScale>
+            </View>
+            {LAGOS_AREAS.map((area) => (
+              <PressableScale
+                accessibilityRole="radio"
+                accessibilityState={{ selected: selectedArea === area }}
+                key={area}
+                onPress={() => {
+                  setSelectedArea(area);
+                  setAreaModalVisible(false);
+                }}
+              >
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetRowText, selectedArea === area && styles.sheetRowTextSelected]}>{area}</Text>
+                  {selectedArea === area ? <Ionicons color={colors.goldStrong} name="checkmark" size={20} /> : null}
+                </View>
+              </PressableScale>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
         onRequestClose={() => setDeleteModalVisible(false)}
         transparent
         visible={deleteModalVisible}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalIcon}>
-              <Ionicons color={colors.danger} name="warning" size={28} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Delete account</Text>
+              <PressableScale accessibilityLabel="Close" accessibilityRole="button" onPress={() => setDeleteModalVisible(false)}>
+                <View style={styles.closeTarget}><Ionicons color={colors.ivory} name="close" size={22} /></View>
+              </PressableScale>
             </View>
-            <Text style={styles.modalTitle}>Request Account Deletion</Text>
-            <Text style={styles.modalDescription}>
-              This will request permanent deletion and anonymization of your profile and contact records under NDPR/GDPR.
-              Any active rentals must complete before deletion proceeds.
+            <Text style={styles.deleteCopy}>
+              This requests permanent deletion and anonymization of your profile. Active rentals must finish first.
             </Text>
-
             <TextInput
               multiline
               numberOfLines={3}
               onChangeText={setDeletionReason}
-              placeholder="Reason for deletion (optional)"
+              placeholder="Reason, if you want to share one"
               placeholderTextColor={colors.muted}
-              style={styles.modalInput}
+              style={[styles.input, styles.deleteInput]}
               value={deletionReason}
             />
-
-            <View style={styles.modalActions}>
-              <PressableScale onPress={() => setDeleteModalVisible(false)} style={styles.modalCancelPress}>
-                <View style={styles.modalCancelButton}>
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </View>
-              </PressableScale>
-
-              <PressableScale onPress={handleConfirmDeletion} style={styles.modalConfirmPress}>
-                <View style={styles.modalConfirmButton}>
-                  <Text style={styles.modalConfirmText}>Confirm Deletion</Text>
-                </View>
-              </PressableScale>
+            <View style={styles.sheetActions}>
+              <SecondaryAction label="Cancel" onPress={() => setDeleteModalVisible(false)} />
+              <PrimaryAction label="Submit deletion request" onPress={() => void handleConfirmDeletion()} />
             </View>
           </View>
         </View>
@@ -337,8 +304,7 @@ function RenterProfileForm({
 
 export function RenterProfileScreen() {
   const { signOut, user } = useAuth();
-  const { profile, isLoading, isSaving, errorMessage, saveProfile, requestDeletion } =
-    useRenterProfile();
+  const { profile, isLoading, isSaving, errorMessage, saveProfile, requestDeletion } = useRenterProfile();
 
   const handleSave = async (data: {
     fullName: string;
@@ -360,35 +326,23 @@ export function RenterProfileScreen() {
     });
   };
 
-  const handleRequestDeletion = async (reason?: string) => {
-    await requestDeletion({
-      confirmation: true,
-      reason,
-    });
-  };
-
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
-      <View style={styles.topBar}>
-        <BrandWordmark compact withLogo />
-      </View>
-
-      {errorMessage && (
-        <View style={styles.errorBanner}>
-          <Ionicons color={colors.danger} name="warning-outline" size={16} />
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        </View>
-      )}
-
+      <View style={styles.topBar}><BrandWordmark compact withLogo /></View>
+      {errorMessage ? (
+        <View style={styles.outerNotice}><InlineNotice icon="alert-circle-outline" tone="danger">{errorMessage}</InlineNotice></View>
+      ) : null}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.goldStrong} size="large" />
-          <Text style={styles.loadingText}>Loading profile details...</Text>
+          <ActivityIndicator color={colors.goldStrong} size="small" />
+          <Text style={styles.loadingText}>Loading account</Text>
         </View>
       ) : (
         <RenterProfileForm
           isSaving={isSaving}
-          onRequestDeletion={handleRequestDeletion}
+          onRequestDeletion={async (reason) => {
+            await requestDeletion({ confirmation: true, reason });
+          }}
           onSave={handleSave}
           onSignOut={() => void signOut()}
           profile={profile}
@@ -401,331 +355,192 @@ export function RenterProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  areaPill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    marginRight: spacing.sm,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  areaPillSelected: {
-    backgroundColor: colors.goldStrong,
-    borderColor: colors.goldStrong,
-  },
-  areaPillText: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-  },
-  areaPillTextSelected: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-  },
-  areaScroll: {
-    flexDirection: 'row',
+  accountActions: {
+    gap: spacing.sm,
     marginTop: spacing.xs,
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    height: 76,
+    backgroundColor: colors.graphiteRaised,
+    borderRadius: radii.md,
+    height: 52,
     justifyContent: 'center',
-    width: 76,
+    width: 52,
   },
   avatarText: {
-    color: colors.black,
+    color: colors.goldStrong,
     fontFamily: typography.display,
-    fontSize: 32,
+    fontSize: 23,
   },
-  card: {
-    borderBottomColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: spacing.md,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  cardTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 20,
-    letterSpacing: -0.3,
+  closeTarget: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
   content: {
     gap: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-  deleteButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-  },
-  deleteButtonText: {
-    color: colors.danger,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  deletePressable: {
-    alignSelf: 'center',
-    marginTop: spacing.xs,
-  },
-  deletionBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(227,195,101,0.12)',
-    borderColor: colors.gold,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingTop: spacing.lg,
   },
-  deletionBadgeText: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.2,
+  deleteCopy: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  deleteInput: {
+    minHeight: 96,
+    paddingTop: spacing.md,
+    textAlignVertical: 'top',
   },
   emailText: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 14,
-  },
-  errorBanner: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(209,133,120,0.12)',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    padding: spacing.md,
-  },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
     fontSize: 13,
+    marginTop: 3,
   },
   fieldGroup: {
-    gap: spacing.xs,
-  },
-  headerSection: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.md,
+    marginTop: spacing.md,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.graphite,
     borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
     color: colors.ivory,
     fontFamily: typography.body,
-    fontSize: 14,
-    minHeight: 48,
+    fontSize: 15,
+    minHeight: 50,
     paddingHorizontal: spacing.md,
   },
-  label: {
+  legalCopy: { flex: 1 },
+  legalRow: {
+    alignItems: 'flex-start',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  legalText: {
     color: colors.muted,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.2,
+    fontFamily: typography.body,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  legalTitle: {
+    color: colors.silver,
+    fontFamily: typography.bodyMedium,
+    fontSize: 14,
   },
   loadingContainer: {
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xxl,
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
   },
   loadingText: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: 13,
   },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
   modalBackdrop: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.66)',
     flex: 1,
-    justifyContent: 'center',
-    padding: spacing.lg,
+    justifyContent: 'flex-end',
   },
-  modalCancelButton: {
-    alignItems: 'center',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: spacing.lg,
-  },
-  modalCancelPress: {
-    flex: 1,
-  },
-  modalCancelText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  modalCard: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    gap: spacing.md,
-    maxWidth: 400,
-    padding: spacing.xl,
-    width: '100%',
-  },
-  modalConfirmButton: {
-    alignItems: 'center',
-    backgroundColor: colors.danger,
-    borderRadius: radii.pill,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: spacing.lg,
-  },
-  modalConfirmPress: {
-    flex: 1,
-  },
-  modalConfirmText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-  },
-  modalDescription: {
+  optional: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 11,
   },
-  modalIcon: {
+  outerNotice: {
+    paddingHorizontal: spacing.md,
+  },
+  profileCopy: { flex: 1 },
+  profileHeader: {
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
   },
-  modalInput: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    color: colors.ivory,
-    fontFamily: typography.body,
-    fontSize: 13,
-    minHeight: 70,
-    padding: spacing.md,
-    textAlignVertical: 'top',
-  },
-  modalTitle: {
+  profileName: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 20,
-    textAlign: 'center',
-  },
-  saveButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 52,
-  },
-  saveButtonText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-    letterSpacing: 1.2,
-  },
-  savePressable: {
-    marginTop: spacing.sm,
+    fontSize: 25,
+    letterSpacing: -0.35,
   },
   screen: {
     backgroundColor: colors.black,
     flex: 1,
   },
-  signOutButton: {
+  section: {
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.lg,
+  },
+  selector: {
     alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     minHeight: 50,
+    paddingHorizontal: spacing.md,
   },
-  signOutButtonText: {
+  selectorText: {
     color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: 14,
-  },
-  signOutPressable: {
-    marginBottom: spacing.lg,
-  },
-  statusDot: {
-    backgroundColor: '#4ECDC4',
-    borderRadius: 3,
-    height: 6,
-    width: 6,
-  },
-  successBanner: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(46,204,113,0.12)',
-    borderColor: colors.success,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  successText: {
-    color: colors.success,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  termsHeading: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  termsInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  termsRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  termsSub: {
-    color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 15,
   },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 28,
-    letterSpacing: -0.5,
+  sheet: {
+    backgroundColor: colors.graphite,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    gap: spacing.sm,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
-  topBar: {
+  sheetActions: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  sheetHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    minHeight: 52,
+  },
+  sheetRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 52,
+  },
+  sheetRowText: {
+    color: colors.silver,
+    fontFamily: typography.body,
+    fontSize: 15,
+  },
+  sheetRowTextSelected: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+  },
+  sheetTitle: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 23,
+  },
+  topBar: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
 });
