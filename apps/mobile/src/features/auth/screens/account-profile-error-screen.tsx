@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { colors, spacing, typography } from '@mmg/brand';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { PrimaryAction } from '@/components/ui/mobile-primitives';
 import { useAuth } from '@/core/auth/auth-context';
 
 export function AccountProfileErrorScreen() {
@@ -25,21 +26,13 @@ export function AccountProfileErrorScreen() {
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}><BrandWordmark withLogo /></View>
       <View style={styles.content}>
-        <View style={styles.iconFrame}>
-          <Ionicons color={colors.goldStrong} name="cloud-offline-outline" size={30} />
+        <Ionicons color={colors.goldStrong} name="cloud-offline-outline" size={30} />
+        <Text accessibilityRole="header" style={styles.title}>Could not load your account</Text>
+        <Text style={styles.body}>Check your connection and try again before continuing.</Text>
+        <View style={styles.action}>
+          <PrimaryAction icon="refresh" label="Try again" loading={retrying} onPress={() => void retry()} />
         </View>
-        <Text style={styles.title}>We couldn’t confirm your profile.</Text>
-        <Text style={styles.body}>
-          Check your connection and try again before continuing.
-        </Text>
-        <PressableScale disabled={retrying} onPress={() => void retry()} style={styles.fullWidth}>
-          <View style={styles.primaryButton}>
-            {retrying ? <ActivityIndicator color={colors.black} /> : (
-              <><Text style={styles.primaryText}>Try again</Text><Ionicons color={colors.black} name="refresh" size={18} /></>
-            )}
-          </View>
-        </PressableScale>
-        <PressableScale onPress={() => void auth.signOut()} style={styles.signOutPressable}>
+        <PressableScale accessibilityRole="button" onPress={() => void auth.signOut()} style={styles.signOutTarget}>
           <Text style={styles.signOut}>Use a different account</Text>
         </PressableScale>
       </View>
@@ -48,16 +41,49 @@ export function AccountProfileErrorScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: { color: colors.muted, fontFamily: typography.body, fontSize: 15, lineHeight: 24, maxWidth: 340, textAlign: 'center' },
-  content: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', paddingHorizontal: spacing.xl },
-  eyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 2.1 },
-  fullWidth: { alignSelf: 'stretch' },
-  iconFrame: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 70, justifyContent: 'center', width: 70 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.md, minHeight: 56 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  signOut: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12, padding: spacing.md },
-  signOutPressable: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 38, letterSpacing: -0.8, lineHeight: 44, textAlign: 'center' },
-  topBar: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  action: {
+    alignSelf: 'stretch',
+    marginTop: spacing.lg,
+  },
+  body: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    maxWidth: 340,
+    textAlign: 'center',
+  },
+  content: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  screen: {
+    backgroundColor: colors.black,
+    flex: 1,
+  },
+  signOut: {
+    color: colors.muted,
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
+  },
+  signOutTarget: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  title: {
+    color: colors.ivory,
+    fontFamily: typography.display,
+    fontSize: 30,
+    letterSpacing: -0.5,
+    marginBottom: spacing.xs,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  topBar: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
 });

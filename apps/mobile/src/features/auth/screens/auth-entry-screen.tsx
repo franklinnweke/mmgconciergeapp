@@ -2,10 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,17 +16,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
-import { useReducedMotion } from '@/components/use-reduced-motion';
+import {
+  FieldLabel,
+  InlineNotice,
+  PrimaryAction,
+} from '@/components/ui/mobile-primitives';
 import { useAuth } from '@/core/auth/auth-context';
 
 type Mode = 'sign-in' | 'register';
-
 const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-hero.png');
 
 export function AuthEntryScreen() {
   const insets = useSafeAreaInsets();
   const auth = useAuth();
-  const reduceMotion = useReducedMotion();
   const [mode, setMode] = useState<Mode>('sign-in');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -36,54 +36,12 @@ export function AuthEntryScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [entranceOpacity] = useState(() => new Animated.Value(0));
-  const [entranceTranslate] = useState(() => new Animated.Value(20));
-  const [formOpacity] = useState(() => new Animated.Value(1));
-
-  useEffect(() => {
-    if (reduceMotion) {
-      entranceOpacity.setValue(1);
-      entranceTranslate.setValue(0);
-      return;
-    }
-    Animated.parallel([
-      Animated.timing(entranceOpacity, {
-        duration: 560,
-        toValue: 1,
-        useNativeDriver: true,
-      }),
-      Animated.spring(entranceTranslate, {
-        damping: 18,
-        stiffness: 90,
-        toValue: 0,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [entranceOpacity, entranceTranslate, reduceMotion]);
 
   function changeMode(nextMode: Mode) {
-    if (nextMode === mode || busy) return;
+    if (busy) return;
     setError(null);
     setNotice(null);
-
-    if (reduceMotion) {
-      setMode(nextMode);
-      formOpacity.setValue(1);
-      return;
-    }
-
-    Animated.timing(formOpacity, {
-      duration: 120,
-      toValue: 0,
-      useNativeDriver: true,
-    }).start(() => {
-      setMode(nextMode);
-      Animated.timing(formOpacity, {
-        duration: 220,
-        toValue: 1,
-        useNativeDriver: true,
-      }).start();
-    });
+    setMode(nextMode);
   }
 
   async function run(action: () => Promise<void>) {
@@ -103,30 +61,25 @@ export function AuthEntryScreen() {
     await run(async () => {
       if (mode === 'register') {
         await auth.register({ displayName, email, password });
-        return;
+      } else {
+        await auth.signIn({ email, password });
       }
-      await auth.signIn({ email, password });
     });
   }
 
   async function handleGoogleSignIn() {
-    await run(async () => {
-      await auth.signInGoogle();
-    });
+    await run(() => auth.signInGoogle());
   }
 
   async function handlePasswordReset() {
     await run(async () => {
       await auth.requestReset(email);
-      setNotice('Password reset instructions are on the way.');
+      setNotice('Password reset instructions have been sent.');
     });
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.screen}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
       <ScrollView
         bounces={false}
         contentContainerStyle={styles.scrollContent}
@@ -136,51 +89,30 @@ export function AuthEntryScreen() {
         <View style={styles.hero}>
           <Image contentFit="cover" source={heroImage} style={StyleSheet.absoluteFill} />
           <LinearGradient
-            colors={['rgba(4,4,4,0.25)', 'rgba(4,4,4,0.15)', colors.black]}
-            locations={[0, 0.52, 1]}
+            colors={['rgba(4,4,4,.22)', 'rgba(4,4,4,.18)', colors.black]}
+            locations={[0, 0.48, 1]}
             style={StyleSheet.absoluteFill}
           />
-          <Animated.View
-            style={[
-              styles.heroContent,
-              {
-                opacity: entranceOpacity,
-                paddingTop: insets.top + spacing.md,
-                transform: [{ translateY: entranceTranslate }],
-              },
-            ]}
-          >
-            <View style={styles.topBar}>
-              <BrandWordmark withLogo />
-            </View>
-            <View>
-              <Text style={styles.heroTitle}>Lagos, handled in a Prado.</Text>
-            </View>
-          </Animated.View>
+          <View style={[styles.heroContent, { paddingTop: insets.top + spacing.md }]}>
+            <BrandWordmark withLogo />
+            <Text style={styles.heroTitle}>Lagos, handled in a Prado.</Text>
+          </View>
         </View>
 
-        <Animated.View style={[styles.formSection, { opacity: formOpacity }]}>
-          <View style={styles.modeRail}>
-            <ModeButton
-              active={mode === 'sign-in'}
-              label="Sign in"
-              onPress={() => changeMode('sign-in')}
-            />
-            <ModeButton
-              active={mode === 'register'}
-              label="Create account"
-              onPress={() => changeMode('register')}
-            />
+        <View style={styles.formSection}>
+          <View style={styles.modeRow}>
+            <ModeButton active={mode === 'sign-in'} label="Sign in" onPress={() => changeMode('sign-in')} />
+            <ModeButton active={mode === 'register'} label="Create account" onPress={() => changeMode('register')} />
           </View>
 
           <View style={styles.headingBlock}>
-            <Text style={styles.formTitle}>
-              {mode === 'sign-in' ? 'Sign in to your account.' : 'Create your account.'}
+            <Text accessibilityRole="header" style={styles.formTitle}>
+              {mode === 'sign-in' ? 'Welcome back' : 'Create your account'}
             </Text>
             <Text style={styles.formBody}>
               {mode === 'sign-in'
-                ? 'View your journeys and account details.'
-                : 'Start with your name, email, and password.'}
+                ? 'Sign in to manage journeys, bookings and your account.'
+                : 'Start with your name, email and password.'}
             </Text>
           </View>
 
@@ -189,8 +121,7 @@ export function AuthEntryScreen() {
               <AuthField
                 autoCapitalize="words"
                 autoComplete="name"
-                icon="person-outline"
-                label="FULL NAME"
+                label="Full name"
                 onChangeText={setDisplayName}
                 placeholder="Your full name"
                 value={displayName}
@@ -199,9 +130,8 @@ export function AuthEntryScreen() {
             <AuthField
               autoCapitalize="none"
               autoComplete="email"
-              icon="mail-outline"
               keyboardType="email-address"
-              label="EMAIL"
+              label="Email"
               onChangeText={setEmail}
               placeholder="you@example.com"
               value={email}
@@ -209,8 +139,7 @@ export function AuthEntryScreen() {
             <AuthField
               autoCapitalize="none"
               autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
-              icon="lock-closed-outline"
-              label="PASSWORD"
+              label="Password"
               onChangeText={setPassword}
               placeholder="At least 8 characters"
               secureTextEntry
@@ -218,34 +147,22 @@ export function AuthEntryScreen() {
             />
           </View>
 
-          {error ? <FeedbackMessage kind="error" message={error} /> : null}
-          {notice ? <FeedbackMessage kind="notice" message={notice} /> : null}
+          {error ? <InlineNotice icon="alert-circle-outline" tone="danger">{error}</InlineNotice> : null}
+          {notice ? <InlineNotice icon="checkmark-circle-outline" tone="success">{notice}</InlineNotice> : null}
 
-          <PressableScale
-            accessibilityRole="button"
-            disabled={busy}
+          <PrimaryAction
+            icon="arrow-forward"
+            label={mode === 'sign-in' ? 'Sign in' : 'Create account'}
+            loading={busy}
             onPress={() => void handlePrimaryAction()}
-          >
-            <View style={[styles.primaryButton, busy && styles.disabledButton]}>
-              {busy ? (
-                <ActivityIndicator color={colors.black} />
-              ) : (
-                <>
-                  <Text style={styles.primaryButtonText}>
-                    {mode === 'sign-in' ? 'Sign in' : 'Create account'}
-                  </Text>
-                  <Ionicons color={colors.black} name="arrow-forward" size={18} />
-                </>
-              )}
-            </View>
-          </PressableScale>
+          />
 
           {mode === 'sign-in' ? (
             <PressableScale
               accessibilityRole="button"
               disabled={busy}
               onPress={() => void handlePasswordReset()}
-              style={styles.forgotPressable}
+              style={styles.forgotTarget}
             >
               <Text style={styles.forgotText}>Forgot password?</Text>
             </PressableScale>
@@ -253,7 +170,7 @@ export function AuthEntryScreen() {
 
           <View style={styles.dividerRow}>
             <View style={styles.divider} />
-            <Text style={styles.dividerText}>OR</Text>
+            <Text style={styles.dividerText}>or</Text>
             <View style={styles.divider} />
           </View>
 
@@ -269,20 +186,16 @@ export function AuthEntryScreen() {
             </View>
           </PressableScale>
 
-          <Text style={styles.termsText}>
-            By continuing, you agree to MMG Concierge’s Terms and acknowledge the Privacy Notice.
-          </Text>
-        </Animated.View>
+          <Text style={styles.termsText}>By continuing, you agree to MMG Concierge’s Terms and acknowledge the Privacy Notice.</Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-type ModeButtonProps = { active: boolean; label: string; onPress(): void };
-
-function ModeButton({ active, label, onPress }: ModeButtonProps) {
+function ModeButton({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
   return (
-    <PressableScale accessibilityRole="tab" onPress={onPress} style={styles.modeButtonShell}>
+    <PressableScale accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={styles.modeButtonShell}>
       <View style={[styles.modeButton, active && styles.modeButtonActive]}>
         <Text style={[styles.modeButtonText, active && styles.modeButtonTextActive]}>{label}</Text>
       </View>
@@ -290,96 +203,59 @@ function ModeButton({ active, label, onPress }: ModeButtonProps) {
   );
 }
 
-type AuthFieldProps = React.ComponentProps<typeof TextInput> & {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-};
+type AuthFieldProps = ComponentProps<typeof TextInput> & { label: string };
 
-function AuthField({ icon, label, ...inputProps }: AuthFieldProps) {
+function AuthField({ label, ...inputProps }: AuthFieldProps) {
   return (
     <View>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.fieldShell}>
-        <Ionicons color={colors.muted} name={icon} size={18} />
-        <TextInput
-          placeholderTextColor="rgba(180,174,164,0.62)"
-          selectionColor={colors.gold}
-          style={styles.fieldInput}
-          {...inputProps}
-        />
-      </View>
-    </View>
-  );
-}
-
-function FeedbackMessage({ kind, message }: { kind: 'error' | 'notice'; message: string }) {
-  return (
-    <View style={styles.feedbackRow}>
-      <Ionicons
-        color={kind === 'error' ? colors.danger : colors.success}
-        name={kind === 'error' ? 'alert-circle-outline' : 'checkmark-circle-outline'}
-        size={17}
+      <FieldLabel>{label}</FieldLabel>
+      <TextInput
+        placeholderTextColor="rgba(180,174,164,.62)"
+        selectionColor={colors.goldStrong}
+        style={styles.fieldInput}
+        {...inputProps}
       />
-      <Text style={styles.feedbackText}>{message}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  disabledButton: { opacity: 0.66 },
-  divider: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
-  dividerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
+  divider: {
+    backgroundColor: colors.line,
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dividerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
   dividerText: {
     color: colors.muted,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.8,
-  },
-  eyebrow: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 2.1,
-    marginBottom: spacing.xs,
-  },
-  feedbackRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  feedbackText: {
-    color: colors.silver,
-    flex: 1,
     fontFamily: typography.body,
     fontSize: 12,
-    lineHeight: 18,
   },
   fieldInput: {
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
     color: colors.ivory,
-    flex: 1,
     fontFamily: typography.body,
     fontSize: 15,
-    paddingVertical: 0,
-  },
-  fieldLabel: {
-    color: colors.muted,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.6,
-    marginBottom: spacing.xs,
-  },
-  fieldShell: {
-    alignItems: 'center',
-    borderBottomColor: colors.lineStrong,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
     minHeight: 50,
+    paddingHorizontal: spacing.md,
   },
-  fields: { gap: spacing.lg },
-  forgotPressable: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  fields: { gap: spacing.md },
+  forgotTarget: {
+    alignSelf: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
   forgotText: {
-    color: colors.gold,
+    color: colors.goldStrong,
     fontFamily: typography.bodyMedium,
-    fontSize: 12,
-    paddingVertical: spacing.xs,
-    textAlign: 'center',
+    fontSize: 13,
   },
   formBody: {
     color: colors.muted,
@@ -389,82 +265,77 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   formSection: {
-    backgroundColor: colors.black,
     gap: spacing.lg,
-    paddingBottom: 52,
-    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.md,
   },
   formTitle: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 32,
-    letterSpacing: -0.6,
+    fontSize: 30,
+    letterSpacing: -0.5,
   },
   googleButton: {
     alignItems: 'center',
     borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 52,
   },
-  googleButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  headingBlock: { marginTop: spacing.xs },
-  hero: { backgroundColor: colors.black, height: 310 },
+  googleButtonText: {
+    color: colors.ivory,
+    fontFamily: typography.bodyMedium,
+    fontSize: 14,
+  },
+  headingBlock: {},
+  hero: { height: 310 },
   heroContent: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingBottom: 42,
-    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
   },
   heroTitle: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 42,
-    letterSpacing: -1.1,
-    lineHeight: 45,
-    maxWidth: 330,
+    fontSize: 32,
+    letterSpacing: -0.6,
+    lineHeight: 38,
+    maxWidth: 285,
   },
-  marketDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 5, width: 5 },
-  marketText: {
+  modeButton: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  modeButtonActive: { borderBottomColor: colors.goldStrong },
+  modeButtonShell: { flex: 1 },
+  modeButtonText: {
+    color: colors.muted,
+    fontFamily: typography.bodyMedium,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  modeButtonTextActive: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.4,
   },
-  modeButton: { alignItems: 'center', borderRadius: radii.pill, justifyContent: 'center', minHeight: 44 },
-  modeButtonActive: { backgroundColor: colors.ivory },
-  modeButtonShell: { flex: 1 },
-  modeButtonText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
-  modeButtonTextActive: { color: colors.black, fontFamily: typography.bodySemiBold },
-  modeRail: {
-    backgroundColor: colors.graphite,
-    borderRadius: radii.pill,
+  modeRow: {
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    marginTop: -20,
-    padding: 4,
   },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 56,
-  },
-  primaryButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   screen: { backgroundColor: colors.black, flex: 1 },
-  scrollContent: { backgroundColor: colors.black, flexGrow: 1 },
+  scrollContent: { flexGrow: 1 },
   termsText: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: 11,
-    lineHeight: 16,
-    paddingHorizontal: spacing.md,
+    lineHeight: 17,
     textAlign: 'center',
   },
-  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
 });

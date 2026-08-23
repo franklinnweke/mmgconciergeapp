@@ -1,11 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { colors, spacing, typography } from '@mmg/brand';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import {
+  InlineNotice,
+  PrimaryAction,
+  SecondaryAction,
+} from '@/components/ui/mobile-primitives';
 import { useAuth } from '@/core/auth/auth-context';
 
 export function VerifyEmailScreen() {
@@ -32,42 +37,29 @@ export function VerifyEmailScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.topBar}>
-        <BrandWordmark withLogo />
-      </View>
+      <View style={styles.topBar}><BrandWordmark withLogo /></View>
       <View style={styles.content}>
-        <View style={styles.iconFrame}>
-          <Ionicons color={colors.goldStrong} name="mail-unread-outline" size={31} />
-        </View>
-        <Text style={styles.title}>Check your inbox.</Text>
+        <Ionicons color={colors.goldStrong} name="mail-unread-outline" size={30} />
+        <Text accessibilityRole="header" style={styles.title}>Check your inbox</Text>
         <Text style={styles.body}>
-          We sent a verification link to{' '}
-          <Text style={styles.email}>{auth.user?.email}</Text>. Open it, then return here.
+          We sent a verification link to <Text style={styles.email}>{auth.user?.email}</Text>. Open it, then return here.
         </Text>
-        {message ? <Text style={styles.message}>{message}</Text> : null}
-        <PressableScale accessibilityRole="button" onPress={() => void run('refresh')} style={styles.fullWidth}>
-          <View style={styles.primaryButton}>
-            {busyAction === 'refresh' ? (
-              <ActivityIndicator color={colors.black} />
-            ) : (
-              <>
-                <Text style={styles.primaryText}>I’ve verified my email</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={18} />
-              </>
-            )}
-          </View>
-        </PressableScale>
-        <PressableScale accessibilityRole="button" onPress={() => void run('resend')} style={styles.fullWidth}>
-          <View style={styles.secondaryButton}>
-            {busyAction === 'resend' ? (
-              <ActivityIndicator color={colors.ivory} />
-            ) : (
-              <Text style={styles.secondaryText}>Send another link</Text>
-            )}
-          </View>
-        </PressableScale>
+        {message ? <InlineNotice icon="information-circle-outline">{message}</InlineNotice> : null}
+        <View style={styles.actions}>
+          <PrimaryAction
+            icon="arrow-forward"
+            label="I’ve verified my email"
+            loading={busyAction === 'refresh'}
+            onPress={() => void run('refresh')}
+          />
+          <SecondaryAction
+            disabled={busyAction !== null}
+            label={busyAction === 'resend' ? 'Sending link' : 'Send another link'}
+            onPress={() => void run('resend')}
+          />
+        </View>
       </View>
-      <PressableScale accessibilityRole="button" onPress={() => void auth.signOut()}>
+      <PressableScale accessibilityRole="button" onPress={() => void auth.signOut()} style={styles.signOutTarget}>
         <Text style={styles.signOut}>Use a different account</Text>
       </PressableScale>
     </SafeAreaView>
@@ -75,80 +67,52 @@ export function VerifyEmailScreen() {
 }
 
 const styles = StyleSheet.create({
+  actions: {
+    alignSelf: 'stretch',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
   body: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 21,
     maxWidth: 340,
     textAlign: 'center',
   },
   content: {
     alignItems: 'center',
     flex: 1,
-    gap: spacing.md,
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
-  email: { color: colors.ivory, fontFamily: typography.bodyMedium },
-  fullWidth: { alignSelf: 'stretch' },
-  iconFrame: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 72,
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-    width: 72,
+  email: {
+    color: colors.ivory,
+    fontFamily: typography.bodyMedium,
   },
-  message: {
-    color: colors.silver,
-    fontFamily: typography.body,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
+  screen: {
+    backgroundColor: colors.black,
+    flex: 1,
+    paddingHorizontal: spacing.md,
   },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    minHeight: 56,
-  },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  screen: { backgroundColor: colors.black, flex: 1, paddingHorizontal: spacing.lg },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    minHeight: 54,
-  },
-  secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
   signOut: {
     color: colors.muted,
     fontFamily: typography.bodyMedium,
     fontSize: 12,
-    paddingBottom: spacing.lg,
-    textAlign: 'center',
+  },
+  signOutTarget: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
   },
   title: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 40,
-    letterSpacing: -0.8,
-    lineHeight: 46,
+    fontSize: 31,
+    letterSpacing: -0.55,
+    marginBottom: spacing.xs,
+    marginTop: spacing.md,
     textAlign: 'center',
   },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: spacing.sm,
-  },
+  topBar: { paddingTop: spacing.sm },
 });
