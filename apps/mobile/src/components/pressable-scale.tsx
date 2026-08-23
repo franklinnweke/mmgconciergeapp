@@ -12,12 +12,14 @@ import {
 
 type PressableScaleProps = PropsWithChildren<
   Omit<PressableProps, 'style'> & {
+    haptic?: 'light' | 'selection' | false;
     style?: StyleProp<ViewStyle>;
   }
 >;
 
 export function PressableScale({
   children,
+  haptic = false,
   onBlur,
   onFocus,
   onPressIn,
@@ -39,8 +41,12 @@ export function PressableScale({
   }
 
   function handlePressIn(event: GestureResponderEvent) {
-    animateTo(0.975);
-    void Haptics.selectionAsync().catch(() => undefined);
+    animateTo(0.985);
+    if (haptic === 'selection') {
+      void Haptics.selectionAsync().catch(() => undefined);
+    } else if (haptic === 'light') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    }
     onPressIn?.(event);
   }
 
