@@ -152,7 +152,7 @@ describe('searchVehiclesService', () => {
     );
 
     expect(result.totalMatches).toBe(2);
-    expect(result.vehicles[0].primaryImageUrl).toContain('https://storage.googleapis.com/');
+    expect(result.vehicles[0].primaryImageUrl).toContain('https://firebasestorage.googleapis.com/');
     expect(result.vehicles[0].distanceKm).toBeGreaterThanOrEqual(0);
   });
 
