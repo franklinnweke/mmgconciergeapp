@@ -80,7 +80,7 @@ Snapshot date: **2026-08-31**. Verify against `git status`, `git log`, [`docs/re
 | WP2 F — Admin vehicle moderation | ✅ Complete | Live gateway, review command, storage promotion, checklist and Admin tests |
 | WP2 E — owner mobile fleet UI | ✅ Complete | Fleet list, create/submit wizard, image pipeline, visibility controls |
 | WP1 — renter profile/privacy/MFA | 🔶 Foundation complete | Profile/address/terms and deletion-request commands exist; verified phone, completed deletion/erasure workflow and MFA remain |
-| WP3 — live Lagos discovery | 🔶 Security hardening in progress | S1 code now moves list/search/detail behind protected Functions and closes direct renter trusted-record reads; latest detail-distance correction must be revalidated before development deployment |
+| WP3 — live Lagos discovery | ✅ S1 Hardening complete | Strict wire contracts, authenticated Functions (including getVehicleDetails), and hardened Firestore Rules deployed to mmg-concierge-dev; renter direct-Firestore reads denied |
 | WP4 — availability and Paystack-ready booking | 🔶 Calendar + owner-response slice complete | Atomic intents/holds and owner-response services exist; trusted paid-booking creation, SLA alerts, and Paystack remain incomplete |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
@@ -92,14 +92,12 @@ Snapshot date: **2026-08-31**. Verify against `git status`, `git log`, [`docs/re
 The development Firebase project `mmg-concierge-dev` is on Blaze and currently has:
 
 1. Registered iOS, Android, and Admin web apps; Email/Password and Google Authentication enabled.
-2. Standard/Native `(default)` Firestore in `africa-south1` with delete protection and the platform's closed default Rules.
-3. 21 previously deployed Node 22 Functions in `africa-south1` with public Cloud Run transport invocation for callable endpoints. The current S1 branch adds `getVehicleDetails`, so the development cloud must show 22 Functions after the next authorized deployment.
+2. Standard/Native `(default)` Firestore in `africa-south1` with delete protection and hardened S1 Security Rules and indexes deployed.
+3. 22 deployed Node 22 Functions in `africa-south1` with public Cloud Run transport invocation for callable endpoints (including `getVehicleDetails`). Missing App Check / unauthenticated calls fail closed with 401 UNAUTHENTICATED.
 4. Private `expireAbandonedOwnerVerificationUploads` scheduled from `europe-west1` through OIDC to the `africa-south1` Function.
-5. No development default Storage bucket yet.
+5. Default Storage bucket `mmg-concierge-dev.firebasestorage.app` provisioned in `africa-south1` with `firebase/storage.rules` deployed. Live media lifecycle (EXIF/GPS stripping, promotion, demotion, access denial to private objects) and abandoned-upload cleanup verified.
 
-A shell-capable operator validated commit `4b7fa5d` before this follow-up: Functions typecheck/build passed; 28 Functions test files passed with 261 tests and 7 skipped; 73 root test files passed with 532 tests and 42 skipped; Mobile typecheck/lint passed; Admin typecheck/lint and 66 tests passed; Firestore Rules emulator passed 18/18; Storage Rules emulator passed 17/17; `npm run check` and `git diff --check` passed. The current successor changes only discovery-detail distance preservation and therefore requires the same gate to be rerun before deployment.
-
-The last cloud deployment predates the current S1 discovery work. The repository protects `resolveSearchPlace` and `searchVehicles`, adds the architecture-defined protected `getVehicleDetails`, moves native live discovery list/search/detail behind Functions, removes renter Firestore access to trusted vehicle/image records, and adds negative Rules/serializer tests. None of those new S1 changes are live until operator reauthentication completes, the successor gate passes, and an explicit development deployment occurs.
+The S1 discovery hardening is deployed in `mmg-concierge-dev`: `resolveSearchPlace`, `searchVehicles`, and `getVehicleDetails` enforce App Check + Auth, native discovery list/search/detail runs behind Functions, direct renter Firestore access to trusted vehicle/image records is denied in Rules, and negative emulator tests verify zero private field leakage.
 
 Production `mmg-concierge` is not a development target. Do not reprovision, clean up, seed, or loosen production resources during this work.
 

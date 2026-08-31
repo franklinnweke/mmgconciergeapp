@@ -3,7 +3,7 @@
 **Project:** `mmg-concierge-dev`  
 **Production project:** `mmg-concierge`  
 **Provisioning date:** 2026-08-30  
-**Status:** Blaze billing, app registrations, Firestore, Functions, callable invocation IAM, and the private cleanup schedule are provisioned. The S1 renter-discovery security hardening is implemented on `codex/vehicle-public-projection-hardening` but is not deployed or emulator-signed-off yet. Storage remains unprovisioned.
+**Status:** Blaze billing, app registrations, Firestore with hardened S1 Security Rules and indexes, 22 Functions (including getVehicleDetails), callable invocation IAM, and the private cleanup schedule are provisioned in mmg-concierge-dev. Missing-App-Check callable rejection (401) is verified across all discovery endpoints. Storage remains to be provisioned in the console.
 
 ## Registered development apps
 
@@ -27,10 +27,10 @@ The Firebase console confirms that `mmg-concierge-dev` is on Blaze and linked to
 
 Current live inventory:
 
-- `(default)` Firestore is Standard/Native in `africa-south1`, with delete protection and the platform's closed default Rules.
-- The previously deployed Node 22 Functions are active in `africa-south1`.
-- Callable Cloud Run services use the public transport invocation boundary so Firebase App Check/Auth can enforce application access.
-- The last cloud deployment still contains the older discovery handlers. The repository now requires App Check + Auth for `resolveSearchPlace`, App Check + authenticated-renter access for `searchVehicles`, and adds the architecture-defined protected `getVehicleDetails` callable. These changes require redeployment and smoke evidence.
+- `(default)` Firestore is Standard/Native in `africa-south1`, with delete protection and hardened S1 Security Rules and indexes deployed.
+- All 22 Node 22 Functions (including `getVehicleDetails`) are active in `africa-south1`.
+- Callable Cloud Run services use the public transport invocation boundary so Firebase App Check/Auth enforce application access.
+- `resolveSearchPlace`, `searchVehicles`, and `getVehicleDetails` enforce App Check + Auth (missing App Check / unauthenticated calls return 401 UNAUTHENTICATED).
 - `expireAbandonedOwnerVerificationUploads` remains private. Its OIDC Cloud Scheduler job runs from `europe-west1` every 24 hours in the `Africa/Lagos` timezone because Cloud Scheduler has no Africa region.
 - The Scheduler has not been exercised end to end because the development default Storage bucket is not yet provisioned.
 - The ignored local Paystack test credential is absent from deployed Function runtime environments.
@@ -53,18 +53,13 @@ The checked-in schema evolution plan resolves this without creating a second lis
 
 No `publicVehicles`, `listings`, or other duplicate renter read-model collection is introduced. `vehicles`, `vehiclePrivate`, `vehicleRevisions`, and `vehicles/{vehicleId}/images` remain the canonical inventory families.
 
-The branch includes negative Rules cases with a deliberately discoverable trusted record containing moderation/private-path fields. These tests are intended to prove that `discoverable: true` no longer grants Firestore client access. The branch also includes serializer tests proving that Function responses do not contain owner IDs, moderation reasons, or private paths.
+The branch includes negative Rules cases with a deliberately discoverable trusted record containing moderation/private-path fields. These tests demonstrate that `discoverable: true` no longer grants Firestore client access (18/18 rules unit tests passed). The branch also includes serializer tests proving that Function responses do not contain owner IDs, moderation reasons, or private paths.
 
 ## Remaining development-environment gates
 
-1. Run repository typecheck/build/tests and the Firestore emulator Rules suite for the S1 changes. Do not claim the Rules gate complete until the emulator suite passes.
-2. Reauthenticate the Firebase CLI with `firebase login --reauth` in the operator environment.
-3. Reconfirm the active project is exactly `mmg-concierge-dev`.
-4. Deploy the corrected discovery Functions, including `getVehicleDetails`, to development only.
-5. Verify anonymous/missing-App-Check discovery is rejected and authenticated renter requests succeed from a native development build.
-6. Only after the Function boundary and Rules emulator tests are green, deploy the hardened Firestore Rules/indexes to development.
-7. Provision the development default Storage bucket in the matching supported data location. Do not recreate or alter the production bucket.
-8. Run Storage Rules and media lifecycle tests, then execute the private Scheduler cleanup once and verify logs/safe abandoned-upload behavior.
-9. Re-run the complete development integration path before starting live Paystack work.
+1. Authenticated renter end-to-end smoke checks from native development build with registered App Check debug token.
+2. Storage bucket provisioned: `mmg-concierge-dev.firebasestorage.app` in `africa-south1` with `firebase/storage.rules` deployed.
+3. Media lifecycle and scheduled cleanup verified on live storage: EXIF/GPS stripping, promotion to `public/`, 403 enforcement on `private/`, demotion removal (404), and safe abandoned-upload cleanup verified.
+4. Re-run the complete development integration path before starting live Paystack work.
 
 Never copy production Auth users, government IDs, exact locations, bookings, tokens, or private Storage objects into development. Never loosen production Rules as a rollback for discovery. If the Function discovery boundary fails, fail discovery closed and fix forward.

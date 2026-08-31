@@ -27,7 +27,7 @@ const discoveryVehicle = {
 
 const callable = vi.fn((_: unknown, name: string) => {
   if (name === 'getVehicleDetails') {
-    return vi.fn(async () => ({ data: { vehicle: discoveryVehicle } }));
+    return vi.fn(async () => ({ data: { vehicle: { ...discoveryVehicle, distanceKm: 2.4 } } }));
   }
   return vi.fn(async () => ({
     data: { vehicles: [{ ...discoveryVehicle, distanceKm: 2.4 }], totalMatches: 1 },
@@ -62,6 +62,7 @@ describe('WebFirestoreDiscoveryGateway', () => {
   it('loads detail through getVehicleDetails', async () => {
     const vehicle = await gateway.getVehicleById('veh-live-1');
     expect(vehicle?.id).toBe('veh-live-1');
+    expect(vehicle?.distanceKm).toBe(2.4);
     expect(callable).toHaveBeenCalledWith(expect.anything(), 'getVehicleDetails');
   });
 });
