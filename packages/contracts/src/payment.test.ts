@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   initializeBookingPaymentCommandSchema,
   paymentGatewayVerifyResultSchema,
+  paymentReferenceSchema,
   paymentStateSchema,
   paystackTransactionStatusSchema,
 } from './payment.js';
@@ -25,6 +26,24 @@ describe('payment contracts', () => {
     expect(paystackTransactionStatusSchema.options).toContain('success');
     expect(paystackTransactionStatusSchema.options).toContain('pending');
     expect(paystackTransactionStatusSchema.options).toContain('reversed');
+  });
+
+  it('accepts only Paystack-supported transaction reference characters', () => {
+    expect(paymentReferenceSchema.parse('mmg-intent-123')).toBe('mmg-intent-123');
+    expect(paymentReferenceSchema.parse('MMG.intent=123')).toBe('MMG.intent=123');
+    expect(paymentReferenceSchema.parse('abcXYZ0123')).toBe('abcXYZ0123');
+  });
+
+  it('rejects transaction reference characters Paystack does not support', () => {
+    for (const reference of [
+      'mmg_intent_123',
+      'mmg/intent/123',
+      'mmg:intent:123',
+      'mmg intent 123',
+      'mmg+intent+123',
+    ]) {
+      expect(() => paymentReferenceSchema.parse(reference)).toThrow();
+    }
   });
 
   it('keeps payment initialization client input narrow', () => {

@@ -8,7 +8,22 @@ import {
   schemaVersionSchema,
 } from './index.js';
 
-const paymentReferenceSchema = z.string().trim().min(1).max(128);
+/**
+ * Paystack transaction reference contract.
+ *
+ * Paystack accepts only ASCII alphanumeric characters plus `-`, `.`, and `=`.
+ * Keep this exported and canonical so the R2 server-side generator, adapter,
+ * persisted payment record, webhook payload parser, and reconciliation path
+ * cannot drift onto different reference alphabets.
+ */
+export const paymentReferenceSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9.=-]+$/, 'Payment reference contains characters Paystack does not support.');
+export type PaymentReference = z.infer<typeof paymentReferenceSchema>;
+
 const paymentAmountKoboSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 const currencyCodeSchema = z.string().trim().length(3).transform((value) => value.toUpperCase());
 

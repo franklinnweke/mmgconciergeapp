@@ -30,13 +30,13 @@ describe('PaystackPaymentAdapter.initializePayment', () => {
       data: {
         authorization_url: 'https://checkout.paystack.com/access-123',
         access_code: 'access-123',
-        reference: 'mmg_intent_123',
+        reference: 'mmg-intent-123',
       },
     });
 
     await expect(
       adapter.initializePayment({
-        reference: 'mmg_intent_123',
+        reference: 'mmg-intent-123',
         email: 'renter@example.com',
         amountKobo: 12_500_000,
         currency: 'NGN',
@@ -45,7 +45,7 @@ describe('PaystackPaymentAdapter.initializePayment', () => {
       }),
     ).resolves.toEqual({
       provider: 'paystack',
-      reference: 'mmg_intent_123',
+      reference: 'mmg-intent-123',
       authorizationUrl: 'https://checkout.paystack.com/access-123',
       accessCode: 'access-123',
       environment: 'test',
@@ -55,7 +55,7 @@ describe('PaystackPaymentAdapter.initializePayment', () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://api.paystack.co/transaction/initialize');
     expect(init?.method).toBe('POST');
-    expect(String(init?.body)).toContain('mmg_intent_123');
+    expect(String(init?.body)).toContain('mmg-intent-123');
     expect(String(init?.body)).toContain('12500000');
   });
 
@@ -116,7 +116,7 @@ describe('PaystackPaymentAdapter.verifyPayment', () => {
       data: {
         domain: 'test',
         status: 'success',
-        reference: 'mmg_intent_123',
+        reference: 'mmg-intent-123',
         amount: 12_500_000,
         currency: 'ngn',
         paid_at: '2026-08-31T05:00:00.000Z',
@@ -124,9 +124,9 @@ describe('PaystackPaymentAdapter.verifyPayment', () => {
       },
     });
 
-    await expect(adapter.verifyPayment({ reference: 'mmg_intent_123' })).resolves.toEqual({
+    await expect(adapter.verifyPayment({ reference: 'mmg-intent-123' })).resolves.toEqual({
       provider: 'paystack',
-      reference: 'mmg_intent_123',
+      reference: 'mmg-intent-123',
       providerStatus: 'success',
       environment: 'test',
       amountKobo: 12_500_000,
@@ -136,7 +136,7 @@ describe('PaystackPaymentAdapter.verifyPayment', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.paystack.co/transaction/verify/mmg_intent_123',
+      'https://api.paystack.co/transaction/verify/mmg-intent-123',
       expect.objectContaining({ method: 'GET' }),
     );
   });
@@ -148,7 +148,7 @@ describe('PaystackPaymentAdapter.verifyPayment', () => {
       data: {
         domain: 'test',
         status: 'pending',
-        reference: 'mmg_intent_pending',
+        reference: 'mmg-intent-pending',
         amount: 900_000,
         currency: 'NGN',
         paid_at: null,
@@ -156,7 +156,7 @@ describe('PaystackPaymentAdapter.verifyPayment', () => {
       },
     });
 
-    const result = await adapter.verifyPayment({ reference: 'mmg_intent_pending' });
+    const result = await adapter.verifyPayment({ reference: 'mmg-intent-pending' });
     expect(result.providerStatus).toBe('pending');
     expect(result).not.toHaveProperty('paidAtIso');
   });
@@ -168,13 +168,13 @@ describe('PaystackPaymentAdapter.verifyPayment', () => {
       data: {
         domain: 'live',
         status: 'success',
-        reference: 'mmg_intent_123',
+        reference: 'mmg-intent-123',
         amount: 12_500_000,
         currency: 'NGN',
       },
     });
 
-    await expect(adapter.verifyPayment({ reference: 'mmg_intent_123' })).rejects.toMatchObject({
+    await expect(adapter.verifyPayment({ reference: 'mmg-intent-123' })).rejects.toMatchObject({
       code: 'FAILED_PRECONDITION',
     });
   });

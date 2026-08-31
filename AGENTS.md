@@ -63,6 +63,7 @@ If status documents conflict with code or Git history, report the discrepancy, v
 - Every MVP rental includes chauffeur and delivery.
 - Payment-first: server price/hold -> server Paystack initialization -> verified provider event -> `paid_pending_owner` -> owner confirm/reject.
 - Callback/deep links are UX only and never payment truth.
+- Paystack transaction references are generated server-side and must satisfy the shared `paymentReferenceSchema`: ASCII alphanumeric characters plus `-`, `.`, and `=` only. Do not use `_`, `/`, spaces or a second validator.
 - Paystack webhooks require HMAC SHA-512 signature verification and independent server verification of reference, status, currency and exact amount before value delivery.
 - Duplicate payment events must never duplicate bookings, blocks, notifications, refunds or financial effects.
 - Late verified payment after hold expiry may become `paid_conflict`; never double-book.
@@ -85,7 +86,7 @@ Snapshot date: **2026-08-31**.
 | WP1 | 🔶 Foundation complete | Phone verification, erasure workflow and MFA remain |
 | WP2 | 🔶 Core complete | Vehicle inventory/moderation/image pipeline/fleet UI delivered; vehicle-upload GC remains |
 | WP3 | ✅ S1 hardening complete | Functions-backed discovery + hardened Rules live in development |
-| WP4 | 🔶 Active sprint | R0 reconciliation locked; R1 payment contracts/Paystack adapter implemented on branch and awaiting shell validation |
+| WP4 | 🔶 Active sprint | R0 locked; R1 green at `caf1efa`; Paystack reference-format correction applied and must be revalidated before R2 |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -110,7 +111,8 @@ Production `mmg-concierge` is not a development target. Do not seed, reprovision
 - Active branch: `codex/wp4-paystack-booking-reconciliation`, created from that exact baseline.
 - Sprint source: `docs/implementation/WP4_PAYSTACK_BOOKING_RECONCILIATION_SPRINT.md`.
 - R0 is complete: architecture/donor reconciliation is committed and locked.
-- R1 currently adds `@mmg/contracts/payment`, a narrow `PaymentGateway` interface and a server-only Paystack initialize/verify adapter. It intentionally does not wire any paid booking transition yet. This slice must be shell-validated before it is treated as green.
+- R1 adds `@mmg/contracts/payment`, a narrow `PaymentGateway` interface and a server-only Paystack initialize/verify adapter. The shell gate at `caf1efa` passed: Functions 268 tests with 7 skipped, root 543 tests with 42 skipped, Admin 66 tests, typecheck/lint/build/check and `git diff --check` clean. No live Paystack call or Firebase mutation occurred.
+- Post-gate review found that R1's generic payment-reference schema and underscore fixtures did not match Paystack's transaction-reference alphabet. The correction exports and tightens `paymentReferenceSchema`, replaces underscore fixtures, and adds positive/negative contract coverage. Re-run the R1 gate before starting R2.
 - Old branch `codex/wp4-booking-operations` is **donor/reference only**. It is 56 commits behind current `main` and must not be merged or cherry-picked wholesale.
 - Donor code may be manually salvaged only after reconciliation with current contracts, roles, booking-block model and architecture.
 - Specifically reject donor `booking_admin`, renter-triggered verify-to-paid as payment truth, invented cancellation/refund policy, auto owner rejection timeout, unrelated seed/asset/UI changes and old schema copies.
@@ -159,6 +161,7 @@ npm run test:storage-rules
 Payment-specific acceptance must include:
 
 - Paystack initialize/verify adapter tests for provider failure and malformed payloads.
+- Paystack reference contract accepts only alphanumeric plus `-`, `.`, `=` and rejects `_`, `/`, spaces and other unsupported characters.
 - Valid/missing/invalid webhook signature tests.
 - Duplicate/replayed event tests.
 - Wrong reference, wrong currency and wrong amount tests.
