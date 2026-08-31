@@ -5,7 +5,10 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "MMG_FIREBASE_ENV": "development"
+      }
     },
     "development-simulator": {
       "extends": "development",
@@ -14,10 +17,16 @@
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "MMG_FIREBASE_ENV": "development"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "MMG_FIREBASE_ENV": "production"
+      }
     }
   },
   "submit": {

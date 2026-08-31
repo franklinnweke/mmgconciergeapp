@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "mmg-concierge"
+    "default": "mmg-concierge",
+    "development": "mmg-concierge-dev",
+    "production": "mmg-concierge"
   }
 }
