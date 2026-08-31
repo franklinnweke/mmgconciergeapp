@@ -128,7 +128,7 @@ The active `codex/vehicle-public-projection-hardening` branch implements S1 with
 - negative Rules and serializer tests for moderation/private-path leakage;
 - inherited mobile image fallback lint repair without decorative CTA arrows.
 
-The current follow-up commit must be validated by the shell-capable operator before any Firebase deployment. No Firebase deployment is authorized solely by this commit.
+A shell-capable operator validated the S1 code at `579249b`: Functions typecheck/build and tests passed; root, Mobile, and Admin gates passed; Firestore Rules emulator passed 18/18; Storage Rules emulator passed 17/17; `npm run check` and `git diff --check` passed. The validated Functions, hardened Firestore Rules/indexes, and Storage Rules were then deployed only to `mmg-concierge-dev`, followed by successful native iOS App Check/Auth discovery smoke tests and live Storage lifecycle/cleanup verification. Subsequent commits in this branch are documentation and test-fixture reconciliation only; production `mmg-concierge` remains untouched.
 
 ## 6. Milestone checker
 
