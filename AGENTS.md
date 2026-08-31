@@ -85,7 +85,7 @@ Snapshot date: **2026-08-31**.
 | WP1 | 🔶 Foundation complete | Phone verification, erasure workflow and MFA remain |
 | WP2 | 🔶 Core complete | Vehicle inventory/moderation/image pipeline/fleet UI delivered; vehicle-upload GC remains |
 | WP3 | ✅ S1 hardening complete | Functions-backed discovery + hardened Rules live in development |
-| WP4 | 🔶 Active sprint | Paystack + trusted paid-booking reconciliation on `codex/wp4-paystack-booking-reconciliation` |
+| WP4 | 🔶 Active sprint | R0 reconciliation locked; R1 payment contracts/Paystack adapter implemented on branch and awaiting shell validation |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -109,17 +109,20 @@ Production `mmg-concierge` is not a development target. Do not seed, reprovision
 - `main` baseline: `87ad89e`, squash merge of PR #19 (`security(discovery): harden renter data boundary and development storage`).
 - Active branch: `codex/wp4-paystack-booking-reconciliation`, created from that exact baseline.
 - Sprint source: `docs/implementation/WP4_PAYSTACK_BOOKING_RECONCILIATION_SPRINT.md`.
+- R0 is complete: architecture/donor reconciliation is committed and locked.
+- R1 currently adds `@mmg/contracts/payment`, a narrow `PaymentGateway` interface and a server-only Paystack initialize/verify adapter. It intentionally does not wire any paid booking transition yet. This slice must be shell-validated before it is treated as green.
 - Old branch `codex/wp4-booking-operations` is **donor/reference only**. It is 56 commits behind current `main` and must not be merged or cherry-picked wholesale.
 - Donor code may be manually salvaged only after reconciliation with current contracts, roles, booking-block model and architecture.
 - Specifically reject donor `booking_admin`, renter-triggered verify-to-paid as payment truth, invented cancellation/refund policy, auto owner rejection timeout, unrelated seed/asset/UI changes and old schema copies.
 
-The following are not live merely because donor code exists:
+The following are not live merely because donor code or R1 adapter code exists:
 
 1. Paystack production payments.
-2. Verified webhook processing that creates a trusted paid booking.
-3. Refund settlement.
-4. In-app chat or production push notifications.
-5. Ledger, wallets or withdrawals.
+2. A callable that initializes booking payment in Firestore.
+3. Verified webhook processing that creates a trusted paid booking.
+4. Refund settlement.
+5. In-app chat or production push notifications.
+6. Ledger, wallets or withdrawals.
 
 ## 6. WP4 sprint gate
 
