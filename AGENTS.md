@@ -42,7 +42,7 @@ If a status document conflicts with code or Git history, report the discrepancy,
 | Vehicle inventory/moderation | `docs/implementation/SEQUENCE_2_3_VEHICLE_INVENTORY_AND_OWNER_OPERATIONS_SPEC.md`, `docs/WP0_WP2_IMPLEMENTATION_STATUS.md`, `apps/functions/src/vehicle`, `apps/admin/src/features/vehicles`, and Firebase rules/indexes |
 | Renter trips/booking operations | `docs/implementation/SEQUENCE_3_COMPLETION_AGENT_HANDOFF.md`, `docs/implementation/ANTIGRAVITY_SEQUENCE_1_3_WORKPLAN.md`, `apps/mobile/src/features/booking`, and `apps/functions/src/booking` |
 | Discovery/search/detail | Architecture handoff §§3.5, 6.5, 8.4; WP3 in the completion plan; mobile discovery feature files |
-| Firebase Auth/App Check/Firestore/Storage | The relevant Firebase skill, `firebase/`, `apps/mobile/src/core/firebase`, `apps/functions/src/index.ts`, and `CLAUDE.md` security invariants |
+| Firebase Auth/App Check/Firestore/Storage | The relevant Firebase skill, `docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`, `firebase/`, `apps/mobile/src/core/firebase`, `apps/functions/src/index.ts`, and `CLAUDE.md` security invariants |
 | Admin route or server action | `apps/admin/AGENTS.md` first, then `apps/admin/CLAUDE.md`, session helpers, and the corresponding gateway/service tests |
 | UI/brand/motion | `docs/design/MMG_CONCIERGE_OVERALL_DESIGN_PLAN.md`, `packages/brand`, and `CLAUDE.md` mobile/frontend conventions |
 | Paystack, wallets, refunds, withdrawals | Architecture handoff §§3.8–3.10 and 9; ADR 0005; WP4/WP6. These remain deliberately unavailable unless the task explicitly changes the boundary. |
@@ -128,7 +128,7 @@ The merged `main` history currently contains:
 
 Treat WP4 as an **in-progress availability and booking pass** and always fail closed on unimplemented payment or paid-booking paths.
 
-The active `codex/firebase-dev-environment` branch is reconciled onto `origin/main` at `e29944a`. It contains deterministic Functions deployment packaging, explicit callable transport configuration, the private cross-region Scheduler handoff, and the discovery App Check/Auth correction. The immediate operational gate is redeploying and smoke-testing the corrected discovery handlers after Firebase CLI reauthentication; the next code/data gate remains the trusted/public vehicle projection repair. This is not authorization to deploy the current Firestore or Storage Rules.
+The active `codex/firebase-dev-environment` branch is reconciled onto `origin/main` at `e29944a`. It contains deterministic Functions deployment packaging, explicit callable transport configuration, the private cross-region Scheduler handoff, and the discovery App Check/Auth correction. The recommended schema evolution plan preserves the current canonical collections, rejects legacy import/dual `listings`, and closes the projection leak by moving renter vehicle list/detail reads behind authenticated Functions before tightening Rules. The immediate operational gate is redeploying and smoke-testing the corrected discovery handlers after Firebase CLI reauthentication; the immediate code/data gate is S1 in `docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`. This is not authorization to deploy the current Firestore or Storage Rules.
 
 ## 6. Milestone checker
 
