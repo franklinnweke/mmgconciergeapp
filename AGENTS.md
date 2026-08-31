@@ -128,7 +128,7 @@ The merged `main` history currently contains:
 
 Treat WP4 as an **in-progress availability and booking pass** and always fail closed on unimplemented payment or paid-booking paths.
 
-The active `codex/firebase-dev-environment` branch is reconciled onto `origin/main` at `e29944a`. It contains deterministic Functions deployment packaging, explicit callable transport configuration, the private cross-region Scheduler handoff, and the discovery App Check/Auth correction. The recommended schema evolution plan preserves the current canonical collections, rejects legacy import/dual `listings`, and closes the projection leak by moving renter vehicle list/detail reads behind authenticated Functions before tightening Rules. The immediate operational gate is redeploying and smoke-testing the corrected discovery handlers after Firebase CLI reauthentication; the immediate code/data gate is S1 in `docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`. This is not authorization to deploy the current Firestore or Storage Rules.
+The active `codex/vehicle-public-projection-hardening` branch starts from merged `main` at `e7e730f`. It carries the recommended schema evolution plan omitted from that merge and the inherited Mobile image-fallback lint repair. The plan preserves the current canonical collections, rejects legacy import/dual `listings`, and closes the projection leak by moving renter vehicle list/detail reads behind authenticated Functions before tightening Rules. The immediate operational gate is redeploying and smoke-testing the corrected discovery handlers after Firebase CLI reauthentication; the immediate code/data gate is S1 in `docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`. This is not authorization to deploy the current Firestore or Storage Rules.
 
 ## 6. Milestone checker
 
@@ -145,7 +145,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The latest 2026-08-30 discovery-boundary checkpoint passed Functions typecheck/build, **28 Functions test files with 262 tests** (plus 1 file/7 tests skipped), and **73 root test files with 537 tests** (plus 3 files/42 tests skipped). `npm run check` was attempted: root tests and Mobile typecheck passed, but the gate stopped at two pre-existing `react-hooks/set-state-in-effect` Mobile lint errors in `browse-vehicle-card.tsx` and `featured-vehicle-card.tsx`; both files are unchanged from `origin/main`. Functions/Admin steps after Mobile lint did not run in that chained command, though Functions checks passed independently. A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, Mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The latest 2026-08-30 branch-foundation checkpoint has a fully green `npm run check`: **73 root test files with 537 tests** passed (plus 3 files/42 tests skipped), Mobile typecheck/lint passed, Functions typecheck/build passed, and Admin typecheck/lint plus **10 files/66 tests** passed. The inherited image-fallback effects were replaced with source-identity-derived failure state, and a stale generated Admin `.next` cache was cleared before the successful gate. A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules

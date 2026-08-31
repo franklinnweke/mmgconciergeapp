@@ -4,7 +4,7 @@ import { VehicleSummary } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
@@ -20,11 +20,15 @@ type BrowseVehicleCardProps = {
 };
 
 export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) {
-  const [useFallbackImage, setUseFallbackImage] = useState(false);
-
-  useEffect(() => {
-    setUseFallbackImage(false);
-  }, [vehicle.id, vehicle.imageUrl, vehicle.imageUrls, vehicle.primaryImageUrl]);
+  const imageIdentity = [
+    vehicle.id,
+    vehicle.imageUrl,
+    vehicle.primaryImageUrl,
+    vehicle.imageUrls?.[0],
+    vehicle.imageKey,
+  ].join('|');
+  const [failedImageIdentity, setFailedImageIdentity] = useState<string | null>(null);
+  const useFallbackImage = failedImageIdentity === imageIdentity;
 
   return (
     <PressableScale
@@ -42,7 +46,7 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
           ) : (
             <Image
               contentFit="cover"
-              onError={() => setUseFallbackImage(true)}
+              onError={() => setFailedImageIdentity(imageIdentity)}
               source={
                 useFallbackImage
                   ? resolveVehicleFallbackImageSource(vehicle)
