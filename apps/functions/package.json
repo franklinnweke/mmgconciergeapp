@@ -14,7 +14,7 @@
     "zod": "4.1.10"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=lib/index.js --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/* --external:sharp",
+    "build": "tsc -p tsconfig.json --noEmit && esbuild src/deploy.ts --bundle --platform=node --format=esm --target=node22 --outfile=lib/index.js --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/* --external:sharp",
     "test": "vitest run src",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }

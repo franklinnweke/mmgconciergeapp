@@ -1,52 +1,7 @@
 rules_version = '2';
 
-// ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Collection: bookingIntents/{intentId} (server-owned)
-//   - renterId: string (required, immutable, owner-scoped reads)
-//   - all prices, state, timestamps, and version snapshots: server-owned
-// Collection: bookings/{bookingId} (server-owned)
-//   - renterId: string (required, immutable, owner-scoped reads)
-//   - payment evidence, prices, state, and timeline: server-owned
-// Collection: ownerProfiles/{ownerId} (server-owned)
-//   - ownerId: string (owner-scoped get only; list/write denied)
-//   - legalName, address, verification status, terms metadata: server-managed
-// Collection: ownerVerifications/{ownerId} (server-only)
-// Collection: adminAuditLogs/{logId} (server-only)
-// Collection: notificationOutbox/{eventId} (server-only)
-// Collections bookingBlocks, vehicleAvailability, payments, auditEvents,
-// notificationOutbox, idempotencyKeys, and systemConfig are trusted-backend-only.
-// Collection: users/{userId} (client-created once, then immutable)
-//   - uid: authenticated UID
-//   - accountType: renter | owner (admin is never a public account type)
-//   - displayName, email: bounded identity fields
-//   - createdAt, updatedAt: server timestamps
-//
-// Deprecated compatibility collection: users/{userId}/bookingRequests/{requestId}
-// Fields (all required):
-//   - userId: string (1-128 chars, immutable, must equal authenticated UID)
-//   - vehicleId: string (1-128 chars, immutable)
-//   - durationDays: integer (1-30, immutable)
-//   - pickupAt: timestamp (future at creation, immutable)
-//   - returnAt: timestamp (after pickupAt, immutable)
-//   - dailyRateKobo: integer (1-1,000,000,000, immutable estimate)
-//   - totalKobo: integer (1-50,000,000,000, immutable estimate)
-//   - status: availability_requested | confirmed | payment_required | booked
-//   - createdAt: timestamp (server time, immutable)
-//   - updatedAt: timestamp (server time; backend-managed after creation)
-//
-// Renters may create availability_requested documents and read their own
-// subcollection. Client update/delete is denied. Status progression and
-// authoritative repricing are reserved for trusted Admin SDK code.
-// ===============================================================
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // =============================================================
-    // Common helpers
-    // =============================================================
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -89,28 +44,15 @@ service cloud.firestore {
         resource.data.renterId == request.auth.uid;
     }
 
-    function canReadVehicle(vehicleId) {
-      return isAuthenticated() && (
-        get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.ownerId == request.auth.uid ||
-        get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.discoverable == true
-      );
+    function ownsVehicle(vehicleId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.ownerId == request.auth.uid;
     }
 
-    // =============================================================
-    // Domain validators
-    // =============================================================
     function isValidBookingRequest(data) {
       let fields = [
-        'userId',
-        'vehicleId',
-        'durationDays',
-        'pickupAt',
-        'returnAt',
-        'dailyRateKobo',
-        'totalKobo',
-        'status',
-        'createdAt',
-        'updatedAt'
+        'userId', 'vehicleId', 'durationDays', 'pickupAt', 'returnAt',
+        'dailyRateKobo', 'totalKobo', 'status', 'createdAt', 'updatedAt'
       ];
 
       return hasRequiredFields(data, fields) &&
@@ -119,72 +61,41 @@ service cloud.firestore {
         data.userId.size() >= 1 && data.userId.size() <= 128 &&
         data.vehicleId is string &&
         data.vehicleId.size() >= 1 && data.vehicleId.size() <= 128 &&
-        data.durationDays is int &&
-        data.durationDays >= 1 && data.durationDays <= 30 &&
-        data.pickupAt is timestamp &&
-        data.returnAt is timestamp &&
+        data.durationDays is int && data.durationDays >= 1 && data.durationDays <= 30 &&
+        data.pickupAt is timestamp && data.returnAt is timestamp &&
         data.returnAt > data.pickupAt &&
-        data.dailyRateKobo is int &&
-        data.dailyRateKobo >= 1 && data.dailyRateKobo <= 1000000000 &&
-        data.totalKobo is int &&
-        data.totalKobo >= 1 && data.totalKobo <= 50000000000 &&
-        data.status in [
-          'availability_requested',
-          'confirmed',
-          'payment_required',
-          'booked'
-        ] &&
-        data.createdAt is timestamp &&
-        data.updatedAt is timestamp;
+        data.dailyRateKobo is int && data.dailyRateKobo >= 1 && data.dailyRateKobo <= 1000000000 &&
+        data.totalKobo is int && data.totalKobo >= 1 && data.totalKobo <= 50000000000 &&
+        data.status in ['availability_requested', 'confirmed', 'payment_required', 'booked'] &&
+        data.createdAt is timestamp && data.updatedAt is timestamp;
     }
 
     function isValidAccountProfile(data) {
-      let fields = [
-        'uid',
-        'accountType',
-        'displayName',
-        'email',
-        'createdAt',
-        'updatedAt'
-      ];
+      let fields = ['uid', 'accountType', 'displayName', 'email', 'createdAt', 'updatedAt'];
 
       return hasRequiredFields(data, fields) &&
         hasOnlyAllowedFields(data, fields) &&
-        data.uid is string &&
-        data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
         data.accountType in ['renter', 'owner'] &&
-        data.displayName is string &&
-        data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
-        data.email is string &&
-        data.email.size() >= 3 && data.email.size() <= 254 &&
-        request.auth.token.email is string &&
-        data.email == request.auth.token.email &&
-        data.createdAt is timestamp &&
-        data.updatedAt is timestamp;
+        data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        request.auth.token.email is string && data.email == request.auth.token.email &&
+        data.createdAt is timestamp && data.updatedAt is timestamp;
     }
 
     match /users/{userId} {
       allow read: if isOwner(userId);
-
       allow create: if isOwner(userId) &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.uid == userId &&
         isValidAccountProfile(request.resource.data) &&
         request.resource.data.createdAt == request.time &&
         request.resource.data.updatedAt == request.time;
-
-      // Account type is immutable from the client. Support can migrate an
-      // identity through reviewed Admin SDK tooling when required.
       allow update, delete: if false;
     }
 
     match /users/{userId}/bookingRequests/{requestId} {
-      // Deprecated Phase 2 compatibility path. Remove after mobile switches to
-      // the createBookingIntent callable. No client status update is allowed.
-      // Path ownership supports both direct document reads and collection
-      // listeners; every client-created document is separately UID-validated.
       allow read: if isOwner(userId);
-
       allow create: if isOwner(userId) &&
         uidUnchanged() &&
         isValidBookingRequest(request.resource.data) &&
@@ -193,16 +104,9 @@ service cloud.firestore {
         isRecent(request.resource.data.createdAt) &&
         request.resource.data.createdAt == request.time &&
         request.resource.data.updatedAt == request.time;
-
-      // Explicitly exercise the full update validator and ownership guards,
-      // then deny. Trusted Admin SDK code owns all status progression.
       allow update: if isOwner(userId) &&
-        isDocOwner() &&
-        uidNotModified() &&
-        isValidBookingRequest(request.resource.data) &&
-        false;
-
-      // Client deletes are intentionally absent.
+        isDocOwner() && uidNotModified() &&
+        isValidBookingRequest(request.resource.data) && false;
     }
 
     match /bookingIntents/{intentId} {
@@ -210,50 +114,35 @@ service cloud.firestore {
     }
 
     match /bookings/{bookingId} {
-      allow read: if isRenterRecord() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow read: if isRenterRecord() ||
+        (isAuthenticated() && resource.data.ownerId == request.auth.uid);
     }
 
-    // ── Vehicle collections ──
-
+    // Trusted owner/moderation records. Renter list/search/detail is served only
+    // by authenticated App Check Functions using the Admin SDK.
     match /vehicles/{vehicleId} {
-      // Owner may read own vehicles; renter may read only discoverable public listings
-      allow get: if isAuthenticated() && (
-        resource.data.ownerId == request.auth.uid ||
-        resource.data.discoverable == true
-      );
-      // Query constraints are enforced by evaluating each candidate resource.
-      // Clients must query by ownerId or discoverable == true.
-      allow list: if isAuthenticated() && (
-        resource.data.ownerId == request.auth.uid ||
-        resource.data.discoverable == true
-      );
+      allow get, list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
     }
 
     match /vehiclePrivate/{vehicleId} {
-      // Owner and authorized staff (via Admin SDK) only; never renter
-      allow get: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
-      allow list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow get, list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
     }
 
     match /vehicles/{vehicleId}/images/{imageId} {
-      // Public images are readable only with an owner-readable or discoverable parent.
-      allow read: if canReadVehicle(vehicleId);
+      // Image documents contain upload IDs, processing facts and private paths.
+      // Renters receive only strict URLs/metadata serialized by Functions.
+      allow get, list: if ownsVehicle(vehicleId);
       allow write: if false;
     }
 
     match /vehicleRevisions/{revisionId} {
-      // Owner may read own revisions; staff via Admin SDK
-      allow get: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
-      allow list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow get, list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
     }
 
-    // ── Booking cases ──
-
     match /bookingCases/{caseId} {
-      // Participants and admin read; no client writes
       allow read: if isAuthenticated() && (
         resource.data.renterId == request.auth.uid ||
         resource.data.ownerId == request.auth.uid
@@ -279,8 +168,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Explicit server-owned collection declarations aid review. With no allow
-    // statements, every client create/read/update/delete remains denied.
     match /bookingBlocks/{blockId} {
       allow read, write: if false;
     }
@@ -303,8 +190,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Default deny protects all current and future paths unless explicitly
-    // opened by a reviewed vertical slice.
     match /{document=**} {
       allow read, write: if false;
     }

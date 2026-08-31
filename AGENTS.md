@@ -41,8 +41,8 @@ If a status document conflicts with code or Git history, report the discrepancy,
 | Renter profile/privacy/deletion | WP1 in completion plan, `packages/contracts`, `packages/domain`, `apps/functions/src/renter`, `apps/mobile/src/features/account`, and Firestore rules |
 | Vehicle inventory/moderation | `docs/implementation/SEQUENCE_2_3_VEHICLE_INVENTORY_AND_OWNER_OPERATIONS_SPEC.md`, `docs/WP0_WP2_IMPLEMENTATION_STATUS.md`, `apps/functions/src/vehicle`, `apps/admin/src/features/vehicles`, and Firebase rules/indexes |
 | Renter trips/booking operations | `docs/implementation/SEQUENCE_3_COMPLETION_AGENT_HANDOFF.md`, `docs/implementation/ANTIGRAVITY_SEQUENCE_1_3_WORKPLAN.md`, `apps/mobile/src/features/booking`, and `apps/functions/src/booking` |
-| Discovery/search/detail | Architecture handoff §§3.5, 6.5, 8.4; WP3 in the completion plan; mobile discovery feature files |
-| Firebase Auth/App Check/Firestore/Storage | The relevant Firebase skill, `docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`, `firebase/`, `apps/mobile/src/core/firebase`, `apps/functions/src/index.ts`, and `CLAUDE.md` security invariants |
+| Discovery/search/detail | Architecture handoff §§3.5, 6.5, 8.4; `docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md` S1; mobile discovery feature files; Functions discovery service/tests |
+| Firebase Auth/App Check/Firestore/Storage | `docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`, `docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md`, `firebase/`, `apps/mobile/src/core/firebase`, Functions deployment entrypoint, and `CLAUDE.md` security invariants |
 | Admin route or server action | `apps/admin/AGENTS.md` first, then `apps/admin/CLAUDE.md`, session helpers, and the corresponding gateway/service tests |
 | UI/brand/motion | `docs/design/MMG_CONCIERGE_OVERALL_DESIGN_PLAN.md`, `packages/brand`, and `CLAUDE.md` mobile/frontend conventions |
 | Paystack, wallets, refunds, withdrawals | Architecture handoff §§3.8–3.10 and 9; ADR 0005; WP4/WP6. These remain deliberately unavailable unless the task explicitly changes the boundary. |
@@ -52,33 +52,36 @@ If a status document conflicts with code or Git history, report the discrepancy,
 - Firebase is the backend: Authentication, Firestore, Storage, Functions v2, App Check, FCM, Crashlytics, and Cloud Logging.
 - Firebase topology is two-tier: use emulators locally, `mmg-concierge-dev` for cloud development/integration, and `mmg-concierge` for controlled/public production. No dedicated staging project is required for MVP (ADR 0008).
 - Firestore client access is deny-by-default. Trusted state is written through Admin SDK/services, not direct client writes.
+- Renter vehicle list/search/detail must cross authenticated, App-Check-protected Functions. Trusted `vehicles`, `vehiclePrivate`, vehicle revisions, and vehicle image documents are never renter-readable Firestore documents.
+- Do not add a parallel `listings`, `publicVehicles`, or other duplicate vehicle read-model collection without a reviewed ADR. The canonical vehicle aggregate remains the current trusted collection family.
 - All money is integer NGN kobo. Pricing is server-authoritative and uses the canonical domain calculation.
 - Dates are date-only `YYYY-MM-DD` and intervals are half-open `[startDate, endDate)`.
 - Mutations are contract-first, authorized, schema-validated, transactional where needed, audited, and idempotent.
-- Owner/vehicle approval precedes public discoverability. Only approved + active + discoverable vehicles are renter-readable.
-- Exact addresses, exact coordinates, plates, private storage paths, government IDs, payout data, and admin notes never cross renter-visible DTO boundaries.
+- Owner/vehicle approval precedes public discoverability. Only approved + active + discoverable vehicles may be serialized into renter discovery DTOs.
+- Exact addresses, exact coordinates, plates, persistent owner IDs, private storage paths, government IDs, moderation/admin notes, payout data, and image-processing internals never cross renter discovery DTO boundaries.
 - Admin sessions require a fresh verified Firebase identity and an allowed staff claim. Fixture mode must be development-only and visibly non-production.
 - Every rental includes chauffeur and delivery in the MVP.
 - Paystack, real payment confirmation, escrow, payouts, MFA, live tracking, chat, and wallet settlement are not live until their explicit work-package exit gates pass. Unimplemented paths must fail honestly, never claim success.
 - Expo Go is not a supported Firebase-auth runtime; use an EAS or local native development build.
+- Decorative arrows are not permitted in CTA/button labels. Arrows are reserved for functional navigation controls such as back, carousel, pagination, or directions.
 
 ## 5. Current milestone snapshot
 
-Snapshot date: **2026-08-30**. Verify against `git status`, `git log`, [`docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md`](docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md), and [`docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md`](docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md) before relying on it.
+Snapshot date: **2026-08-30**. Verify against `git status`, `git log`, [`docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md`](docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md), [`docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`](docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md), and [`docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md`](docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md) before relying on it.
 
 | Milestone | Status | Evidence / next gate |
 |---|---|---|
-| Phase 1 — experience foundation | ✅ Complete | Expo workspace, brand system, navigation, discovery foundation, checks |
-| Sequence 1 — owner verification | ✅ Merged | Owner contracts, rules, Functions, mobile flow, Admin desk; merged to `main` |
-| Sequence 3 — renter trips/booking foundation | ✅ Foundation complete | Trusted read-only boundaries, truthful trip states, booking intent foundation; continue only through handoff exit gates |
+| Phase 1 — experience foundation | ✅ Complete | Expo workspace, brand system, navigation, discovery foundation |
+| Sequence 1 — owner verification | ✅ Merged | Owner contracts, rules, Functions, mobile flow, Admin desk |
+| Sequence 3 — renter trips/booking foundation | ✅ Foundation complete | Trusted read-only boundaries, truthful trip states, booking intent foundation |
 | WP0 — foundation corrections | 🔶 Mostly complete | Terms, masking, CSRF, pagination and ADRs are present; client quote defaults can diverge from versioned server pricing |
-| WP2 A–C — vehicle contracts, rules, Functions | ✅ Complete | Vehicle draft/upload/finalize/submit/review/visibility foundations and emulator coverage |
-| WP2 D — image processing/promotion | ✅ Complete in current implementation | Sharp variants, EXIF/GPS removal, approved-object promotion and renter projection |
-| WP2 F — Admin vehicle moderation | ✅ Complete | Live Firestore gateway rewritten against real flat/private schemas, server action wired to reviewVehicle + storage promotion, 7-point checklist enforced, 8/8 admin test files passing |
-| WP2 E — owner mobile fleet UI | ✅ Complete | Owner fleet list, 6-step create/submit wizard with image picking + upload session + binary PUT + finalize pipeline, authoritative version sync, live visibility toggling, vehicle inspector desk, router connections |
+| WP2 A–C — vehicle contracts, rules, Functions | ✅ Complete | Vehicle draft/upload/finalize/submit/review/visibility foundations |
+| WP2 D — image processing/promotion | ✅ Complete in current implementation | Sharp variants, EXIF/GPS removal, approved-object promotion |
+| WP2 F — Admin vehicle moderation | ✅ Complete | Live gateway, review command, storage promotion, checklist and Admin tests |
+| WP2 E — owner mobile fleet UI | ✅ Complete | Fleet list, create/submit wizard, image pipeline, visibility controls |
 | WP1 — renter profile/privacy/MFA | 🔶 Foundation complete | Profile/address/terms and deletion-request commands exist; verified phone, completed deletion/erasure workflow and MFA remain |
-| WP3 — live Lagos discovery | ✅ Complete | Strict live projections, Lagos search/ranking, native/web Firestore gateways, renter vehicle detail and booking review are connected; selected dates are checked through the privacy-safe vehicle calendar before quote review |
-| WP4 — availability and Paystack-ready booking | 🔶 Calendar + owner-response slice complete | Owner calendar, renter availability gates, atomic intents/holds, and the privacy-safe owner bookings desk are connected. Confirm/reject remain restricted to server-established `paid_pending_owner`; rejection releases dates and opens intervention. Trusted paid-booking creation, SLA alerts, and Paystack remain incomplete |
+| WP3 — live Lagos discovery | 🔶 Security hardening in progress | Search/ranking/detail UX exists, but S1 must remove all renter Firestore reads and prove strict Function DTO/network boundaries before Rules deployment |
+| WP4 — availability and Paystack-ready booking | 🔶 Calendar + owner-response slice complete | Atomic intents/holds and owner-response services exist; trusted paid-booking creation, SLA alerts, and Paystack remain incomplete |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
@@ -86,49 +89,45 @@ Snapshot date: **2026-08-30**. Verify against `git status`, `git log`, [`docs/re
 
 ### Firebase infrastructure checkpoint
 
-The development Firebase project `mmg-concierge-dev` is on the **Blaze (Pay-as-you-go) plan** and is now provisioned as follows:
+The development Firebase project `mmg-concierge-dev` is on Blaze and currently has:
 
-1. iOS, Android, and Admin web apps are registered; Email/Password and Google Authentication are enabled.
-2. Standard/Native `(default)` Firestore exists in `africa-south1` with delete protection and the platform's closed default Rules.
-3. All 21 Node 22 Functions v2 are active in `africa-south1`. The 20 callable services accept public network invocation so Firebase App Check/Auth can enforce application access. The last cloud deployment left discovery anonymous; the reconciled branch now restores mandatory App Check and Auth for `resolveSearchPlace` and App Check plus authenticated-renter access for `searchVehicles`. Redeployment is pending.
-4. `expireAbandonedOwnerVerificationUploads` remains private. Its OIDC Cloud Scheduler job runs from `europe-west1` every 24 hours in the `Africa/Lagos` timezone because Cloud Scheduler has no Africa region.
-5. The ignored local Paystack test credential is absent from every deployed Function environment.
+1. Registered iOS, Android, and Admin web apps; Email/Password and Google Authentication enabled.
+2. Standard/Native `(default)` Firestore in `africa-south1` with delete protection and the platform's closed default Rules.
+3. Previously deployed Node 22 Functions in `africa-south1` with public Cloud Run transport invocation for callable endpoints.
+4. Private `expireAbandonedOwnerVerificationUploads` scheduled from `europe-west1` through OIDC to the `africa-south1` Function.
+5. No development default Storage bucket yet.
 
-The development default Storage bucket is not provisioned, so scheduled cleanup is configured but not operationally signed off. Repository Firestore Rules must not be deployed until the trusted/public vehicle projection leak documented in the development-environment handoff is repaired and covered by negative emulator tests. The corrected discovery boundary must be redeployed and verified with anonymous rejection plus authenticated native App Check smoke evidence. The local Firebase CLI session expired after provisioning and requires `firebase login --reauth` before another CLI mutation.
+The last cloud deployment predates the current S1 discovery work. The repository now protects `resolveSearchPlace` and `searchVehicles`, adds the architecture-defined protected `getVehicleDetails`, moves native live discovery list/search/detail behind Functions, removes renter Firestore access to trusted vehicle/image records, and adds negative Rules/serializer tests. None of those new S1 changes are live until operator reauthentication, local/emulator validation, and an explicit development deployment occur.
 
-Do not reprovision or clean up the working production project `mmg-concierge`. Production deployments and cleanup remain separately authorized, production-impacting actions.
+Production `mmg-concierge` is not a development target. Do not reprovision, clean up, seed, or loosen production resources during this work.
 
-### Current GitHub baseline & Working Tree Status
+### Current GitHub baseline & working state
 
-The merged `main` history currently contains:
+Merged `main` includes PR #18 at `e7e730f`, which provisioned/reconciled the development Firebase environment and discovery authentication boundary.
 
-- `1abe508` — owner verification
-- `343b031` — vehicle foundation/workflow
-- `7d8003f` — app experience/auth/discovery
-- `71f88ae` — initial Admin vehicle moderation desk
-- `9c42061` — repository-wide agent context
-- `537e5a6` — renter privacy/profile foundation
-- `8c61703` — reviewed workstream integration baseline
-- `f8bed42` / `08cc53f` — availability contracts and transactional services
-- `5d1a405` / `85237f6` — owner availability gateway and calendar UI
-- `1cced79` — owner/renter vehicle route collision repair
-- `0c2efc2` — renter selected-date availability gate
-- `33d399a` / `c017c02` — controlled owner-response contracts and transactional services
-- `0ae6186` / `30bf349` — privacy-safe owner booking data boundary and owner bookings desk
+The unmerged `codex/wp4-booking-operations` branch remains donor/reference code only. It is not evidence that Paystack or WP4 is complete.
 
-`main` includes `cd82a07`, the reviewed renter-preview stability repair. The unmerged `codex/wp4-booking-operations` branch is a broad experimental payment/booking pass and must be reviewed and ported selectively. It is not evidence that WP4 or Paystack is complete. The following paths are **not safe to treat as live**:
+The following are not safe to treat as live:
 
-1. **Paystack Payments & Settlement**: Live NGN card charging, webhook handling, escrow capture, and refunds are not live. (WP4/ADR 0005).
-2. **Paid Booking Creation and Later Lifecycle**: No trusted verified-payment event currently creates `paid_pending_owner`. Owner response services exist but have no legitimate live input yet; later transitions such as `in_progress`, `completed`, and `refunded` remain unavailable.
-3. **In-App Messaging / Chat**: Live renter-owner-concierge chat channels are not live (WP5).
-4. **Real-Time GPS Vehicle Tracking**: Live telematics / driver tracking is not implemented.
-5. **Push Notifications (FCM / APNs)**: Production APNs certificates / outbox processors are not live (WP5).
-6. **Vehicle Upload Garbage Collection**: Abandoned upload cleanup cron currently covers only owner verification uploads (`private/owner-verifications`); vehicle upload prefix cleanup is pending.
-7. **Ledger & Wallets**: Append-only double-entry financial ledger and bank withdrawals are not live (WP6).
+1. Paystack payments, verified webhook processing, refunds, settlement, or payouts.
+2. A trusted payment event creating `paid_pending_owner`.
+3. In-app chat or production push notifications.
+4. Live driver/vehicle tracking.
+5. Vehicle-upload garbage collection beyond the existing owner-verification cleanup path.
+6. Ledger, wallets, or withdrawals.
 
-Treat WP4 as an **in-progress availability and booking pass** and always fail closed on unimplemented payment or paid-booking paths.
+The active `codex/vehicle-public-projection-hardening` branch implements S1 without adding a second Firestore read model:
 
-The active `codex/vehicle-public-projection-hardening` branch starts from merged `main` at `e7e730f`. It carries the recommended schema evolution plan omitted from that merge and the inherited Mobile image-fallback lint repair. The plan preserves the current canonical collections, rejects legacy import/dual `listings`, and closes the projection leak by moving renter vehicle list/detail reads behind authenticated Functions before tightening Rules. The immediate operational gate is redeploying and smoke-testing the corrected discovery handlers after Firebase CLI reauthentication; the immediate code/data gate is S1 in `docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`. This is not authorization to deploy the current Firestore or Storage Rules.
+- new strict discovery wire contracts that omit owner identity and trusted fields;
+- `searchVehicles` service serialization through that whitelist;
+- architecture-defined `getVehicleDetails` callable behind App Check + authenticated-renter access;
+- mobile native live list/search/detail through Functions instead of direct Firestore;
+- web live gateway through Functions while preserving explicit preview-only fixtures;
+- Firestore Rules changed so `discoverable: true` never grants renter access to trusted vehicle/image documents;
+- negative Rules and serializer tests for moderation/private-path leakage;
+- inherited mobile image fallback lint repair without decorative CTA arrows.
+
+This branch has **not** been executed/tested from the current ChatGPT tool environment because the repository is not mounted locally and network clone access is unavailable. Do not treat the code gate or emulator gate as green until a shell-capable operator/agent runs the commands below. No Firebase deployment is authorized by this commit.
 
 ## 6. Milestone checker
 
@@ -139,61 +138,59 @@ git status -sb
 git log --oneline --decorate -8
 ```
 
-Minimum repository gate:
+Required repository gate for this security branch:
 
 ```bash
-npm run check
-```
-
-The full gate covers root tests, Mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The latest 2026-08-30 branch-foundation checkpoint has a fully green `npm run check`: **73 root test files with 537 tests** passed (plus 3 files/42 tests skipped), Mobile typecheck/lint passed, Functions typecheck/build passed, and Admin typecheck/lint plus **10 files/66 tests** passed. The inherited image-fallback effects were replaced with source-identity-derived failure state, and a stale generated Admin `.next` cache was cleared before the successful gate. A green root test run can skip emulator suites, so Firebase changes also require:
-
-```bash
-npm run test:rules
-npm run test:storage-rules
-```
-
-Use focused gates while iterating:
-
-```bash
+npm run functions:typecheck
+npm run functions:build
+npm run functions:test
+npm test
+npm run typecheck
+npm run lint
 npm run admin:typecheck
 npm run admin:lint
 npm run admin:test
-npm run functions:typecheck
-npm run functions:build
-npx vitest run packages/contracts packages/domain
+npm run test:rules
+npm run check
+git diff --check
 ```
 
-Milestone status is **PASS** only when:
+The prior branch-foundation checkpoint before this S1 edit had a green `npm run check`: 73 root test files / 537 tests passed (plus skipped suites), Mobile typecheck/lint passed, Functions typecheck/build passed, and Admin typecheck/lint/tests passed. That evidence does **not** automatically validate the current S1 changes.
 
-1. The relevant contract/domain tests pass.
-2. Authorization and negative Rules tests pass for any Firebase boundary touched.
-3. The relevant Functions/Admin/Mobile checks pass.
-4. Loading, empty, offline, retry, conflict, and provider-failure states are truthful where applicable.
-5. Docs, ADRs, indexes, rules, and status references agree with the implementation.
-6. `git diff --check` is clean and no unrelated/generated/conflict files are staged.
+Milestone status is PASS only when:
 
-If Java or emulator tooling is unavailable, mark the Rules gate **BLOCKED**, do not mark the milestone complete, and report the exact command and environment requirement.
+1. Relevant contract/domain/Function tests pass.
+2. Anonymous, renter trusted-record, cross-owner, owner, and staff-client Rules cases pass in the Firestore emulator.
+3. Function response fixtures contain no exact/private/moderation/owner-identity fields.
+4. Native live discovery performs no direct trusted Firestore vehicle/image reads.
+5. Loading, empty, offline, retry, and provider-failure states remain truthful.
+6. Docs, indexes, Rules, contracts, Functions, Mobile, Admin, and Git history agree.
+7. `git diff --check` is clean and no unrelated/generated/conflict files are staged.
+
+If Java/emulator tooling or Firebase operator auth is unavailable, mark that gate BLOCKED rather than weakening the Rules or claiming completion.
 
 ## 7. Agent execution protocol
 
 ### Commit/status synchronization policy
 
-Every commit created by an agent must update this root `AGENTS.md` in the same commit so a downstream agent can reconstruct the current roadmap and operational state immediately after pulling. At minimum, refresh the snapshot date and the affected milestone, infrastructure checkpoint, current-branch checkpoint, test evidence, blocker, or next gate. Do not record the new commit's own SHA inside that same commit—the SHA does not exist until the commit is created and attempting to amend it creates a circular hash. Downstream agents must pair this snapshot with `git log`. GitHub-generated merge commits are the only exception; the first agent commit after a merge must reconcile this file with merged reality.
+Every commit created by an agent must update this root `AGENTS.md` in the same commit so a downstream agent can reconstruct current roadmap and operational state immediately after pulling. Do not record the new commit's own SHA inside that same commit. GitHub-generated merge commits are the exception; the first agent commit after a merge reconciles this file with merged reality.
 
 1. Start with `git status -sb`; preserve unrelated user changes.
-2. Declare the bounded scope in the task update before editing.
-3. Read the required context-map documents and the closest existing tests.
-4. Change contracts/domain first, then server services/rules, then Admin/Mobile consumers.
+2. Declare the bounded scope before editing.
+3. Read required context-map documents and closest tests.
+4. Change contracts/domain first, then server services/Rules, then Admin/Mobile consumers.
 5. Prefer existing injectable gateways/repositories and canonical services. Do not duplicate Firebase reads or state transitions in UI code.
-6. For admin mutations, use same-origin protection, live staff session/role checks, canonical service calls, optimistic concurrency, idempotency, and audit logging. Never use an optimistic-success fallback when a server mutation fails.
-7. For production paths, fail closed. Fixture adapters may exist only behind the documented development guard and must never silently replace a failed live read in production.
-8. Run the narrowest relevant tests, then the full gate when the change crosses package or security boundaries.
-9. Update this `AGENTS.md` snapshot in every agent-authored commit, and update the detailed status document when evidence supports a milestone change. Include what remains incomplete.
-10. End with a handoff containing: summary, files changed, tests run, assumptions, known risks, and next recommended task.
+6. For admin mutations, use same-origin protection, live staff session/role checks, canonical services, optimistic concurrency, idempotency, and audit logging.
+7. For production paths, fail closed. Fixture adapters may exist only behind documented development guards and must never replace a failed live read silently.
+8. Run narrow tests, then the full gate when crossing package/security boundaries.
+9. Update this `AGENTS.md` snapshot in every agent-authored commit and detailed status docs when evidence changes milestone state.
+10. End with a handoff containing summary, files changed, tests run, assumptions, known risks, blockers, and next recommended task.
 
-## 8. Definition of done for this repository
+## 8. Definition of done
 
-A feature is not complete merely because its screen renders. It is complete when the shared contract, domain transition, authorization, Rules/indexes, server mutation/read boundary, client states, tests, documentation, and operational failure behavior all agree. The agent must be able to trace the feature through the architecture's controlled flow:
+A feature is not complete because a screen renders. Contracts, domain transitions, authorization, Rules/indexes, server read/write boundaries, client states, tests, docs, and operational failure behavior must agree.
+
+The controlled commercial flow remains:
 
 ```text
 approved owner
