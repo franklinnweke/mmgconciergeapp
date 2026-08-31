@@ -3,7 +3,7 @@
 **Project:** `mmg-concierge-dev`
 **Production project:** `mmg-concierge`
 **Provisioning date:** 2026-08-30
-**Status:** Blaze billing, app registrations, Firestore, and Function resources are provisioned; callable IAM and the scheduled cleanup job remain incomplete
+**Status:** Blaze billing, app registrations, Firestore, Functions, callable invocation IAM, and the private cleanup schedule are provisioned; Storage and deployable Security Rules remain incomplete
 
 ## Registered development apps
 
@@ -29,8 +29,10 @@ Current live inventory:
 
 - `(default)` Firestore is Standard/Native in `africa-south1`, with delete protection and the platform's closed default rules.
 - All 21 Node 22 Function resources are `ACTIVE` in `africa-south1`.
-- The 20 callable Cloud Run services currently have no invoker IAM binding, so requests receive a platform-level HTTP 403 before Firebase App Check/Auth runs.
-- `expireAbandonedOwnerVerificationUploads` is deployed, but its Cloud Scheduler job was not created because Cloud Scheduler does not support `africa-south1`.
+- All 20 callable Cloud Run services have the standard public `roles/run.invoker` boundary. Direct unauthenticated smoke checks reach Firebase application handling: protected callables fail closed with canonical `UNAUTHENTICATED` responses, while public discovery returns its safe public result.
+- `expireAbandonedOwnerVerificationUploads` remains private. Its Cloud Run invoker is the development project's default compute service account, used by a private OIDC Cloud Scheduler target; unauthenticated HTTP receives a platform-level 403.
+- Cloud Scheduler has no Africa region. The job `firebase-schedule-expireAbandonedOwnerVerificationUploads-africa-south1` therefore runs from `europe-west1`, targets the Function in `africa-south1`, uses `every 24 hours`, and evaluates time in `Africa/Lagos`.
+- The schedule has not been executed end to end because the development default Storage bucket is not yet provisioned. Treat scheduled cleanup as configured, not operationally signed off.
 - The Functions artifact repository has a one-day cleanup policy.
 - The ignored local payment test credential is absent from all 21 deployed Function runtime environments.
 - Development Auth is enabled for Email/Password and Google Sign-In.
@@ -47,15 +49,14 @@ The pre-deployment red-team review found a high-severity projection leak in the 
 
 Client DTO parsing does not repair a network-level leak. Do not deploy Firestore Rules to development or production until renter discovery reads a dedicated sanitized public projection, or the trusted records are otherwise split so forbidden fields cannot cross the read boundary. Add negative emulator tests containing real private-path/moderation fields before closing this gate.
 
-After the product owner explicitly authorizes development-resource creation and deployment:
+Remaining development-environment gates:
 
 1. Reconfirm the active Firebase project is exactly `mmg-concierge-dev`.
-2. Grant the standard public network invoker role to the 20 HTTPS callable services; Firebase App Check/Auth remains the application authorization layer.
-3. Choose an explicitly approved supported Cloud Scheduler region and scheduling topology for the cleanup handler while keeping the data-processing Function in `africa-south1` where possible.
-4. Provision the default Storage bucket in the matching supported location.
-5. Repair the trusted/public vehicle projection boundary and add network-level negative Rules tests.
-6. Run the Firestore and Storage emulator Rules suites and resolve every high/critical audit finding.
-7. Deploy Firestore Rules/indexes and Storage Rules only after those security gates pass.
-8. Run authenticated callable smoke checks after the IAM boundary is reachable.
+2. Provision the default Storage bucket in the matching supported data location; do not recreate or alter the production bucket.
+3. Repair the trusted/public vehicle projection boundary and add network-level negative Rules tests.
+4. Run the Firestore and Storage emulator Rules suites and resolve every high/critical audit finding.
+5. Deploy Firestore Rules/indexes and Storage Rules only after those security gates pass.
+6. Run authenticated native-development App Check/Auth smoke checks against representative protected callables.
+7. Run the private Scheduler cleanup once Storage exists, then verify execution logs and safe abandoned-upload behavior before operational sign-off.
 
 Never copy production Auth users, government IDs, exact locations, bookings, tokens, or private Storage objects into development.
