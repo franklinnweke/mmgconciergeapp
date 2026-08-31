@@ -5,6 +5,10 @@
 > Use `AGENTS.md` and
 > `docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md` for the evidence-based
 > current state and next delivery order.
+>
+> Environment note (2026-08-30): ADR 0008 supersedes this log's old staging
+> language. `mmg-concierge` is the only cloud Firebase project; isolated tests
+> use emulators and release approval replaces staging sign-off.
 
 Firebase provisioning and the first identity slice are now connected to the
 mobile app. Native development builds use the registered Firebase iOS and
@@ -130,7 +134,7 @@ Validation baseline for Sequence 1:
 - **Sequence 2 — Vehicle Inventory & Lagos Inspection Workflow**: Vehicle listing creation, image upload pipeline, rate schedules, Lagos vehicle inspection and moderation state transitions.
 - **Sequence 3 — Host Availability Calendar & Booking Operations**: Host calendar management, availability blocks, rate overrides, and owner booking acceptance/rejection actions.
 - **Sequence 4 — Paystack Payments, Escrow & Authoritative Settlement**: Real Paystack transaction initialization, webhook verification, escrow holds, payout disbursements, and Nigerian tax/split accounting.
-- **Multi-Factor Authentication (MFA) & Staging Sign-Off**: MFA enforcement for privileged staff accounts, production environment isolation, and final pre-launch security audits.
+- **Multi-Factor Authentication (MFA) & Controlled-Release Sign-Off**: MFA enforcement for privileged staff accounts, emulator/cloud isolation, and final pre-launch security audits.
 
 ### Current Sequence 3 checkpoint — availability foundation delivered
 

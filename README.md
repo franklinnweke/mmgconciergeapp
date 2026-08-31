@@ -49,7 +49,7 @@ The repository contains the completed Phase 1 experience foundation, Phase 2 tru
 Do not treat the following surfaces as live integrations:
 
 - **Paystack Payments**: Paystack initialization, charge authorization, webhook processing, escrow holds, payout disbursements, and refunds are not implemented.
-- **Multi-Factor Authentication (MFA)**: MFA enforcement is not implemented — this checkpoint is not a staging or production sign-off.
+- **Multi-Factor Authentication (MFA)**: MFA enforcement is not implemented — this checkpoint is not a controlled public-release sign-off.
 - **Vehicle Inventory & Operations**: Vehicle creation, catalog management, host availability calendar, rate overrides, and owner booking acceptance/rejection are scheduled for subsequent Phase 3 sequences.
 - **Operator & Cloud Infrastructure**: Live Phone Auth SMS delivery and Cloud Storage bucket provisioning are operator/cloud runtime dependencies that require active infrastructure, not proven solely by unit tests in this repository.
 - **Legacy Availability Request**: The deprecated availability-request path holds no dates, takes no payment, and creates no confirmation.
@@ -63,6 +63,8 @@ Do not treat the following surfaces as live integrations:
 - Android Studio for local Android builds
 - Java 21+ for Firebase emulators
 - Firebase CLI login with access to `mmg-concierge`
+
+`mmg-concierge` is the sole Firebase project for this application. The repository does not require separate development, staging, or production projects. Use the Firebase Emulator Suite for isolated and destructive tests, and treat changes to the shared cloud project as production-impacting.
 
 React Native Firebase uses native code. **Expo Go is not supported.** Use an EAS or local development build.
 

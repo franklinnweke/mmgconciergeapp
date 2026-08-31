@@ -1,8 +1,8 @@
 # MMG Concierge — Paystack-Excluded Completion Plan
 
-**Status:** Agent handoff plan
-**Prepared:** 2026-08-16
-**Target:** A tested, production-shaped, Paystack-ready codebase. This is **not** public-launch or staging sign-off until Paystack, production infrastructure, legal/operational review, and the external prerequisites listed below are complete.
+**Status:** Agent handoff plan, revised for the single-project Firebase model
+**Prepared:** 2026-08-16; revised 2026-08-30
+**Target:** A tested, production-shaped, Paystack-ready codebase. This is **not** public-launch or controlled-release sign-off until Paystack, release infrastructure, legal/operational review, and the external prerequisites listed below are complete.
 
 ## 1. Authority and conflict resolution
 
@@ -21,8 +21,9 @@ When a lower source conflicts with a higher one, follow the higher source and do
 - Booking dates are date-only in `Africa/Lagos`, with **start inclusive and end exclusive** intervals: `[startDate, endDate)`. August 1 to August 2 is one charged day. Do **not** add `+ 1`.
 - Staff roles are `support`, `vehicle_admin`, `verification_admin`, `finance_admin`, `privacy_admin`, and `super_admin`. There is no `vehicle_inspector` claim.
 - Current owner literals are `owner-terms-2026-08-01`, `owner-commission-2026-08-01`, and `privacy-notice-2026-08-01`.
+- `mmg-concierge` is the only Firebase project. Do not introduce dev/staging/prod project separation. Use emulators for isolated development and tests; treat every cloud deploy as production-impacting. See ADR 0008.
 - All money is integer kobo. The client quote and authoritative server price must use the same pure calculation and the same fee inputs. The server remains authoritative.
-- The original architecture requires MFA for every admin before staging sign-off.
+- MFA is required for every admin before controlled public-release sign-off.
 - The original architecture does not automatically reject or cancel an unanswered owner booking. The response SLA raises an admin alert only.
 - Vehicle approval requires **1–20** processed images, not three.
 - HEIC is not currently an accepted upload contract. Do not claim HEIC support unless the complete picker, upload, magic-byte, image-processing, contracts, Rules, and tests are changed together.
@@ -44,7 +45,7 @@ Not yet complete:
 - Vehicle inventory, image processing, moderation, owner calendar, and owner booking operations.
 - Server-side discovery/geohash/distance/ranking.
 - Admin modules beyond owner verification and the existing fixture booking view.
-- FCM delivery, chat, rental lifecycle, wallets, withdrawals, privacy/deletion workflow, MFA, Crashlytics, rate limits, alerts/runbooks, staging E2E, and production validation.
+- FCM delivery, chat, rental lifecycle, wallets, withdrawals, privacy/deletion workflow, MFA, Crashlytics, rate limits, alerts/runbooks, authenticated device E2E, and controlled-release validation.
 - Every Paystack operation.
 
 ## 3. Review of the external assessment
@@ -142,7 +143,7 @@ Deliver:
 Exit gate:
 
 - Cross-account and cross-role emulator tests deny profile/private-document access.
-- MFA is required in staging configuration and tested for each privileged route family.
+- MFA is required in release configuration and tested for each privileged route family.
 - Account deletion tests cover active-booking, refund, wallet/legal holds, replay, and successful deletion/anonymization.
 - Manual address entry works when location permission is denied.
 
@@ -276,7 +277,7 @@ Deliver:
 - Crashlytics, App Check staged enforcement evidence, structured logging, dashboards/alerts, rate limiting/abuse controls, backup/restore validation, and incident/privacy/withdrawal runbooks.
 - Accessibility, reduced motion, low-bandwidth, offline, retry, and provider-failure review.
 - Emulator CI, coverage thresholds, native iOS/Android development-build E2E (Maestro), admin Playwright, and production-shaped smoke scripts that do not require Paystack.
-- Environment isolation and Secret Manager references; no secret values in source.
+- Emulator/cloud isolation, fail-closed release flags, and Secret Manager references; no secret values in source.
 - Update README, implementation phases, ADRs, index inventory, data map, retention schedule, App Privacy/Data Safety inventory, and exact operator checklist.
 - Produce a Paystack integration manifest naming every port, command, webhook transition, secret, emulator fixture, required test, admin surface, and disabled UI entry point.
 
@@ -285,7 +286,7 @@ Exit gate:
 - Full validation matrix below passes from a clean install.
 - Security-rules red-team review has no unresolved critical/high finding.
 - The docs say exactly what is live, fixture-only, test-only, externally blocked, and Paystack-blocked.
-- No document calls the product staging-ready, launch-ready, paid, escrow-enabled, or settlement-complete.
+- No document calls the product release-ready, launch-ready, paid, escrow-enabled, or settlement-complete.
 
 ## 7. Validation matrix
 
@@ -353,7 +354,7 @@ At completion it must state “complete” only if the exit gate has evidence. O
 
 Code agents must report, not fabricate, these prerequisites:
 
-- Firebase dev/staging/prod project separation and IAM/service accounts.
+- Existing `mmg-concierge` IAM/service accounts, scoped deployment identity, backup policy, and controlled cloud-data cleanup procedure. Do not provision another Firebase project.
 - Cloud Storage bucket provisioning and lifecycle/CORS configuration.
 - App Check debug registrations, production providers, and enforcement rollout.
 - Phone Auth provider/quota and authorized domains.

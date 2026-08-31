@@ -6,9 +6,14 @@
 **Status:** Draft (revision 0)
 **Branch:** `Taste_Redesign`
 **Repository:** `/Users/franklin/Documents/ChatGPT/MMG Concierge Development`
-**Firebase project (current development):** `mmg-concierge`
+**Firebase project (sole cloud project):** `mmg-concierge`
 **Firestore:** Standard edition, Native mode, `(default)`, `africa-south1`
-**Architecture authority:** `docs/architecture/MMG_CONCIERGE_TECHNICAL_ARCHITECTURE_AND_IMPLEMENTATION_HANDOFF.md` v1.0 (12 August 2026)
+**Architecture authority:** `docs/architecture/MMG_CONCIERGE_TECHNICAL_ARCHITECTURE_AND_IMPLEMENTATION_HANDOFF.md` v1.1 (30 August 2026)
+
+> **Environment supersession:** This historical implementation contract uses
+> “staging” in some original gates. ADR 0008 supersedes those references:
+> `mmg-concierge` is the only cloud project, emulators provide test isolation,
+> and controlled-release sign-off replaces staging sign-off.
 
 This document is the implementation contract for **Owner Sequence 2** (vehicle inventory and Lagos inspection) and **Owner Sequence 3** (host availability calendar and owner booking operations). A coding agent executes it. A separate reviewer reruns the gates and reviews the diff. The implementer does not invent business rules, collection names, states, error codes, Storage paths, or security shortcuts.
 
@@ -95,7 +100,7 @@ Do not treat the completed booking workplan as in-scope work. Session cookies al
 | FCM delivery and device tokens | Outbox rows may exist with `status: 'unavailable'` |
 | Wallets, ledger, withdrawals, `ownerPayoutProfiles` | Later phase |
 | Chat, trip start, completion | Architecture later |
-| MFA-for-all-admins staging policy | Same as Sequence 1 |
+| MFA-for-all-admins controlled-release policy | Same as Sequence 1 |
 | Renter Places checkout profile | Renter path |
 | In-app role switching | `users.accountType` immutable |
 | Account deletion / privacy workflow | Architecture §10.5 |
@@ -2260,7 +2265,7 @@ Alerts: function error rate; storage denial spike; cleanup failure. Do not imple
 
 No remote-config flag. Native catalog swap ships in its own PR after at least one way to approve a vehicle exists (admin fixture is not native data).
 
-### Staging order
+### Controlled-release order
 
 1. Contracts + domain.
 2. Firestore + Storage rules **before** client upload code in a shared build.
@@ -2387,7 +2392,7 @@ Narrate with these exact markers:
 - FCM delivery and device tokens (outbox `unavailable`).
 - Wallets, ledger, withdrawals, earnings dashboards.
 - Chat, `recordTripStart`, completion, `resolveBookingCase`, `initiateRefund`.
-- MFA required for every admin (not staging sign-off).
+- MFA required for every admin (not controlled-release sign-off).
 - Account deletion / `dataRightsRequests`.
 - Vehicle video, self-drive, favorites, live tracking.
 - Admin live bookings page (stays fixture \| unavailable).
