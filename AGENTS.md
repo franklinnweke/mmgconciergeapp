@@ -7,7 +7,7 @@ This is the repository-wide operating handoff for every coding agent working on 
 ## 1. Project identity
 
 - Product: Lagos-first marketplace for chauffeured luxury-car rentals.
-- Firebase project: `mmg-concierge`.
+- Firebase projects: `mmg-concierge-dev` for cloud development/integration and `mmg-concierge` for controlled/public production.
 - Runtime surfaces:
   - `apps/mobile`: Expo Router React Native app for renter and owner experiences.
   - `apps/admin`: private Next.js App Router staff operations portal.
@@ -64,7 +64,7 @@ If a status document conflicts with code or Git history, report the discrepancy,
 
 ## 5. Current milestone snapshot
 
-Snapshot date: **2026-08-20**. Verify against `git status`, `git log`, and [`docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md`](docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md) before relying on it.
+Snapshot date: **2026-08-30**. Verify against `git status`, `git log`, [`docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md`](docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md), and [`docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md`](docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md) before relying on it.
 
 | Milestone | Status | Evidence / next gate |
 |---|---|---|
@@ -84,15 +84,19 @@ Snapshot date: **2026-08-20**. Verify against `git status`, `git log`, and [`doc
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
 | WP8 — release hardening | ⏳ Not started | CI, observability, privacy/data-safety inventory, runbooks, controlled-release sign-off |
 
-### Firebase Infrastructure (Blaze Plan Active)
+### Firebase infrastructure checkpoint
 
-The Firebase project `mmg-concierge` has been upgraded to the **Blaze (Pay-as-you-go) plan**. This unblocks:
-1. Live deployment of Node 22 Firebase Functions v2 (`africa-south1`).
-2. Google Cloud Scheduler daily cron for `expireAbandonedOwnerVerificationUploads`.
-3. Outbound network connectivity for live Nigerian Phone Auth (`+234...`), APNs/FCM pushes, and future Paystack payment webhooks/APIs.
-4. Custom memory allocations (512MiB–1024MiB) for server-side Sharp vehicle image resizing.
+The development Firebase project `mmg-concierge-dev` is on the **Blaze (Pay-as-you-go) plan** and is now provisioned as follows:
 
-This is the production Firebase project. Do not reprovision its working Auth, Functions, Firestore, Storage, App Check, or registered apps. The target development project is `mmg-concierge-dev`; until it is explicitly provisioned and wired, use the Emulator Suite and do not pretend the production project is a development environment. Production deployments and cleanup remain separately authorized, production-impacting actions.
+1. iOS, Android, and Admin web apps are registered; Email/Password and Google Authentication are enabled.
+2. Standard/Native `(default)` Firestore exists in `africa-south1` with delete protection and the platform's closed default Rules.
+3. All 21 Node 22 Functions v2 are active in `africa-south1`. The 20 callable services accept public network invocation so Firebase App Check/Auth can enforce application access; protected unauthenticated smoke requests fail closed.
+4. `expireAbandonedOwnerVerificationUploads` remains private. Its OIDC Cloud Scheduler job runs from `europe-west1` every 24 hours in the `Africa/Lagos` timezone because Cloud Scheduler has no Africa region.
+5. The ignored local Paystack test credential is absent from every deployed Function environment.
+
+The development default Storage bucket is not provisioned, so scheduled cleanup is configured but not operationally signed off. Repository Firestore Rules must not be deployed until the trusted/public vehicle projection leak documented in the development-environment handoff is repaired and covered by negative emulator tests. Authenticated native App Check smoke testing also remains. The local Firebase CLI session expired after provisioning and requires `firebase login --reauth` before another CLI mutation.
+
+Do not reprovision or clean up the working production project `mmg-concierge`. Production deployments and cleanup remain separately authorized, production-impacting actions.
 
 ### Current GitHub baseline & Working Tree Status
 
@@ -124,6 +128,8 @@ The merged `main` history currently contains:
 
 Treat WP4 as an **in-progress availability and booking pass** and always fail closed on unimplemented payment or paid-booking paths.
 
+The active `codex/firebase-dev-environment` checkpoint contains development app configuration, deterministic Functions deployment packaging, explicit callable invocation configuration, and the verified cloud-development operational handoff through commit `7d1ecbe`. Its next safe implementation gate is the trusted/public vehicle projection repair; it is not authorization to deploy the current Firestore or Storage Rules.
+
 ## 6. Milestone checker
 
 Run this at the start and end of every bounded task:
@@ -139,7 +145,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The current 2026-08-20 owner-bookings checkpoint is **67 test files passed, 519 unit tests passed, 0 typecheck errors, 0 lint warnings**. A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The latest 2026-08-30 Functions deployment checkpoint passed Functions typecheck/build, **27 Functions test files with 260 tests**, and **72 root test files with 535 tests**; the complete `npm run check` gate was not rerun for the documentation-only follow-up. A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules
@@ -170,6 +176,10 @@ If Java or emulator tooling is unavailable, mark the Rules gate **BLOCKED**, do 
 
 ## 7. Agent execution protocol
 
+### Commit/status synchronization policy
+
+Every commit created by an agent must update this root `AGENTS.md` in the same commit so a downstream agent can reconstruct the current roadmap and operational state immediately after pulling. At minimum, refresh the snapshot date and the affected milestone, infrastructure checkpoint, current-branch checkpoint, test evidence, blocker, or next gate. Do not record the new commit's own SHA inside that same commit—the SHA does not exist until the commit is created and attempting to amend it creates a circular hash. Downstream agents must pair this snapshot with `git log`. GitHub-generated merge commits are the only exception; the first agent commit after a merge must reconcile this file with merged reality.
+
 1. Start with `git status -sb`; preserve unrelated user changes.
 2. Declare the bounded scope in the task update before editing.
 3. Read the required context-map documents and the closest existing tests.
@@ -178,7 +188,7 @@ If Java or emulator tooling is unavailable, mark the Rules gate **BLOCKED**, do 
 6. For admin mutations, use same-origin protection, live staff session/role checks, canonical service calls, optimistic concurrency, idempotency, and audit logging. Never use an optimistic-success fallback when a server mutation fails.
 7. For production paths, fail closed. Fixture adapters may exist only behind the documented development guard and must never silently replace a failed live read in production.
 8. Run the narrowest relevant tests, then the full gate when the change crosses package or security boundaries.
-9. Update the status document only when the evidence supports the new milestone state. Include what remains incomplete.
+9. Update this `AGENTS.md` snapshot in every agent-authored commit, and update the detailed status document when evidence supports a milestone change. Include what remains incomplete.
 10. End with a handoff containing: summary, files changed, tests run, assumptions, known risks, and next recommended task.
 
 ## 8. Definition of done for this repository
