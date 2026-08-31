@@ -1,6 +1,6 @@
 # WP0 & WP2 Implementation Status
 
-**Date:** 2026-08-20
+**Date:** 2026-08-31
 **Plan reference:** `docs/implementation/PROJECT_COMPLETION_WITHOUT_PAYSTACK_IMPLEMENTATION_PLAN.md`
 
 ---
@@ -68,13 +68,14 @@
 **Tests**: 196 → 210 (+14 tests: vehicle state transitions, discoverability, revision classification, coord rounding, plate masking, extended error reasons)
 
 ### Batch B — Firestore/Storage rules + indexes ✅
-**`firebase/firestore.rules`**:
-- `vehicles/{vehicleId}`: Owner `get` + `list` by `ownerId`; renter `list` by `discoverable == true`; all writes denied
-- `vehiclePrivate/{vehicleId}`: Owner `get`/`list` only; renter never; writes denied
-- `vehicles/{vehicleId}/images/{imageId}`: Authenticated read only
-- `vehicleRevisions/{revisionId}`: Owner-scoped read
-- `bookingCases/{caseId}`: Participant-scoped read
-- `bookings/{bookingId}`: Extended to owner-scoped read
+**`firebase/firestore.rules`** (current hardened S1 boundary):
+- `vehicles/{vehicleId}`: owner-only `get`/`list` by `ownerId`; renters, anonymous users, and staff JavaScript clients have no direct read access; all writes denied.
+- `vehiclePrivate/{vehicleId}`: owner-only `get`/`list`; renter access denied; writes denied.
+- `vehicles/{vehicleId}/images/{imageId}`: owner-only `get`/`list` through parent ownership; renter access denied because image documents contain upload IDs, processing facts, and private paths.
+- `vehicleRevisions/{revisionId}`: owner-scoped read.
+- `bookingCases/{caseId}`: participant-scoped read.
+- `bookings/{bookingId}`: renter/owner participant-scoped read.
+- Renter vehicle list/search/detail is served only through authenticated, App-Check-protected Functions using the Admin SDK and strict discovery DTOs.
 
 **`firebase/storage.rules`**:
 - `public/vehicles/{vehicleId}/approved/{imageId}/{variant}`: Public read
