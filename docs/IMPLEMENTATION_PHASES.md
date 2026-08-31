@@ -7,8 +7,8 @@
 > current state and next delivery order.
 >
 > Environment note (2026-08-30): ADR 0008 supersedes this log's old staging
-> language. `mmg-concierge` is the only cloud Firebase project; isolated tests
-> use emulators and release approval replaces staging sign-off.
+> language. Isolated tests use emulators, cloud integration targets
+> `mmg-concierge-dev`, and controlled release targets `mmg-concierge`.
 
 Firebase provisioning and the first identity slice are now connected to the
 mobile app. Native development builds use the registered Firebase iOS and

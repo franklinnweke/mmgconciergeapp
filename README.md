@@ -64,7 +64,7 @@ Do not treat the following surfaces as live integrations:
 - Java 21+ for Firebase emulators
 - Firebase CLI login with access to `mmg-concierge`
 
-`mmg-concierge` is the sole Firebase project for this application. The repository does not require separate development, staging, or production projects. Use the Firebase Emulator Suite for isolated and destructive tests, and treat changes to the shared cloud project as production-impacting.
+MMG Concierge uses the Firebase Emulator Suite locally, `mmg-concierge-dev` for cloud development/integration, and `mmg-concierge` for controlled/public production. A dedicated staging project is not required for MVP. The development project still requires explicit operator provisioning and app registration; until then, use emulators and do not deploy development changes to production.
 
 React Native Firebase uses native code. **Expo Go is not supported.** Use an EAS or local development build.
 

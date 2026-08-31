@@ -1,9 +1,9 @@
 # MMG Concierge application deep review
 
 > **Environment supersession (2026-08-30):** ADR 0008 replaces this review's
-> old staging-project assumptions. `mmg-concierge` is the only cloud Firebase
-> project; emulator validation and controlled-release sign-off are the current
-> gates. The implementation findings remain historical evidence.
+> old three-project assumptions. The current topology is emulator ->
+> `mmg-concierge-dev` development/integration -> `mmg-concierge` production,
+> with no dedicated staging project. The findings remain historical evidence.
 
 **Review date:** 2026-08-20
 **Reviewed baseline:** `main` at `8c61703`

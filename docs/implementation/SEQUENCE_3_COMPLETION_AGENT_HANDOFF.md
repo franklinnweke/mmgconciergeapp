@@ -1,9 +1,9 @@
 # MMG Concierge — Sequence 3 completion agent handoff
 
 > **Historical environment note:** ADR 0008 supersedes this handoff's
-> production/staging wording. `mmg-concierge` is the only cloud Firebase
-> project; use emulators for isolated validation and the controlled-release
-> gate for cloud changes.
+> production/staging wording. Use emulators locally, `mmg-concierge-dev` for
+> cloud integration, and `mmg-concierge` only through the controlled-release
+> gate.
 
 ## Objective
 

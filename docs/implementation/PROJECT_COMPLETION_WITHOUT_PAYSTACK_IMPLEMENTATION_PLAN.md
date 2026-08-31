@@ -1,6 +1,6 @@
 # MMG Concierge — Paystack-Excluded Completion Plan
 
-**Status:** Agent handoff plan, revised for the single-project Firebase model
+**Status:** Agent handoff plan, revised for the two-tier Firebase model
 **Prepared:** 2026-08-16; revised 2026-08-30
 **Target:** A tested, production-shaped, Paystack-ready codebase. This is **not** public-launch or controlled-release sign-off until Paystack, release infrastructure, legal/operational review, and the external prerequisites listed below are complete.
 
@@ -21,7 +21,7 @@ When a lower source conflicts with a higher one, follow the higher source and do
 - Booking dates are date-only in `Africa/Lagos`, with **start inclusive and end exclusive** intervals: `[startDate, endDate)`. August 1 to August 2 is one charged day. Do **not** add `+ 1`.
 - Staff roles are `support`, `vehicle_admin`, `verification_admin`, `finance_admin`, `privacy_admin`, and `super_admin`. There is no `vehicle_inspector` claim.
 - Current owner literals are `owner-terms-2026-08-01`, `owner-commission-2026-08-01`, and `privacy-notice-2026-08-01`.
-- `mmg-concierge` is the only Firebase project. Do not introduce dev/staging/prod project separation. Use emulators for isolated development and tests; treat every cloud deploy as production-impacting. See ADR 0008.
+- Firebase topology is emulator -> `mmg-concierge-dev` development/integration -> `mmg-concierge` production. Do not add a dedicated staging project for MVP. Until development is provisioned and wired, use emulators and do not use production as a substitute integration environment. See ADR 0008.
 - All money is integer kobo. The client quote and authoritative server price must use the same pure calculation and the same fee inputs. The server remains authoritative.
 - MFA is required for every admin before controlled public-release sign-off.
 - The original architecture does not automatically reject or cancel an unanswered owner booking. The response SLA raises an admin alert only.
@@ -354,7 +354,7 @@ At completion it must state “complete” only if the exit gate has evidence. O
 
 Code agents must report, not fabricate, these prerequisites:
 
-- Existing `mmg-concierge` IAM/service accounts, scoped deployment identity, backup policy, and controlled cloud-data cleanup procedure. Do not provision another Firebase project.
+- Provision `mmg-concierge-dev` with separate app registrations, App Check, Auth/provider configuration, restricted Maps/test-provider credentials, IAM/deployment identity, logs/alerts, and backups. First verify and record the immutable live Firestore/Storage locations; never copy private production data into development.
 - Cloud Storage bucket provisioning and lifecycle/CORS configuration.
 - App Check debug registrations, production providers, and enforcement rollout.
 - Phone Auth provider/quota and authorized domains.

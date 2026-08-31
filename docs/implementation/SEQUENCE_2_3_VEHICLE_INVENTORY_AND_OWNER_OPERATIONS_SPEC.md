@@ -6,14 +6,14 @@
 **Status:** Draft (revision 0)
 **Branch:** `Taste_Redesign`
 **Repository:** `/Users/franklin/Documents/ChatGPT/MMG Concierge Development`
-**Firebase project (sole cloud project):** `mmg-concierge`
+**Firebase project at this historical checkpoint:** `mmg-concierge`
 **Firestore:** Standard edition, Native mode, `(default)`, `africa-south1`
 **Architecture authority:** `docs/architecture/MMG_CONCIERGE_TECHNICAL_ARCHITECTURE_AND_IMPLEMENTATION_HANDOFF.md` v1.1 (30 August 2026)
 
 > **Environment supersession:** This historical implementation contract uses
 > “staging” in some original gates. ADR 0008 supersedes those references:
-> `mmg-concierge` is the only cloud project, emulators provide test isolation,
-> and controlled-release sign-off replaces staging sign-off.
+> cloud development now targets `mmg-concierge-dev`, production remains
+> `mmg-concierge`, and controlled-release sign-off replaces staging sign-off.
 
 This document is the implementation contract for **Owner Sequence 2** (vehicle inventory and Lagos inspection) and **Owner Sequence 3** (host availability calendar and owner booking operations). A coding agent executes it. A separate reviewer reruns the gates and reviews the diff. The implementer does not invent business rules, collection names, states, error codes, Storage paths, or security shortcuts.
 
