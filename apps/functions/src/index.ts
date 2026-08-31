@@ -61,6 +61,11 @@ const storageGateway = new AdminStorageGateway();
 const vehicleStorageGateway = new AdminVehicleStorageGateway();
 const imageProcessor = new SharpImageProcessor();
 
+const callableRuntimeOptions = {
+  region: 'africa-south1',
+  invoker: 'public' as const,
+};
+
 const httpsCodeByDomainCode = {
   UNAUTHENTICATED: 'unauthenticated',
   FORBIDDEN: 'permission-denied',
@@ -78,7 +83,7 @@ const httpsCodeByDomainCode = {
 
 export const createBookingIntent = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -110,7 +115,7 @@ export const createBookingIntent = onCall(
 
 export const getVehicleCalendar = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -142,7 +147,7 @@ export const getVehicleCalendar = onCall(
 
 export const getOwnerVehicleCalendar = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -176,7 +181,7 @@ export const getOwnerVehicleCalendar = onCall(
 
 export const setVehicleAvailabilityBlock = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -210,7 +215,7 @@ export const setVehicleAvailabilityBlock = onCall(
 
 export const removeVehicleAvailabilityBlock = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -244,7 +249,7 @@ export const removeVehicleAvailabilityBlock = onCall(
 
 export const confirmBooking = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -279,7 +284,7 @@ export const confirmBooking = onCall(
 
 export const rejectBooking = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -315,7 +320,7 @@ export const rejectBooking = onCall(
 
 export const completeOwnerProfile = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -348,7 +353,7 @@ export const completeOwnerProfile = onCall(
 
 export const submitOwnerVerification = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -384,7 +389,7 @@ export const submitOwnerVerification = onCall(
 
 export const reviewOwnerVerification = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -423,7 +428,7 @@ export const reviewOwnerVerification = onCall(
 
 export const createVehicleDraft = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -456,7 +461,7 @@ export const createVehicleDraft = onCall(
 
 export const createVehicleUploadSession = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -489,7 +494,7 @@ export const createVehicleUploadSession = onCall(
 
 export const finalizeVehicleImage = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     // This callable decodes an owner-supplied image and renders three variants.
     // The contract allows edges up to 8000px, so a worst-case source decodes to
@@ -528,7 +533,7 @@ export const finalizeVehicleImage = onCall(
 
 export const submitVehicleForReview = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -580,7 +585,7 @@ function logPublicationFailure(
 
 export const reviewVehicle = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     // Longer than the other commands: after the decision commits, this copies up
     // to 20 images × their variants into the public prefix.
@@ -619,7 +624,7 @@ export const reviewVehicle = onCall(
 
 export const setVehicleVisibility = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     // Same reason as reviewVehicle: activating an approved listing publishes its
     // images, pausing or deleting it removes them.
@@ -658,13 +663,14 @@ export const setVehicleVisibility = onCall(
 
 export const resolveSearchPlace = onCall(
   {
-    region: 'africa-south1',
-    enforceAppCheck: false,
+    ...callableRuntimeOptions,
+    enforceAppCheck: true,
     timeoutSeconds: 15,
     memory: '256MiB',
   },
   async (request) => {
     try {
+      requireAuthenticatedUser(request.auth);
       const result = resolveSearchPlaceService(request.data);
       return result;
     } catch (error) {
@@ -678,13 +684,14 @@ export const resolveSearchPlace = onCall(
 
 export const searchVehicles = onCall(
   {
-    region: 'africa-south1',
-    enforceAppCheck: false,
+    ...callableRuntimeOptions,
+    enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
   },
   async (request) => {
     try {
+      requireAuthenticatedRenter(request.auth);
       const bucketName = getStorage().bucket().name || 'mmg-concierge.appspot.com';
       const source = new FirestoreDiscoveryVehicleSource(getFirestore());
       const result = await searchVehiclesService(request.data ?? {}, source, bucketName);
@@ -701,7 +708,7 @@ export const searchVehicles = onCall(
 
 export const completeRenterProfile = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -732,7 +739,7 @@ export const completeRenterProfile = onCall(
 
 export const requestAccountDeletion = onCall(
   {
-    region: 'africa-south1',
+    ...callableRuntimeOptions,
     enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',

@@ -13,11 +13,6 @@
     "sharp": "^0.35.3",
     "zod": "4.1.10"
   },
-  "devDependencies": {
-    "esbuild": "^0.27.0",
-    "typescript": "~6.0.3",
-    "vitest": "4.1.10"
-  },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=lib/index.js --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/* --external:sharp",
     "test": "vitest run src",
