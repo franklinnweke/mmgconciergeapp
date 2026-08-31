@@ -90,11 +90,11 @@ The development Firebase project `mmg-concierge-dev` is on the **Blaze (Pay-as-y
 
 1. iOS, Android, and Admin web apps are registered; Email/Password and Google Authentication are enabled.
 2. Standard/Native `(default)` Firestore exists in `africa-south1` with delete protection and the platform's closed default Rules.
-3. All 21 Node 22 Functions v2 are active in `africa-south1`. The 20 callable services accept public network invocation so Firebase App Check/Auth can enforce application access; protected unauthenticated smoke requests fail closed.
+3. All 21 Node 22 Functions v2 are active in `africa-south1`. The 20 callable services accept public network invocation so Firebase App Check/Auth can enforce application access. The last cloud deployment left discovery anonymous; the reconciled branch now restores mandatory App Check and Auth for `resolveSearchPlace` and App Check plus authenticated-renter access for `searchVehicles`. Redeployment is pending.
 4. `expireAbandonedOwnerVerificationUploads` remains private. Its OIDC Cloud Scheduler job runs from `europe-west1` every 24 hours in the `Africa/Lagos` timezone because Cloud Scheduler has no Africa region.
 5. The ignored local Paystack test credential is absent from every deployed Function environment.
 
-The development default Storage bucket is not provisioned, so scheduled cleanup is configured but not operationally signed off. Repository Firestore Rules must not be deployed until the trusted/public vehicle projection leak documented in the development-environment handoff is repaired and covered by negative emulator tests. Authenticated native App Check smoke testing also remains. The local Firebase CLI session expired after provisioning and requires `firebase login --reauth` before another CLI mutation.
+The development default Storage bucket is not provisioned, so scheduled cleanup is configured but not operationally signed off. Repository Firestore Rules must not be deployed until the trusted/public vehicle projection leak documented in the development-environment handoff is repaired and covered by negative emulator tests. The corrected discovery boundary must be redeployed and verified with anonymous rejection plus authenticated native App Check smoke evidence. The local Firebase CLI session expired after provisioning and requires `firebase login --reauth` before another CLI mutation.
 
 Do not reprovision or clean up the working production project `mmg-concierge`. Production deployments and cleanup remain separately authorized, production-impacting actions.
 
@@ -128,7 +128,7 @@ The merged `main` history currently contains:
 
 Treat WP4 as an **in-progress availability and booking pass** and always fail closed on unimplemented payment or paid-booking paths.
 
-The active `codex/firebase-dev-environment` checkpoint contains development app configuration, deterministic Functions deployment packaging, explicit callable invocation configuration, and the verified cloud-development operational handoff through commit `7d1ecbe`. Its next safe implementation gate is the trusted/public vehicle projection repair; it is not authorization to deploy the current Firestore or Storage Rules.
+The active `codex/firebase-dev-environment` branch is reconciled onto `origin/main` at `e29944a`. It contains deterministic Functions deployment packaging, explicit callable transport configuration, the private cross-region Scheduler handoff, and the discovery App Check/Auth correction. The immediate operational gate is redeploying and smoke-testing the corrected discovery handlers after Firebase CLI reauthentication; the next code/data gate remains the trusted/public vehicle projection repair. This is not authorization to deploy the current Firestore or Storage Rules.
 
 ## 6. Milestone checker
 
@@ -145,7 +145,7 @@ Minimum repository gate:
 npm run check
 ```
 
-The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The latest 2026-08-30 Functions deployment checkpoint passed Functions typecheck/build, **27 Functions test files with 260 tests**, and **72 root test files with 535 tests**; the complete `npm run check` gate was not rerun for the documentation-only follow-up. A green root test run can skip emulator suites, so Firebase changes also require:
+The full gate covers root tests, mobile typecheck/lint, Functions typecheck/build, and Admin typecheck/lint/tests. The latest 2026-08-30 discovery-boundary checkpoint passed Functions typecheck/build, **28 Functions test files with 262 tests** (plus 1 file/7 tests skipped), and **73 root test files with 537 tests** (plus 3 files/42 tests skipped). `npm run check` was attempted: root tests and Mobile typecheck passed, but the gate stopped at two pre-existing `react-hooks/set-state-in-effect` Mobile lint errors in `browse-vehicle-card.tsx` and `featured-vehicle-card.tsx`; both files are unchanged from `origin/main`. Functions/Admin steps after Mobile lint did not run in that chained command, though Functions checks passed independently. A green root test run can skip emulator suites, so Firebase changes also require:
 
 ```bash
 npm run test:rules

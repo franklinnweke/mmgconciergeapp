@@ -664,12 +664,13 @@ export const setVehicleVisibility = onCall(
 export const resolveSearchPlace = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: false,
+    enforceAppCheck: true,
     timeoutSeconds: 15,
     memory: '256MiB',
   },
   async (request) => {
     try {
+      requireAuthenticatedUser(request.auth);
       const result = resolveSearchPlaceService(request.data);
       return result;
     } catch (error) {
@@ -684,12 +685,13 @@ export const resolveSearchPlace = onCall(
 export const searchVehicles = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: false,
+    enforceAppCheck: true,
     timeoutSeconds: 30,
     memory: '256MiB',
   },
   async (request) => {
     try {
+      requireAuthenticatedRenter(request.auth);
       const bucketName = getStorage().bucket().name || 'mmg-concierge.appspot.com';
       const source = new FirestoreDiscoveryVehicleSource(getFirestore());
       const result = await searchVehiclesService(request.data ?? {}, source, bucketName);

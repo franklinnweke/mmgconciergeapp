@@ -3,7 +3,7 @@
 **Project:** `mmg-concierge-dev`
 **Production project:** `mmg-concierge`
 **Provisioning date:** 2026-08-30
-**Status:** Blaze billing, app registrations, Firestore, Functions, callable invocation IAM, and the private cleanup schedule are provisioned; Storage and deployable Security Rules remain incomplete
+**Status:** Blaze billing, app registrations, Firestore, Functions, callable invocation IAM, and the private cleanup schedule are provisioned; the discovery security correction awaits redeployment, while Storage and deployable Security Rules remain incomplete
 
 ## Registered development apps
 
@@ -29,7 +29,7 @@ Current live inventory:
 
 - `(default)` Firestore is Standard/Native in `africa-south1`, with delete protection and the platform's closed default rules.
 - All 21 Node 22 Function resources are `ACTIVE` in `africa-south1`.
-- All 20 callable Cloud Run services have the standard public `roles/run.invoker` boundary. Direct unauthenticated smoke checks reach Firebase application handling: protected callables fail closed with canonical `UNAUTHENTICATED` responses, while public discovery returns its safe public result.
+- All 20 callable Cloud Run services have the standard public `roles/run.invoker` transport boundary. Protected callables fail closed inside Firebase application handling. The last deployed discovery handlers still allowed anonymous `resolveSearchPlace`/`searchVehicles` access; the reconciled branch now requires App Check plus Firebase Auth for both and authenticated-renter access for vehicle search. Redeployment and authenticated native smoke evidence are required before closing this mismatch.
 - `expireAbandonedOwnerVerificationUploads` remains private. Its Cloud Run invoker is the development project's default compute service account, used by a private OIDC Cloud Scheduler target; unauthenticated HTTP receives a platform-level 403.
 - Cloud Scheduler has no Africa region. The job `firebase-schedule-expireAbandonedOwnerVerificationUploads-africa-south1` therefore runs from `europe-west1`, targets the Function in `africa-south1`, uses `every 24 hours`, and evaluates time in `Africa/Lagos`.
 - The schedule has not been executed end to end because the development default Storage bucket is not yet provisioned. Treat scheduled cleanup as configured, not operationally signed off.
@@ -52,11 +52,12 @@ Client DTO parsing does not repair a network-level leak. Do not deploy Firestore
 Remaining development-environment gates:
 
 1. Reconfirm the active Firebase project is exactly `mmg-concierge-dev`.
-2. Provision the default Storage bucket in the matching supported data location; do not recreate or alter the production bucket.
-3. Repair the trusted/public vehicle projection boundary and add network-level negative Rules tests.
-4. Run the Firestore and Storage emulator Rules suites and resolve every high/critical audit finding.
-5. Deploy Firestore Rules/indexes and Storage Rules only after those security gates pass.
-6. Run authenticated native-development App Check/Auth smoke checks against representative protected callables.
-7. Run the private Scheduler cleanup once Storage exists, then verify execution logs and safe abandoned-upload behavior before operational sign-off.
+2. Reauthenticate the Firebase CLI, redeploy the corrected discovery callables, and verify anonymous calls are rejected by App Check/Auth.
+3. Provision the default Storage bucket in the matching supported data location; do not recreate or alter the production bucket.
+4. Repair the trusted/public vehicle projection boundary and add network-level negative Rules tests.
+5. Run the Firestore and Storage emulator Rules suites and resolve every high/critical audit finding.
+6. Deploy Firestore Rules/indexes and Storage Rules only after those security gates pass.
+7. Run authenticated native-development App Check/Auth smoke checks against representative protected callables.
+8. Run the private Scheduler cleanup once Storage exists, then verify execution logs and safe abandoned-upload behavior before operational sign-off.
 
 Never copy production Auth users, government IDs, exact locations, bookings, tokens, or private Storage objects into development.
