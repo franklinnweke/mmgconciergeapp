@@ -6,9 +6,14 @@
 **Status:** Draft (revision 4 — review issues closed)
 **Branch:** `Taste_Redesign`
 **Repository:** `/Users/franklin/Documents/ChatGPT/MMG Concierge Development`
-**Firebase project (current development):** `mmg-concierge`
+**Firebase project at this historical checkpoint:** `mmg-concierge`
 **Firestore:** Standard edition, Native mode, `(default)`, `africa-south1`
-**Architecture authority:** `docs/architecture/MMG_CONCIERGE_TECHNICAL_ARCHITECTURE_AND_IMPLEMENTATION_HANDOFF.md` v1.0 (12 August 2026)
+**Architecture authority:** `docs/architecture/MMG_CONCIERGE_TECHNICAL_ARCHITECTURE_AND_IMPLEMENTATION_HANDOFF.md` v1.1 (30 August 2026)
+
+> **Environment supersession:** This historical implementation contract uses
+> “staging” in some original gates. ADR 0008 supersedes those references:
+> cloud development now targets `mmg-concierge-dev`, production remains
+> `mmg-concierge`, and controlled-release sign-off replaces staging sign-off.
 
 This document is the implementation contract for **Owner Sequence 1** only. A coding agent executes it. A separate reviewer reruns the gates and reviews the diff. The implementer does not invent business rules, collection names, states, error codes, Storage paths, or security shortcuts.
 
@@ -81,7 +86,7 @@ Do not treat the completed booking workplan as in-scope work. Session cookies in
 | Owner booking confirm/reject, chat, FCM delivery | Not this slice. Audit events are mandatory; FCM may be a no-op adapter |
 | Renter phone / Google Places checkout profile | Renter path; Places is not wired today |
 | In-app renter↔owner conversion | `users.accountType` is immutable from the client (firestore.rules + §3.1) |
-| MFA-for-all-admins staging policy | Follow-up. Claim + emailVerified + cookie is the floor. **Not** staging sign-off. Do not add a second `verification_admin` without an MFA policy. |
+| MFA-for-all-admins release policy | Follow-up. Claim + emailVerified + cookie is the floor. **Not** controlled-release sign-off. Do not add a second `verification_admin` without an MFA policy. |
 | Account deletion / privacy request workflow | Architecture §10.5; not this slice |
 | Commit, deploy, secret addition, unknown user files | Agent rule |
 
@@ -1437,7 +1442,7 @@ Claim removal therefore kills live access on the next request without waiting 5 
 
 `firebase-admin` is imported only from `src/features/auth/server/` and other `server-only` modules.
 
-MFA-for-all-admins is **not** enforced. Email verification + current claim + httpOnly cookie is the floor. README / PR 8 must say: “Admin auth is claim + emailVerified + httpOnly cookie. MFA is **not** done; do not call this staging sign-off. Do not add a second `verification_admin` without an MFA policy.”
+MFA-for-all-admins is **not** enforced. Email verification + current claim + httpOnly cookie is the floor. README / PR 8 must say: “Admin auth is claim + emailVerified + httpOnly cookie. MFA is **not** done; do not call this controlled-release sign-off. Do not add a second `verification_admin` without an MFA policy.”
 
 ### Claim bootstrapping (operator path)
 
@@ -1664,7 +1669,7 @@ Keep `test:rules` as Firestore-only so existing CI does not break; `[VALIDATE]` 
 
 | File | Change |
 |---|---|
-| `README.md` | Describe owner application + admin owners module; name unavailable FCM/payouts; MFA **not** staging-complete; operator Phone/Storage/claim steps |
+| `README.md` | Describe owner application + admin owners module; name unavailable FCM/payouts; MFA **not** release-complete; operator Phone/Storage/claim steps |
 | `docs/IMPLEMENTATION_PHASES.md` | Sequence 1 owner checkpoint only after gates pass |
 
 Do not edit Firebase client secret material, `GoogleService-Info.plist`, or `google-services.json` except if a documented plugin requires a non-secret display-name change (default: do not touch).
@@ -1819,7 +1824,7 @@ Every row is mandatory. “Allow” means the named actor + API succeeds. “Den
 | Admin screenshot of ID | Medium | Operational; fixture banner for non-live; live preview not on queue row |
 | Idempotency replay with escalated payload | High | Hash compare → `IDEMPOTENCY_CONFLICT` |
 | Polyglot / executable upload | Medium | Rules MIME first gate; Admin SDK magic-byte sniff on submit; JPEG-as-PDF test |
-| Staff without MFA | Medium | Deferred; README forbids staging sign-off and a second `verification_admin` without MFA policy |
+| Staff without MFA | Medium | Deferred; README forbids controlled-release sign-off and a second `verification_admin` without MFA policy |
 | Staff JS `getDownloadURL` / `getDocs` | Critical | Storage/Firestore deny all staff client access; JS sign-out after cookie; signed URL server-only |
 
 **AuthN/Z summary**
@@ -1892,7 +1897,7 @@ Same structured fields as `booking_intent.created` in `apps/functions/src/index.
 
 No remote-config flag is required for the owner desk: only `accountType === 'owner'` users see it.
 
-### Staging order
+### Controlled-release order
 
 1. Contracts + domain merged.
 2. Rules + Storage emulator tests merged **before** any client upload code ships to a shared build.
@@ -2011,7 +2016,7 @@ Narrate with these exact markers:
 - FCM delivery and device tokens (outbox rows may exist with `unavailable`).
 - Wallets, ledger, withdrawals, `ownerPayoutProfiles`.
 - Renter `completeRenterProfile`, renter phone, Places checkout address.
-- MFA required for every admin before staging sign-off (architecture §10.1). Sequence 1 is **not** staging sign-off. Do not add a second `verification_admin` without an MFA policy.
+- MFA required for every admin before controlled-release sign-off (architecture §10.1). Sequence 1 is **not** controlled-release sign-off. Do not add a second `verification_admin` without an MFA policy.
 - Account deletion / `dataRightsRequests`.
 - Google Places on owner address; storing coordinates; live tracking.
 - In-app role switching / converting a renter into an owner.
@@ -2142,7 +2147,7 @@ Each PR is independently reviewable and mergeable. Later PRs may depend on earli
 - **Title:** `docs: Owner Sequence 1 verification checkpoint`
 - **Files:** `README.md`, `docs/IMPLEMENTATION_PHASES.md`
 - **Depends on:** PRs 1–7 landed and gates actually passed
-- **Description:** Evidence-based description of what is live vs unavailable (FCM, payouts, vehicles, Paystack). Operator steps: Phone provider, Storage bucket, claim script. State explicitly: admin auth is claim + emailVerified + httpOnly cookie; MFA is **not** done; this is **not** staging sign-off; do not add a second `verification_admin` without an MFA policy. Do not mark a gate complete without a passing command.
+- **Description:** Evidence-based description of what is live vs unavailable (FCM, payouts, vehicles, Paystack). Operator steps: Phone provider, Storage bucket, claim script. State explicitly: admin auth is claim + emailVerified + httpOnly cookie; MFA is **not** done; this is **not** controlled-release sign-off; do not add a second `verification_admin` without an MFA policy. Do not mark a gate complete without a passing command.
 
 ---
 

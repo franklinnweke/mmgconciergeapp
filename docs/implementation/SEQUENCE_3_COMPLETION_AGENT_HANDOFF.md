@@ -1,4 +1,10 @@
 # MMG Concierge — Sequence 3 completion agent handoff
+
+> **Historical environment note:** ADR 0008 supersedes this handoff's
+> production/staging wording. Use emulators locally, `mmg-concierge-dev` for
+> cloud integration, and `mmg-concierge` only through the controlled-release
+> gate.
+
 ## Objective
 
 Finish and validate the current Sequences 1–3 vertical slice by completing the
@@ -245,7 +251,7 @@ generated files, or claims of unavailable integrations being live.
 ## Explicitly deferred—not part of this phase
 
 - Real Paystack initialization, webhook verification, charging, or refunds.
-- Production/staging Firebase deployment or billing enablement.
+- Shared `mmg-concierge` cloud deployment or billing changes.
 - Admin session-cookie authentication and privileged command implementation.
 - Owner onboarding, vehicle management, owner earnings, and full owner app.
 - Authentication provider/configuration changes.

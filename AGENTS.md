@@ -50,6 +50,7 @@ If a status document conflicts with code or Git history, report the discrepancy,
 ## 4. Locked architecture invariants
 
 - Firebase is the backend: Authentication, Firestore, Storage, Functions v2, App Check, FCM, Crashlytics, and Cloud Logging.
+- Firebase topology is two-tier: use emulators locally, `mmg-concierge-dev` for cloud development/integration, and `mmg-concierge` for controlled/public production. No dedicated staging project is required for MVP (ADR 0008).
 - Firestore client access is deny-by-default. Trusted state is written through Admin SDK/services, not direct client writes.
 - All money is integer NGN kobo. Pricing is server-authoritative and uses the canonical domain calculation.
 - Dates are date-only `YYYY-MM-DD` and intervals are half-open `[startDate, endDate)`.
@@ -81,7 +82,7 @@ Snapshot date: **2026-08-20**. Verify against `git status`, `git log`, and [`doc
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 — admin completeness | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules are not complete |
-| WP8 — release hardening | ⏳ Not started | CI, observability, privacy/data-safety inventory, runbooks, staging sign-off |
+| WP8 — release hardening | ⏳ Not started | CI, observability, privacy/data-safety inventory, runbooks, controlled-release sign-off |
 
 ### Firebase Infrastructure (Blaze Plan Active)
 
@@ -90,6 +91,8 @@ The Firebase project `mmg-concierge` has been upgraded to the **Blaze (Pay-as-yo
 2. Google Cloud Scheduler daily cron for `expireAbandonedOwnerVerificationUploads`.
 3. Outbound network connectivity for live Nigerian Phone Auth (`+234...`), APNs/FCM pushes, and future Paystack payment webhooks/APIs.
 4. Custom memory allocations (512MiB–1024MiB) for server-side Sharp vehicle image resizing.
+
+This is the production Firebase project. Do not reprovision its working Auth, Functions, Firestore, Storage, App Check, or registered apps. The target development project is `mmg-concierge-dev`; until it is explicitly provisioned and wired, use the Emulator Suite and do not pretend the production project is a development environment. Production deployments and cleanup remain separately authorized, production-impacting actions.
 
 ### Current GitHub baseline & Working Tree Status
 

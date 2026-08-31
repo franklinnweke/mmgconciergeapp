@@ -1,5 +1,10 @@
 # MMG Concierge application deep review
 
+> **Environment supersession (2026-08-30):** ADR 0008 replaces this review's
+> old three-project assumptions. The current topology is emulator ->
+> `mmg-concierge-dev` development/integration -> `mmg-concierge` production,
+> with no dedicated staging project. The findings remain historical evidence.
+
 **Review date:** 2026-08-20
 **Reviewed baseline:** `main` at `8c61703`
 **Experimental branch reviewed:** `codex/wp4-booking-operations` at `7c698db`
@@ -45,7 +50,7 @@ should the hardened parts of the WP4 branch be selectively ported.
 |---|---|---|---|
 | Experience foundation | Complete foundation | Expo/Next monorepo, navigation, Prado-led brand, preview assets | Current-source local web/native smoke gate is not healthy |
 | Authentication | Substantial foundation | Email/password, Google, role-aware onboarding, native Firebase structure | MFA and production Phone Auth proof are absent; Expo Go remains unsupported |
-| Owner verification | Substantially complete | Private ID upload, magic-byte validation, server decisions, staff session desk, audits, retention job | Staging deployment/operational sign-off still required |
+| Owner verification | Substantially complete | Private ID upload, magic-byte validation, server decisions, staff session desk, audits, retention job | Controlled-release operational sign-off still required |
 | Vehicle inventory/moderation | Substantially complete, one required architecture gap | Draft/upload/finalize/submit/review/visibility, image variants/promotion, owner fleet and staff desk | `submitVehicleRevision` is absent; abandoned vehicle-upload cleanup is absent |
 | Renter profile/privacy | Partial | Profile/address/terms screens and server commands, deletion-request state | Phone is not authoritatively linked/verified; deletion is a request only, with no reauth/erasure/anonymization completion flow; MFA absent |
 | Discovery/search/detail | Partial and currently unstable | Strict renter projection, approved-only reads, Haversine/ranking helpers, detail/browse UI | Known native map-sheet crash; web Firebase boundary is not deterministic; callable search is not integrated, ignores availability, and fabricates unknown places |
@@ -55,7 +60,7 @@ should the hardened parts of the WP4 branch be selectively ported.
 | Notifications/chat/lifecycle | Not implemented | Some outbox records exist at submission boundaries | No production FCM processor, payment-gated chat, or complete-rental lifecycle |
 | Ledger/wallet/withdrawal | Not implemented | Architecture/ADR boundary only | No append-only ledger, wallet projection, finance approval, or withdrawal operation |
 | Admin completeness | Partial | Owner and vehicle moderation; booking read/fixture foundation | Payments/refunds, cases, users/privacy, configuration, finance, ledger and complete role desks remain |
-| Release hardening | Not started | Some historical unit/emulator evidence | CI reliability, current emulator proof, native E2E, Crashlytics/alerts, privacy inventory, runbooks and staging sign-off |
+| Release hardening | Not started | Some historical unit/emulator evidence | CI reliability, current emulator proof, native E2E, Crashlytics/alerts, privacy inventory, runbooks and controlled-release sign-off |
 
 ## 4. Confirmed and likely app breakages
 
@@ -243,7 +248,7 @@ one authoritative held intent with an identical displayed/server price.
    reviewed commits.
 2. Rebuild Paystack around Secret Manager, durable initialization idempotency,
    signed webhooks, strict amount/currency/reference/environment validation,
-   event dedupe, reconciliation, and test-mode-only staging controls.
+   event dedupe, reconciliation, and explicit test-mode-only controls.
 3. Add admin payment/refund/intervention timelines and operational alerts.
 4. Continue WP5 lifecycle/notifications, WP6 ledger/manual withdrawals, WP7
    remaining desks, then WP8 release hardening.

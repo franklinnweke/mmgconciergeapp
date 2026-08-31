@@ -155,4 +155,4 @@ npm run check  # ✅ 519 tests passed (67 files), 0 type errors, 0 lint warnings
 | WP5 | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 | ⏳ Not started | Append-only ledger and manual finance workflow |
 | WP7 | 🔶 Partial | Owners, bookings, and initial vehicle desk exist; remaining operations modules pending |
-| WP8 | ⏳ Not started | CI, observability, privacy/data-safety inventory, runbooks, staging sign-off |
+| WP8 | ⏳ Not started | CI, observability, privacy/data-safety inventory, runbooks, controlled-release sign-off |

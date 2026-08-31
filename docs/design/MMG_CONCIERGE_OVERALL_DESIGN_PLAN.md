@@ -509,7 +509,7 @@ Evidence from the current source checkpoint:
 - Admin validation: **10 test files, 66 tests passed**.
 - Expo web export: **34 routes**.
 
-Protected owner and Admin rendered device/browser QA remains a release-checklist item. Authenticated sessions and local fixture preview were unavailable for that pass, so this checkpoint is not staging sign-off and does not claim Paystack, live payment, or settlement completion. The next release gate is authenticated rendered QA at 320/390 mobile widths and supported Admin/browser widths, followed by the existing release-hardening checks.
+Protected owner and Admin rendered device/browser QA remains a release-checklist item. Authenticated sessions and local fixture preview were unavailable for that pass, so this checkpoint is not controlled-release sign-off and does not claim Paystack, live payment, or settlement completion. The next release gate is authenticated rendered QA at 320/390 mobile widths and supported Admin/browser widths, followed by the existing release-hardening checks.
 
 ## 14. Implementation roadmap
 

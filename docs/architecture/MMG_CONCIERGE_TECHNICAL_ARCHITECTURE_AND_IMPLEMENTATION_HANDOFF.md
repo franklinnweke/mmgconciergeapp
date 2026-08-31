@@ -1,8 +1,8 @@
 # MMG Concierge Technical Architecture and Implementation Handoff
 
 **Status:** Final source of truth for MVP implementation  
-**Version:** 1.0  
-**Date:** 12 August 2026  
+**Version:** 1.1
+**Date:** 30 August 2026
 **Launch market:** Lagos, Nigeria  
 **Product:** Chauffeured luxury-car rental marketplace  
 
@@ -21,6 +21,8 @@ When sources disagree, use this order:
 5. The current landing-page repository as a brand, content, and interaction reference only.
 
 The historical PDFs mention AWS, S3, a custom REST/JWT backend, broad renter-owner chat, and live location tracking. Those choices are superseded. The current platform uses Firebase serverless services, Firebase Storage, authenticated callable functions, payment-gated chat, and no live vehicle tracking in MVP.
+
+Version 1.1 supersedes the original three-project Firebase plan with a two-tier model: the Emulator Suite for local/automated isolation, `mmg-concierge-dev` for cloud development and integration, and the existing `mmg-concierge` project for controlled and public production. A dedicated staging project is not required for MVP. See ADR 0008.
 
 ### 1.1 Reference inputs
 
@@ -338,31 +340,30 @@ flowchart LR
 
 React Native Firebase includes custom native code, so the project must use Expo development builds and pinned compatible package versions. Agents must not assume Expo Go support.
 
-### 5.3 Environments and regions
+### 5.3 Firebase environments, isolation, and regions
 
-Create physically separate Firebase projects:
+Use two Firebase cloud projects:
 
-- `mmg-concierge-dev`
-- `mmg-concierge-staging`
-- `mmg-concierge-prod`
+- `mmg-concierge-dev` — cloud development and integration
+- `mmg-concierge` — controlled and public production
 
-The exact IDs may differ, but the separation may not.
+Do not add a dedicated staging Firebase project for MVP. Local development and automated tests must prefer the Firebase Emulator Suite and deterministic fixtures. EAS development builds and sandbox provider integrations target `mmg-concierge-dev`; release/TestFlight/Play Store builds target `mmg-concierge`.
 
-For new backend resources, use `africa-south1` for Firestore, Storage, and Cloud Functions v2. It is the only current Firebase region in Africa and keeps the primary data plane geographically aligned with the launch continent. This selection is immutable for Firestore and must be made before provisioning production.
+The development project must isolate Auth users, Firestore data, Storage objects, Functions, Rules, indexes, FCM tokens, App Check registrations, restricted Maps keys, Secret Manager values, logs, alerts, and future Paystack test credentials from production. Data promotion means reviewed code/configuration deployment, not copying development users, government IDs, exact locations, or other private records into production.
+
+Repository documents currently record `africa-south1` for the existing Firestore, Storage, and Cloud Functions resources. Firestore location is immutable after provisioning, so an operator must verify and record the live `mmg-concierge` database and bucket locations before provisioning `mmg-concierge-dev`; the live project is authoritative if documentation differs. Use the matching supported data location for development unless a reviewed ADR records an exception. Cloud Functions v2 remain in `africa-south1`.
 
 Deploy the Next.js admin with Firebase App Hosting in `europe-west4`, the nearest currently supported App Hosting region, while keeping all data mutations in `africa-south1` functions. The dashboard is staff-only and is not on the customer latency path.
 
-Each environment has separate:
+Environment rules:
 
-- Firebase app registrations and App Check credentials
-- Paystack test/live keys and webhook endpoints
-- Google Maps keys with bundle/package/API restrictions
-- Storage buckets
-- EAS profiles and mobile identifiers
-- Admin allowlists/custom claims
-- Logging and alert destinations
-
-No production secrets or data are copied into development.
+- Local emulator configuration and fixtures remain separate from both cloud projects.
+- Development-only fixture flags must fail closed and be impossible in production release builds.
+- Paystack test and live credentials, if introduced, live in different Firebase projects; project identity and credential mode must agree server-side.
+- Google Maps keys remain separately restricted by bundle/package, signing certificate, web origin, and API list.
+- Admin claims, App Check providers, logging, alerts, deployment identities, and backups are environment-specific.
+- No script may bulk-delete or reset cloud data as an implicit development step.
+- Production deploys require explicit operator authorization; agent-default cloud work targets development only after it is provisioned.
 
 ### 5.4 Monorepo structure
 
@@ -801,7 +802,7 @@ Refunds are server-initiated and follow Paystack's asynchronous states. The book
 - Deny by default in Firestore and Storage Security Rules.
 - Use Firebase Auth email verification and linked phone verification.
 - Use custom claims for `support`, `vehicle_admin`, `verification_admin`, `finance_admin`, `privacy_admin`, and `super_admin`.
-- Require MFA for all admin accounts before staging sign-off.
+- Require MFA for all admin accounts before controlled public-release sign-off.
 - Admin sessions use secure, HTTP-only, same-site Firebase session cookies created server-side.
 - Client route guards are convenience only; server layouts/actions enforce admin authorization.
 - Enforce App Check on production callable functions after staged monitoring.
@@ -1039,7 +1040,8 @@ Create alerts for:
 | Mobile tests | Renter/owner onboarding, discovery, checkout return, offline/error states, chat |
 | Admin Playwright tests | All approval, case, refund, wallet, withdrawal, configuration, privacy workflows |
 | Device E2E | iOS and Android development/release builds using Maestro |
-| Production smoke | Staging/live configuration, deep links, FCM, maps restrictions, webhook reachability |
+| Development integration | `mmg-concierge-dev` Auth/App Check, deep links, FCM, Maps restrictions, Functions and sandbox webhook reachability |
+| Controlled-release smoke | Production `mmg-concierge` configuration, deep links, FCM, Maps restrictions, webhook reachability |
 
 ### 13.2 Non-negotiable scenarios
 
@@ -1073,7 +1075,7 @@ Every pull request must pass:
 - Secret scanning and dependency vulnerability review
 - Firestore index/schema diff review when applicable
 
-Production deploys require staging approval, tagged release, migration/backfill plan, rollback plan, and named operator.
+Development cloud deploys require passing relevant emulator checks and an exact `mmg-concierge-dev` target. Production deploys require controlled-release approval, tagged release, migration/backfill plan when data changes, rollback plan, and a named operator. Never infer the target from an ambiguous alias.
 
 ---
 
@@ -1089,7 +1091,7 @@ Deliver:
 - This architecture under version control
 - ADR template and initial decisions
 - Shared contracts/domain packages
-- Dev/staging Firebase projects and Emulator Suite
+- Emulator Suite plus `mmg-concierge-dev` development and `mmg-concierge` production project topology
 - CI baseline and secret/environment model
 - Imported brand tokens and approved asset usage rules
 
