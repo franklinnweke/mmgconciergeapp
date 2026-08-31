@@ -9,6 +9,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -18,7 +19,6 @@ import {
   Timestamp,
   updateDoc,
   where,
-  deleteDoc,
 } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
@@ -27,7 +27,6 @@ const describeWithEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : de
 function validBookingRequest(userId: string) {
   const pickupAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
   const returnAt = Timestamp.fromMillis(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
   return {
     createdAt: serverTimestamp(),
     dailyRateKobo: 38_500_000,
@@ -65,21 +64,12 @@ describeWithEmulator('booking request Firestore rules', () => {
     });
   });
 
-  beforeEach(async () => {
-    await environment.clearFirestore();
-  });
-
-  afterAll(async () => {
-    await environment.cleanup();
-  });
+  beforeEach(async () => environment.clearFirestore());
+  afterAll(async () => environment.cleanup());
 
   it('allows an authenticated renter to create, read, and list an owned request', async () => {
-    const database = environment.authenticatedContext(
-      'renter-one',
-      { email: 'ada@example.com' },
-    ).firestore();
+    const database = environment.authenticatedContext('renter-one', { email: 'ada@example.com' }).firestore();
     const reference = doc(database, 'users/renter-one/bookingRequests/request-one');
-
     await assertSucceeds(setDoc(reference, validBookingRequest('renter-one')));
     await assertSucceeds(getDoc(reference));
     await assertSucceeds(getDocs(collection(database, 'users/renter-one/bookingRequests')));
@@ -88,7 +78,6 @@ describeWithEmulator('booking request Firestore rules', () => {
   it('denies public reads, lists, and creates', async () => {
     const database = environment.unauthenticatedContext().firestore();
     const reference = doc(database, 'users/renter-one/bookingRequests/request-one');
-
     await assertFails(getDoc(reference));
     await assertFails(getDocs(collection(database, 'users/renter-one/bookingRequests')));
     await assertFails(setDoc(reference, validBookingRequest('renter-one')));
@@ -98,36 +87,24 @@ describeWithEmulator('booking request Firestore rules', () => {
     const ownerDatabase = environment.authenticatedContext('renter-one').firestore();
     const attackerDatabase = environment.authenticatedContext('renter-two').firestore();
     const reference = doc(ownerDatabase, 'users/renter-one/bookingRequests/request-one');
-
     await assertSucceeds(setDoc(reference, validBookingRequest('renter-one')));
     await assertFails(getDoc(doc(attackerDatabase, reference.path)));
-    await assertFails(
-      getDocs(collection(attackerDatabase, 'users/renter-one/bookingRequests')),
-    );
-    await assertFails(
-      setDoc(
-        doc(attackerDatabase, 'users/renter-two/bookingRequests/spoofed'),
-        validBookingRequest('renter-one'),
-      ),
-    );
+    await assertFails(getDocs(collection(attackerDatabase, 'users/renter-one/bookingRequests')));
+    await assertFails(setDoc(
+      doc(attackerDatabase, 'users/renter-two/bookingRequests/spoofed'),
+      validBookingRequest('renter-one'),
+    ));
   });
 
   it('rejects schema pollution, oversized strings, and missing required fields', async () => {
     const database = environment.authenticatedContext('renter-one').firestore();
     const basePath = 'users/renter-one/bookingRequests';
-
-    await assertFails(
-      setDoc(doc(database, basePath, 'polluted'), {
-        ...validBookingRequest('renter-one'),
-        isAdmin: true,
-      }),
-    );
-    await assertFails(
-      setDoc(doc(database, basePath, 'oversized'), {
-        ...validBookingRequest('renter-one'),
-        vehicleId: 'v'.repeat(129),
-      }),
-    );
+    await assertFails(setDoc(doc(database, basePath, 'polluted'), {
+      ...validBookingRequest('renter-one'), isAdmin: true,
+    }));
+    await assertFails(setDoc(doc(database, basePath, 'oversized'), {
+      ...validBookingRequest('renter-one'), vehicleId: 'v'.repeat(129),
+    }));
     const { returnAt: _omitted, ...missingReturn } = validBookingRequest('renter-one');
     await assertFails(setDoc(doc(database, basePath, 'missing'), missingReturn));
   });
@@ -135,101 +112,64 @@ describeWithEmulator('booking request Firestore rules', () => {
   it('rejects invalid types, ranges, timestamps, and initial statuses', async () => {
     const database = environment.authenticatedContext('renter-one').firestore();
     const basePath = 'users/renter-one/bookingRequests';
-
-    await assertFails(
-      setDoc(doc(database, basePath, 'type-juggle'), {
-        ...validBookingRequest('renter-one'),
-        durationDays: '2',
-      }),
-    );
-    await assertFails(
-      setDoc(doc(database, basePath, 'negative'), {
-        ...validBookingRequest('renter-one'),
-        totalKobo: -1,
-      }),
-    );
-    await assertFails(
-      setDoc(doc(database, basePath, 'overflow'), {
-        ...validBookingRequest('renter-one'),
-        dailyRateKobo: 1_000_000_001,
-      }),
-    );
-    await assertFails(
-      setDoc(doc(database, basePath, 'past-pickup'), {
-        ...validBookingRequest('renter-one'),
-        pickupAt: Timestamp.fromMillis(Date.now() - 60_000),
-      }),
-    );
-    await assertFails(
-      setDoc(doc(database, basePath, 'timestamp-manipulation'), {
-        ...validBookingRequest('renter-one'),
-        createdAt: Timestamp.fromMillis(Date.now() - 60_000),
-      }),
-    );
-    await assertFails(
-      setDoc(doc(database, basePath, 'status-escalation'), {
-        ...validBookingRequest('renter-one'),
-        status: 'booked',
-      }),
-    );
+    await assertFails(setDoc(doc(database, basePath, 'type-juggle'), {
+      ...validBookingRequest('renter-one'), durationDays: '2',
+    }));
+    await assertFails(setDoc(doc(database, basePath, 'negative'), {
+      ...validBookingRequest('renter-one'), totalKobo: -1,
+    }));
+    await assertFails(setDoc(doc(database, basePath, 'overflow'), {
+      ...validBookingRequest('renter-one'), dailyRateKobo: 1_000_000_001,
+    }));
+    await assertFails(setDoc(doc(database, basePath, 'past-pickup'), {
+      ...validBookingRequest('renter-one'), pickupAt: Timestamp.fromMillis(Date.now() - 60_000),
+    }));
+    await assertFails(setDoc(doc(database, basePath, 'timestamp-manipulation'), {
+      ...validBookingRequest('renter-one'), createdAt: Timestamp.fromMillis(Date.now() - 60_000),
+    }));
+    await assertFails(setDoc(doc(database, basePath, 'status-escalation'), {
+      ...validBookingRequest('renter-one'), status: 'booked',
+    }));
   });
 
   it('denies all client updates and deletes, including status escalation', async () => {
     const database = environment.authenticatedContext('renter-one').firestore();
     const reference = doc(database, 'users/renter-one/bookingRequests/request-one');
     await assertSucceeds(setDoc(reference, validBookingRequest('renter-one')));
-
     await assertFails(updateDoc(reference, { status: 'confirmed' }));
     await assertFails(updateDoc(reference, { vehicleId: 'tampered', extraData: 'x'.repeat(1000) }));
     await assertFails(deleteDoc(reference));
   });
 
   it('allows a signed-in user to create and read one safe account profile', async () => {
-    const database = environment.authenticatedContext(
-      'renter-one',
-      { email: 'ada@example.com' },
-    ).firestore();
+    const database = environment.authenticatedContext('renter-one', { email: 'ada@example.com' }).firestore();
     const profile = doc(database, 'users/renter-one');
-
     await assertSucceeds(setDoc(profile, validAccountProfile('renter-one')));
     await assertSucceeds(getDoc(profile));
   });
 
-  it('accepts an owner profile but rejects admin and schema pollution', async () => {
-    const database = environment.authenticatedContext('owner-one', { email: 'ada@example.com' }).firestore();
-    const adminDatabase = environment.authenticatedContext('admin-one', { email: 'ada@example.com' }).firestore();
-    const pollutedDatabase = environment.authenticatedContext('polluted-one', { email: 'ada@example.com' }).firestore();
-    await assertSucceeds(
-      setDoc(doc(database, 'users/owner-one'), validAccountProfile('owner-one', 'owner')),
-    );
-    await assertFails(setDoc(doc(adminDatabase, 'users/admin-one'), {
-      ...validAccountProfile('admin-one'),
-      accountType: 'admin',
+  it('accepts an owner profile but rejects admin, email spoofing, and schema pollution', async () => {
+    const owner = environment.authenticatedContext('owner-one', { email: 'ada@example.com' }).firestore();
+    const admin = environment.authenticatedContext('admin-one', { email: 'ada@example.com' }).firestore();
+    const polluted = environment.authenticatedContext('polluted-one', { email: 'ada@example.com' }).firestore();
+    await assertSucceeds(setDoc(doc(owner, 'users/owner-one'), validAccountProfile('owner-one', 'owner')));
+    await assertFails(setDoc(doc(admin, 'users/admin-one'), {
+      ...validAccountProfile('admin-one'), accountType: 'admin',
     }));
-    await assertFails(setDoc(doc(pollutedDatabase, 'users/polluted-one'), {
-      ...validAccountProfile('polluted-one'),
-      isAdmin: true,
+    await assertFails(setDoc(doc(polluted, 'users/polluted-one'), {
+      ...validAccountProfile('polluted-one'), isAdmin: true,
     }));
-    await assertFails(setDoc(
-      doc(environment.authenticatedContext('email-one', { email: 'real@example.com' }).firestore(), 'users/email-one'),
-      validAccountProfile('email-one'),
-    ));
+    const emailSpoof = environment.authenticatedContext('email-one', { email: 'real@example.com' }).firestore();
+    await assertFails(setDoc(doc(emailSpoof, 'users/email-one'), validAccountProfile('email-one')));
   });
 
   it('prevents cross-user access and all client profile mutations', async () => {
-    const ownerDatabase = environment.authenticatedContext(
-      'renter-one',
-      { email: 'ada@example.com' },
-    ).firestore();
+    const ownerDatabase = environment.authenticatedContext('renter-one', { email: 'ada@example.com' }).firestore();
     const attackerDatabase = environment.authenticatedContext('renter-two').firestore();
     const profile = doc(ownerDatabase, 'users/renter-one');
     await assertSucceeds(setDoc(profile, validAccountProfile('renter-one')));
-
     await assertFails(getDoc(doc(attackerDatabase, profile.path)));
-    await assertFails(setDoc(
-      doc(attackerDatabase, 'users/renter-one'),
-      validAccountProfile('renter-one'),
-    ));
+    await assertFails(setDoc(doc(attackerDatabase, 'users/renter-one'), validAccountProfile('renter-one')));
     await assertFails(updateDoc(profile, { accountType: 'owner' }));
     await assertFails(updateDoc(profile, { displayName: 'Changed Name' }));
     await assertFails(deleteDoc(profile));
@@ -237,62 +177,38 @@ describeWithEmulator('booking request Firestore rules', () => {
 
   it('allows renters to read only their server-created intents and bookings', async () => {
     await environment.withSecurityRulesDisabled(async (context) => {
-      const adminDatabase = context.firestore();
-      await setDoc(doc(adminDatabase, 'bookingIntents/intent-one'), {
-        renterId: 'renter-one',
-        state: 'intent_created',
-        renterTotalKobo: 83_160_000,
+      const database = context.firestore();
+      await setDoc(doc(database, 'bookingIntents/intent-one'), {
+        renterId: 'renter-one', state: 'intent_created', renterTotalKobo: 83_160_000,
       });
-      await setDoc(doc(adminDatabase, 'bookings/booking-one'), {
-        renterId: 'renter-one',
-        state: 'paid_pending_owner',
-        paymentReference: 'server-only-reference',
+      await setDoc(doc(database, 'bookings/booking-one'), {
+        renterId: 'renter-one', state: 'paid_pending_owner', paymentReference: 'server-only-reference',
       });
     });
-
-    const ownerDatabase = environment.authenticatedContext('renter-one').firestore();
-    const attackerDatabase = environment.authenticatedContext('renter-two').firestore();
+    const renter = environment.authenticatedContext('renter-one').firestore();
+    const attacker = environment.authenticatedContext('renter-two').firestore();
     const publicDatabase = environment.unauthenticatedContext().firestore();
-
-    await assertSucceeds(getDoc(doc(ownerDatabase, 'bookingIntents/intent-one')));
-    await assertSucceeds(getDoc(doc(ownerDatabase, 'bookings/booking-one')));
-    await assertSucceeds(getDocs(query(
-      collection(ownerDatabase, 'bookingIntents'),
-      where('renterId', '==', 'renter-one'),
-    )));
-    await assertSucceeds(getDocs(query(
-      collection(ownerDatabase, 'bookings'),
-      where('renterId', '==', 'renter-one'),
-    )));
-    await assertFails(getDocs(collection(ownerDatabase, 'bookingIntents')));
-    await assertFails(getDocs(query(
-      collection(attackerDatabase, 'bookings'),
-      where('renterId', '==', 'renter-one'),
-    )));
-    await assertFails(getDoc(doc(attackerDatabase, 'bookingIntents/intent-one')));
-    await assertFails(getDoc(doc(attackerDatabase, 'bookings/booking-one')));
+    await assertSucceeds(getDoc(doc(renter, 'bookingIntents/intent-one')));
+    await assertSucceeds(getDoc(doc(renter, 'bookings/booking-one')));
+    await assertSucceeds(getDocs(query(collection(renter, 'bookingIntents'), where('renterId', '==', 'renter-one'))));
+    await assertSucceeds(getDocs(query(collection(renter, 'bookings'), where('renterId', '==', 'renter-one'))));
+    await assertFails(getDocs(collection(renter, 'bookingIntents')));
+    await assertFails(getDocs(query(collection(attacker, 'bookings'), where('renterId', '==', 'renter-one'))));
+    await assertFails(getDoc(doc(attacker, 'bookingIntents/intent-one')));
+    await assertFails(getDoc(doc(attacker, 'bookings/booking-one')));
     await assertFails(getDoc(doc(publicDatabase, 'bookingIntents/intent-one')));
   });
 
   it('denies all client writes to server-owned booking collections', async () => {
     const database = environment.authenticatedContext('renter-one').firestore();
     const paths = [
-      'bookingIntents/client-intent',
-      'bookings/client-booking',
-      'bookingBlocks/client-block',
-      'vehicleAvailability/vehicle-one',
-      'payments/client-payment',
-      'auditEvents/client-audit',
-      'idempotencyKeys/client-key',
-      'systemConfig/booking',
+      'bookingIntents/client-intent', 'bookings/client-booking', 'bookingBlocks/client-block',
+      'vehicleAvailability/vehicle-one', 'payments/client-payment', 'auditEvents/client-audit',
+      'idempotencyKeys/client-key', 'systemConfig/booking',
     ];
-
     for (const path of paths) {
       await assertFails(setDoc(doc(database, path), {
-        renterId: 'renter-one',
-        state: 'confirmed',
-        totalKobo: 1,
-        isAdmin: true,
+        renterId: 'renter-one', state: 'confirmed', totalKobo: 1, isAdmin: true,
       }));
     }
   });
@@ -300,9 +216,7 @@ describeWithEmulator('booking request Firestore rules', () => {
   it('denies update and delete attempts against server-created records', async () => {
     await environment.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'bookingIntents/intent-one'), {
-        renterId: 'renter-one',
-        state: 'intent_created',
-        renterTotalKobo: 83_160_000,
+        renterId: 'renter-one', state: 'intent_created', renterTotalKobo: 83_160_000,
       });
     });
     const database = environment.authenticatedContext('renter-one').firestore();
@@ -312,116 +226,61 @@ describeWithEmulator('booking request Firestore rules', () => {
   });
 
   describe('owner collections and staff client isolation', () => {
-    it('allows owner to get their own ownerProfiles but denies list and writes (F3, F5, F14)', async () => {
+    it('allows an owner to get their profile but denies list and writes', async () => {
       await environment.withSecurityRulesDisabled(async (context) => {
         await setDoc(doc(context.firestore(), 'ownerProfiles/owner-one'), {
-          ownerId: 'owner-one',
-          legalName: 'Alhaji Musa Danjuma',
-          verificationStatus: 'draft',
+          ownerId: 'owner-one', legalName: 'Alhaji Musa Danjuma', verificationStatus: 'draft',
         });
       });
-
-      const ownerDatabase = environment.authenticatedContext('owner-one', { email: 'owner@example.com' }).firestore();
-      const profileDoc = doc(ownerDatabase, 'ownerProfiles/owner-one');
-
-      // F3: Owner A can get ownerProfiles/A
-      await assertSucceeds(getDoc(profileDoc));
-
-      // F14: Owner A cannot list ownerProfiles collection
-      await assertFails(getDocs(collection(ownerDatabase, 'ownerProfiles')));
-
-      // F5: Owner A cannot write/update/delete ownerProfiles/A
-      await assertFails(setDoc(profileDoc, { legalName: 'Tampered' }));
-      await assertFails(updateDoc(profileDoc, { verificationStatus: 'approved' }));
-      await assertFails(deleteDoc(profileDoc));
+      const owner = environment.authenticatedContext('owner-one', { email: 'owner@example.com' }).firestore();
+      const profile = doc(owner, 'ownerProfiles/owner-one');
+      await assertSucceeds(getDoc(profile));
+      await assertFails(getDocs(collection(owner, 'ownerProfiles')));
+      await assertFails(setDoc(profile, { legalName: 'Tampered' }));
+      await assertFails(updateDoc(profile, { verificationStatus: 'approved' }));
+      await assertFails(deleteDoc(profile));
     });
 
-    it('denies cross-user and anonymous access to ownerProfiles (F1, F2, F4)', async () => {
+    it('denies cross-user and anonymous access to owner profiles', async () => {
       await environment.withSecurityRulesDisabled(async (context) => {
         await setDoc(doc(context.firestore(), 'ownerProfiles/owner-one'), {
-          ownerId: 'owner-one',
-          legalName: 'Alhaji Musa Danjuma',
-          verificationStatus: 'draft',
+          ownerId: 'owner-one', legalName: 'Alhaji Musa Danjuma', verificationStatus: 'draft',
         });
       });
-
-      const attackerDatabase = environment.authenticatedContext('owner-two', { email: 'other@example.com' }).firestore();
-      const renterDatabase = environment.authenticatedContext('renter-one', { email: 'renter@example.com' }).firestore();
-      const publicDatabase = environment.unauthenticatedContext().firestore();
-
-      // F4: Owner B cannot read ownerProfiles/A
-      await assertFails(getDoc(doc(attackerDatabase, 'ownerProfiles/owner-one')));
-
-      // F2: Renter cannot read ownerProfiles/A
-      await assertFails(getDoc(doc(renterDatabase, 'ownerProfiles/owner-one')));
-
-      // F1: Anonymous cannot read ownerProfiles/A
-      await assertFails(getDoc(doc(publicDatabase, 'ownerProfiles/owner-one')));
+      await assertFails(getDoc(doc(environment.authenticatedContext('owner-two').firestore(), 'ownerProfiles/owner-one')));
+      await assertFails(getDoc(doc(environment.authenticatedContext('renter-one').firestore(), 'ownerProfiles/owner-one')));
+      await assertFails(getDoc(doc(environment.unauthenticatedContext().firestore(), 'ownerProfiles/owner-one')));
     });
 
-    it('denies all client access to ownerVerifications, adminAuditLogs, and notificationOutbox (F1, F6, F7, F10, F11, F12, F15, F16)', async () => {
+    it('denies all client access to verification, audit, and notification collections', async () => {
       await environment.withSecurityRulesDisabled(async (context) => {
-        await setDoc(doc(context.firestore(), 'ownerVerifications/owner-one'), {
-          ownerId: 'owner-one',
-          phoneE164: '+2348012345678',
-          status: 'submitted',
+        const database = context.firestore();
+        await setDoc(doc(database, 'ownerVerifications/owner-one'), {
+          ownerId: 'owner-one', phoneE164: '+2348012345678', status: 'submitted',
         });
-        await setDoc(doc(context.firestore(), 'adminAuditLogs/log-one'), {
-          action: 'approve',
-          ownerId: 'owner-one',
-        });
-        await setDoc(doc(context.firestore(), 'notificationOutbox/event-one'), {
-          status: 'unavailable',
-        });
+        await setDoc(doc(database, 'adminAuditLogs/log-one'), { action: 'approve', ownerId: 'owner-one' });
+        await setDoc(doc(database, 'notificationOutbox/event-one'), { status: 'unavailable' });
       });
-
-      const ownerDatabase = environment.authenticatedContext('owner-one', { email: 'owner@example.com' }).firestore();
-      const staffDatabase = environment.authenticatedContext('staff-one', {
-        email: 'staff@example.com',
-        verification_admin: true,
-      }).firestore();
-      const supportDatabase = environment.authenticatedContext('support-one', {
-        email: 'support@example.com',
-        support: true,
-      }).firestore();
+      const owner = environment.authenticatedContext('owner-one').firestore();
+      const staff = environment.authenticatedContext('staff-one', { verification_admin: true }).firestore();
+      const support = environment.authenticatedContext('support-one', { support: true }).firestore();
       const publicDatabase = environment.unauthenticatedContext().firestore();
-
-      // F6: Owner cannot read ownerVerifications
-      await assertFails(getDoc(doc(ownerDatabase, 'ownerVerifications/owner-one')));
-
-      // F7: Owner cannot write ownerVerifications
-      await assertFails(setDoc(doc(ownerDatabase, 'ownerVerifications/owner-one'), { status: 'approved' }));
-
-      // F10, F15: Staff JS client cannot read/list ownerVerifications, adminAuditLogs, or other user docs
-      await assertFails(getDoc(doc(staffDatabase, 'ownerVerifications/owner-one')));
-      await assertFails(getDocs(collection(staffDatabase, 'ownerVerifications')));
-      await assertFails(getDoc(doc(staffDatabase, 'adminAuditLogs/log-one')));
-      await assertFails(getDocs(collection(staffDatabase, 'adminAuditLogs')));
-      await assertFails(getDoc(doc(staffDatabase, 'users/owner-one')));
-
-      // F10, F11: Staff JS client cannot read, list, or write ownerProfiles
-      await assertFails(getDoc(doc(staffDatabase, 'ownerProfiles/owner-one')));
-      await assertFails(getDocs(collection(staffDatabase, 'ownerProfiles')));
-      await assertFails(setDoc(doc(staffDatabase, 'ownerProfiles/owner-one'), { verificationStatus: 'approved' }));
-
-      // F11: Staff JS client cannot write any of those
-      await assertFails(setDoc(doc(staffDatabase, 'ownerVerifications/owner-one'), { status: 'approved' }));
-      await assertFails(setDoc(doc(staffDatabase, 'adminAuditLogs/log-two'), { action: 'approve' }));
-
-      // F12: Support claim cannot read ownerVerifications
-      await assertFails(getDoc(doc(supportDatabase, 'ownerVerifications/owner-one')));
-
-      // F1: Anonymous cannot write ownerProfiles, ownerVerifications, or adminAuditLogs
+      await assertFails(getDoc(doc(owner, 'ownerVerifications/owner-one')));
+      await assertFails(setDoc(doc(owner, 'ownerVerifications/owner-one'), { status: 'approved' }));
+      await assertFails(getDoc(doc(staff, 'ownerVerifications/owner-one')));
+      await assertFails(getDocs(collection(staff, 'ownerVerifications')));
+      await assertFails(getDoc(doc(staff, 'adminAuditLogs/log-one')));
+      await assertFails(getDocs(collection(staff, 'adminAuditLogs')));
+      await assertFails(getDoc(doc(staff, 'ownerProfiles/owner-one')));
+      await assertFails(getDocs(collection(staff, 'ownerProfiles')));
+      await assertFails(setDoc(doc(staff, 'ownerProfiles/owner-one'), { verificationStatus: 'approved' }));
+      await assertFails(setDoc(doc(staff, 'adminAuditLogs/log-two'), { action: 'approve' }));
+      await assertFails(getDoc(doc(support, 'ownerVerifications/owner-one')));
       await assertFails(setDoc(doc(publicDatabase, 'ownerProfiles/owner-one'), { verificationStatus: 'approved' }));
-      await assertFails(setDoc(doc(publicDatabase, 'ownerVerifications/owner-one'), { status: 'approved' }));
-      await assertFails(setDoc(doc(publicDatabase, 'adminAuditLogs/log-one'), { action: 'approve' }));
-
-      // F16: Any client denied read/write on notificationOutbox
-      await assertFails(getDoc(doc(ownerDatabase, 'notificationOutbox/event-one')));
-      await assertFails(getDoc(doc(staffDatabase, 'notificationOutbox/event-one')));
+      await assertFails(getDoc(doc(owner, 'notificationOutbox/event-one')));
+      await assertFails(getDoc(doc(staff, 'notificationOutbox/event-one')));
       await assertFails(getDoc(doc(publicDatabase, 'notificationOutbox/event-one')));
-      await assertFails(setDoc(doc(ownerDatabase, 'notificationOutbox/event-new'), { status: 'sent' }));
-      await assertFails(setDoc(doc(staffDatabase, 'notificationOutbox/event-new'), { status: 'sent' }));
+      await assertFails(setDoc(doc(owner, 'notificationOutbox/event-new'), { status: 'sent' }));
     });
   });
 
@@ -430,108 +289,81 @@ describeWithEmulator('booking request Firestore rules', () => {
       await environment.withSecurityRulesDisabled(async (context) => {
         const database = context.firestore();
         await setDoc(doc(database, 'vehicles/vehicle-owner'), {
-          vehicleId: 'vehicle-owner',
-          ownerId: 'owner-one',
-          discoverable: false,
-          ownerDailyRateKobo: 15000000,
+          vehicleId: 'vehicle-owner', ownerId: 'owner-one', discoverable: false,
+          ownerDailyRateKobo: 15_000_000,
         });
-        await setDoc(doc(database, 'vehicles/vehicle-public'), {
-          vehicleId: 'vehicle-public',
-          ownerId: 'owner-two',
-          discoverable: true,
-          ownerDailyRateKobo: 18000000,
+        await setDoc(doc(database, 'vehicles/vehicle-discoverable'), {
+          vehicleId: 'vehicle-discoverable', ownerId: 'owner-two', discoverable: true,
+          ownerDailyRateKobo: 18_000_000, lastDecisionReason: 'private moderation note',
+          pendingRevisionId: 'private-revision-id',
+          primaryImagePath: 'private/vehicle-uploads/owner-two/vehicle-discoverable/card',
         });
         await setDoc(doc(database, 'vehiclePrivate/vehicle-owner'), {
-          vehicleId: 'vehicle-owner',
-          ownerId: 'owner-one',
-          exactLatitude: 6.43,
-          exactLongitude: 3.42,
-          plate: 'KJA-123AB',
+          vehicleId: 'vehicle-owner', ownerId: 'owner-one', exactLatitude: 6.43,
+          exactLongitude: 3.42, plate: 'KJA-123AB',
         });
         await setDoc(doc(database, 'vehicles/vehicle-owner/images/image-private'), {
-          vehicleId: 'vehicle-owner',
-          ownerId: 'owner-one',
-          status: 'processed',
+          vehicleId: 'vehicle-owner', ownerId: 'owner-one', status: 'processed',
+          originalUploadId: 'upload-private', variantPaths: { card: 'private/owner/card' },
         });
-        await setDoc(doc(database, 'vehicles/vehicle-public/images/image-public'), {
-          vehicleId: 'vehicle-public',
-          ownerId: 'owner-two',
-          status: 'processed',
+        await setDoc(doc(database, 'vehicles/vehicle-discoverable/images/image-public-looking'), {
+          vehicleId: 'vehicle-discoverable', ownerId: 'owner-two', status: 'approved',
+          originalUploadId: 'upload-secret', variantPaths: { card: 'private/owner-two/card' },
+          publicVariantPaths: { card: 'public/vehicles/vehicle-discoverable/card' },
         });
         await setDoc(doc(database, 'vehicleRevisions/revision-owner'), {
-          vehicleId: 'vehicle-owner',
-          ownerId: 'owner-one',
-          createdAt: serverTimestamp(),
+          vehicleId: 'vehicle-owner', ownerId: 'owner-one', createdAt: serverTimestamp(),
         });
         await setDoc(doc(database, 'bookingCases/case-owner'), {
-          ownerId: 'owner-one',
-          renterId: 'renter-one',
-          status: 'open',
+          ownerId: 'owner-one', renterId: 'renter-one', status: 'open',
         });
       });
     });
 
-    it('limits vehicle reads and lists to own or discoverable documents', async () => {
-      const ownerDatabase = environment.authenticatedContext('owner-one').firestore();
-      const renterDatabase = environment.authenticatedContext('renter-one').firestore();
-      const anonymousDatabase = environment.unauthenticatedContext().firestore();
+    it('keeps trusted vehicle records owner-only even when discoverable is true', async () => {
+      const owner = environment.authenticatedContext('owner-one').firestore();
+      const renter = environment.authenticatedContext('renter-one').firestore();
+      const anonymous = environment.unauthenticatedContext().firestore();
+      const staff = environment.authenticatedContext('staff-one', { vehicle_admin: true }).firestore();
 
-      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehicles/vehicle-owner')));
-      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehicles/vehicle-public')));
-      await assertSucceeds(getDocs(query(
-        collection(ownerDatabase, 'vehicles'),
-        where('ownerId', '==', 'owner-one'),
-      )));
-      await assertFails(getDocs(collection(ownerDatabase, 'vehicles')));
+      await assertSucceeds(getDoc(doc(owner, 'vehicles/vehicle-owner')));
+      await assertSucceeds(getDocs(query(collection(owner, 'vehicles'), where('ownerId', '==', 'owner-one'))));
+      await assertFails(getDocs(collection(owner, 'vehicles')));
+      await assertFails(getDoc(doc(owner, 'vehicles/vehicle-discoverable')));
 
-      await assertSucceeds(getDoc(doc(renterDatabase, 'vehicles/vehicle-public')));
-      await assertFails(getDoc(doc(renterDatabase, 'vehicles/vehicle-owner')));
-      await assertSucceeds(getDocs(query(
-        collection(renterDatabase, 'vehicles'),
-        where('discoverable', '==', true),
-      )));
-      await assertFails(getDocs(query(
-        collection(renterDatabase, 'vehicles'),
-        where('discoverable', '==', false),
-      )));
-      await assertFails(getDoc(doc(anonymousDatabase, 'vehicles/vehicle-public')));
+      await assertFails(getDoc(doc(renter, 'vehicles/vehicle-discoverable')));
+      await assertFails(getDocs(query(collection(renter, 'vehicles'), where('discoverable', '==', true))));
+      await assertFails(getDoc(doc(anonymous, 'vehicles/vehicle-discoverable')));
+      await assertFails(getDoc(doc(staff, 'vehicles/vehicle-discoverable')));
     });
 
-    it('keeps private vehicle data and image subcollections owner/public scoped', async () => {
-      const ownerDatabase = environment.authenticatedContext('owner-one').firestore();
-      const otherOwnerDatabase = environment.authenticatedContext('owner-two').firestore();
-      const renterDatabase = environment.authenticatedContext('renter-one').firestore();
+    it('never exposes private vehicle or image documents to renters', async () => {
+      const owner = environment.authenticatedContext('owner-one').firestore();
+      const otherOwner = environment.authenticatedContext('owner-two').firestore();
+      const renter = environment.authenticatedContext('renter-one').firestore();
 
-      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehiclePrivate/vehicle-owner')));
-      await assertFails(getDoc(doc(otherOwnerDatabase, 'vehiclePrivate/vehicle-owner')));
-      await assertSucceeds(getDocs(query(
-        collection(ownerDatabase, 'vehiclePrivate'),
-        where('ownerId', '==', 'owner-one'),
-      )));
-      await assertFails(getDoc(doc(renterDatabase, 'vehiclePrivate/vehicle-owner')));
+      await assertSucceeds(getDoc(doc(owner, 'vehiclePrivate/vehicle-owner')));
+      await assertFails(getDoc(doc(otherOwner, 'vehiclePrivate/vehicle-owner')));
+      await assertSucceeds(getDocs(query(collection(owner, 'vehiclePrivate'), where('ownerId', '==', 'owner-one'))));
+      await assertFails(getDoc(doc(renter, 'vehiclePrivate/vehicle-owner')));
 
-      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehicles/vehicle-owner/images/image-private')));
-      await assertSucceeds(getDoc(doc(renterDatabase, 'vehicles/vehicle-public/images/image-public')));
-      await assertFails(getDoc(doc(renterDatabase, 'vehicles/vehicle-owner/images/image-private')));
-      await assertFails(setDoc(doc(ownerDatabase, 'vehicles/vehicle-owner'), { discoverable: true }));
+      await assertSucceeds(getDoc(doc(owner, 'vehicles/vehicle-owner/images/image-private')));
+      await assertFails(getDoc(doc(renter, 'vehicles/vehicle-discoverable/images/image-public-looking')));
+      await assertFails(getDoc(doc(renter, 'vehicles/vehicle-owner/images/image-private')));
+      await assertFails(setDoc(doc(owner, 'vehicles/vehicle-owner'), { discoverable: true }));
     });
 
     it('limits revisions and booking cases to the owner or booking participants', async () => {
-      const ownerDatabase = environment.authenticatedContext('owner-one').firestore();
-      const renterDatabase = environment.authenticatedContext('renter-one').firestore();
-      const attackerDatabase = environment.authenticatedContext('renter-two').firestore();
-
-      await assertSucceeds(getDoc(doc(ownerDatabase, 'vehicleRevisions/revision-owner')));
-      await assertSucceeds(getDocs(query(
-        collection(ownerDatabase, 'vehicleRevisions'),
-        where('ownerId', '==', 'owner-one'),
-      )));
-      await assertFails(getDoc(doc(attackerDatabase, 'vehicleRevisions/revision-owner')));
-
-      await assertSucceeds(getDoc(doc(ownerDatabase, 'bookingCases/case-owner')));
-      await assertSucceeds(getDoc(doc(renterDatabase, 'bookingCases/case-owner')));
-      await assertFails(getDoc(doc(attackerDatabase, 'bookingCases/case-owner')));
-      await assertFails(setDoc(doc(ownerDatabase, 'bookingCases/case-new'), { ownerId: 'owner-one' }));
+      const owner = environment.authenticatedContext('owner-one').firestore();
+      const renter = environment.authenticatedContext('renter-one').firestore();
+      const attacker = environment.authenticatedContext('renter-two').firestore();
+      await assertSucceeds(getDoc(doc(owner, 'vehicleRevisions/revision-owner')));
+      await assertSucceeds(getDocs(query(collection(owner, 'vehicleRevisions'), where('ownerId', '==', 'owner-one'))));
+      await assertFails(getDoc(doc(attacker, 'vehicleRevisions/revision-owner')));
+      await assertSucceeds(getDoc(doc(owner, 'bookingCases/case-owner')));
+      await assertSucceeds(getDoc(doc(renter, 'bookingCases/case-owner')));
+      await assertFails(getDoc(doc(attacker, 'bookingCases/case-owner')));
+      await assertFails(setDoc(doc(owner, 'bookingCases/case-new'), { ownerId: 'owner-one' }));
     });
   });
 });

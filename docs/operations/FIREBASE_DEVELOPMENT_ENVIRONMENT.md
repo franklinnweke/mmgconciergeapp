@@ -1,9 +1,9 @@
 # Firebase development environment
 
-**Project:** `mmg-concierge-dev`
-**Production project:** `mmg-concierge`
-**Provisioning date:** 2026-08-30
-**Status:** Blaze billing, app registrations, Firestore, Functions, callable invocation IAM, and the private cleanup schedule are provisioned; the discovery security correction awaits redeployment, while Storage and deployable Security Rules remain incomplete
+**Project:** `mmg-concierge-dev`  
+**Production project:** `mmg-concierge`  
+**Provisioning date:** 2026-08-30  
+**Status:** Blaze billing, app registrations, Firestore with hardened S1 Security Rules and indexes, 22 Functions (including `getVehicleDetails`), callable invocation IAM, the private cleanup schedule, and the default Storage bucket are provisioned in `mmg-concierge-dev`. Native iOS App Check/Auth discovery smoke tests, the live media lifecycle, and abandoned-upload cleanup have been verified.
 
 ## Registered development apps
 
@@ -18,46 +18,53 @@ Mobile development and preview EAS profiles select the checked-in development SD
 ## Verified production baseline
 
 - Production `(default)` Firestore is Standard edition, Native mode, in `africa-south1`.
-- Development Firestore must use the same `africa-south1` location.
+- Development Firestore uses the same `africa-south1` location.
 - Production currently has no deployed Cloud Functions.
 
-## Billing status
+## Billing and live development inventory
 
-The Firebase console confirms that `mmg-concierge-dev` is on the Blaze plan and linked to the `Firebase Payment` billing account. A project budget is visible in the console. The Firebase MCP process still reported stale Spark-plan state during the 2026-08-30 verification attempt, so the installed Firebase CLI was used for read-only inventory checks.
+The Firebase console confirms that `mmg-concierge-dev` is on Blaze and linked to the `Firebase Payment` billing account. A project budget is visible in the console.
 
 Current live inventory:
 
-- `(default)` Firestore is Standard/Native in `africa-south1`, with delete protection and the platform's closed default rules.
-- All 21 Node 22 Function resources are `ACTIVE` in `africa-south1`.
-- All 20 callable Cloud Run services have the standard public `roles/run.invoker` transport boundary. Protected callables fail closed inside Firebase application handling. The last deployed discovery handlers still allowed anonymous `resolveSearchPlace`/`searchVehicles` access; the reconciled branch now requires App Check plus Firebase Auth for both and authenticated-renter access for vehicle search. Redeployment and authenticated native smoke evidence are required before closing this mismatch.
-- `expireAbandonedOwnerVerificationUploads` remains private. Its Cloud Run invoker is the development project's default compute service account, used by a private OIDC Cloud Scheduler target; unauthenticated HTTP receives a platform-level 403.
-- Cloud Scheduler has no Africa region. The job `firebase-schedule-expireAbandonedOwnerVerificationUploads-africa-south1` therefore runs from `europe-west1`, targets the Function in `africa-south1`, uses `every 24 hours`, and evaluates time in `Africa/Lagos`.
-- The schedule has not been executed end to end because the development default Storage bucket is not yet provisioned. Treat scheduled cleanup as configured, not operationally signed off.
-- The Functions artifact repository has a one-day cleanup policy.
-- The ignored local payment test credential is absent from all 21 deployed Function runtime environments.
+- `(default)` Firestore is Standard/Native in `africa-south1`, with delete protection and hardened S1 Security Rules and indexes deployed.
+- All 22 Node 22 Functions (including `getVehicleDetails`) are active in `africa-south1`.
+- Callable Cloud Run services use the public transport invocation boundary so Firebase App Check/Auth enforce application access.
+- `resolveSearchPlace`, `searchVehicles`, and `getVehicleDetails` enforce App Check + Auth. Missing App Check / unauthenticated calls return `401 UNAUTHENTICATED`; an authenticated renter in the iOS native development build with a registered debug App Check token successfully exercised all three callables.
+- `expireAbandonedOwnerVerificationUploads` remains private. Its OIDC Cloud Scheduler job runs from `europe-west1` every 24 hours in the `Africa/Lagos` timezone because Cloud Scheduler has no Africa region.
+- Default Storage bucket `mmg-concierge-dev.firebasestorage.app` is provisioned in `africa-south1` with Standard storage class and `firebase/storage.rules` deployed.
+- The live media lifecycle has been verified with synthetic development data: source EXIF/GPS detection, Sharp `thumb`/`card`/`detail` rendering with metadata stripping, promotion to the approved public prefix, public fetch success, private-source denial, and demotion removal.
+- The abandoned owner-verification upload cleanup path has been exercised against live development Storage: an unreferenced >24h synthetic object was removed while an active referenced object was preserved.
+- The ignored local Paystack test credential is absent from deployed Function runtime environments.
 - Development Auth is enabled for Email/Password and Google Sign-In.
-- The registered iOS, Android, and Admin web apps are present.
 
 Creation of billable development resources and any deployment remain separately authorized cloud mutations. Always pass `--project mmg-concierge-dev` or use the `development` alias; never infer the target from production configuration.
 
-## Security Rules deployment blocker
+## Renter vehicle security gate
 
-The pre-deployment red-team review found a high-severity projection leak in the current Firestore Rules/data model:
+The pre-deployment review found that the existing Rules allowed signed-in renters to read trusted `vehicles/{vehicleId}` and `vehicles/{vehicleId}/images/{imageId}` documents whenever a vehicle was discoverable. Those records can contain owner IDs, moderation reasons, revision IDs, private Storage paths, upload IDs, processing metadata, and other fields that must not cross the renter network boundary.
 
-- `vehicles/{vehicleId}` becomes client-readable when `discoverable == true`, but the stored record is the owner/trusted record and can contain `ownerId`, `lastDecisionReason`, `pendingRevisionId`, and `primaryImagePath`.
-- `vehicles/{vehicleId}/images/{imageId}` becomes renter-readable with a discoverable parent, but `VehicleImageRecord` contains private `variantPaths`, processing internals, and the original upload ID.
+The checked-in schema evolution plan resolves this without creating a second listing collection:
 
-Client DTO parsing does not repair a network-level leak. Do not deploy Firestore Rules to development or production until renter discovery reads a dedicated sanitized public projection, or the trusted records are otherwise split so forbidden fields cannot cross the read boundary. Add negative emulator tests containing real private-path/moderation fields before closing this gate.
+1. `resolveSearchPlace`, `searchVehicles`, and `getVehicleDetails` are authenticated, App-Check-protected Functions.
+2. Functions use the Admin SDK to read trusted vehicle/image records.
+3. A strict discovery DTO whitelist removes owner identity, moderation state, private paths, and image-processing internals before serialization.
+4. Native live discovery list/search/detail calls Functions instead of Firestore.
+5. Web live discovery also uses Functions; deterministic preview data remains an explicit preview-only adapter.
+6. Firestore Rules deny renters, anonymous users, and staff JavaScript clients all direct reads of trusted vehicle/image records. Owners retain only their narrow existing read scope. All trusted writes remain server-only.
 
-Remaining development-environment gates:
+No `publicVehicles`, `listings`, or other duplicate renter read-model collection is introduced. `vehicles`, `vehiclePrivate`, `vehicleRevisions`, and `vehicles/{vehicleId}/images` remain the canonical inventory families.
 
-1. Reconfirm the active Firebase project is exactly `mmg-concierge-dev`.
-2. Reauthenticate the Firebase CLI, redeploy the corrected discovery callables, and verify anonymous calls are rejected by App Check/Auth.
-3. Provision the default Storage bucket in the matching supported data location; do not recreate or alter the production bucket.
-4. Repair the trusted/public vehicle projection boundary and add network-level negative Rules tests.
-5. Run the Firestore and Storage emulator Rules suites and resolve every high/critical audit finding.
-6. Deploy Firestore Rules/indexes and Storage Rules only after those security gates pass.
-7. Run authenticated native-development App Check/Auth smoke checks against representative protected callables.
-8. Run the private Scheduler cleanup once Storage exists, then verify execution logs and safe abandoned-upload behavior before operational sign-off.
+The branch includes negative Rules cases with a deliberately discoverable trusted record containing moderation/private-path fields. These tests demonstrate that `discoverable: true` no longer grants Firestore client access (18/18 rules unit tests passed). The branch also includes serializer tests proving that Function responses do not contain owner IDs, moderation reasons, or private paths.
 
-Never copy production Auth users, government IDs, exact locations, bookings, tokens, or private Storage objects into development.
+## Completed development-environment gates
+
+1. Authenticated renter end-to-end smoke checks passed from the iOS native development build with a registered App Check debug token.
+2. Storage bucket `mmg-concierge-dev.firebasestorage.app` is provisioned in `africa-south1` with `firebase/storage.rules` deployed.
+3. Live media lifecycle verification passed: EXIF/GPS stripping, promotion under `public/vehicles/{vehicleId}/approved/{imageId}/{variant}`, public fetch, private-object denial, and demotion removal were verified with synthetic data.
+4. Abandoned owner-verification upload cleanup was verified against live development Storage with synthetic unreferenced and active objects.
+5. Firestore and Storage emulator Rules suites passed before cloud Rules deployment.
+
+The Firebase development environment and S1 discovery-security boundary are operationally complete for the current work package. Re-run the complete development integration path before starting live Paystack work or after any security-boundary change.
+
+Never copy production Auth users, government IDs, exact locations, bookings, tokens, or private Storage objects into development. Never loosen production Rules as a rollback for discovery. If the Function discovery boundary fails, fail discovery closed and fix forward.

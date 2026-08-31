@@ -1,6 +1,6 @@
 # WP0 & WP2 Implementation Status
 
-**Date:** 2026-08-20
+**Date:** 2026-08-31
 **Plan reference:** `docs/implementation/PROJECT_COMPLETION_WITHOUT_PAYSTACK_IMPLEMENTATION_PLAN.md`
 
 ---
@@ -68,13 +68,14 @@
 **Tests**: 196 → 210 (+14 tests: vehicle state transitions, discoverability, revision classification, coord rounding, plate masking, extended error reasons)
 
 ### Batch B — Firestore/Storage rules + indexes ✅
-**`firebase/firestore.rules`**:
-- `vehicles/{vehicleId}`: Owner `get` + `list` by `ownerId`; renter `list` by `discoverable == true`; all writes denied
-- `vehiclePrivate/{vehicleId}`: Owner `get`/`list` only; renter never; writes denied
-- `vehicles/{vehicleId}/images/{imageId}`: Authenticated read only
-- `vehicleRevisions/{revisionId}`: Owner-scoped read
-- `bookingCases/{caseId}`: Participant-scoped read
-- `bookings/{bookingId}`: Extended to owner-scoped read
+**`firebase/firestore.rules`** (current hardened S1 boundary):
+- `vehicles/{vehicleId}`: owner-only `get`/`list` by `ownerId`; renters, anonymous users, and staff JavaScript clients have no direct read access; all writes denied.
+- `vehiclePrivate/{vehicleId}`: owner-only `get`/`list`; renter access denied; writes denied.
+- `vehicles/{vehicleId}/images/{imageId}`: owner-only `get`/`list` through parent ownership; renter access denied because image documents contain upload IDs, processing facts, and private paths.
+- `vehicleRevisions/{revisionId}`: owner-scoped read.
+- `bookingCases/{caseId}`: participant-scoped read.
+- `bookings/{bookingId}`: renter/owner participant-scoped read.
+- Renter vehicle list/search/detail is served only through authenticated, App-Check-protected Functions using the Admin SDK and strict discovery DTOs.
 
 **`firebase/storage.rules`**:
 - `public/vehicles/{vehicleId}/approved/{imageId}/{variant}`: Public read
@@ -129,10 +130,19 @@ npm run check  # ✅ 519 tests passed (67 files), 0 type errors, 0 lint warnings
 ### Sequence 2 & Discovery Hardening (Latest Snapshot)
 
 1. **Owner Wizard Flow**: Sequential photo upload + finalization pipeline, authoritative version re-read before submit, physical address validation with optional exact coords, and truthful Fleet desk status tracking.
-2. **Strict Discovery Gateway**: Native & Web Firestore gateways enforce strict row validation (drops missing coords, unknown categories, non-included policies, or missing public images; `limit(30)` on all discovery queries; zero synthetic fallback).
+2. **Strict Discovery Gateway**: Native & Web discovery gateways route through App-Check-protected and authenticated Functions (`resolveSearchPlace`, `searchVehicles`, `getVehicleDetails`). Zero direct renter Firestore reads on trusted vehicle/image collections.
 3. **Live Booking Review**: `BookingReviewScreen` and `VehicleDetailScreen` asynchronously resolve live vehicles from `DiscoveryGateway` with truthful loading and missing states.
 
-**Rules suites (2026-08-16, Java 25)**: `npm run test:rules` ✅ 18 passed — first emulator run against the Batch B vehicle rules; `npm run test:storage-rules` ✅ 17 passed — first run against the vehicle upload prefixes. Both cover cross-owner, renter, anonymous, and staff-client denial paths.
+**Live Development Environment Checkpoint (`mmg-concierge-dev`)**:
+- **Bucket**: `mmg-concierge-dev.firebasestorage.app` in `africa-south1` (Standard storage class).
+- **Functions**: 22 active Functions deployed in `africa-south1` (including `getVehicleDetails`).
+- **Firestore Rules & Indexes**: Hardened S1 deployed to `(default)` database; negative tests confirm zero client access to trusted collections.
+- **Storage Rules**: `firebase/storage.rules` deployed to `mmg-concierge-dev`.
+- **Native Smoke Test Platform**: iOS Native Development Build (`com.mmgconcierge.app`) with registered debug App Check token and authenticated renter account.
+- **Media Lifecycle Verification**: Live test completed (EXIF/GPS metadata inspection, Sharp variant rendering and stripping, promotion to `public/`, public variant download, 403 on private source, demotion removal with 404, and private persistence).
+- **Scheduler Cleanup Verification**: Live test completed against `mmg-concierge-dev.firebasestorage.app` (unreferenced >24h candidate deleted; active upload preserved).
+
+**Rules suites (Java 25)**: `npm run test:rules` ✅ 18 passed; `npm run test:storage-rules` ✅ 17 passed.
 
 ---
 
@@ -149,8 +159,8 @@ npm run check  # ✅ 519 tests passed (67 files), 0 type errors, 0 lint warnings
 | WP | Status | Notes |
 |---|---|---|
 | WP1 | 🔶 Foundation complete | Profile/address/terms and deletion-request workflow exist; verified linked phone, completed deletion/erasure operations and MFA remain |
-| WP2 | 🔶 Sequence 2 Pass Complete | Batches A, B, C, D (core), E, F delivered and hardened; abandoned upload cleanup remaining |
-| WP3 | ✅ Complete | Strict live Lagos discovery and renter detail/review flows are connected. A privacy-safe selected-date calendar check now gates quote review without exposing private owner blocks or booking references |
+| WP2 | 🔶 Sequence 2 Pass Complete | Batches A, B, C, D (core), E, F delivered and hardened; vehicle upload GC remains |
+| WP3 | ✅ S1 Hardening Complete | Strict live Lagos discovery via authenticated Functions deployed to mmg-concierge-dev; direct renter Firestore reads denied in Rules; detail distance preserved; live storage lifecycle verified |
 | WP4 | 🔶 Calendar + owner-response slice complete | Intents/holds, versioned availability, renter gating, strict owner booking projection, live native owner desk, and confirm/decline UI are delivered. Web fixtures are development-only and visibly labelled. Trusted paid-booking creation, SLA alerts, and Paystack remain incomplete |
 | WP5 | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 | ⏳ Not started | Append-only ledger and manual finance workflow |
