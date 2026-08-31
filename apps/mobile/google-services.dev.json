@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "133019251795",
+    "project_id": "mmg-concierge-dev",
+    "storage_bucket": "mmg-concierge-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:133019251795:android:f192492125abddccdc82a6",
+        "android_client_info": {
+          "package_name": "com.mmgconcierge.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "133019251795-3idjttf0demotpdlqc6eeffumkdt8d8n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCWPizaUti4r1yukXkQB5EmmA85ogpqXc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "133019251795-3idjttf0demotpdlqc6eeffumkdt8d8n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "133019251795-6k22mrl18f8kjvb1ks4lom7vpn39v8rl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mmgconcierge.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
