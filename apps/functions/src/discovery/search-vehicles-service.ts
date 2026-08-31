@@ -17,6 +17,8 @@ import {
 } from '../vehicle/renter-vehicle-view.js';
 import type { VehicleImageRecord, VehicleRecord } from '../vehicle/vehicle-repository.js';
 
+const DEFAULT_LAGOS_ORIGIN = { lat: 6.4281, lng: 3.4219 } as const;
+
 export interface DiscoveryVehicleSource {
   listDiscoverable(): Promise<Array<{ vehicle: VehicleRecord; images: VehicleImageRecord[] }>>;
   getById(vehicleId: string): Promise<{ vehicle: VehicleRecord; images: VehicleImageRecord[] } | null>;
@@ -86,7 +88,18 @@ export async function getVehicleDetailsService(
 ): Promise<GetVehicleDetailsResult> {
   const item = await source.getById(vehicleId);
   if (!item) return { vehicle: null };
-  return { vehicle: toDiscoveryVehicle(item, bucketName) };
+
+  const vehicle = toDiscoveryVehicle(item, bucketName);
+  if (!vehicle) return { vehicle: null };
+
+  const distanceKm = haversineDistanceKm(
+    DEFAULT_LAGOS_ORIGIN.lat,
+    DEFAULT_LAGOS_ORIGIN.lng,
+    vehicle.approxLatitude,
+    vehicle.approxLongitude,
+  );
+
+  return { vehicle: { ...vehicle, distanceKm } };
 }
 
 export async function searchVehiclesService(
@@ -95,8 +108,8 @@ export async function searchVehiclesService(
   bucketName: string,
 ): Promise<SearchVehiclesResult> {
   const items = await source.listDiscoverable();
-  const originLat = criteria.originLat ?? 6.4281;
-  const originLng = criteria.originLng ?? 3.4219;
+  const originLat = criteria.originLat ?? DEFAULT_LAGOS_ORIGIN.lat;
+  const originLng = criteria.originLng ?? DEFAULT_LAGOS_ORIGIN.lng;
   const matches: RankedDiscoveryVehicle[] = [];
 
   for (const item of items) {

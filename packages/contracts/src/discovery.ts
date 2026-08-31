@@ -47,7 +47,7 @@ export const getVehicleDetailsDataSchema = z.object({
 export type GetVehicleDetailsData = z.infer<typeof getVehicleDetailsDataSchema>;
 
 export const getVehicleDetailsResultSchema = z.object({
-  vehicle: discoveryVehicleSchema.nullable(),
+  vehicle: rankedDiscoveryVehicleSchema.nullable(),
 }).strict();
 export type GetVehicleDetailsResult = z.infer<typeof getVehicleDetailsResultSchema>;
 

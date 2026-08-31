@@ -50,7 +50,9 @@ export class WebFirestoreDiscoveryGateway implements DiscoveryGateway {
       response.data,
       'getVehicleDetails',
     );
-    return result.vehicle ? discoveryVehicleToSummary(result.vehicle) : null;
+    return result.vehicle
+      ? discoveryVehicleToSummary(result.vehicle, result.vehicle.distanceKm)
+      : null;
   }
 }
 

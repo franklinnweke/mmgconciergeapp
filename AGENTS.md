@@ -67,7 +67,7 @@ If a status document conflicts with code or Git history, report the discrepancy,
 
 ## 5. Current milestone snapshot
 
-Snapshot date: **2026-08-30**. Verify against `git status`, `git log`, [`docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md`](docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md), [`docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`](docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md), and [`docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md`](docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md) before relying on it.
+Snapshot date: **2026-08-31**. Verify against `git status`, `git log`, [`docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md`](docs/reviews/2026-08-20_APPLICATION_DEEP_REVIEW.md), [`docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md`](docs/architecture/FIRESTORE_SCHEMA_EVOLUTION_PLAN.md), and [`docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md`](docs/operations/FIREBASE_DEVELOPMENT_ENVIRONMENT.md) before relying on it.
 
 | Milestone | Status | Evidence / next gate |
 |---|---|---|
@@ -80,7 +80,7 @@ Snapshot date: **2026-08-30**. Verify against `git status`, `git log`, [`docs/re
 | WP2 F — Admin vehicle moderation | ✅ Complete | Live gateway, review command, storage promotion, checklist and Admin tests |
 | WP2 E — owner mobile fleet UI | ✅ Complete | Fleet list, create/submit wizard, image pipeline, visibility controls |
 | WP1 — renter profile/privacy/MFA | 🔶 Foundation complete | Profile/address/terms and deletion-request commands exist; verified phone, completed deletion/erasure workflow and MFA remain |
-| WP3 — live Lagos discovery | 🔶 Security hardening in progress | Search/ranking/detail UX exists, but S1 must remove all renter Firestore reads and prove strict Function DTO/network boundaries before Rules deployment |
+| WP3 — live Lagos discovery | 🔶 Security hardening in progress | S1 code now moves list/search/detail behind protected Functions and closes direct renter trusted-record reads; latest detail-distance correction must be revalidated before development deployment |
 | WP4 — availability and Paystack-ready booking | 🔶 Calendar + owner-response slice complete | Atomic intents/holds and owner-response services exist; trusted paid-booking creation, SLA alerts, and Paystack remain incomplete |
 | WP5 — notifications/chat/lifecycle | ⏳ Not started | FCM outbox, payment-gated chat, lifecycle/completion |
 | WP6 — ledger/wallets/withdrawals | ⏳ Not started | Append-only ledger and manual finance workflow |
@@ -93,11 +93,13 @@ The development Firebase project `mmg-concierge-dev` is on Blaze and currently h
 
 1. Registered iOS, Android, and Admin web apps; Email/Password and Google Authentication enabled.
 2. Standard/Native `(default)` Firestore in `africa-south1` with delete protection and the platform's closed default Rules.
-3. Previously deployed Node 22 Functions in `africa-south1` with public Cloud Run transport invocation for callable endpoints.
+3. 21 previously deployed Node 22 Functions in `africa-south1` with public Cloud Run transport invocation for callable endpoints. The current S1 branch adds `getVehicleDetails`, so the development cloud must show 22 Functions after the next authorized deployment.
 4. Private `expireAbandonedOwnerVerificationUploads` scheduled from `europe-west1` through OIDC to the `africa-south1` Function.
 5. No development default Storage bucket yet.
 
-The last cloud deployment predates the current S1 discovery work. The repository now protects `resolveSearchPlace` and `searchVehicles`, adds the architecture-defined protected `getVehicleDetails`, moves native live discovery list/search/detail behind Functions, removes renter Firestore access to trusted vehicle/image records, and adds negative Rules/serializer tests. None of those new S1 changes are live until operator reauthentication, local/emulator validation, and an explicit development deployment occur.
+A shell-capable operator validated commit `4b7fa5d` before this follow-up: Functions typecheck/build passed; 28 Functions test files passed with 261 tests and 7 skipped; 73 root test files passed with 532 tests and 42 skipped; Mobile typecheck/lint passed; Admin typecheck/lint and 66 tests passed; Firestore Rules emulator passed 18/18; Storage Rules emulator passed 17/17; `npm run check` and `git diff --check` passed. The current successor changes only discovery-detail distance preservation and therefore requires the same gate to be rerun before deployment.
+
+The last cloud deployment predates the current S1 discovery work. The repository protects `resolveSearchPlace` and `searchVehicles`, adds the architecture-defined protected `getVehicleDetails`, moves native live discovery list/search/detail behind Functions, removes renter Firestore access to trusted vehicle/image records, and adds negative Rules/serializer tests. None of those new S1 changes are live until operator reauthentication completes, the successor gate passes, and an explicit development deployment occurs.
 
 Production `mmg-concierge` is not a development target. Do not reprovision, clean up, seed, or loosen production resources during this work.
 
@@ -121,13 +123,14 @@ The active `codex/vehicle-public-projection-hardening` branch implements S1 with
 - new strict discovery wire contracts that omit owner identity and trusted fields;
 - `searchVehicles` service serialization through that whitelist;
 - architecture-defined `getVehicleDetails` callable behind App Check + authenticated-renter access;
+- detail DTOs preserve the same default Lagos-relative distance semantics as the prior direct-Firestore gateway;
 - mobile native live list/search/detail through Functions instead of direct Firestore;
 - web live gateway through Functions while preserving explicit preview-only fixtures;
 - Firestore Rules changed so `discoverable: true` never grants renter access to trusted vehicle/image documents;
 - negative Rules and serializer tests for moderation/private-path leakage;
 - inherited mobile image fallback lint repair without decorative CTA arrows.
 
-This branch has **not** been executed/tested from the current ChatGPT tool environment because the repository is not mounted locally and network clone access is unavailable. Do not treat the code gate or emulator gate as green until a shell-capable operator/agent runs the commands below. No Firebase deployment is authorized by this commit.
+The current follow-up commit must be validated by the shell-capable operator before any Firebase deployment. No Firebase deployment is authorized solely by this commit.
 
 ## 6. Milestone checker
 
@@ -151,11 +154,10 @@ npm run admin:typecheck
 npm run admin:lint
 npm run admin:test
 npm run test:rules
+npm run test:storage-rules
 npm run check
 git diff --check
 ```
-
-The prior branch-foundation checkpoint before this S1 edit had a green `npm run check`: 73 root test files / 537 tests passed (plus skipped suites), Mobile typecheck/lint passed, Functions typecheck/build passed, and Admin typecheck/lint/tests passed. That evidence does **not** automatically validate the current S1 changes.
 
 Milestone status is PASS only when:
 

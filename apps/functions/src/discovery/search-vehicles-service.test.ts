@@ -115,11 +115,15 @@ describe('searchVehiclesService', () => {
 });
 
 describe('getVehicleDetailsService', () => {
-  it('returns one strict renter DTO and null for missing vehicles', async () => {
+  it('returns one strict renter DTO with distance and null for missing vehicles', async () => {
     const result = await getVehicleDetailsService('veh-suv-1', mockSource, bucketName);
     expect(result.vehicle?.vehicleId).toBe('veh-suv-1');
+    expect(result.vehicle?.distanceKm).toBeGreaterThan(0);
     expect(result.vehicle).not.toHaveProperty('ownerId');
     expect(JSON.stringify(result)).not.toContain('private/');
+
+    const defaultOriginVehicle = await getVehicleDetailsService('veh-sedan-1', mockSource, bucketName);
+    expect(defaultOriginVehicle.vehicle?.distanceKm).toBe(0);
 
     await expect(getVehicleDetailsService('missing', mockSource, bucketName)).resolves.toEqual({
       vehicle: null,
