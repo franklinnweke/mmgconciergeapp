@@ -27,6 +27,17 @@ export function resolveRenterCheckoutState(
   if (result.providerStatus === 'abandoned') return 'abandoned';
   if (result.providerStatus === 'failed' || result.providerStatus === 'reversed') return 'failed';
 
+  if (
+    result.providerStatus === 'ongoing' ||
+    result.providerStatus === 'pending' ||
+    result.providerStatus === 'processing' ||
+    result.providerStatus === 'queued'
+  ) {
+    // Once Paystack has an in-flight transaction, hold expiry must not encourage
+    // the renter to start another checkout. Keep reconciling the existing payment.
+    return 'pending';
+  }
+
   const now = options.now ?? new Date();
   if (
     options.holdExpiresAt &&
@@ -34,15 +45,6 @@ export function resolveRenterCheckoutState(
     Date.parse(options.holdExpiresAt) <= now.getTime()
   ) {
     return 'expired_hold';
-  }
-
-  if (
-    result.providerStatus === 'ongoing' ||
-    result.providerStatus === 'pending' ||
-    result.providerStatus === 'processing' ||
-    result.providerStatus === 'queued'
-  ) {
-    return 'pending';
   }
 
   return 'checking';

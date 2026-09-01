@@ -54,8 +54,18 @@ describe('resolveRenterCheckoutState', () => {
     expect(resolveRenterCheckoutState(reconciliation({ providerStatus }))).toBe(expected);
   });
 
-  it('shows an expired hold while unresolved provider state remains pending', () => {
-    expect(resolveRenterCheckoutState(reconciliation({ providerStatus: 'processing' }), {
+  it.each(['ongoing', 'pending', 'processing', 'queued'] as const)(
+    'keeps provider %s pending even after the checkout hold expires',
+    (providerStatus) => {
+      expect(resolveRenterCheckoutState(reconciliation({ providerStatus }), {
+        holdExpiresAt: '2026-09-01T12:00:00.000Z',
+        now: new Date('2026-09-01T12:00:01.000Z'),
+      })).toBe('pending');
+    },
+  );
+
+  it('shows an expired hold when no in-flight provider transaction exists', () => {
+    expect(resolveRenterCheckoutState(reconciliation({ providerStatus: undefined }), {
       holdExpiresAt: '2026-09-01T12:00:00.000Z',
       now: new Date('2026-09-01T12:00:01.000Z'),
     })).toBe('expired_hold');
