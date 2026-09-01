@@ -15,7 +15,7 @@ MMG Concierge is a Lagos-first marketplace for chauffeured luxury-car rentals.
 - Production is never a development/test target.
 
 Current repository: `franklinnweke/mmgconciergeapp`.
-Current branch: `codex/dev-paystack-integration`, based on merged `main` at `d2c8d4537b107705cdb77dc7f1e57d367ecd96c5`.
+Current branch: `codex/metro-contract-import-fix`, based on merged `main` at `20e28f62ee2674d3a63997656ee3ba3e6fc3ca62`.
 
 ## 2. Locked product rules
 
@@ -114,7 +114,7 @@ For MVP intervention, manual operations are acceptable. Staff can inspect the ca
 
 ## 6. Development integration
 
-Active integration branch: `codex/dev-paystack-integration`.
+Active build-fix branch: `codex/metro-contract-import-fix`.
 
 Current state:
 
@@ -135,6 +135,10 @@ Current state:
 - the development webhook is `https://africa-south1-mmg-concierge-dev.cloudfunctions.net/paystackWebhook`;
 - an unsigned empty webhook smoke request reached the deployed endpoint and failed closed with `401 Invalid signature`;
 - the Firebase inventory now reports 26 deployed Functions; production `mmg-concierge`, Rules, Storage, Auth and Hosting were untouched.
+- EAS iOS build 17 failed before Xcode compilation because Metro could not resolve `./index.js` from the TypeScript contracts subpaths;
+- the contracts discovery, booking-case and payment subpaths now resolve shared schemas through the `@mmg/contracts` package export instead of a literal sibling `.js` path;
+- the repaired development configuration completed a local iOS Metro export: 1,936 modules bundled into a 5.2 MB Hermes bundle;
+- the post-repair repository gate remains green at 630 passed / 80 skipped root tests plus 66/66 Admin tests; build 18 is the next EAS build candidate.
 
 The development-only configuration/deployment commands are:
 
