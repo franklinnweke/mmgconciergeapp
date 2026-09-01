@@ -175,7 +175,7 @@ R4 invariants:
 - Exceeding owner response SLA creates an idempotent operations alert only. It must not change booking/payment/block state and must recheck booking state transactionally before recording the alert.
 - R5 treats the R4 paid availability record as an integrity boundary. A `paid_pending_owner` booking may advance only when its exact `paid` block exists and matches booking/intent/renter/owner/vehicle/date bindings.
 - R5 owner response requires an existing valid availability sentinel. Missing/malformed sentinel fails closed with no partial booking, block, case, audit or outbox writes.
-- R5 non-financial case handling currently implements only `open -> sourcing_alternative`, authorized to `support`/`super_admin`, idempotent, and audited in both domain and `adminAuditLogs` records.
+- R5 non-financial case handling implements only `open -> sourcing_alternative`, authorized to `support`/`super_admin`, idempotent, and audited in both domain and `adminAuditLogs` records.
 - `startBookingCaseSourcing` cannot accept a refund amount, replacement vehicle, top-up, reassignment, close-case result or other financial/resolution input.
 - Do not invent reassignment, cancellation or refund economics. Alternative locking, renter acceptance, top-up and refund actions remain separately gated by approved policy/financial implementation.
 
@@ -192,7 +192,7 @@ Snapshot: **2026-09-01**.
 | WP1 | 🔶 Foundation complete | Phone UX/linking, erasure workflow, MFA remain |
 | WP2 | 🔶 Core complete | Vehicle upload GC remains |
 | WP3 | ✅ S1 hardening complete | Discovery/storage boundary validated |
-| WP4 | 🔶 Active sprint | R0-R4 fully validated; R5 implementation complete enough for bounded validation checkpoint |
+| WP4 | 🔶 Active sprint | R0-R4 validated; R5 published and awaiting exact-head validation |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -207,40 +207,18 @@ Snapshot: **2026-09-01**.
 - R4 green at `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`: Functions unit 299 passed / 30 skipped; serialized Functions emulator 329/329 across 40 files; root 583 passed / 67 skipped; Admin 66/66; Firestore Rules 20/20; Storage Rules 17/17; all Functions/Mobile/Admin typechecks, Functions build, Mobile/Admin lint, `npm run check` and `git diff --check` passed. Focused R4 unit 28/28 and transactional emulator 20/20.
 - No R1-R4 validation configured a Paystack secret, made a real Paystack request, deployed Firebase or mutated production.
 
-### R5 active checkpoints
+### R5 publication state
 
-R5 starts from validated R4 head `edd5a485`.
+R5 starts from validated R4 head `edd5a485` and preserves these meaningful implementation commits:
 
-Checkpoint 1, owner-response integrity, is published as the first clean R5 commit and awaits aggregate R5 validation:
+1. `e130994` — owner-response paid-block/sentinel integrity hardening.
+2. `0aa7b2d` — idempotent owner-response SLA operations alerts.
+3. `b591972` — bounded audited `open -> sourcing_alternative` intervention command.
+4. Final documentation/handoff commit containing `docs/implementation/WP4_R5_CHECKPOINT.md`.
 
-- exact R4 paid block required for owner confirmation/rejection;
-- missing/mismatched paid block fails closed;
-- existing valid availability sentinel required;
-- confirm advances exact block to `confirmed`;
-- reject deletes exact paid block, opens one owner-rejection case and does not invent refund state;
-- unit + emulator coverage include zero-partial-write failures.
+`docs/implementation/WP4_R5_CHECKPOINT.md` is the exact validation handoff. R5 is not green until the final clean branch head passes that full unit/emulator/Rules/typecheck/lint/build/check gate.
 
-Checkpoint 2, owner-response SLA signaling, is published as the second clean R5 commit and awaits aggregate R5 validation:
-
-- reads optional `systemConfig/private.ownerResponseSlaMinutes`, otherwise uses architecture default 30 minutes;
-- malformed configured SLA fails closed;
-- transactionally rechecks `paid_pending_owner` state/age before alert creation;
-- deterministic operations outbox signal + audit evidence emitted once;
-- booking records SLA metadata only; booking/payment/block state remain unchanged;
-- repeat scans/responded bookings are no-ops;
-- scheduled every 5 minutes in `europe-west1` with Africa/Lagos time zone.
-
-Checkpoint 3, bounded case sourcing, is implemented and awaiting clean publication/aggregate R5 validation:
-
-- new shared booking-case contract locks canonical intervention statuses and a narrow `startBookingCaseSourcing` command;
-- non-financial “Operations admin” maps to canonical `support` or `super_admin`; finance/vehicle/verification/privacy roles do not inherit this power;
-- command only permits `open -> sourcing_alternative` using optimistic version + idempotency;
-- writes domain audit plus append-only `adminAuditLogs` evidence;
-- owner-rejection and paid-conflict cases are supported;
-- no booking/payment/block/refund/alternative-vehicle value is changed or selected;
-- App Check-protected callable is wired but remains undeployed.
-
-No R5 checkpoint is green until the requested clean head passes the full gate.
+R5 does not implement alternative locking, renter acceptance, reassignment, top-up, refund initiation/verification, case closure, or automatic owner timeout transitions.
 
 ## 6. Firebase development checkpoint
 
@@ -263,7 +241,7 @@ R2-R5 payment/paid-booking changes remain **undeployed**. Production `mmg-concie
 - Active branch: `codex/wp4-paystack-booking-reconciliation`.
 - R5 base: validated R4 head `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`.
 - Sprint source: `docs/implementation/WP4_PAYSTACK_BOOKING_RECONCILIATION_SPRINT.md`.
-- R2/R3/R4 checkpoints: `docs/implementation/WP4_R2_CHECKPOINT.md`, `WP4_R3_CHECKPOINT.md`, `WP4_R4_CHECKPOINT.md`.
+- Checkpoints: `docs/implementation/WP4_R2_CHECKPOINT.md`, `WP4_R3_CHECKPOINT.md`, `WP4_R4_CHECKPOINT.md`, `WP4_R5_CHECKPOINT.md`.
 - Old `codex/wp4-booking-operations` is donor/reference only and must not be merged/cherry-picked wholesale.
 - Reject donor `booking_admin`, renter verify-to-paid as payment truth, invented cancellation/refund policy, automatic owner-rejection timeout, old seed/schema copies and unrelated fleet/UI work.
 
