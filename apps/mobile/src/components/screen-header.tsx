@@ -2,10 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing } from '@mmg/brand';
 import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { BrandWordmark } from './brand-wordmark';
 import { PressableScale } from './pressable-scale';
+import { shouldCondenseScreenHeader } from './screen-header-layout';
 
 type ScreenHeaderProps = {
   backAccessibilityLabel?: string;
@@ -20,6 +21,13 @@ export function ScreenHeader({
   right,
   style,
 }: ScreenHeaderProps) {
+  const { width } = useWindowDimensions();
+  const condensed = shouldCondenseScreenHeader({
+    hasBack: Boolean(onBack),
+    hasRight: Boolean(right),
+    width,
+  });
+
   return (
     <View style={[styles.header, style]}>
       <View style={styles.left}>
@@ -35,7 +43,7 @@ export function ScreenHeader({
             </View>
           </PressableScale>
         ) : null}
-        <BrandWordmark compact withLogo />
+        <BrandWordmark compact condensed={condensed} withLogo />
       </View>
       {right ? <View style={styles.right}>{right}</View> : null}
     </View>
