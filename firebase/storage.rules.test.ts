@@ -26,7 +26,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
 
   beforeAll(async () => {
     environment = await initializeTestEnvironment({
-      projectId: 'mmg-concierge',
+      projectId: 'mmg-concierge-dev',
       firestore: {
         rules: readFileSync(resolve(import.meta.dirname, 'firestore.rules'), 'utf8'),
       },

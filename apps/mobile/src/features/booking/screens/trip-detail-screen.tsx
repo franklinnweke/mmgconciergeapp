@@ -9,6 +9,7 @@ import { Animated, Platform, ScrollView, StyleSheet, Text, View } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { LuxuryEmblemLoader } from '@/components/ui/luxury-emblem-loader';
 import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
@@ -94,29 +95,38 @@ export default function TripDetailScreen({
 
   if (mode === 'initializing') {
     return (
-      <View accessibilityLiveRegion="polite" style={[styles.centered, { paddingTop: insets.top + spacing.xl }]}>
-        <LuxuryEmblemLoader label="SYNCING TRIP TELEMETRY" size={48} />
+      <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={styles.stateHeader}>
+          <ScreenHeader backAccessibilityLabel="Back to trips" onBack={() => router.back()} />
+        </View>
+        <View accessibilityLiveRegion="polite" style={styles.centeredContent}>
+          <LuxuryEmblemLoader label="SYNCING TRIP TELEMETRY" size={48} />
+        </View>
       </View>
     );
   }
 
   if (mode === 'missing' || !trip || !vehicle) {
     return (
-      <View style={[styles.centered, { paddingTop: insets.top + spacing.xl }]}>
-        <View style={styles.missingIcon}>
-          <Ionicons color={colors.goldStrong} name="map-outline" size={27} />
+      <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={styles.stateHeader}>
+          <ScreenHeader backAccessibilityLabel="Back to trips" onBack={() => router.replace('/(renter)/trips')} />
         </View>
-        <Text style={styles.centeredEyebrow}>JOURNEY NOT FOUND</Text>
-        <Text accessibilityRole="header" style={styles.centeredTitle}>This trip is not available on this device.</Text>
-        <Text style={styles.centeredBody}>
-          It may still be syncing, belong to another account, or no longer be available.
-        </Text>
-        <PressableScale accessibilityLabel="Back to trips" accessibilityRole="button" onPress={() => router.replace('/(renter)/trips')}>
-          <View style={styles.goldButton}>
-            <Text style={styles.goldButtonText}>BACK TO TRIPS</Text>
-            <Ionicons color={colors.black} name="arrow-forward" size={16} />
+        <View style={styles.centeredContent}>
+          <View style={styles.missingIcon}>
+            <Ionicons color={colors.goldStrong} name="map-outline" size={27} />
           </View>
-        </PressableScale>
+          <Text style={styles.centeredEyebrow}>JOURNEY NOT FOUND</Text>
+          <Text accessibilityRole="header" style={styles.centeredTitle}>This trip is not available on this device.</Text>
+          <Text style={styles.centeredBody}>
+            It may still be syncing, belong to another account, or no longer be available.
+          </Text>
+          <PressableScale accessibilityLabel="Back to trips" accessibilityRole="button" onPress={() => router.replace('/(renter)/trips')}>
+            <View style={styles.goldButton}>
+              <Text style={styles.goldButtonText}>BACK TO TRIPS</Text>
+            </View>
+          </PressableScale>
+        </View>
       </View>
     );
   }
@@ -125,6 +135,18 @@ export default function TripDetailScreen({
   const presentation = tripDetailPresentation(trip);
   const timeline = renterTripTimeline(trip.state);
   const busy = session.pendingAction !== null;
+  const syncPill = mode !== 'ready' ? (
+    <View style={styles.syncPill}>
+      <RadarPulseDot
+        color={mode === 'offline' || mode === 'preview' ? colors.goldStrong : colors.success}
+        glowColor={mode === 'offline' || mode === 'preview' ? 'rgba(227,195,101,0.35)' : 'rgba(74,222,128,0.35)'}
+        size={6}
+      />
+      <Text style={styles.syncText}>
+        {mode === 'preview' ? 'STATE PREVIEW' : 'OFFLINE COPY'}
+      </Text>
+    </View>
+  ) : null;
 
   return (
     <View style={styles.screen}>
@@ -133,23 +155,12 @@ export default function TripDetailScreen({
           <View style={styles.hero}>
             <Image accessibilityLabel={vehicle.displayName} contentFit="cover" source={vehicleImage} style={StyleSheet.absoluteFill} />
             <LinearGradient colors={['rgba(4,4,4,.42)', 'transparent', colors.black]} locations={[0, .46, 1]} style={StyleSheet.absoluteFill} />
-            <View style={[styles.heroTop, { paddingTop: insets.top + spacing.sm }]}>
-              <PressableScale accessibilityLabel="Back to trips" accessibilityRole="button" onPress={() => router.back()}>
-                <View style={styles.backButton}>
-                  <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-                </View>
-              </PressableScale>
-              {mode !== 'ready' ? <View style={styles.syncPill}>
-                <RadarPulseDot
-                  color={mode === 'offline' || mode === 'preview' ? colors.goldStrong : colors.success}
-                  glowColor={mode === 'offline' || mode === 'preview' ? 'rgba(227,195,101,0.35)' : 'rgba(74,222,128,0.35)'}
-                  size={6}
-                />
-                <Text style={styles.syncText}>
-                  {mode === 'preview' ? 'STATE PREVIEW' : 'OFFLINE COPY'}
-                </Text>
-              </View> : null}
-            </View>
+            <ScreenHeader
+              backAccessibilityLabel="Back to trips"
+              onBack={() => router.back()}
+              right={syncPill}
+              style={[styles.heroTop, { paddingTop: insets.top + spacing.sm }]}
+            />
             <View style={styles.heroCopy}>
               <Text accessibilityRole="header" style={styles.vehicleName}>{vehicle.displayName}</Text>
               <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · Chauffeur included</Text>
@@ -377,10 +388,9 @@ const styles = StyleSheet.create({
   actionTextSecondary: { color: colors.ivory },
   actionWrapper: { minHeight: 44 },
   actions: { gap: spacing.sm, marginTop: spacing.xl },
-  backButton: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,.68)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 46, justifyContent: 'center', width: 46 },
   body: { paddingBottom: 120, paddingHorizontal: spacing.lg },
-  centered: { alignItems: 'center', backgroundColor: colors.black, flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl },
   centeredBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 21, marginTop: spacing.md, textAlign: 'center' },
+  centeredContent: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl },
   centeredEyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.8, marginTop: spacing.lg },
   centeredTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 31, lineHeight: 38, marginTop: spacing.sm, textAlign: 'center' },
   confirmActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
@@ -398,7 +408,7 @@ const styles = StyleSheet.create({
   goldButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2 },
   hero: { height: 405, justifyContent: 'space-between', position: 'relative' },
   heroCopy: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  heroTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  heroTop: { paddingHorizontal: spacing.lg },
   missingIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 58, justifyContent: 'center', width: 58 },
   notice: { alignItems: 'flex-start', backgroundColor: 'rgba(227,195,101,.08)', borderColor: 'rgba(227,195,101,.28)', borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, padding: spacing.md },
   noticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 18 },
@@ -419,9 +429,8 @@ const styles = StyleSheet.create({
   sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.6 },
   sectionLine: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
   sectionTitle: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg, marginTop: spacing.xxl },
+  stateHeader: { paddingHorizontal: spacing.lg },
   subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 21, marginTop: spacing.sm },
-  syncDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 6, width: 6 },
-  syncDotOffline: { backgroundColor: colors.goldStrong },
   syncPill: { alignItems: 'center', backgroundColor: 'rgba(4,4,4,.68)', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 7, paddingHorizontal: 12, paddingVertical: 10 },
   syncText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2 },
   terminalNote: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, paddingTop: spacing.lg },

@@ -8,8 +8,8 @@ import { useEffect, useState } from 'react';
 import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { LuxuryEmblemLoader } from '@/components/ui/luxury-emblem-loader';
 import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
@@ -52,6 +52,17 @@ export default function TripsScreen() {
     Animated.timing(entrance, { duration: 420, toValue: 1, useNativeDriver: Platform.OS !== 'web' }).start();
   }, [entrance, reduceMotion]);
 
+  const statusPill = (
+    <View style={styles.statusPill}>
+      <RadarPulseDot
+        color={syncState === 'offline' || isPreview ? colors.goldStrong : colors.success}
+        glowColor={syncState === 'offline' || isPreview ? 'rgba(227,195,101,0.35)' : 'rgba(74,222,128,0.35)'}
+        size={6}
+      />
+      <Text style={styles.statusPillText}>{syncLabel(syncState, isPreview)}</Text>
+    </View>
+  );
+
   return (
     <View style={styles.screen}>
       <Animated.ScrollView
@@ -62,17 +73,7 @@ export default function TripsScreen() {
           transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
         }}
       >
-        <View style={styles.topBar}>
-          <BrandWordmark withLogo />
-          <View style={styles.statusPill}>
-            <RadarPulseDot
-              color={syncState === 'offline' || isPreview ? colors.goldStrong : colors.success}
-              glowColor={syncState === 'offline' || isPreview ? 'rgba(227,195,101,0.35)' : 'rgba(74,222,128,0.35)'}
-              size={6}
-            />
-            <Text style={styles.statusPillText}>{syncLabel(syncState, isPreview)}</Text>
-          </View>
-        </View>
+        <ScreenHeader right={statusPill} />
         <View style={styles.intro}>
           <Text accessibilityRole="header" style={styles.title}>Trips</Text>
         </View>
@@ -134,7 +135,7 @@ function TripRow({ trip }: { trip: RenterTrip }) {
             <Text style={styles.area}>{vehicle.areaLabel} · Chauffeur included</Text>
           </View>
         </View>
-          <View style={styles.tripBody}>
+        <View style={styles.tripBody}>
           <Text style={[styles.stateText, attention && styles.stateTextAttention]}>{copy.label}</Text>
           <View style={styles.dateRow}>
             <View>
@@ -173,7 +174,6 @@ function EmptyTrips({ onExplore }: { onExplore: () => void }) {
       <PressableScale accessibilityRole="button" onPress={onExplore}>
         <View style={styles.emptyAction}>
           <Text style={styles.emptyActionText}>FIND A CAR</Text>
-          <Ionicons color={colors.black} name="arrow-forward" size={17} />
         </View>
       </PressableScale>
     </View>
@@ -207,14 +207,11 @@ const styles = StyleSheet.create({
   sectionCount: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 11 },
   sectionHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
-  statusDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 6, width: 6 },
-  statusDotOffline: { backgroundColor: colors.goldStrong },
   statusPill: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 7, paddingHorizontal: 11, paddingVertical: 8 },
   statusPillText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.3 },
   syncNotice: { alignItems: 'center', backgroundColor: 'rgba(227,195,101,.08)', borderColor: 'rgba(227,195,101,.28)', borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
   syncNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 45, letterSpacing: -1, marginTop: 5 },
-  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   total: { color: colors.goldStrong, fontFamily: typography.display, fontSize: 20 },
   totalNote: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.1, marginTop: 3 },
   tripBody: { padding: spacing.md },

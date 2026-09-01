@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
 import { useRenterProfile } from '../hooks/use-renter-profile';
 
@@ -124,7 +124,6 @@ function RenterProfileForm({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      {/* Profile Header */}
       <View style={styles.headerSection}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -148,7 +147,6 @@ function RenterProfileForm({
         </View>
       )}
 
-      {/* Contact Details Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Personal details</Text>
 
@@ -178,7 +176,6 @@ function RenterProfileForm({
         </View>
       </View>
 
-      {/* Default Lagos Delivery Address */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Lagos delivery address</Text>
 
@@ -230,7 +227,6 @@ function RenterProfileForm({
         </View>
       </View>
 
-      {/* Legal & Terms Badge */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Terms and privacy</Text>
         <View style={styles.termsRow}>
@@ -242,7 +238,6 @@ function RenterProfileForm({
         </View>
       </View>
 
-      {/* Save Button */}
       <PressableScale
         accessibilityRole="button"
         disabled={isSaving}
@@ -261,7 +256,6 @@ function RenterProfileForm({
         </View>
       </PressableScale>
 
-      {/* Account Deletion / Data Rights */}
       {!isDeletionPending && (
         <PressableScale
           accessibilityRole="button"
@@ -275,7 +269,6 @@ function RenterProfileForm({
         </PressableScale>
       )}
 
-      {/* Sign Out */}
       <PressableScale
         accessibilityRole="button"
         onPress={onSignOut}
@@ -287,7 +280,6 @@ function RenterProfileForm({
         </View>
       </PressableScale>
 
-      {/* Deletion Confirmation Modal */}
       <Modal
         animationType="fade"
         onRequestClose={() => setDeleteModalVisible(false)}
@@ -370,7 +362,7 @@ export function RenterProfileScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
       <View style={styles.topBar}>
-        <BrandWordmark compact withLogo />
+        <ScreenHeader />
       </View>
 
       {errorMessage && (
@@ -722,9 +714,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },

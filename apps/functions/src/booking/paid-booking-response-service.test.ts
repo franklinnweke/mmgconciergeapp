@@ -13,30 +13,51 @@ import {
   type StoredPaidBookingIdempotency,
 } from './paid-booking-response-service.js';
 
-const now = new Date('2026-08-20T12:00:00.000Z');
+const now = new Date('2026-09-01T12:00:00.000Z');
 
 function booking(overrides: Partial<StoredPaidBooking> = {}): StoredPaidBooking {
   return {
     bookingId: 'booking-prado-001',
+    intentId: 'intent-prado-001',
     renterId: 'renter-001',
     ownerId: 'owner-001',
     vehicleId: 'vehicle-prado-001',
+    startDate: '2026-09-10',
+    endDate: '2026-09-13',
     state: 'paid_pending_owner',
-    version: 3,
-    blockId: 'paid-block-001',
+    version: 1,
+    blockId: 'intent-prado-001',
+    ...overrides,
+  };
+}
+
+function paidBlock(overrides: Partial<StoredPaidBookingBlock> = {}): StoredPaidBookingBlock {
+  return {
+    blockId: 'intent-prado-001',
+    bookingId: 'booking-prado-001',
+    intentId: 'intent-prado-001',
+    renterId: 'renter-001',
+    ownerId: 'owner-001',
+    vehicleId: 'vehicle-prado-001',
+    startDate: '2026-09-10',
+    endDate: '2026-09-13',
+    state: 'paid',
     ...overrides,
   };
 }
 
 function harness(seed = booking()) {
   const bookings = new Map([[seed.bookingId, seed]]);
-  const blocks = new Map<string, StoredPaidBookingBlock>([
-    ['paid-block-001', {
-      blockId: 'paid-block-001',
-      vehicleId: 'vehicle-prado-001',
-      state: 'paid',
-    }],
-  ]);
+  const blocks = new Map<string, StoredPaidBookingBlock>([[seed.blockId, paidBlock({
+    blockId: seed.blockId,
+    bookingId: seed.bookingId,
+    intentId: seed.intentId,
+    renterId: seed.renterId,
+    ownerId: seed.ownerId,
+    vehicleId: seed.vehicleId,
+    startDate: seed.startDate,
+    endDate: seed.endDate,
+  })]]);
   const idempotency = new Map<string, StoredPaidBookingIdempotency>();
   const cases: PaidBookingCase[] = [];
   const auditEvents: PaidBookingAuditEvent[] = [];
@@ -50,7 +71,11 @@ function harness(seed = booking()) {
     readAvailabilitySentinel: async () => availabilityVersion,
     updateBooking: (id, patch) => {
       const current = bookings.get(id)!;
-      bookings.set(id, { ...current, state: patch.state, version: patch.version });
+      bookings.set(id, {
+        ...current,
+        state: patch.state,
+        version: patch.version,
+      });
     },
     updateBookingBlock: (id, state) => {
       const current = blocks.get(id)!;
@@ -83,7 +108,7 @@ function harness(seed = booking()) {
   };
 }
 
-function confirmCommand(idempotencyKey = 'confirm-booking-prado-001', expectedVersion = 3) {
+function confirmCommand(idempotencyKey = 'confirm-booking-prado-001', expectedVersion = 1) {
   return {
     schemaVersion: 1 as const,
     idempotencyKey,
@@ -91,7 +116,7 @@ function confirmCommand(idempotencyKey = 'confirm-booking-prado-001', expectedVe
   };
 }
 
-function rejectCommand(idempotencyKey = 'reject-booking-prado-001', expectedVersion = 3) {
+function rejectCommand(idempotencyKey = 'reject-booking-prado-001', expectedVersion = 1) {
   return {
     schemaVersion: 1 as const,
     idempotencyKey,
@@ -106,7 +131,7 @@ function rejectCommand(idempotencyKey = 'reject-booking-prado-001', expectedVers
 const owner = { uid: 'owner-001', isSuperAdmin: false };
 
 describe('paid booking owner responses', () => {
-  it('confirms only the trusted paid-pending-owner state and advances the block and sentinel', async () => {
+  it('confirms only an exact R4 paid block and advances the sentinel once', async () => {
     const state = harness();
     const result = await confirmBooking(confirmCommand(), owner, {
       repository: state.repository,
@@ -115,19 +140,15 @@ describe('paid booking owner responses', () => {
       createRequestId: () => 'request-confirm-001',
     });
 
-    expect(result.result).toMatchObject({ toState: 'confirmed', version: 4 });
-    expect(state.bookings.get('booking-prado-001')).toMatchObject({ state: 'confirmed', version: 4 });
-    expect(state.blocks.get('paid-block-001')?.state).toBe('confirmed');
+    expect(result.result).toMatchObject({ toState: 'confirmed', version: 2 });
+    expect(state.bookings.get('booking-prado-001')).toMatchObject({ state: 'confirmed', version: 2 });
+    expect(state.blocks.get('intent-prado-001')?.state).toBe('confirmed');
     expect(state.availabilityVersion()).toBe(9);
     expect(state.auditEvents).toHaveLength(1);
-    expect(state.auditEvents[0]).toMatchObject({
-      eventType: 'booking.owner_confirmed',
-      details: { blockMissing: false },
-    });
-    expect(state.outbox[0]).toMatchObject({ status: 'unavailable', reason: 'fcm_not_in_sequence_2_3' });
+    expect(state.outbox).toHaveLength(1);
   });
 
-  it('rejects into intervention, releases the block, and opens an auditable case without a refund', async () => {
+  it('rejects into intervention, releases the exact paid block, and opens a case without a refund', async () => {
     const state = harness();
     const ids = ['case-owner-rejection-001', 'outbox-reject-001'];
     const result = await rejectBooking(rejectCommand(), owner, {
@@ -140,13 +161,13 @@ describe('paid booking owner responses', () => {
     expect(result.result).toMatchObject({
       caseId: 'case-owner-rejection-001',
       toState: 'intervention_required',
-      version: 4,
+      version: 2,
     });
     expect(state.bookings.get('booking-prado-001')).toMatchObject({
       state: 'intervention_required',
-      version: 4,
+      version: 2,
     });
-    expect(state.blocks.has('paid-block-001')).toBe(false);
+    expect(state.blocks.has('intent-prado-001')).toBe(false);
     expect(state.availabilityVersion()).toBe(9);
     expect(state.cases[0]).toMatchObject({
       type: 'owner_rejection',
@@ -206,25 +227,41 @@ describe('paid booking owner responses', () => {
     },
   );
 
-  it('records but does not invent a block when a seeded paid booking has none', async () => {
-    const state = harness(booking({ blockId: null }));
-    await confirmBooking(confirmCommand(), owner, { repository: state.repository, now: () => now });
-    expect(state.blocks.size).toBe(1);
-    expect(state.auditEvents[0]?.details.blockMissing).toBe(true);
+  it('fails closed when the paid block is missing', async () => {
+    const state = harness();
+    state.blocks.clear();
+    await expect(confirmBooking(confirmCommand(), owner, {
+      repository: state.repository,
+      now: () => now,
+    })).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'paid_block_missing' },
+    });
+    expect(state.bookings.get('booking-prado-001')?.state).toBe('paid_pending_owner');
+    expect(state.auditEvents).toHaveLength(0);
+    expect(state.outbox).toHaveLength(0);
   });
 
-  it('fails closed when the referenced block belongs to another vehicle', async () => {
+  it.each([
+    ['confirmed block', { state: 'confirmed' as const }],
+    ['other booking', { bookingId: 'booking-other-001' }],
+    ['other intent', { intentId: 'intent-other-001' }],
+    ['other renter', { renterId: 'renter-other-001' }],
+    ['other owner', { ownerId: 'owner-other-001' }],
+    ['other vehicle', { vehicleId: 'vehicle-other-001' }],
+    ['other dates', { startDate: '2026-09-11' }],
+  ])('fails closed for %s mismatch', async (_label, patch) => {
     const state = harness();
-    state.blocks.set('paid-block-001', {
-      blockId: 'paid-block-001',
-      vehicleId: 'vehicle-other-001',
-      state: 'paid',
-    });
+    state.blocks.set('intent-prado-001', paidBlock(patch));
     await expect(rejectBooking(rejectCommand(), owner, {
       repository: state.repository,
       now: () => now,
-    })).rejects.toMatchObject({ code: 'FAILED_PRECONDITION' });
+    })).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'paid_block_mismatch' },
+    });
     expect(state.cases).toHaveLength(0);
+    expect(state.bookings.get('booking-prado-001')?.state).toBe('paid_pending_owner');
   });
 
   it('replays the same command without advancing twice and rejects changed payload reuse', async () => {
@@ -236,13 +273,13 @@ describe('paid booking owner responses', () => {
     });
     const replay = await confirmBooking(confirmCommand(), owner, {
       repository: state.repository,
-      now: () => new Date('2026-08-20T12:05:00.000Z'),
+      now: () => new Date('2026-09-01T12:05:00.000Z'),
     });
     expect(replay).toEqual(first);
     expect(state.auditEvents).toHaveLength(1);
     expect(state.availabilityVersion()).toBe(9);
 
-    await expect(confirmBooking(confirmCommand('confirm-booking-prado-001', 4), owner, {
+    await expect(confirmBooking(confirmCommand('confirm-booking-prado-001', 2), owner, {
       repository: state.repository,
       now: () => now,
     })).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });

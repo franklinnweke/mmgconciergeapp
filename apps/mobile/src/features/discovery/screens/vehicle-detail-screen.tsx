@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
 
 import {
@@ -192,14 +193,17 @@ export default function VehicleDetailScreen({
     }
   };
 
+  const backHeader = (
+    <ScreenHeader
+      backAccessibilityLabel="Go back to fleet"
+      onBack={() => router.back()}
+    />
+  );
+
   if (loading) {
     return (
-      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
-        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-          <View style={styles.roundButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-          </View>
-        </PressableScale>
+      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.sm }]}>
+        {backHeader}
         <View style={styles.missingCopy}>
           <ActivityIndicator color={colors.goldStrong} size="large" />
           <Text style={styles.loadingText}>Retrieving vehicle specifications…</Text>
@@ -210,12 +214,8 @@ export default function VehicleDetailScreen({
 
   if (fetchError) {
     return (
-      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
-        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-          <View style={styles.roundButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-          </View>
-        </PressableScale>
+      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.sm }]}>
+        {backHeader}
         <View style={styles.missingCopy}>
           <Ionicons color={colors.danger} name="cloud-offline-outline" size={36} />
           <Text style={styles.missingTitle}>Connection Error</Text>
@@ -235,12 +235,8 @@ export default function VehicleDetailScreen({
 
   if (!vehicle || !quote) {
     return (
-      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.lg }]}>
-        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-          <View style={styles.roundButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-          </View>
-        </PressableScale>
+      <View style={[styles.missingScreen, { paddingTop: insets.top + spacing.sm }]}>
+        {backHeader}
         <View style={styles.missingCopy}>
           <Ionicons color={colors.goldStrong} name="car-sport-outline" size={36} />
           <Text style={styles.missingTitle}>Vehicle unavailable.</Text>
@@ -257,6 +253,14 @@ export default function VehicleDetailScreen({
 
   const pickupFormatted = formatLagosDateOnly(pickupDate);
   const returnFormatted = formatLagosDateOnly(returnDate);
+
+  const galleryCounter = galleryImages.length > 1 ? (
+    <View style={styles.counterPill}>
+      <Text style={styles.counterText}>
+        {activeImageIndex + 1} / {galleryImages.length}
+      </Text>
+    </View>
+  ) : null;
 
   return (
     <View style={styles.screen}>
@@ -292,28 +296,12 @@ export default function VehicleDetailScreen({
             style={StyleSheet.absoluteFill}
           />
 
-          {/* Top Bar Nav */}
-          <View style={[styles.heroTop, { paddingTop: insets.top + spacing.sm }]}>
-            <PressableScale
-              accessibilityLabel="Go back to fleet"
-              accessibilityRole="button"
-              onPress={() => router.back()}
-            >
-              <View style={styles.roundButton}>
-                <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-              </View>
-            </PressableScale>
-
-            <View style={styles.topPillsRow}>
-              {galleryImages.length > 1 ? (
-                <View style={styles.counterPill}>
-                  <Text style={styles.counterText}>
-                    {activeImageIndex + 1} / {galleryImages.length}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
+          <ScreenHeader
+            backAccessibilityLabel="Go back to fleet"
+            onBack={() => router.back()}
+            right={galleryCounter}
+            style={[styles.heroTop, { paddingTop: insets.top + spacing.sm }]}
+          />
 
           {/* Hero Header Copy */}
           <View style={styles.heroCopy}>
@@ -502,7 +490,6 @@ export default function VehicleDetailScreen({
                   ? 'Review Quote'
                   : 'Dates Unavailable'}
             </Text>
-            <Ionicons color={colors.black} name="arrow-forward" size={18} />
           </View>
         </PressableScale>
       </View>
@@ -686,9 +673,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
   },
   heroTop: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingHorizontal: layout.screenGutter,
   },
   inclusionBadge: {

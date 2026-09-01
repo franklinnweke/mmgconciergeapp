@@ -8,8 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 import {
@@ -20,6 +20,7 @@ import {
 } from '@/features/discovery/data/lagos-destinations';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
+import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
 import {
   BookingIntentSubmissionKey,
   createBookingIntentGateway,
@@ -119,21 +120,22 @@ export default function BookingReviewScreen({
 
   if (loading) {
     return (
-      <View style={[styles.screen, styles.loadingCenter, { paddingTop: insets.top + spacing.lg }]}>
-        <ActivityIndicator color={colors.goldStrong} size="large" />
-        <Text style={styles.loadingText}>Retrieving vehicle details...</Text>
+      <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={styles.stateHeader}>
+          <ScreenHeader onBack={() => router.back()} />
+        </View>
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator color={colors.goldStrong} size="large" />
+          <Text style={styles.loadingText}>Retrieving vehicle details...</Text>
+        </View>
       </View>
     );
   }
 
   if (fetchError) {
     return (
-      <View style={[styles.missing, { paddingTop: insets.top + spacing.lg }]}>
-        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-          <View style={styles.backButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={19} />
-          </View>
-        </PressableScale>
+      <View style={[styles.missing, { paddingTop: insets.top + spacing.sm }]}>
+        <ScreenHeader onBack={() => router.back()} />
         <Ionicons color={colors.danger} name="cloud-offline-outline" size={36} />
         <Text style={styles.missingTitle}>Connection Error</Text>
         <Text style={styles.subtitle}>
@@ -151,12 +153,8 @@ export default function BookingReviewScreen({
 
   if (!vehicle || !quote) {
     return (
-      <View style={[styles.missing, { paddingTop: insets.top + spacing.lg }]}>
-        <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-          <View style={styles.backButton}>
-            <Ionicons color={colors.ivory} name="arrow-back" size={19} />
-          </View>
-        </PressableScale>
+      <View style={[styles.missing, { paddingTop: insets.top + spacing.sm }]}>
+        <ScreenHeader onBack={() => router.back()} />
         <Ionicons color={colors.goldStrong} name="car-sport-outline" size={36} />
         <Text style={styles.missingTitle}>This vehicle listing is no longer available.</Text>
         <Text style={styles.subtitle}>
@@ -177,14 +175,7 @@ export default function BookingReviewScreen({
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topBar}>
-          <PressableScale accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
-            <View style={styles.backButton}>
-              <Ionicons color={colors.ivory} name="arrow-back" size={19} />
-            </View>
-          </PressableScale>
-          <BrandWordmark compact withLogo />
-        </View>
+        <ScreenHeader onBack={() => router.back()} />
 
         <View style={styles.intro}>
           <Text style={styles.title}>Review your journey</Text>
@@ -262,17 +253,28 @@ export default function BookingReviewScreen({
         ) : null}
 
         {intentResult ? (
-          <View accessibilityLiveRegion="polite" style={styles.successCard}>
-            <Ionicons color={colors.success} name="checkmark-circle" size={24} />
-            <Text style={styles.successTitle}>Booking hold created</Text>
-            <Text style={styles.successText}>
-              Dates are held until {new Date(intentResult.result.expiresAt).toLocaleTimeString('en-NG', {
-                hour: 'numeric',
-                minute: '2-digit',
-                timeZone: 'Africa/Lagos',
-              })} Lagos time. No payment was taken, and your ride is not confirmed.
-            </Text>
-          </View>
+          <>
+            <View accessibilityLiveRegion="polite" style={styles.successCard}>
+              <Ionicons color={colors.success} name="checkmark-circle" size={24} />
+              <Text style={styles.successTitle}>Booking hold created</Text>
+              <Text style={styles.successText}>
+                Dates are held until {new Date(intentResult.result.expiresAt).toLocaleTimeString('en-NG', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  timeZone: 'Africa/Lagos',
+                })} Lagos time. Payment still needs to be completed and verified.
+              </Text>
+            </View>
+            <RenterPaymentCheckout
+              holdExpiresAt={intentResult.result.expiresAt}
+              intentId={intentResult.result.intentId}
+              onRestartHold={() => {
+                setIntentResult(null);
+                setErrorMessage(null);
+              }}
+              onViewTrips={() => router.replace('/trips')}
+            />
+          </>
         ) : (
           <PressableScale
             disabled={submitting}
@@ -305,7 +307,6 @@ export default function BookingReviewScreen({
               <Text style={styles.ctaText}>
                 {submitting ? 'CREATING SECURE HOLD...' : 'CREATE 15-MINUTE HOLD'}
               </Text>
-              <Ionicons color={colors.black} name="arrow-forward" size={16} />
             </View>
           </PressableScale>
         )}
@@ -335,16 +336,6 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  backButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    height: 44,
-    justifyContent: 'center',
-    width: 38,
-  },
   content: {
     paddingHorizontal: spacing.lg,
   },
@@ -352,8 +343,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
     borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
     justifyContent: 'center',
     marginTop: spacing.lg,
     paddingVertical: spacing.md,
@@ -414,12 +403,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyMedium,
     fontSize: 13,
   },
-  eyebrow: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.2,
-  },
   intro: {
     gap: spacing.xs,
     marginVertical: spacing.md,
@@ -441,6 +424,7 @@ const styles = StyleSheet.create({
   },
   loadingCenter: {
     alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
   },
   loadingText: {
@@ -554,19 +538,8 @@ const styles = StyleSheet.create({
     fontFamily: typography.display,
     fontSize: 20,
   },
-  stepPill: {
-    backgroundColor: 'rgba(212,175,55,0.15)',
-    borderColor: colors.gold,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  stepText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.2,
+  stateHeader: {
+    paddingHorizontal: spacing.lg,
   },
   subtitle: {
     color: colors.muted,
@@ -601,12 +574,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.display,
     fontSize: 22,
   },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
   totalLabel: {
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
@@ -631,12 +598,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     overflow: 'hidden',
     padding: spacing.sm,
-  },
-  vehicleCategory: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1,
   },
   vehicleCopy: {
     flex: 1,

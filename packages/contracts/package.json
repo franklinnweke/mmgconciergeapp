@@ -7,7 +7,9 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./discovery": "./src/discovery.ts"
+    "./booking-case": "./src/booking-case.ts",
+    "./discovery": "./src/discovery.ts",
+    "./payment": "./src/payment.ts"
   },
   "dependencies": {
     "zod": "4.1.10"

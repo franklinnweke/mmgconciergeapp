@@ -1,8 +1,15 @@
-// Firebase deployment entrypoint. The explicit discovery export overrides the
-// historical searchVehicles export from index so the deployed network boundary
-// is schema-validated without duplicating the rest of the function surface.
+// Firebase deployment entrypoint. Explicit exports override or add focused
+// network boundaries without duplicating the rest of the function surface.
 export * from './index.js';
 export {
   getVehicleDetails,
   searchVehicles,
 } from './discovery/discovery-callables.js';
+export {
+  initializeBookingPayment,
+  paystackWebhook,
+  processPaystackPaymentEvent,
+  reconcilePayment,
+} from './booking/payment-callables.js';
+export { startBookingCaseSourcing } from './booking/booking-case-callables.js';
+export { emitOwnerResponseSlaAlerts } from './booking/owner-response-sla-scheduler.js';

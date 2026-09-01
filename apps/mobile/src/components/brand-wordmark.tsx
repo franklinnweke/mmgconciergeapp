@@ -5,16 +5,25 @@ import { BrandLogo } from './brand-logo';
 
 type BrandWordmarkProps = {
   compact?: boolean;
+  condensed?: boolean;
   withLogo?: boolean;
 };
 
-export function BrandWordmark({ compact = false, withLogo = false }: BrandWordmarkProps) {
+export function BrandWordmark({
+  compact = false,
+  condensed = false,
+  withLogo = false,
+}: BrandWordmarkProps) {
   return (
     <View accessibilityLabel="MMG Concierge" style={styles.row}>
       {withLogo ? <BrandLogo size={compact ? 24 : 28} /> : null}
       <Text style={[styles.mmg, compact && styles.mmgCompact]}>MMG</Text>
-      <View style={styles.rule} />
-      <Text style={styles.concierge}>CONCIERGE</Text>
+      {!condensed ? (
+        <>
+          <View style={styles.rule} />
+          <Text style={styles.concierge}>CONCIERGE</Text>
+        </>
+      ) : null}
     </View>
   );
 }
