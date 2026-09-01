@@ -248,10 +248,15 @@ implements VerifiedPaymentValueRepository {
       }
       if (
         ownBlock?.success &&
-        (ownBlock.data.vehicleId !== intent.data.vehicleId ||
+        (
+          ownBlock.data.state !== 'held' ||
+          ownBlock.data.intentId !== intentSnapshot.id ||
+          ownBlock.data.renterId !== intent.data.renterId ||
+          ownBlock.data.ownerId !== intent.data.ownerId ||
+          ownBlock.data.vehicleId !== intent.data.vehicleId ||
           ownBlock.data.startDate !== intent.data.startDate ||
-          ownBlock.data.endDate !== intent.data.endDate ||
-          (ownBlock.data.intentId && ownBlock.data.intentId !== intentSnapshot.id))
+          ownBlock.data.endDate !== intent.data.endDate
+        )
       ) {
         throw new BookingCommandError(
           'FAILED_PRECONDITION',
@@ -261,12 +266,21 @@ implements VerifiedPaymentValueRepository {
 
       const sentinelRef = this.firestore.doc(`vehicleAvailability/${intent.data.vehicleId}`);
       const sentinelSnapshot = await transaction.get(sentinelRef);
-      const availabilityVersion = sentinelSnapshot.exists
-        ? sentinelSnapshot.data()?.version
-        : 0;
-      if (!Number.isSafeInteger(availabilityVersion) || availabilityVersion < 0) {
+      if (!sentinelSnapshot.exists) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Availability state is missing. Payment cannot be delivered safely.',
+        );
+      }
+      const rawAvailabilityVersion = sentinelSnapshot.data()?.version;
+      if (
+        typeof rawAvailabilityVersion !== 'number' ||
+        !Number.isSafeInteger(rawAvailabilityVersion) ||
+        rawAvailabilityVersion < 0
+      ) {
         throw new BookingCommandError('FAILED_PRECONDITION', 'Availability version is invalid.');
       }
+      const availabilityVersion = rawAvailabilityVersion;
 
       const candidateQuery = this.firestore.collection('bookingBlocks')
         .where('vehicleId', '==', intent.data.vehicleId)

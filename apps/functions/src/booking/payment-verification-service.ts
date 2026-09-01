@@ -15,15 +15,19 @@ import { BookingCommandError } from './errors.js';
 import { buildPaymentIdentity } from './initialize-booking-payment-service.js';
 import type { PaymentGateway } from './payment-gateway.js';
 
-export type TrustedPendingPayment = {
+export type TrustedPaymentForVerification = {
   paymentId: string;
   intentId: string;
   renterId: string;
   reference: PaymentReference;
-  state: 'pending';
+  state: 'pending' | 'succeeded';
   environment: PaymentEnvironment;
   currency: 'NGN';
   amountKobo: number;
+};
+
+export type TrustedPendingPayment = TrustedPaymentForVerification & {
+  state: 'pending';
 };
 
 export type StoredPaymentEvent = {
@@ -45,8 +49,8 @@ export type PaymentVerificationCompletion = {
 
 export interface PaymentVerificationRepository {
   getEvent(eventId: string): Promise<StoredPaymentEvent | null>;
-  getPaymentByReference(reference: PaymentReference): Promise<TrustedPendingPayment | null>;
-  getPaymentById(paymentId: string): Promise<TrustedPendingPayment | null>;
+  getPaymentByReference(reference: PaymentReference): Promise<TrustedPaymentForVerification | null>;
+  getPaymentById(paymentId: string): Promise<TrustedPaymentForVerification | null>;
   createReconcileEvent(event: {
     eventId: string;
     reference: PaymentReference;
@@ -60,7 +64,7 @@ export interface PaymentVerificationRepository {
   rejectEvent(eventId: string, reason: StoredPaymentEvent['rejectionReason'], now: Date): Promise<void>;
   completeVerification(
     eventId: string,
-    payment: TrustedPendingPayment,
+    payment: TrustedPaymentForVerification,
     providerResult: PaymentGatewayVerifyResult,
     now: Date,
   ): Promise<PaymentVerificationCompletion>;
@@ -155,9 +159,10 @@ export async function reconcilePayment(
   return reconcilePaymentResultSchema.parse({
     requestId: (dependencies.createRequestId ?? randomUUID)(),
     result: {
+      eventId,
       intentId: payment.intentId,
       paymentId: payment.paymentId,
-      paymentState: 'pending',
+      paymentState: payment.state,
       providerStatus: completion.providerStatus,
       verification: completion.verification,
     },

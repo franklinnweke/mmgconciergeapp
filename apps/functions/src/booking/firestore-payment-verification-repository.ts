@@ -20,7 +20,7 @@ import type {
   PaymentVerificationCompletion,
   PaymentVerificationRepository,
   StoredPaymentEvent,
-  TrustedPendingPayment,
+  TrustedPaymentForVerification,
 } from './payment-verification-service.js';
 
 const paymentSchema = z.object({
@@ -54,15 +54,17 @@ const eventSchema = z.object({
   ]).optional(),
 }).passthrough();
 
-function parsePendingPayment(data: unknown): TrustedPendingPayment | null {
+function parsePaymentForVerification(data: unknown): TrustedPaymentForVerification | null {
   const parsed = paymentSchema.safeParse(data);
-  if (!parsed.success || parsed.data.state !== 'pending') return null;
+  if (!parsed.success || (parsed.data.state !== 'pending' && parsed.data.state !== 'succeeded')) {
+    return null;
+  }
   return {
     paymentId: parsed.data.paymentId,
     intentId: parsed.data.intentId,
     renterId: parsed.data.renterId,
     reference: parsed.data.reference,
-    state: 'pending',
+    state: parsed.data.state,
     environment: parsed.data.environment,
     currency: parsed.data.currency,
     amountKobo: parsed.data.amountKobo,
@@ -153,7 +155,7 @@ implements PaymentVerificationRepository {
     return event;
   }
 
-  async getPaymentByReference(reference: PaymentReference): Promise<TrustedPendingPayment | null> {
+  async getPaymentByReference(reference: PaymentReference): Promise<TrustedPaymentForVerification | null> {
     const snapshot = await this.firestore.collection('payments')
       .where('reference', '==', reference)
       .limit(2)
@@ -162,12 +164,12 @@ implements PaymentVerificationRepository {
       throw new BookingCommandError('FAILED_PRECONDITION', 'Payment reference is not unique.');
     }
     if (snapshot.empty) return null;
-    return parsePendingPayment(snapshot.docs[0]!.data());
+    return parsePaymentForVerification(snapshot.docs[0]!.data());
   }
 
-  async getPaymentById(paymentId: string): Promise<TrustedPendingPayment | null> {
+  async getPaymentById(paymentId: string): Promise<TrustedPaymentForVerification | null> {
     const snapshot = await this.firestore.doc(`payments/${paymentId}`).get();
-    return snapshot.exists ? parsePendingPayment(snapshot.data()) : null;
+    return snapshot.exists ? parsePaymentForVerification(snapshot.data()) : null;
   }
 
   async rejectEvent(
@@ -193,7 +195,7 @@ implements PaymentVerificationRepository {
 
   async completeVerification(
     eventId: string,
-    payment: TrustedPendingPayment,
+    payment: TrustedPaymentForVerification,
     providerResult: PaymentGatewayVerifyResult,
     now: Date,
   ): Promise<PaymentVerificationCompletion> {
@@ -215,7 +217,7 @@ implements PaymentVerificationRepository {
         };
       }
 
-      const currentPayment = parsePendingPayment(paymentSnapshot.data());
+      const currentPayment = parsePaymentForVerification(paymentSnapshot.data());
       if (!paymentSnapshot.exists || !currentPayment) {
         transaction.update(eventRef, {
           status: 'rejected',

@@ -7,6 +7,7 @@ import {
   reconcilePayment,
   type PaymentVerificationRepository,
   type StoredPaymentEvent,
+  type TrustedPaymentForVerification,
   type TrustedPendingPayment,
 } from './payment-verification-service.js';
 
@@ -21,6 +22,11 @@ const payment: TrustedPendingPayment = {
   amountKobo: 12_500_000,
 };
 
+const succeededPayment: TrustedPaymentForVerification = {
+  ...payment,
+  state: 'succeeded',
+};
+
 const successVerification = {
   provider: 'paystack' as const,
   reference: payment.reference,
@@ -33,11 +39,10 @@ const successVerification = {
 
 function fakeRepository(options: {
   event?: StoredPaymentEvent | null;
-  paymentByReference?: TrustedPendingPayment | null;
-  paymentById?: TrustedPendingPayment | null;
+  paymentByReference?: TrustedPaymentForVerification | null;
+  paymentById?: TrustedPaymentForVerification | null;
 } = {}) {
   const completeVerification = vi.fn(async () => ({
-    payment,
     providerStatus: successVerification.providerStatus,
     verification: 'verified_success' as const,
   }));
@@ -61,13 +66,13 @@ function fakeRepository(options: {
 function gateway(result = successVerification): PaymentGateway {
   return {
     initializePayment: vi.fn(async () => {
-      throw new Error('initialization is not part of R3 verification');
+      throw new Error('initialization is not part of payment verification');
     }),
     verifyPayment: vi.fn(async () => result),
   };
 }
 
-describe('R3 payment verification service', () => {
+describe('payment verification service', () => {
   it('independently verifies a durable webhook event and delegates exact checks to the repository', async () => {
     const repository = fakeRepository();
     const paymentGateway = gateway();
@@ -84,6 +89,26 @@ describe('R3 payment verification service', () => {
       payment,
       successVerification,
       new Date('2026-09-01T02:01:00.000Z'),
+    );
+  });
+
+  it('continues to verify a known payment after R4 has already marked it succeeded', async () => {
+    const repository = fakeRepository({ paymentByReference: succeededPayment });
+    const paymentGateway = gateway();
+
+    await expect(processPaymentEvent('event-123', {
+      repository,
+      paymentGateway,
+      now: () => new Date('2026-09-01T02:01:30.000Z'),
+    })).resolves.toMatchObject({ verification: 'verified_success' });
+
+    expect(repository.rejectEvent).not.toHaveBeenCalled();
+    expect(paymentGateway.verifyPayment).toHaveBeenCalledWith({ reference: succeededPayment.reference });
+    expect(repository.completeVerification).toHaveBeenCalledWith(
+      'event-123',
+      succeededPayment,
+      successVerification,
+      new Date('2026-09-01T02:01:30.000Z'),
     );
   });
 
@@ -129,6 +154,7 @@ describe('R3 payment verification service', () => {
       idempotencyKey: 'payment-reconcile-1234567890',
       data: { intentId: payment.intentId },
     };
+    const eventId = buildReconcileEventId(successVerification);
 
     await expect(reconcilePayment(command, payment.renterId, {
       repository,
@@ -138,6 +164,7 @@ describe('R3 payment verification service', () => {
     })).resolves.toEqual({
       requestId: 'request-123',
       result: {
+        eventId,
         intentId: payment.intentId,
         paymentId: payment.paymentId,
         paymentState: 'pending',
@@ -147,7 +174,7 @@ describe('R3 payment verification service', () => {
     });
 
     expect(repository.createReconcileEvent).toHaveBeenCalledWith(expect.objectContaining({
-      eventId: buildReconcileEventId(successVerification),
+      eventId,
       reference: payment.reference,
     }));
 
@@ -156,6 +183,32 @@ describe('R3 payment verification service', () => {
       data: { intentId: payment.intentId, reference: 'attacker-reference' },
     }, payment.renterId, { repository, paymentGateway })).rejects.toMatchObject({
       code: 'INVALID_ARGUMENT',
+    });
+  });
+
+  it('reports succeeded state when the renter reconciles an already-delivered payment', async () => {
+    const repository = fakeRepository({ paymentById: succeededPayment });
+    const paymentGateway = gateway();
+    const eventId = buildReconcileEventId(successVerification);
+
+    await expect(reconcilePayment({
+      schemaVersion: 1,
+      idempotencyKey: 'payment-reconcile-succeeded-123',
+      data: { intentId: succeededPayment.intentId },
+    }, succeededPayment.renterId, {
+      repository,
+      paymentGateway,
+      createRequestId: () => 'request-succeeded',
+    })).resolves.toEqual({
+      requestId: 'request-succeeded',
+      result: {
+        eventId,
+        intentId: succeededPayment.intentId,
+        paymentId: succeededPayment.paymentId,
+        paymentState: 'succeeded',
+        providerStatus: 'success',
+        verification: 'verified_success',
+      },
     });
   });
 

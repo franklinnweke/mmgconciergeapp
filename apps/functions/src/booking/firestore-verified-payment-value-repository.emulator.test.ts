@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { FirestorePaidBookingResponseRepository } from './firestore-paid-booking-response-repository.js';
 import { FirestoreVerifiedPaymentValueRepository } from './firestore-verified-payment-value-repository.js';
-import { confirmBooking } from './paid-booking-response-service.js';
+import { confirmBooking, rejectBooking } from './paid-booking-response-service.js';
 import { deliverVerifiedPaymentValue } from './verified-payment-value-service.js';
 
 const describeWithEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
@@ -193,7 +193,7 @@ describeWithEmulator('Firestore R4 verified payment value delivery', () => {
     expect((await database.collection('auditEvents').get()).size).toBe(1);
   });
 
-  it('replays the delivered event without duplicating booking, outbox, or audit effects', async () => {
+  it('replays the delivered event without duplicating booking, paid block, outbox, or audit effects', async () => {
     const firstIds = ['booking-first', 'case-unused', 'outbox-first'];
     const first = await deliverVerifiedPaymentValue('event-123', {
       repository,
@@ -211,8 +211,49 @@ describeWithEmulator('Firestore R4 verified payment value delivery', () => {
 
     expect(replay).toEqual(first);
     expect((await database.collection('bookings').get()).size).toBe(1);
+    expect((await database.collection('bookingBlocks').get()).docs.filter((document) => document.data().state === 'paid')).toHaveLength(1);
     expect((await database.collection('notificationOutbox').get()).size).toBe(1);
     expect((await database.collection('auditEvents').get()).size).toBe(1);
+  });
+
+  it('reuses the original value effect for a second verified-success event on the same payment', async () => {
+    const firstIds = ['booking-original', 'case-unused', 'outbox-original'];
+    const first = await deliverVerifiedPaymentValue('event-123', {
+      repository,
+      createId: () => firstIds.shift()!,
+      createRequestId: () => 'request-original',
+      now: () => new Date('2026-09-01T04:00:00.000Z'),
+    });
+    await database.doc('paymentEvents/event-reconcile-456').set({
+      eventId: 'event-reconcile-456',
+      source: 'reconcile',
+      eventType: 'reconcile',
+      reference: 'mmg-payment-123',
+      status: 'verified_success',
+      providerStatus: 'success',
+      paymentId: 'payment-123',
+      intentId: 'intent-123',
+      createdAt: Timestamp.fromDate(new Date('2026-09-01T04:02:00.000Z')),
+      updatedAt: Timestamp.fromDate(new Date('2026-09-01T04:02:00.000Z')),
+    });
+
+    const replayIds = ['booking-must-not-win', 'case-must-not-win', 'outbox-must-not-win'];
+    const replay = await deliverVerifiedPaymentValue('event-reconcile-456', {
+      repository,
+      createId: () => replayIds.shift()!,
+      createRequestId: () => 'request-reconcile-replay',
+      now: () => new Date('2026-09-01T04:03:00.000Z'),
+    });
+
+    expect(replay).toEqual({ ...first, eventId: 'event-reconcile-456' });
+    expect((await database.collection('bookings').get()).size).toBe(1);
+    expect((await database.collection('bookingBlocks').get()).docs.filter((document) => document.data().state === 'paid')).toHaveLength(1);
+    expect((await database.collection('notificationOutbox').get()).size).toBe(1);
+    expect((await database.collection('auditEvents').get()).size).toBe(1);
+    expect((await database.doc('paymentEvents/event-reconcile-456').get()).data()).toMatchObject({
+      valueDeliveryOutcome: 'paid_pending_owner',
+      valueDeliveryBookingId: 'booking-original',
+    });
   });
 
   it('produces a booking the existing owner-confirmation transaction can consume unchanged', async () => {
@@ -242,5 +283,44 @@ describeWithEmulator('Firestore R4 verified payment value delivery', () => {
       blockId: 'intent-123',
     });
     expect((await database.doc('bookingBlocks/intent-123').get()).data()?.state).toBe('confirmed');
+  });
+
+  it('produces a booking the existing owner-rejection transaction can consume unchanged', async () => {
+    const ids = ['booking-owner-reject-compatible', 'case-unused', 'outbox-paid'];
+    await deliverVerifiedPaymentValue('event-123', {
+      repository,
+      createId: () => ids.shift()!,
+      createRequestId: () => 'request-paid-reject',
+      now: () => new Date('2026-09-01T04:00:00.000Z'),
+    });
+
+    const ownerRepository = new FirestorePaidBookingResponseRepository(database);
+    const ownerIds = ['case-owner-rejection-r4', 'outbox-owner-reject'];
+    await rejectBooking({
+      schemaVersion: 1,
+      idempotencyKey: 'owner-reject-r4-booking-0001',
+      data: {
+        bookingId: 'booking-owner-reject-compatible',
+        expectedVersion: 1,
+        reason: 'The assigned chauffeur is no longer available.',
+      },
+    }, { uid: 'owner-123', isSuperAdmin: false }, {
+      repository: ownerRepository,
+      createId: () => ownerIds.shift()!,
+      createRequestId: () => 'request-owner-reject',
+      now: () => new Date('2026-09-01T04:02:00.000Z'),
+    });
+
+    expect((await database.doc('bookings/booking-owner-reject-compatible').get()).data()).toMatchObject({
+      state: 'intervention_required',
+      version: 2,
+      blockId: 'intent-123',
+    });
+    expect((await database.doc('bookingBlocks/intent-123').get()).exists).toBe(false);
+    expect((await database.doc('bookingCases/case-owner-rejection-r4').get()).data()).toMatchObject({
+      type: 'owner_rejection',
+      status: 'open',
+      bookingId: 'booking-owner-reject-compatible',
+    });
   });
 });

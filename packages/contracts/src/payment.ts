@@ -143,13 +143,28 @@ export type ReconcilePaymentCommand = z.infer<typeof reconcilePaymentCommandSche
 export const reconcilePaymentResultSchema = z.object({
   requestId: boundedIdSchema,
   result: z.object({
+    eventId: boundedIdSchema,
     intentId: boundedIdSchema,
     paymentId: boundedIdSchema,
-    paymentState: z.literal('pending'),
+    paymentState: z.enum(['pending', 'succeeded']),
     providerStatus: paystackTransactionStatusSchema,
     verification: paymentVerificationOutcomeSchema,
+    valueDeliveryOutcome: paymentValueDeliveryOutcomeSchema.optional(),
   }).strict(),
-}).strict();
+}).strict().superRefine((value, context) => {
+  if (!value.result.valueDeliveryOutcome) return;
+  if (
+    value.result.paymentState !== 'succeeded' ||
+    value.result.providerStatus !== 'success' ||
+    value.result.verification !== 'verified_success'
+  ) {
+    context.addIssue({
+      code: 'custom',
+      path: ['result', 'valueDeliveryOutcome'],
+      message: 'Value delivery requires a verified successful payment.',
+    });
+  }
+});
 export type ReconcilePaymentResult = z.infer<typeof reconcilePaymentResultSchema>;
 
 export const paymentGatewayInitializeInputSchema = z.object({

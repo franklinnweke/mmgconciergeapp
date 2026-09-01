@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
+import { boundedIdSchema } from '@mmg/contracts';
 import {
-  boundedIdSchema,
   trustedPaymentValueDeliveryResultSchema,
   type TrustedPaymentValueDeliveryResult,
-} from '@mmg/contracts';
+} from '@mmg/contracts/payment';
 
 import { BookingCommandError } from './errors.js';
 

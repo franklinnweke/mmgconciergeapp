@@ -9,6 +9,7 @@ import {
   paymentVerificationOutcomeSchema,
   paystackTransactionStatusSchema,
   reconcilePaymentCommandSchema,
+  reconcilePaymentResultSchema,
   trustedPaymentValueDeliveryResultSchema,
 } from './payment.js';
 
@@ -141,6 +142,86 @@ describe('payment contracts', () => {
         data: { intentId: 'intent-123', reference: 'attacker-reference' },
       }),
     ).toThrow();
+  });
+
+  it('represents both pending reconciliation and completed R4 value delivery truthfully', () => {
+    expect(reconcilePaymentResultSchema.parse({
+      requestId: 'request-pending',
+      result: {
+        eventId: 'event-pending',
+        intentId: 'intent-pending',
+        paymentId: 'payment-pending',
+        paymentState: 'pending',
+        providerStatus: 'pending',
+        verification: 'not_succeeded',
+      },
+    }).result.paymentState).toBe('pending');
+
+    expect(reconcilePaymentResultSchema.parse({
+      requestId: 'request-paid',
+      result: {
+        eventId: 'event-paid',
+        intentId: 'intent-paid',
+        paymentId: 'payment-paid',
+        paymentState: 'succeeded',
+        providerStatus: 'success',
+        verification: 'verified_success',
+        valueDeliveryOutcome: 'paid_pending_owner',
+      },
+    }).result.valueDeliveryOutcome).toBe('paid_pending_owner');
+  });
+
+  it('rejects a value-delivery outcome unless reconciliation represents verified success', () => {
+    for (const result of [
+      {
+        eventId: 'event-pending-state',
+        intentId: 'intent-pending-state',
+        paymentId: 'payment-pending-state',
+        paymentState: 'pending',
+        providerStatus: 'success',
+        verification: 'verified_success',
+        valueDeliveryOutcome: 'paid_pending_owner',
+      },
+      {
+        eventId: 'event-pending-provider',
+        intentId: 'intent-pending-provider',
+        paymentId: 'payment-pending-provider',
+        paymentState: 'succeeded',
+        providerStatus: 'pending',
+        verification: 'verified_success',
+        valueDeliveryOutcome: 'paid_pending_owner',
+      },
+      {
+        eventId: 'event-rejected-verification',
+        intentId: 'intent-rejected-verification',
+        paymentId: 'payment-rejected-verification',
+        paymentState: 'succeeded',
+        providerStatus: 'success',
+        verification: 'rejected',
+        valueDeliveryOutcome: 'paid_conflict',
+      },
+    ]) {
+      expect(() => reconcilePaymentResultSchema.parse({
+        requestId: 'request-invalid-delivery',
+        result,
+      })).toThrow();
+    }
+  });
+
+  it('keeps reconciliation result strict against invented booking state', () => {
+    expect(() => reconcilePaymentResultSchema.parse({
+      requestId: 'request-paid',
+      result: {
+        eventId: 'event-paid',
+        intentId: 'intent-paid',
+        paymentId: 'payment-paid',
+        paymentState: 'succeeded',
+        providerStatus: 'success',
+        verification: 'verified_success',
+        valueDeliveryOutcome: 'paid_pending_owner',
+        bookingState: 'confirmed',
+      },
+    })).toThrow();
   });
 
   it('normalizes provider currency while preserving status for trusted validation', () => {

@@ -133,6 +133,20 @@ function ids(prefix: string) {
   };
 }
 
+async function expectNoValueDeliveryEffects(database: Firestore, journey: {
+  eventId: string;
+  intentId: string;
+  paymentId: string;
+}) {
+  expect((await database.doc(`payments/${journey.paymentId}`).get()).data()?.state).toBe('pending');
+  expect((await database.doc(`bookingIntents/${journey.intentId}`).get()).data()?.state).toBe('checkout_pending');
+  expect((await database.doc(`paymentEvents/${journey.eventId}`).get()).data()?.valueDeliveryOutcome).toBeUndefined();
+  expect((await database.collection('bookings').get()).size).toBe(0);
+  expect((await database.collection('bookingCases').get()).size).toBe(0);
+  expect((await database.collection('notificationOutbox').get()).size).toBe(0);
+  expect((await database.collection('auditEvents').get()).size).toBe(0);
+}
+
 describeWithEmulator('Firestore R4 late verified payment concurrency', () => {
   let database: Firestore;
   let repository: FirestoreVerifiedPaymentValueRepository;
@@ -268,7 +282,7 @@ describeWithEmulator('Firestore R4 late verified payment concurrency', () => {
     expect((await database.collection('notificationOutbox').get()).size).toBe(2);
 
     const payments = await database.collection('payments').get();
-    expect(payments.docs.map((document) => document.data().state)).toEqual(['succeeded', 'succeeded']);
+    expect(payments.docs.map((document) => document.data().state).sort()).toEqual(['succeeded', 'succeeded']);
     const intentStates = (await database.collection('bookingIntents').get()).docs
       .map((document) => document.data().state)
       .sort();
@@ -277,5 +291,56 @@ describeWithEmulator('Firestore R4 late verified payment concurrency', () => {
       .filter((document) => document.data().state === 'paid');
     expect(livePaidBlocks).toHaveLength(1);
     expect((await database.doc('vehicleAvailability/vehicle-123').get()).data()?.version).toBe(12);
+  });
+
+  it('fails closed when the intent block already has a non-held state', async () => {
+    const journey = await seedVerifiedJourney(database, 'broken-block');
+    await database.doc(`bookingBlocks/${journey.intentId}`).update({
+      state: 'paid',
+      bookingId: 'unexpected-existing-booking',
+    });
+
+    await expect(deliverVerifiedPaymentValue(journey.eventId, {
+      repository,
+      ...ids('broken-block'),
+      now: () => new Date('2026-09-01T04:00:00.000Z'),
+    })).rejects.toMatchObject({ code: 'FAILED_PRECONDITION' });
+
+    await expectNoValueDeliveryEffects(database, journey);
+    expect((await database.doc(`bookingBlocks/${journey.intentId}`).get()).data()).toMatchObject({
+      state: 'paid',
+      bookingId: 'unexpected-existing-booking',
+    });
+    expect((await database.doc('vehicleAvailability/vehicle-123').get()).data()?.version).toBe(10);
+  });
+
+  it('fails closed when the availability sentinel is missing', async () => {
+    const journey = await seedVerifiedJourney(database, 'missing-sentinel');
+    await database.doc('vehicleAvailability/vehicle-123').delete();
+
+    await expect(deliverVerifiedPaymentValue(journey.eventId, {
+      repository,
+      ...ids('missing-sentinel'),
+      now: () => new Date('2026-09-01T04:00:00.000Z'),
+    })).rejects.toMatchObject({ code: 'FAILED_PRECONDITION' });
+
+    await expectNoValueDeliveryEffects(database, journey);
+    expect((await database.doc(`bookingBlocks/${journey.intentId}`).get()).data()?.state).toBe('held');
+    expect((await database.doc('vehicleAvailability/vehicle-123').get()).exists).toBe(false);
+  });
+
+  it('fails closed when the availability sentinel version is malformed', async () => {
+    const journey = await seedVerifiedJourney(database, 'bad-sentinel');
+    await database.doc('vehicleAvailability/vehicle-123').update({ version: 'corrupt' });
+
+    await expect(deliverVerifiedPaymentValue(journey.eventId, {
+      repository,
+      ...ids('bad-sentinel'),
+      now: () => new Date('2026-09-01T04:00:00.000Z'),
+    })).rejects.toMatchObject({ code: 'FAILED_PRECONDITION' });
+
+    await expectNoValueDeliveryEffects(database, journey);
+    expect((await database.doc(`bookingBlocks/${journey.intentId}`).get()).data()?.state).toBe('held');
+    expect((await database.doc('vehicleAvailability/vehicle-123').get()).data()?.version).toBe('corrupt');
   });
 });

@@ -7,6 +7,7 @@ import { requireCheckoutRenter, requireVerifiedRenter } from './callable-auth.js
 import { CommandError } from '../errors.js';
 import { FirestoreBookingPaymentInitializationRepository } from './firestore-booking-payment-initialization-repository.js';
 import { FirestorePaymentVerificationRepository } from './firestore-payment-verification-repository.js';
+import { FirestoreVerifiedPaymentValueRepository } from './firestore-verified-payment-value-repository.js';
 import { initializeBookingPayment as initializeBookingPaymentService } from './initialize-booking-payment-service.js';
 import { PaystackPaymentAdapter } from './paystack-payment-adapter.js';
 import {
@@ -14,9 +15,9 @@ import {
   MAX_PAYSTACK_WEBHOOK_BYTES,
 } from './paystack-webhook-service.js';
 import {
-  processPaymentEvent as processPaymentEventService,
-  reconcilePayment as reconcilePaymentService,
-} from './payment-verification-service.js';
+  processAndDeliverPaymentEvent as processAndDeliverPaymentEventService,
+  reconcileAndDeliverPayment as reconcileAndDeliverPaymentService,
+} from './payment-value-orchestration-service.js';
 
 const paystackSecret = defineSecret('PAYSTACK_SECRET_KEY');
 
@@ -159,27 +160,33 @@ export const processPaystackPaymentEvent = onDocumentCreated(
     if (!snapshot || snapshot.data()?.source !== 'webhook') return;
 
     const eventId = event.params.eventId;
-    const repository = new FirestorePaymentVerificationRepository();
+    const verificationRepository = new FirestorePaymentVerificationRepository();
+    const valueRepository = new FirestoreVerifiedPaymentValueRepository();
     try {
-      const result = await processPaymentEventService(eventId, {
-        repository,
+      const result = await processAndDeliverPaymentEventService(eventId, {
+        verificationRepository,
         paymentGateway: testPaymentGateway(),
+        valueRepository,
       });
-      logger.info('booking_payment.webhook_verified', {
+      logger.info('booking_payment.webhook_processed', {
         eventId,
-        verification: result?.verification ?? 'noop',
-        providerStatus: result?.providerStatus,
+        verification: result.verification?.verification ?? 'durable_replay',
+        providerStatus: result.verification?.providerStatus,
+        valueDeliveryOutcome: result.delivery?.outcome,
+        paymentId: result.delivery?.paymentId,
+        intentId: result.delivery?.intentId,
       });
     } catch (error) {
       if (error instanceof CommandError) {
-        logger.warn('booking_payment.webhook_verification_failed', {
+        logger.warn('booking_payment.webhook_processing_failed', {
           eventId,
           code: error.code,
         });
       } else {
-        logger.error('booking_payment.webhook_verification_failed', { eventId });
+        logger.error('booking_payment.webhook_processing_failed', { eventId });
       }
-      // Verification provider failures are retried by the event-driven Function.
+      // Provider failures and transactional conflicts remain retryable. Durable
+      // terminal verification/value outcomes are idempotent on retry.
       throw error;
     }
   },
@@ -197,17 +204,22 @@ export const reconcilePayment = onCall(
   async (request) => {
     try {
       const renterId = requireVerifiedRenter(request.auth);
-      const repository = new FirestorePaymentVerificationRepository();
-      const result = await reconcilePaymentService(request.data, renterId, {
-        repository,
+      const verificationRepository = new FirestorePaymentVerificationRepository();
+      const valueRepository = new FirestoreVerifiedPaymentValueRepository();
+      const result = await reconcileAndDeliverPaymentService(request.data, renterId, {
+        verificationRepository,
         paymentGateway: testPaymentGateway(),
+        valueRepository,
       });
       logger.info('booking_payment.reconciled', {
         requestId: result.requestId,
+        eventId: result.result.eventId,
         intentId: result.result.intentId,
         paymentId: result.result.paymentId,
+        paymentState: result.result.paymentState,
         providerStatus: result.result.providerStatus,
         verification: result.result.verification,
+        valueDeliveryOutcome: result.result.valueDeliveryOutcome,
       });
       return result;
     } catch (error) {
