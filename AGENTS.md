@@ -86,7 +86,7 @@ Exactly:
 - `privacy_admin`
 - `super_admin`
 
-Never introduce `booking_admin`.
+Never introduce `booking_admin`. The architecture's non-financial “Operations admin” booking-case responsibility maps in R5 to `support` and `super_admin`. `finance_admin` remains reserved for financial/refund actions.
 
 ### Security
 
@@ -173,9 +173,11 @@ R4 invariants:
 - There is no automatic owner-rejection timeout.
 - Owner response SLA is private configuration `ownerResponseSlaMinutes`; architecture default is 30 minutes.
 - Exceeding owner response SLA creates an idempotent operations alert only. It must not change booking/payment/block state and must recheck booking state transactionally before recording the alert.
-- Do not invent reassignment, cancellation or refund economics. Alternative/reassignment/refund work requires an explicitly approved policy or controlled admin intervention design.
 - R5 treats the R4 paid availability record as an integrity boundary. A `paid_pending_owner` booking may advance only when its exact `paid` block exists and matches booking/intent/renter/owner/vehicle/date bindings.
 - R5 owner response requires an existing valid availability sentinel. Missing/malformed sentinel fails closed with no partial booking, block, case, audit or outbox writes.
+- R5 non-financial case handling currently implements only `open -> sourcing_alternative`, authorized to `support`/`super_admin`, idempotent, and audited in both domain and `adminAuditLogs` records.
+- `startBookingCaseSourcing` cannot accept a refund amount, replacement vehicle, top-up, reassignment, close-case result or other financial/resolution input.
+- Do not invent reassignment, cancellation or refund economics. Alternative locking, renter acceptance, top-up and refund actions remain separately gated by approved policy/financial implementation.
 
 ## 5. Current implementation status
 
@@ -190,7 +192,7 @@ Snapshot: **2026-09-01**.
 | WP1 | 🔶 Foundation complete | Phone UX/linking, erasure workflow, MFA remain |
 | WP2 | 🔶 Core complete | Vehicle upload GC remains |
 | WP3 | ✅ S1 hardening complete | Discovery/storage boundary validated |
-| WP4 | 🔶 Active sprint | R0-R4 fully validated; R5 owner response/intervention active |
+| WP4 | 🔶 Active sprint | R0-R4 fully validated; R5 implementation complete enough for bounded validation checkpoint |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -218,16 +220,25 @@ Checkpoint 1, owner-response integrity, is published as the first clean R5 commi
 - reject deletes exact paid block, opens one owner-rejection case and does not invent refund state;
 - unit + emulator coverage include zero-partial-write failures.
 
-Checkpoint 2, owner-response SLA signaling, is implemented and awaiting clean publication/validation:
+Checkpoint 2, owner-response SLA signaling, is published as the second clean R5 commit and awaits aggregate R5 validation:
 
 - reads optional `systemConfig/private.ownerResponseSlaMinutes`, otherwise uses architecture default 30 minutes;
 - malformed configured SLA fails closed;
-- scans only `paid_pending_owner` records;
-- transactionally rechecks booking state/age before alert creation;
-- creates deterministic `notificationOutbox/owner-response-sla-{bookingId}` operations signal plus audit evidence once;
-- records SLA metadata on the booking but never changes booking/payment/block state;
-- repeat scans and bookings already responded to are no-ops;
-- scheduled scan is wired every 5 minutes in `europe-west1` using Africa/Lagos time zone.
+- transactionally rechecks `paid_pending_owner` state/age before alert creation;
+- deterministic operations outbox signal + audit evidence emitted once;
+- booking records SLA metadata only; booking/payment/block state remain unchanged;
+- repeat scans/responded bookings are no-ops;
+- scheduled every 5 minutes in `europe-west1` with Africa/Lagos time zone.
+
+Checkpoint 3, bounded case sourcing, is implemented and awaiting clean publication/aggregate R5 validation:
+
+- new shared booking-case contract locks canonical intervention statuses and a narrow `startBookingCaseSourcing` command;
+- non-financial “Operations admin” maps to canonical `support` or `super_admin`; finance/vehicle/verification/privacy roles do not inherit this power;
+- command only permits `open -> sourcing_alternative` using optimistic version + idempotency;
+- writes domain audit plus append-only `adminAuditLogs` evidence;
+- owner-rejection and paid-conflict cases are supported;
+- no booking/payment/block/refund/alternative-vehicle value is changed or selected;
+- App Check-protected callable is wired but remains undeployed.
 
 No R5 checkpoint is green until the requested clean head passes the full gate.
 
@@ -281,7 +292,7 @@ git diff --check
 
 `npm run test:functions:emulator` must remain serialized at the Vitest file level while emulator suites share a Firestore project/collection namespace.
 
-When Rules/indexes change, or for publication checkpoints that request full regression evidence, also run:
+For R5 publication validation, also run:
 
 ```bash
 npm run test:rules
@@ -303,7 +314,9 @@ Payment/booking acceptance includes:
 - owner response cannot proceed with missing/mismatched paid block or missing/malformed sentinel;
 - owner rejection opens intervention without automatic refund;
 - SLA alert is idempotent and state-neutral;
-- no automatic owner-response timeout.
+- no automatic owner-response timeout;
+- case sourcing allows only support/super_admin, `open -> sourcing_alternative`, and writes both domain/admin audit evidence;
+- case sourcing cannot initiate refund, select an alternative, alter booking/payment/block state or close a case.
 
 ## 9. Agent execution protocol
 
@@ -322,11 +335,12 @@ Every clean agent-authored commit must update this root `AGENTS.md` in the same 
 11. Do not silently replace provider failures with fixtures.
 12. No fake/test adapter may be selectable in production.
 13. No automatic refund, cancellation economics or owner-timeout transition without approved policy.
-14. Use only canonical staff roles.
+14. Use only canonical staff roles; map product-language roles onto those claims explicitly rather than adding claims.
 15. SLA schedulers may alert operations but never mutate booking state automatically.
-16. Run narrow tests first, then the full gate for cross-package/security/financial checkpoints.
-17. Update detailed status docs when milestone evidence changes.
-18. End with summary, files changed, tests/evidence, risks/blockers and next task.
+16. Intervention commands must stay bounded to approved lifecycle transitions and must not smuggle financial policy through generic case updates.
+17. Run narrow tests first, then the full gate for cross-package/security/financial checkpoints.
+18. Update detailed status docs when milestone evidence changes.
+19. End with summary, files changed, tests/evidence, risks/blockers and next task.
 
 ## 10. Definition of done
 

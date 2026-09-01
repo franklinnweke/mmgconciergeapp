@@ -11,4 +11,5 @@ export {
   processPaystackPaymentEvent,
   reconcilePayment,
 } from './booking/payment-callables.js';
+export { startBookingCaseSourcing } from './booking/booking-case-callables.js';
 export { emitOwnerResponseSlaAlerts } from './booking/owner-response-sla-scheduler.js';

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  requireBookingOperationsAdmin,
   requireCheckoutRenter,
   requirePaidBookingActor,
   requireVerifiedRenter,
@@ -71,5 +72,29 @@ describe('requirePaidBookingActor', () => {
       uid: 'staff-one',
       token: { email_verified: true, super_admin: true },
     })).toEqual({ uid: 'staff-one', isSuperAdmin: true });
+  });
+});
+
+describe('requireBookingOperationsAdmin', () => {
+  it('maps bounded non-financial intervention authority to support or super_admin only', () => {
+    expect(requireBookingOperationsAdmin({
+      uid: 'support-one',
+      token: { support: true },
+    })).toEqual({ uid: 'support-one', role: 'support' });
+    expect(requireBookingOperationsAdmin({
+      uid: 'super-one',
+      token: { super_admin: true },
+    })).toEqual({ uid: 'super-one', role: 'super_admin' });
+  });
+
+  it.each([
+    ['finance_admin', { finance_admin: true }],
+    ['vehicle_admin', { vehicle_admin: true }],
+    ['verification_admin', { verification_admin: true }],
+    ['privacy_admin', { privacy_admin: true }],
+    ['owner', { email_verified: true }],
+  ])('does not grant booking operations authority to %s', (_label, token) => {
+    expect(() => requireBookingOperationsAdmin({ uid: 'actor-one', token }))
+      .toThrowError(expect.objectContaining<Partial<BookingCommandError>>({ code: 'FORBIDDEN' }));
   });
 });
