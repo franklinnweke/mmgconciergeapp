@@ -170,10 +170,12 @@ R4 invariants:
 
 - Owner confirm/reject is allowed only from `paid_pending_owner`.
 - Owner rejection requires a meaningful reason, releases the paid interval and opens `intervention_required` / an intervention case.
-- There is no automatic owner-rejection timeout. SLA timers may create operations signals only.
+- There is no automatic owner-rejection timeout.
+- Owner response SLA is private configuration `ownerResponseSlaMinutes`; architecture default is 30 minutes.
+- Exceeding owner response SLA creates an idempotent operations alert only. It must not change booking/payment/block state and must recheck booking state transactionally before recording the alert.
 - Do not invent reassignment, cancellation or refund economics. Alternative/reassignment/refund work requires an explicitly approved policy or controlled admin intervention design.
-- R5 must treat the R4 paid availability record as an integrity boundary. A `paid_pending_owner` booking may advance only when its exact `paid` block exists and matches booking/intent/renter/owner/vehicle/date bindings.
-- R5 owner response must require an existing valid availability sentinel. Missing/malformed sentinel fails closed with no partial booking, block, case, audit or outbox writes.
+- R5 treats the R4 paid availability record as an integrity boundary. A `paid_pending_owner` booking may advance only when its exact `paid` block exists and matches booking/intent/renter/owner/vehicle/date bindings.
+- R5 owner response requires an existing valid availability sentinel. Missing/malformed sentinel fails closed with no partial booking, block, case, audit or outbox writes.
 
 ## 5. Current implementation status
 
@@ -203,21 +205,31 @@ Snapshot: **2026-09-01**.
 - R4 green at `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`: Functions unit 299 passed / 30 skipped; serialized Functions emulator 329/329 across 40 files; root 583 passed / 67 skipped; Admin 66/66; Firestore Rules 20/20; Storage Rules 17/17; all Functions/Mobile/Admin typechecks, Functions build, Mobile/Admin lint, `npm run check` and `git diff --check` passed. Focused R4 unit 28/28 and transactional emulator 20/20.
 - No R1-R4 validation configured a Paystack secret, made a real Paystack request, deployed Firebase or mutated production.
 
-### R5 active checkpoint
+### R5 active checkpoints
 
 R5 starts from validated R4 head `edd5a485`.
 
-Current bounded checkpoint hardens existing owner response against R4 records:
+Checkpoint 1, owner-response integrity, is published as the first clean R5 commit and awaits aggregate R5 validation:
 
-- booking record must carry exact R4 intent/renter/owner/vehicle/date/block identity;
-- referenced block must exist, be `paid`, and exactly match those bindings;
-- missing block or any mismatch fails closed;
-- existing availability sentinel is mandatory and its version must be a safe nonnegative integer;
-- confirm changes exact paid block to `confirmed`;
+- exact R4 paid block required for owner confirmation/rejection;
+- missing/mismatched paid block fails closed;
+- existing valid availability sentinel required;
+- confirm advances exact block to `confirmed`;
 - reject deletes exact paid block, opens one owner-rejection case and does not invent refund state;
-- emulator tests cover happy confirm/reject plus missing block and missing/malformed sentinel zero-partial-write behavior.
+- unit + emulator coverage include zero-partial-write failures.
 
-This R5 checkpoint is implemented but not yet shell-validated. Do not call it green until the clean commit passes the required gate.
+Checkpoint 2, owner-response SLA signaling, is implemented and awaiting clean publication/validation:
+
+- reads optional `systemConfig/private.ownerResponseSlaMinutes`, otherwise uses architecture default 30 minutes;
+- malformed configured SLA fails closed;
+- scans only `paid_pending_owner` records;
+- transactionally rechecks booking state/age before alert creation;
+- creates deterministic `notificationOutbox/owner-response-sla-{bookingId}` operations signal plus audit evidence once;
+- records SLA metadata on the booking but never changes booking/payment/block state;
+- repeat scans and bookings already responded to are no-ops;
+- scheduled scan is wired every 5 minutes in `europe-west1` using Africa/Lagos time zone.
+
+No R5 checkpoint is green until the requested clean head passes the full gate.
 
 ## 6. Firebase development checkpoint
 
@@ -290,6 +302,7 @@ Payment/booking acceptance includes:
 - owner confirm/reject accepts R4 booking/block unchanged;
 - owner response cannot proceed with missing/mismatched paid block or missing/malformed sentinel;
 - owner rejection opens intervention without automatic refund;
+- SLA alert is idempotent and state-neutral;
 - no automatic owner-response timeout.
 
 ## 9. Agent execution protocol
@@ -310,9 +323,10 @@ Every clean agent-authored commit must update this root `AGENTS.md` in the same 
 12. No fake/test adapter may be selectable in production.
 13. No automatic refund, cancellation economics or owner-timeout transition without approved policy.
 14. Use only canonical staff roles.
-15. Run narrow tests first, then the full gate for cross-package/security/financial checkpoints.
-16. Update detailed status docs when milestone evidence changes.
-17. End with summary, files changed, tests/evidence, risks/blockers and next task.
+15. SLA schedulers may alert operations but never mutate booking state automatically.
+16. Run narrow tests first, then the full gate for cross-package/security/financial checkpoints.
+17. Update detailed status docs when milestone evidence changes.
+18. End with summary, files changed, tests/evidence, risks/blockers and next task.
 
 ## 10. Definition of done
 
