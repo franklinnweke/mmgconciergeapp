@@ -24,7 +24,7 @@
     "functions:build": "npm run build --workspace @mmg/functions",
     "functions:test": "npm run test --workspace @mmg/functions",
     "functions:typecheck": "npm run typecheck --workspace @mmg/functions",
-    "test:functions:emulator": "cd firebase && npx -y firebase-tools@latest emulators:exec --only firestore \"npm run functions:test --prefix ..\"",
+    "test:functions:emulator": "cd firebase && npx -y firebase-tools@latest emulators:exec --only firestore \"npm --prefix .. run test:emulator --workspace @mmg/functions\"",
     "check": "npm test && npm run typecheck && npm run lint && npm run functions:typecheck && npm run functions:build && npm run admin:typecheck && npm run admin:lint && npm run admin:test",
     "test": "vitest run",
     "test:rules": "cd firebase && npx -y firebase-tools@latest emulators:exec --only firestore \"npm exec vitest -- --run firestore.rules.test.ts\"",

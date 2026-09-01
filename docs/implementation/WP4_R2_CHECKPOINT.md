@@ -16,4 +16,12 @@ Implemented boundary:
 - `mmg-concierge-dev` payment callable is coded to reject live Paystack credentials before any provider request;
 - webhook verification and `paid_pending_owner` creation remain R3/R4 work.
 
+Validation checkpoint:
+
+- R2 unit and isolated Firestore payment-initialization tests passed at `819c1f7`;
+- the aggregate Functions Firestore-emulator gate exposed cross-file interference because multiple emulator suites shared the same project/collections while Vitest ran files concurrently;
+- emulator-backed Functions tests must therefore run with file parallelism disabled;
+- `apps/functions` provides `test:emulator` using `vitest run src --no-file-parallelism`, and root `npm run test:functions:emulator` invokes that serialized runner inside the Firestore emulator;
+- Firebase Emulator Suite currently requires Java 21+; use an installed Java 21+ runtime when the machine default is older.
+
 No Firebase deployment or Paystack network integration is authorized by this checkpoint alone.

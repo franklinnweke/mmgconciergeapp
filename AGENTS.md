@@ -72,6 +72,7 @@ If status documents conflict with code or Git history, report the discrepancy, v
 - Checkout requires Firebase-authenticated phone evidence plus matching active renter profile data. A manually stored phone string alone is not sufficient payment eligibility.
 - Development payment initialization is test-mode only. A live Paystack key must be rejected before any provider request until a separate controlled-production change explicitly enables live mode.
 - Hosted checkout URLs are valid only while their atomic booking hold remains active; idempotent replay after hold expiry fails closed.
+- Emulator-backed Functions suites that share the same Firestore project/collections must run with file parallelism disabled. Do not rely on destructive per-file cleanup while Vitest runs emulator files concurrently.
 - Chat is payment-gated; wallet value is completion-gated. WP5/WP6 remain separate exit gates.
 - Expo Go is unsupported for native Firebase acceptance testing.
 - Decorative arrows are not permitted in CTA/button labels; arrows are reserved for functional navigation.
@@ -89,7 +90,7 @@ Snapshot date: **2026-08-31**.
 | WP1 | 🔶 Foundation complete | Phone verification UX/linking, erasure workflow and MFA remain |
 | WP2 | 🔶 Core complete | Vehicle inventory/moderation/image pipeline/fleet UI delivered; vehicle-upload GC remains |
 | WP3 | ✅ S1 hardening complete | Functions-backed discovery + hardened Rules live in development |
-| WP4 | 🔶 Active sprint | R0/R1 green; R2 trusted payment initialization implemented on branch and awaiting shell/emulator validation |
+| WP4 | 🔶 Active sprint | R0/R1 green; R2 behavior passes in isolation; serialized aggregate emulator runner added and awaiting revalidation |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -117,7 +118,9 @@ Production `mmg-concierge` is not a development target. Do not seed, reprovision
 - R1 adds `@mmg/contracts/payment`, a narrow `PaymentGateway` interface and a server-only Paystack initialize/verify adapter. The shell gate at `caf1efa` passed: Functions 268 tests with 7 skipped, root 543 tests with 42 skipped, Admin 66 tests, typecheck/lint/build/check and `git diff --check` clean. No live Paystack call or Firebase mutation occurred.
 - The Paystack transaction-reference correction at `c923c8a` was revalidated: Functions 268 passed / 7 skipped, root 545 passed / 42 skipped, Admin 66 passed, all typecheck/lint/build/check gates clean, no deployment or live Paystack call.
 - R2 adds server-authoritative `initializeBookingPayment`, deterministic provider-safe payment identity, verified renter email/phone matching, active-hold enforcement, Firestore `payments` binding, `intent_created -> checkout_pending`, a 30-second initialization lease, idempotent pending-checkout replay, provider-result finalization, audit records, App Check-protected callable wiring, Firebase Secret Manager binding and test-mode-only Paystack enforcement. It does not create a paid booking or process webhook value.
-- R2 must pass Functions/root/Admin gates plus the Firestore emulator payment-initialization suite before any development deployment. No Paystack key is required for this validation.
+- R2 unit/full non-emulator gates at `819c1f7` passed: Functions 277 passed / 12 skipped, root 554 passed / 47 skipped, Admin 66 passed, typecheck/lint/build/check and `git diff --check` clean. The new payment repository emulator suite passed 5/5 alone.
+- The aggregate Functions Firestore-emulator gate at `819c1f7` exposed cross-file test interference: two suites shared the same emulator project, fixed document IDs and destructive cleanup while Vitest ran files in parallel, producing 4 failures despite isolated correctness. The runner is corrected by `apps/functions` `test:emulator` (`vitest run src --no-file-parallelism`) and root `npm run test:functions:emulator` now invokes that serialized command. Re-run this aggregate gate before R3.
+- Firebase Emulator Suite requires Java 21+; machines with an older default Java must select an installed Java 21+ runtime rather than weakening/skipping the emulator gate.
 - Old branch `codex/wp4-booking-operations` is **donor/reference only**. It is 56 commits behind current `main` and must not be merged or cherry-picked wholesale.
 - Donor code may be manually salvaged only after reconciliation with current contracts, roles, booking-block model and architecture.
 - Specifically reject donor `booking_admin`, renter-triggered verify-to-paid as payment truth, invented cancellation/refund policy, auto owner rejection timeout, unrelated seed/asset/UI changes and old schema copies.
@@ -146,6 +149,7 @@ Minimum repository gate for WP4 cross-package changes:
 npm run functions:typecheck
 npm run functions:build
 npm run functions:test
+npm run test:functions:emulator
 npm test
 npm run typecheck
 npm run lint
@@ -155,6 +159,8 @@ npm run admin:test
 npm run check
 git diff --check
 ```
+
+`npm run test:functions:emulator` is serialized at the Vitest file level because emulator suites currently share a Firestore project/collection namespace. It requires Java 21+.
 
 When Firestore/Storage Rules or indexes change, also run:
 
@@ -193,9 +199,10 @@ Every agent-authored commit must update this root `AGENTS.md` in the same commit
 7. Provider callbacks are not trusted state transitions.
 8. Fake/test payment adapters must be impossible to select in production.
 9. For production paths, fail closed; never silently replace failed live calls with fixtures.
-10. Run narrow tests, then the full gate when crossing package/security/financial boundaries.
-11. Update this file and detailed status docs when evidence changes milestone state.
-12. End with summary, files changed, tests run, assumptions, risks, blockers and next task.
+10. Emulator-backed Functions suites sharing Firestore state must use the serialized emulator runner unless they are explicitly isolated by project/namespace.
+11. Run narrow tests, then the full gate when crossing package/security/financial boundaries.
+12. Update this file and detailed status docs when evidence changes milestone state.
+13. End with summary, files changed, tests run, assumptions, risks, blockers and next task.
 
 ## 8. Definition of done
 
