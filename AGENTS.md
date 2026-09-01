@@ -80,6 +80,7 @@ If status documents conflict with code or Git history, report the discrepancy, v
 - Emulator-backed Functions suites that share the same Firestore project/collections must run with file parallelism disabled. Do not rely on destructive per-file cleanup while Vitest runs emulator files concurrently.
 - Event-driven payment verification may retry transient failures, so processors must remain idempotent and terminal mismatch states must complete without retry loops.
 - Storage Rules cross-service Firestore lookups must guard nullable documents/data before dereferencing fields. Keep Storage Rules within Firebase's two Firestore document-access calls per evaluation.
+- Storage Rules emulator fixtures must use `mmg-concierge-dev`, matching `firebase/.firebaserc`; cross-service Storage/Firestore tests must never split data across different emulator project IDs.
 - Chat is payment-gated; wallet value is completion-gated. WP5/WP6 remain separate exit gates.
 - Expo Go is unsupported for native Firebase acceptance testing.
 - Decorative arrows are not permitted in CTA/button labels; arrows are reserved for functional navigation.
@@ -96,8 +97,8 @@ Snapshot date: **2026-08-31**.
 | WP0 | 🔶 Mostly complete | Client quote preview can still diverge from versioned server pricing |
 | WP1 | 🔶 Foundation complete | Phone verification UX/linking, erasure workflow and MFA remain |
 | WP2 | 🔶 Core complete | Vehicle inventory/moderation/image pipeline/fleet UI delivered; vehicle-upload GC remains |
-| WP3 | ✅ S1 hardening complete | Functions-backed discovery + hardened Rules live in development; Storage emulator regression fix awaiting validation |
-| WP4 | 🔶 Active sprint | R0/R1/R2 complete; R3 payment boundary validated green; R4 blocked only on standalone Storage Rules gate repair |
+| WP3 | ✅ S1 hardening complete | Functions-backed discovery + hardened Rules live in development; Storage Rules null-guard + emulator project alignment awaiting standard-command validation |
+| WP4 | 🔶 Active sprint | R0/R1/R2 complete; R3 payment boundary validated green; R4 blocked only on the standalone Storage Rules gate |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -129,7 +130,7 @@ Production `mmg-concierge` is not a development target. Do not seed, reprovision
 - R2 validation was performed from a clean clone of `franklinnweke/mmgconciergeapp` because an unrelated older local checkout pointed to `franklinnweke/mmgconciergeweb` and had a corrupt local ref. Do not use that unhealthy checkout as repository truth.
 - R3 adds: raw-body signed `paystackWebhook`; 256 KiB application body limit; semantic event dedupe in server-only `paymentEvents`; asynchronous retryable verification via `processPaystackPaymentEvent`; owner-only App Check `reconcilePayment`; exact reference/environment/status/currency/amount comparison; durable `verified_success`, `not_succeeded`, or `rejected` event outcomes; explicit client Rules denial for `paymentEvents`. R3 intentionally leaves `payments.state` as `pending` and creates no booking value.
 - R3 is payment-green at `89f1b0c`: Functions 289 passed / 18 skipped; serialized Functions emulator 307/307 across 36 files; root 568 passed / 55 skipped; Admin 66/66; Firestore Rules 20/20; webhook 7/7; payment-verification service 5/5; R3 verification repository emulator 5/5; terminal verification emulator 1/1; payment-events Rules 2/2; all typecheck/lint/build/check and `git diff --check` gates passed. No secret, real Paystack request, Firebase deployment, booking value transition, owner notification or production mutation occurred.
-- The R3 clean-clone validation also exposed an unrelated Storage Rules regression: 12/17 passed and five valid owner-upload paths failed because `storage.rules` dereferenced `.data.accountType` on a nullable cross-service Firestore lookup. R3 did not modify Storage Rules. A standalone repair now null-guards cross-service owner/vehicle documents without changing intended allow/deny semantics; validate all 17 Storage Rules tests before R4.
+- The R3 clean-clone validation exposed an unrelated Storage Rules gate issue. The nullable cross-service lookup repair preserved intended security semantics, and the suite passes 17/17 when Firestore and Storage share one project. The standard command still failed 5 positives because `.firebaserc` started `mmg-concierge-dev` while `storage.rules.test.ts` initialized `mmg-concierge`. The test fixture is now aligned to `mmg-concierge-dev`; validate the standard `npm run test:storage-rules` command before R4.
 - Firebase Emulator Suite requires Java 21+; machines with an older default Java must select an installed Java 21+ runtime rather than weakening/skipping the emulator gate.
 - Old branch `codex/wp4-booking-operations` is **donor/reference only**. It is 56 commits behind current `main` and must not be merged or cherry-picked wholesale.
 - Donor code may be manually salvaged only after reconciliation with current contracts, roles, booking-block model and architecture.
@@ -212,7 +213,7 @@ Every agent-authored commit must update this root `AGENTS.md` in the same commit
 10. Emulator-backed Functions suites sharing Firestore state must use the serialized emulator runner unless they are explicitly isolated by project/namespace.
 11. Signed webhook handlers must authenticate raw bytes before JSON parsing and acknowledge only after durable event ingestion.
 12. Event-driven verification retries transient provider failures; terminal mismatches must be recorded and return without retry loops.
-13. Storage Rules cross-service Firestore reads must null-guard missing documents/data and stay within the two-access-call limit.
+13. Storage Rules cross-service Firestore reads must null-guard missing documents/data, stay within the two-access-call limit, and use the same emulator project ID as the Storage test fixture.
 14. Run narrow tests, then the full gate when crossing package/security/financial boundaries.
 15. Update this file and detailed status docs when evidence changes milestone state.
 16. End with summary, files changed, tests run, assumptions, risks, blockers and next task.
