@@ -252,14 +252,22 @@ describeWithEmulator('Firestore booking-intent transaction', () => {
 
   it('confirms a server-seeded paid booking and its block in one transaction', async () => {
     await database.doc('bookings/booking-paid-one').set({
+      bookingId: 'booking-paid-one',
+      intentId: 'intent-paid-one',
       renterId: 'renter-one',
       ownerId: 'owner-one',
       vehicleId: 'vehicle-one',
+      startDate: '2026-09-10',
+      endDate: '2026-09-13',
       state: 'paid_pending_owner',
       version: 2,
       blockId: 'paid-block-one',
     });
     await database.doc('bookingBlocks/paid-block-one').set({
+      bookingId: 'booking-paid-one',
+      intentId: 'intent-paid-one',
+      renterId: 'renter-one',
+      ownerId: 'owner-one',
       vehicleId: 'vehicle-one',
       startDate: '2026-09-10',
       endDate: '2026-09-13',
@@ -293,14 +301,22 @@ describeWithEmulator('Firestore booking-intent transaction', () => {
 
   it('releases rejected paid dates and opens an intervention case before a new hold can win', async () => {
     await database.doc('bookings/booking-paid-one').set({
+      bookingId: 'booking-paid-one',
+      intentId: 'intent-paid-one',
       renterId: 'renter-one',
       ownerId: 'owner-one',
       vehicleId: 'vehicle-one',
+      startDate: '2026-09-01',
+      endDate: '2026-09-04',
       state: 'paid_pending_owner',
       version: 1,
       blockId: 'paid-block-one',
     });
     await database.doc('bookingBlocks/paid-block-one').set({
+      bookingId: 'booking-paid-one',
+      intentId: 'intent-paid-one',
+      renterId: 'renter-one',
+      ownerId: 'owner-one',
       vehicleId: 'vehicle-one',
       startDate: '2026-09-01',
       endDate: '2026-09-04',

@@ -192,7 +192,7 @@ Snapshot: **2026-09-01**.
 | WP1 | 🔶 Foundation complete | Phone UX/linking, erasure workflow, MFA remain |
 | WP2 | 🔶 Core complete | Vehicle upload GC remains |
 | WP3 | ✅ S1 hardening complete | Discovery/storage boundary validated |
-| WP4 | 🔶 Active sprint | R0-R4 validated; R5 published and awaiting exact-head validation |
+| WP4 | 🔶 Active sprint | R0-R4 validated; R5 focused gates pass and full emulator rerun is pending after stale-fixture correction |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -214,11 +214,14 @@ R5 starts from validated R4 head `edd5a485` and preserves these meaningful imple
 1. `e130994` — owner-response paid-block/sentinel integrity hardening.
 2. `0aa7b2d` — idempotent owner-response SLA operations alerts.
 3. `b591972` — bounded audited `open -> sourcing_alternative` intervention command.
-4. Final documentation/handoff commit containing `docs/implementation/WP4_R5_CHECKPOINT.md`.
+4. `656f60c` — documentation/handoff checkpoint containing `docs/implementation/WP4_R5_CHECKPOINT.md`.
+5. Test-only stale-fixture correction after the first aggregate validation attempt.
 
-`docs/implementation/WP4_R5_CHECKPOINT.md` is the exact validation handoff. R5 is not green until the final clean branch head passes that full unit/emulator/Rules/typecheck/lint/build/check gate.
+Validation at `656f60c2710da7a2f104c65a0580f5215292fd6a` passed Functions typecheck/build, Functions unit 323 passed / 43 skipped, focused R5 unit 46/46, focused R5 emulator 13/13, root 610 passed / 80 skipped, Admin 66/66, Mobile/Admin typecheck/lint, `npm run check`, Firestore Rules 20/20, Storage Rules 17/17 and `git diff --check`. The full Functions emulator suite was 364 passed / 2 failed across 45 files. Both failures were older booking-intent regression fixtures that manually seeded incomplete pre-R4 paid booking/block shapes while genuine R4-created records already carry the identity/date fields required by R5.
 
-R5 does not implement alternative locking, renter acceptance, reassignment, top-up, refund initiation/verification, case closure, or automatic owner timeout transitions.
+The follow-up changes only those two test fixtures in `firestore-booking-intent-repository.emulator.test.ts`: booking records now include `bookingId`, `intentId`, `startDate`, and `endDate`; paid blocks now include `bookingId`, `intentId`, `renterId`, and `ownerId` in addition to vehicle/date/state. Runtime code is unchanged. R5 remains not green until the corrected exact head passes `npm run test:functions:emulator`.
+
+`docs/implementation/WP4_R5_CHECKPOINT.md` remains the validation handoff. R5 does not implement alternative locking, renter acceptance, reassignment, top-up, refund initiation/verification, case closure, or automatic owner timeout transitions.
 
 ## 6. Firebase development checkpoint
 
