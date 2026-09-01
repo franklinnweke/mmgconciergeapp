@@ -5,4 +5,9 @@ export {
   getVehicleDetails,
   searchVehicles,
 } from './discovery/discovery-callables.js';
-export { initializeBookingPayment } from './booking/payment-callables.js';
+export {
+  initializeBookingPayment,
+  paystackWebhook,
+  processPaystackPaymentEvent,
+  reconcilePayment,
+} from './booking/payment-callables.js';

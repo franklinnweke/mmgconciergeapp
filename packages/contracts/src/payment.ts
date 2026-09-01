@@ -57,6 +57,13 @@ export const paystackTransactionStatusSchema = z.enum([
 ]);
 export type PaystackTransactionStatus = z.infer<typeof paystackTransactionStatusSchema>;
 
+export const paymentVerificationOutcomeSchema = z.enum([
+  'verified_success',
+  'not_succeeded',
+  'rejected',
+]);
+export type PaymentVerificationOutcome = z.infer<typeof paymentVerificationOutcomeSchema>;
+
 export const initializeBookingPaymentDataSchema = z.object({
   intentId: boundedIdSchema,
 }).strict();
@@ -86,6 +93,30 @@ export const initializeBookingPaymentResultSchema = z.object({
   }).strict(),
 }).strict();
 export type InitializeBookingPaymentResult = z.infer<typeof initializeBookingPaymentResultSchema>;
+
+export const reconcilePaymentDataSchema = z.object({
+  intentId: boundedIdSchema,
+}).strict();
+export type ReconcilePaymentData = z.infer<typeof reconcilePaymentDataSchema>;
+
+export const reconcilePaymentCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: reconcilePaymentDataSchema,
+}).strict();
+export type ReconcilePaymentCommand = z.infer<typeof reconcilePaymentCommandSchema>;
+
+export const reconcilePaymentResultSchema = z.object({
+  requestId: boundedIdSchema,
+  result: z.object({
+    intentId: boundedIdSchema,
+    paymentId: boundedIdSchema,
+    paymentState: z.literal('pending'),
+    providerStatus: paystackTransactionStatusSchema,
+    verification: paymentVerificationOutcomeSchema,
+  }).strict(),
+}).strict();
+export type ReconcilePaymentResult = z.infer<typeof reconcilePaymentResultSchema>;
 
 export const paymentGatewayInitializeInputSchema = z.object({
   reference: paymentReferenceSchema,

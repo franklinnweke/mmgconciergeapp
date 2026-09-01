@@ -5,7 +5,9 @@ import {
   paymentGatewayVerifyResultSchema,
   paymentReferenceSchema,
   paymentStateSchema,
+  paymentVerificationOutcomeSchema,
   paystackTransactionStatusSchema,
+  reconcilePaymentCommandSchema,
 } from './payment.js';
 
 describe('payment contracts', () => {
@@ -26,6 +28,14 @@ describe('payment contracts', () => {
     expect(paystackTransactionStatusSchema.options).toContain('success');
     expect(paystackTransactionStatusSchema.options).toContain('pending');
     expect(paystackTransactionStatusSchema.options).toContain('reversed');
+  });
+
+  it('locks the R3 verification outcome set without advancing payment state', () => {
+    expect(paymentVerificationOutcomeSchema.options).toEqual([
+      'verified_success',
+      'not_succeeded',
+      'rejected',
+    ]);
   });
 
   it('accepts only Paystack-supported transaction reference characters', () => {
@@ -59,6 +69,23 @@ describe('payment contracts', () => {
         schemaVersion: 1,
         idempotencyKey: 'payment_init_1234567890',
         data: { intentId: 'intent-123', amountKobo: 1 },
+      }),
+    ).toThrow();
+  });
+
+  it('keeps reconciliation client input narrow and reference-free', () => {
+    const parsed = reconcilePaymentCommandSchema.parse({
+      schemaVersion: 1,
+      idempotencyKey: 'payment_reconcile_1234567890',
+      data: { intentId: 'intent-123' },
+    });
+    expect(parsed.data).toEqual({ intentId: 'intent-123' });
+
+    expect(() =>
+      reconcilePaymentCommandSchema.parse({
+        schemaVersion: 1,
+        idempotencyKey: 'payment_reconcile_1234567890',
+        data: { intentId: 'intent-123', reference: 'attacker-reference' },
       }),
     ).toThrow();
   });
