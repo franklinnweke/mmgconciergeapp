@@ -128,9 +128,15 @@ Current state:
 - the Paystack adapter is hard-locked to `requiredEnvironment: 'test'`, so a live secret fails closed;
 - payment initialization, webhook ingestion, independent verification, R4 value delivery and trusted reconciliation are already implemented;
 - no callback relay is required for the first native smoke: browser return is UX-only and the app reconciles trusted state after foreground return or explicit status check;
-- the development Paystack secret has not yet been configured and the WP4 payment Functions have not yet been deployed.
+- `PAYSTACK_SECRET_KEY` version 1 is enabled in Secret Manager for `mmg-concierge-dev`; its value was not read or logged during deployment;
+- the ignored plaintext `apps/functions/.env` contained only the conflicting legacy `PAYSTACK_SECRET_KEY` entry and was removed after Secret Manager configuration;
+- the seven scoped WP4 Functions are deployed in `africa-south1`: `createBookingIntent`, `initializeBookingPayment`, `paystackWebhook`, `processPaystackPaymentEvent`, `reconcilePayment`, `confirmBooking`, and `rejectBooking`;
+- `processPaystackPaymentEvent` has retry-on-failure enabled and relies on the validated durable event deduplication/idempotency boundary;
+- the development webhook is `https://africa-south1-mmg-concierge-dev.cloudfunctions.net/paystackWebhook`;
+- an unsigned empty webhook smoke request reached the deployed endpoint and failed closed with `401 Invalid signature`;
+- the Firebase inventory now reports 26 deployed Functions; production `mmg-concierge`, Rules, Storage, Auth and Hosting were untouched.
 
-The next step is an authenticated development-environment mutation, not another code slice. From an authenticated terminal, use the fixed dev-only commands from the repository root:
+The development-only configuration/deployment commands are:
 
 ```bash
 npm run firebase:paystack:secret:dev
@@ -139,9 +145,9 @@ npm run firebase:deploy:booking-payment-dev
 
 The deployment command is deliberately pinned to `mmg-concierge-dev` and deploys only the current booking/payment journey surface: `createBookingIntent`, `initializeBookingPayment`, `paystackWebhook`, `processPaystackPaymentEvent`, `reconcilePayment`, `confirmBooking`, and `rejectBooking`.
 
-After deployment:
+The next gate is product integration, not another code slice:
 
-1. Use the exact `paystackWebhook` HTTPS URL printed by Firebase CLI as the Paystack **test-mode** webhook URL.
+1. Configure the exact deployed `paystackWebhook` URL above as the Paystack **test-mode** webhook URL.
 2. Complete one native iOS or Android dev-build checkout.
 3. Confirm the sandbox webhook reaches development Firebase.
 4. Confirm one trusted paid outcome is created exactly once.
