@@ -106,6 +106,26 @@ describe('PaystackPaymentAdapter.initializePayment', () => {
       code: 'CONFIGURATION_UNAVAILABLE',
     });
   });
+
+  it('rejects a live key before any network request when the runtime requires test mode', async () => {
+    const fetchMock = vi.fn();
+    const adapter = new PaystackPaymentAdapter({
+      secretKey: 'sk_live_mmg_should_never_run_in_dev',
+      requiredEnvironment: 'test',
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(
+      adapter.initializePayment({
+        reference: 'reference-123',
+        email: 'renter@example.com',
+        amountKobo: 500_000,
+        currency: 'NGN',
+        metadata: { intentId: 'intent-123' },
+      }),
+    ).rejects.toMatchObject({ code: 'CONFIGURATION_UNAVAILABLE' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('PaystackPaymentAdapter.verifyPayment', () => {

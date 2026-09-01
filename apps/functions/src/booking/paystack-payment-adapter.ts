@@ -42,6 +42,7 @@ export type PaystackPaymentAdapterOptions = {
   secretKey?: string;
   baseUrl?: string;
   fetchFn?: typeof fetch;
+  requiredEnvironment?: PaymentEnvironment;
 };
 
 /**
@@ -55,11 +56,13 @@ export class PaystackPaymentAdapter implements PaymentGateway {
   private readonly secretKey: string;
   private readonly baseUrl: string;
   private readonly fetchFn: typeof fetch;
+  private readonly requiredEnvironment?: PaymentEnvironment;
 
   constructor(options: PaystackPaymentAdapterOptions = {}) {
     this.secretKey = options.secretKey ?? process.env.PAYSTACK_SECRET_KEY ?? '';
     this.baseUrl = (options.baseUrl ?? 'https://api.paystack.co').replace(/\/$/, '');
     this.fetchFn = options.fetchFn ?? globalThis.fetch;
+    this.requiredEnvironment = options.requiredEnvironment;
   }
 
   async initializePayment(
@@ -168,12 +171,27 @@ export class PaystackPaymentAdapter implements PaymentGateway {
         'Paystack is not configured on the server.',
       );
     }
-    if (this.secretKey.startsWith('sk_test_')) return 'test';
-    if (this.secretKey.startsWith('sk_live_')) return 'live';
-    throw new BookingCommandError(
-      'CONFIGURATION_UNAVAILABLE',
-      'Paystack server configuration is invalid.',
-    );
+
+    let environment: PaymentEnvironment;
+    if (this.secretKey.startsWith('sk_test_')) {
+      environment = 'test';
+    } else if (this.secretKey.startsWith('sk_live_')) {
+      environment = 'live';
+    } else {
+      throw new BookingCommandError(
+        'CONFIGURATION_UNAVAILABLE',
+        'Paystack server configuration is invalid.',
+      );
+    }
+
+    if (this.requiredEnvironment && environment !== this.requiredEnvironment) {
+      throw new BookingCommandError(
+        'CONFIGURATION_UNAVAILABLE',
+        `Paystack ${environment} credentials are not permitted in this runtime.`,
+      );
+    }
+
+    return environment;
   }
 
   private async request(url: string, init: RequestInit): Promise<Response> {
