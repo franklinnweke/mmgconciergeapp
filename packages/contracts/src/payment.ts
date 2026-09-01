@@ -6,7 +6,7 @@ import {
   idempotencyKeySchema,
   isoDateTimeSchema,
   schemaVersionSchema,
-} from './index.js';
+} from '@mmg/contracts';
 
 /**
  * Paystack transaction reference contract.

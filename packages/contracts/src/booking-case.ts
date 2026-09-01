@@ -5,7 +5,7 @@ import {
   idempotencyKeySchema,
   isoDateTimeSchema,
   schemaVersionSchema,
-} from './index.js';
+} from '@mmg/contracts';
 
 export const bookingCaseTypeSchema = z.enum(['owner_rejection', 'paid_conflict']);
 export type BookingCaseType = z.infer<typeof bookingCaseTypeSchema>;

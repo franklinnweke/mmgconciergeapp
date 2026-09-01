@@ -5,7 +5,7 @@ import {
   renterVisibleVehicleSchema,
   vehicleCategorySchema,
   type VehicleSummary,
-} from './index.js';
+} from '@mmg/contracts';
 
 const discoveryVehicleIdSchema = z.string().trim().min(1).max(128);
 
