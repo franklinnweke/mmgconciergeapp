@@ -10,11 +10,17 @@ service firebase.storage {
     }
 
     function ownerAccount() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.accountType == 'owner';
+      let account = firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+      return account != null
+        && account.data != null
+        && account.data.accountType == 'owner';
     }
 
     function vehicleOwnedByAuth(vehicleId) {
-      return firestore.get(/databases/(default)/documents/vehicles/$(vehicleId)).data.ownerId == request.auth.uid;
+      let vehicle = firestore.get(/databases/(default)/documents/vehicles/$(vehicleId));
+      return vehicle != null
+        && vehicle.data != null
+        && vehicle.data.ownerId == request.auth.uid;
     }
 
     function allowedIdImage() {
