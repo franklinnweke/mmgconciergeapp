@@ -23,6 +23,12 @@
         "MMG_FIREBASE_ENV": "development"
       }
     },
+    "testflight-development": {
+      "extends": "production",
+      "env": {
+        "MMG_FIREBASE_ENV": "development"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "env": {
@@ -34,6 +40,11 @@
     }
   },
   "submit": {
+    "testflight-development": {
+      "ios": {
+        "ascAppId": "6801330614"
+      }
+    },
     "production": {
       "ios": {
         "ascAppId": "6801330614"
