@@ -166,7 +166,7 @@ R4 invariants:
 - Durable R3 `verified_success` retry can finish R4 without another provider verification.
 - Authenticated renter reconciliation uses the same R3-to-R4 processor. No renter-specific verify-to-paid path exists.
 
-## 4. Owner response and intervention rules
+## 4. Owner response, intervention and renter checkout rules
 
 - Owner confirm/reject is allowed only from `paid_pending_owner`.
 - Owner rejection requires a meaningful reason, releases the paid interval and opens `intervention_required` / an intervention case.
@@ -177,6 +177,10 @@ R4 invariants:
 - R5 owner response requires an existing valid availability sentinel. Missing/malformed sentinel fails closed with no partial booking, block, case, audit or outbox writes.
 - R5 non-financial case handling implements only `open -> sourcing_alternative`, authorized to `support`/`super_admin`, idempotent, and audited in both domain and `adminAuditLogs` records.
 - `startBookingCaseSourcing` cannot accept a refund amount, replacement vehicle, top-up, reassignment, close-case result or other financial/resolution input.
+- R6 mobile checkout may initialize payment and request reconciliation, but it never supplies trusted amount/currency/reference/state and never treats browser return/callback as payment truth.
+- R6 presents “Payment received — confirming your ride” only when trusted reconciliation returns R4 `paid_pending_owner` value delivery.
+- Provider `success` without R4 value-delivery outcome remains a checking state and cannot render success.
+- Reconciliation polling uses fresh command keys so each poll can observe advancing provider state; payment initialization retries for the same intent reuse one initialization idempotency key.
 - Do not invent reassignment, cancellation or refund economics. Alternative locking, renter acceptance, top-up and refund actions remain separately gated by approved policy/financial implementation.
 
 ## 5. Current implementation status
@@ -192,7 +196,7 @@ Snapshot: **2026-09-01**.
 | WP1 | 🔶 Foundation complete | Phone UX/linking, erasure workflow, MFA remain |
 | WP2 | 🔶 Core complete | Vehicle upload GC remains |
 | WP3 | ✅ S1 hardening complete | Discovery/storage boundary validated |
-| WP4 | 🔶 Active sprint | R0-R4 validated; R5 focused gates pass and full emulator rerun is pending after stale-fixture correction |
+| WP4 | 🔶 Active sprint | R0-R5 validated; R6 renter checkout UX active |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -205,23 +209,24 @@ Snapshot: **2026-09-01**.
 - R3 green at `89f1b0c`: Functions 289 passed / 18 skipped; serialized Functions emulator 307/307 across 36 files; root 568 passed / 55 skipped; Admin 66/66; Firestore Rules 20/20; webhook 7/7; verification service 5/5; verification repository 5/5; terminal verification 1/1; payment-event Rules 2/2.
 - Storage Rules follow-up is green 17/17 under the standard repository command after null-guard and emulator-project alignment fixes.
 - R4 green at `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`: Functions unit 299 passed / 30 skipped; serialized Functions emulator 329/329 across 40 files; root 583 passed / 67 skipped; Admin 66/66; Firestore Rules 20/20; Storage Rules 17/17; all Functions/Mobile/Admin typechecks, Functions build, Mobile/Admin lint, `npm run check` and `git diff --check` passed. Focused R4 unit 28/28 and transactional emulator 20/20.
-- No R1-R4 validation configured a Paystack secret, made a real Paystack request, deployed Firebase or mutated production.
+- R5 green at `2278ef43b4de379a4a90619a0e64bf931e288e3b`: parent checkpoint validation passed Functions typecheck/build, Functions unit 323 passed / 43 skipped, focused R5 unit 46/46, focused R5 emulator 13/13, root 610 passed / 80 skipped, Admin 66/66, Mobile/Admin typecheck/lint, `npm run check`, Firestore Rules 20/20, Storage Rules 17/17 and `git diff --check`; the test-only canonical R4 fixture follow-up then passed the serialized Functions emulator **366/366 across 45/45 files**, with clean working tree and `git diff --check`.
+- No R1-R5 validation configured a Paystack secret, made a real Paystack request, deployed Firebase or mutated production.
 
-### R5 publication state
+### R6 active checkpoint
 
-R5 starts from validated R4 head `edd5a485` and preserves these meaningful implementation commits:
+R6 starts from validated R5 head `2278ef43`.
 
-1. `e130994` — owner-response paid-block/sentinel integrity hardening.
-2. `0aa7b2d` — idempotent owner-response SLA operations alerts.
-3. `b591972` — bounded audited `open -> sourcing_alternative` intervention command.
-4. `656f60c` — documentation/handoff checkpoint containing `docs/implementation/WP4_R5_CHECKPOINT.md`.
-5. Test-only stale-fixture correction after the first aggregate validation attempt.
+Checkpoint 1 implements the client trust boundary and awaits validation:
 
-Validation at `656f60c2710da7a2f104c65a0580f5215292fd6a` passed Functions typecheck/build, Functions unit 323 passed / 43 skipped, focused R5 unit 46/46, focused R5 emulator 13/13, root 610 passed / 80 skipped, Admin 66/66, Mobile/Admin typecheck/lint, `npm run check`, Firestore Rules 20/20, Storage Rules 17/17 and `git diff --check`. The full Functions emulator suite was 364 passed / 2 failed across 45 files. Both failures were older booking-intent regression fixtures that manually seeded incomplete pre-R4 paid booking/block shapes while genuine R4-created records already carry the identity/date fields required by R5.
+- native and web `PaymentCheckoutGateway` implementations call only `initializeBookingPayment` and `reconcilePayment` in `africa-south1`;
+- shared payment schemas parse every callable command/result;
+- initialization retries for one intent reuse an idempotency key;
+- reconciliation polls use fresh command keys so provider status can advance;
+- pure checkout-state mapping covers pending/checking, payment received, paid conflict, abandoned, failed/reversed and expired hold;
+- a succeeded provider/payment result without `valueDeliveryOutcome` fails safe to `checking`;
+- no hosted-browser callback is treated as truth.
 
-The follow-up changes only those two test fixtures in `firestore-booking-intent-repository.emulator.test.ts`: booking records now include `bookingId`, `intentId`, `startDate`, and `endDate`; paid blocks now include `bookingId`, `intentId`, `renterId`, and `ownerId` in addition to vehicle/date/state. Runtime code is unchanged. R5 remains not green until the corrected exact head passes `npm run test:functions:emulator`.
-
-`docs/implementation/WP4_R5_CHECKPOINT.md` remains the validation handoff. R5 does not implement alternative locking, renter acceptance, reassignment, top-up, refund initiation/verification, case closure, or automatic owner timeout transitions.
+R6 still needs hosted checkout opening, bounded reconciliation polling, renter-facing screen states, callback/deep-link checking route, no-arrow CTA cleanup and exact-head validation.
 
 ## 6. Firebase development checkpoint
 
@@ -236,13 +241,13 @@ The follow-up changes only those two test fixtures in `firestore-booking-intent-
 7. Media metadata-strip/promotion/demotion/cleanup lifecycle passed.
 8. Owner verification cleanup scheduler exists.
 
-R2-R5 payment/paid-booking changes remain **undeployed**. Production `mmg-concierge` remains untouched and is not a development target.
+R2-R6 payment/paid-booking changes remain **undeployed**. Production `mmg-concierge` remains untouched and is not a development target.
 
 ## 7. Active branch and donor restrictions
 
 - Active repository: `franklinnweke/mmgconciergeapp`.
 - Active branch: `codex/wp4-paystack-booking-reconciliation`.
-- R5 base: validated R4 head `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`.
+- R6 base: validated R5 head `2278ef43b4de379a4a90619a0e64bf931e288e3b`.
 - Sprint source: `docs/implementation/WP4_PAYSTACK_BOOKING_RECONCILIATION_SPRINT.md`.
 - Checkpoints: `docs/implementation/WP4_R2_CHECKPOINT.md`, `WP4_R3_CHECKPOINT.md`, `WP4_R4_CHECKPOINT.md`, `WP4_R5_CHECKPOINT.md`.
 - Old `codex/wp4-booking-operations` is donor/reference only and must not be merged/cherry-picked wholesale.
@@ -273,7 +278,7 @@ git diff --check
 
 `npm run test:functions:emulator` must remain serialized at the Vitest file level while emulator suites share a Firestore project/collection namespace.
 
-For R5 publication validation, also run:
+For publication validation, also run when applicable:
 
 ```bash
 npm run test:rules
@@ -290,14 +295,15 @@ Payment/booking acceptance includes:
 - `paymentEvents` client denial;
 - one payment at most one booking/conflict value effect;
 - late-payment concurrency produces one winner and one `paid_conflict`, both payments succeeded;
-- callback-only path produces zero value;
+- callback/browser-return-only path produces zero value;
 - owner confirm/reject accepts R4 booking/block unchanged;
 - owner response cannot proceed with missing/mismatched paid block or missing/malformed sentinel;
 - owner rejection opens intervention without automatic refund;
 - SLA alert is idempotent and state-neutral;
 - no automatic owner-response timeout;
 - case sourcing allows only support/super_admin, `open -> sourcing_alternative`, and writes both domain/admin audit evidence;
-- case sourcing cannot initiate refund, select an alternative, alter booking/payment/block state or close a case.
+- case sourcing cannot initiate refund, select an alternative, alter booking/payment/block state or close a case;
+- renter checkout success copy is gated by trusted R4 value-delivery outcome, never by Paystack browser return or provider status alone.
 
 ## 9. Agent execution protocol
 
@@ -319,9 +325,10 @@ Every clean agent-authored commit must update this root `AGENTS.md` in the same 
 14. Use only canonical staff roles; map product-language roles onto those claims explicitly rather than adding claims.
 15. SLA schedulers may alert operations but never mutate booking state automatically.
 16. Intervention commands must stay bounded to approved lifecycle transitions and must not smuggle financial policy through generic case updates.
-17. Run narrow tests first, then the full gate for cross-package/security/financial checkpoints.
-18. Update detailed status docs when milestone evidence changes.
-19. End with summary, files changed, tests/evidence, risks/blockers and next task.
+17. Mobile checkout/browser return may trigger reconciliation only; never infer payment success client-side.
+18. Run narrow tests first, then the full gate for cross-package/security/financial checkpoints.
+19. Update detailed status docs when milestone evidence changes.
+20. End with summary, files changed, tests/evidence, risks/blockers and next task.
 
 ## 10. Definition of done
 
