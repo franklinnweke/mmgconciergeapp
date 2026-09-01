@@ -72,6 +72,8 @@ If status documents conflict with code or Git history, report the discrepancy, v
 - R4 value delivery has exactly two trusted outcomes: `paid_pending_owner` when the dates are atomically secured, or `paid_conflict` when a real late payment collides with another blocking interval. Both outcomes record the payment as `succeeded`; neither may claim owner confirmation.
 - R4 value delivery accepts only a persisted verified payment-event ID at the service boundary. Reference, amount, currency, dates, and target states are re-read server-side and are never accepted from the client or provider callback payload as transition input.
 - IDs used by the R4 transaction are generated once before entering Firestore transaction retry scope so retries remain stable and duplicate-safe.
+- R4 active-hold delivery atomically owns payment success, intent `paid`, held-block conversion to `paid`, version-1 `paid_pending_owner` booking creation, availability-sentinel advancement, audit evidence, one owner outbox record, and payment-event consumption.
+- R4 paid bookings preserve the immutable intent `priceSnapshot` and renter-safe `vehicleSnapshot`, and carry `intentId` so the renter Trips layer suppresses the superseded intent card. The booking uses the existing `blockId` convention required by owner confirm/reject.
 - `paymentEvents` is server-only and client unreadable/unwritable.
 - Duplicate payment events must never duplicate bookings, blocks, notifications, refunds or financial effects.
 - Late verified payment after hold expiry may become `paid_conflict`; never double-book.
@@ -101,7 +103,7 @@ Snapshot date: **2026-09-01**.
 | WP1 | 🔶 Foundation complete | Phone verification UX/linking, erasure workflow and MFA remain |
 | WP2 | 🔶 Core complete | Vehicle inventory/moderation/image pipeline/fleet UI delivered; vehicle-upload GC remains |
 | WP3 | ✅ S1 hardening complete | Discovery/storage hardening green; Storage Rules standard gate 17/17 |
-| WP4 | 🔶 Active sprint | R0/R1/R2/R3 complete; R4 contract + trusted consumption service implemented, Firestore transaction next |
+| WP4 | 🔶 Active sprint | R0/R1/R2/R3 complete; R4 active-hold atomic value delivery implemented; late hold/conflict concurrency next |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -135,7 +137,8 @@ Production `mmg-concierge` is not a development target. Do not seed, reprovision
 - R3 is fully green at `89f1b0c`: Functions 289 passed / 18 skipped; serialized Functions emulator 307/307 across 36 files; root 568 passed / 55 skipped; Admin 66/66; Firestore Rules 20/20; webhook 7/7; payment-verification service 5/5; R3 verification repository emulator 5/5; terminal verification emulator 1/1; payment-events Rules 2/2; all typecheck/lint/build/check and `git diff --check` gates passed. No secret, real Paystack request, Firebase deployment, booking value transition, owner notification or production mutation occurred.
 - The unrelated Storage Rules regression exposed during R3 was repaired in two bounded commits: nullable cross-service Firestore lookups now fail closed, and the Storage Rules fixture uses the same `mmg-concierge-dev` project as the emulator command. The standard `npm run test:storage-rules` gate is green 17/17 with `git diff --check` clean.
 - R4 starts from validated branch head `1c06896`. Its contract boundary permits only `paid_pending_owner`/intent `paid` with a booking ID, or `paid_conflict`/intent `paid_conflict` with a case ID, with payment `succeeded` in either branch.
-- R4 trusted consumption service accepts only a persisted event ID, generates stable transaction IDs server-side, and validates the repository's returned transition against the canonical shared contract. It does not yet mutate Firestore.
+- R4 trusted consumption service accepts only a persisted event ID, generates stable transaction IDs server-side, and validates the repository's returned transition against the canonical shared contract.
+- R4 Firestore value delivery now implements the active-hold path atomically and records the delivery result on both the payment and verified event. Emulator coverage proves same-event replay does not duplicate bookings/outbox/audit records and proves the existing owner `confirmBooking` transaction consumes the generated booking/block unchanged. Late-hold reacquisition and `paid_conflict` concurrency coverage remain the next bounded checkpoint.
 - Firebase Emulator Suite requires Java 21+; machines with an older default Java must select an installed Java 21+ runtime rather than weakening/skipping the emulator gate.
 - Old branch `codex/wp4-booking-operations` is **donor/reference only**. It is 56 commits behind current `main` and must not be merged or cherry-picked wholesale.
 - Donor code may be manually salvaged only after reconciliation with current contracts, roles, booking-block model and architecture.
@@ -145,7 +148,7 @@ The following are not live merely because R2/R3/R4 code exists:
 
 1. Paystack production payments.
 2. `initializeBookingPayment`, `paystackWebhook`, `processPaystackPaymentEvent`, or `reconcilePayment` in cloud development. They remain undeployed until validation and explicit test-secret setup/deployment.
-3. R4 paid-booking value delivery is not live until the Firestore transaction and runtime integration are implemented and validated.
+3. R4 paid-booking value delivery is not live until late-payment conflict/concurrency behavior, R3 duplicate-success integration, runtime wiring, and full validation are complete.
 4. Refund settlement.
 5. In-app chat or production push notifications.
 6. Ledger, wallets or withdrawals.
@@ -196,6 +199,7 @@ Payment-specific acceptance must include:
 - `paymentEvents` renter/staff-client/anonymous read/list/write denial in the Firestore Rules emulator.
 - R4 contract rejects any value-delivery result that overstates owner confirmation or mixes paid-booking and conflict fields.
 - R4 trusted service accepts only a persisted event ID and generates transaction IDs server-side.
+- R4 active-hold delivery creates exactly one paid booking/outbox/audit effect, preserves trusted snapshots, converts the hold to `paid`, and is accepted by the existing owner response path.
 - R4 concurrent hold/payment tests.
 - Callback/deep-link-only path proves zero value delivery.
 - Late payment after expired hold + dates taken produces `paid_conflict`, not a double booking.
@@ -223,9 +227,10 @@ Every agent-authored commit must update this root `AGENTS.md` in the same commit
 13. Storage Rules cross-service Firestore reads must null-guard missing documents/data, stay within the two-access-call limit, and use the same emulator project ID as the Storage test fixture.
 14. R4 must consume persisted `verified_success` evidence server-side; it must never trust client-supplied payment facts when transitioning value.
 15. Generate IDs outside retryable Firestore transaction callbacks when those IDs are part of durable R4 records.
-16. Run narrow tests, then the full gate when crossing package/security/financial boundaries.
-17. Update this file and detailed status docs when evidence changes milestone state.
-18. End with summary, files changed, tests run, assumptions, risks, blockers and next task.
+16. R4 availability-changing transactions must read the vehicle sentinel and overlapping booking blocks before writes; payment, intent, block, booking/case, sentinel, audit/outbox, and event-consumption effects must commit atomically.
+17. Run narrow tests, then the full gate when crossing package/security/financial boundaries.
+18. Update this file and detailed status docs when evidence changes milestone state.
+19. End with summary, files changed, tests run, assumptions, risks, blockers and next task.
 
 ## 8. Definition of done
 
