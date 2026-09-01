@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 
@@ -161,26 +161,10 @@ export default function BrowseFleetScreen() {
           ],
         }}
       >
-        {/* Top Header */}
-        <View style={styles.topBar}>
-          <View style={styles.headerLeft}>
-            <PressableScale
-              accessibilityLabel="Go back"
-              accessibilityRole="button"
-              onPress={() => router.back()}
-            >
-              <View style={styles.backButton}>
-                <Ionicons color={colors.ivory} name="arrow-back" size={19} />
-              </View>
-            </PressableScale>
-            <BrandWordmark compact withLogo />
-          </View>
-        </View>
+        <ScreenHeader />
 
-        {/* Screen Title */}
         <Text accessibilityRole="header" style={styles.title}>Available in Lagos</Text>
 
-        {/* Search & Filter Trigger Row */}
         <View style={styles.searchFilterRow}>
           <View style={styles.searchBox}>
             <Ionicons color={colors.goldStrong} name="search-outline" size={18} />
@@ -236,7 +220,6 @@ export default function BrowseFleetScreen() {
           </PressableScale>
         </View>
 
-        {/* Active Filter Chips Strip (Progressive Removable Tokens) */}
         {hasAnyFilterOrSearch ? (
           <ScrollView
             contentContainerStyle={styles.activeFiltersStrip}
@@ -294,7 +277,6 @@ export default function BrowseFleetScreen() {
           </ScrollView>
         ) : null}
 
-        {/* Results Header */}
         <View style={styles.resultsHeader}>
           <Text style={styles.resultsTitle}>
             {isLoading
@@ -303,7 +285,6 @@ export default function BrowseFleetScreen() {
           </Text>
         </View>
 
-        {/* Vehicle Results Feed */}
         <View style={styles.resultsList}>
           {error ? (
             <View style={styles.errorBox}>
@@ -348,10 +329,8 @@ export default function BrowseFleetScreen() {
             </View>
           )}
         </View>
-
       </Animated.ScrollView>
 
-      {/* Filter Bottom Sheet */}
       <FleetFilterSheet
         currentFilters={{
           area,
@@ -415,16 +394,6 @@ const styles = StyleSheet.create({
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.base,
-  },
-  backButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
   },
   clearAllText: {
     color: colors.goldStrong,
@@ -550,11 +519,6 @@ const styles = StyleSheet.create({
   filterButtonTextActive: {
     color: colors.black,
   },
-  headerLeft: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
   liveDot: {
     backgroundColor: colors.success,
     borderRadius: radii.pill,
@@ -629,12 +593,6 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     marginTop: spacing.xs,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: spacing.xs,
   },
   errorBox: {
     alignItems: 'center',

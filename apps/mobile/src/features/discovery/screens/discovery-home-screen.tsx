@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
 import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useAuth } from '@/core/auth/auth-context';
@@ -48,7 +48,6 @@ export default function DiscoveryHomeScreen() {
   const firstName = firstNameFromDisplayName(user?.displayName);
   const featuredVehicles = vehicles;
   const { width: windowWidth } = useWindowDimensions();
-  const compactHeader = windowWidth < 360;
   const cardWidth = Math.min(352, Math.max(280, windowWidth - 48));
   const selectedJourneyDates = journeyDates(journey);
 
@@ -69,9 +68,8 @@ export default function DiscoveryHomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.inset}>
-          <View style={styles.topBar}>
-            <View style={styles.topRow}>
-              <BrandWordmark compact withLogo={!compactHeader} />
+          <ScreenHeader
+            right={(
               <View style={styles.topActions}>
                 <View style={styles.cityPill}>
                   <RadarPulseDot
@@ -94,8 +92,8 @@ export default function DiscoveryHomeScreen() {
                   </View>
                 </PressableScale>
               </View>
-            </View>
-          </View>
+            )}
+          />
         </View>
 
         {liveTrip ? (
@@ -306,14 +304,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
-  },
-  topBar: {
-    gap: spacing.xs,
-  },
-  topRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   viewAll: {
     color: colors.goldStrong,
