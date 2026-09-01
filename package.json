@@ -30,7 +30,9 @@
     "test:rules": "cd firebase && npx -y firebase-tools@latest emulators:exec --only firestore \"npm exec vitest -- --run firestore.rules.test.ts payment-events.rules.test.ts\"",
     "test:storage-rules": "cd firebase && npx -y firebase-tools@latest emulators:exec --only storage,firestore \"npm exec vitest -- --run storage.rules.test.ts\"",
     "firebase:deploy:auth": "cd firebase && npx -y firebase-tools@latest deploy --only auth",
-    "firebase:deploy:firestore": "cd firebase && npx -y firebase-tools@latest deploy --only firestore"
+    "firebase:deploy:firestore": "cd firebase && npx -y firebase-tools@latest deploy --only firestore",
+    "firebase:paystack:secret:dev": "npx -y firebase-tools@latest functions:secrets:set PAYSTACK_SECRET_KEY --project mmg-concierge-dev",
+    "firebase:deploy:booking-payment-dev": "npx -y firebase-tools@latest deploy --project mmg-concierge-dev --only functions:createBookingIntent,functions:initializeBookingPayment,functions:paystackWebhook,functions:processPaystackPaymentEvent,functions:reconcilePayment,functions:confirmBooking,functions:rejectBooking"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.1",

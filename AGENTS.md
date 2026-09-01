@@ -15,7 +15,7 @@ MMG Concierge is a Lagos-first marketplace for chauffeured luxury-car rentals.
 - Production is never a development/test target.
 
 Current repository: `franklinnweke/mmgconciergeapp`.
-Current branch: `codex/wp4-paystack-booking-reconciliation`.
+Current branch: `codex/dev-paystack-integration`, based on merged `main` at `d2c8d4537b107705cdb77dc7f1e57d367ecd96c5`.
 
 ## 2. Locked product rules
 
@@ -76,11 +76,9 @@ Validated checkpoints:
 - R3 green at `89f1b0c`; Storage Rules follow-up is 17/17 green.
 - R4 green at `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`; Functions emulator 329/329, focused R4 transactional tests 20/20.
 - R5 green at `2278ef43b4de379a4a90619a0e64bf931e288e3b`; final Functions emulator 366/366 across 45/45 files.
-- No R1-R5 validation configured a Paystack secret, made a real Paystack request, deployed Firebase or touched production.
-
-R6 first client boundary commit:
-
-- `c76afed` — native/web checkout gateway + trusted renter checkout-state mapping.
+- R6 checkout is green; final responsive/header integration head `5709745da4d26f7246978e542923a3660265641a` passed the repository gate with 630 passed / 80 skipped root tests and was merged through PR #20.
+- PR #20 merged normally into `main` at `d2c8d4537b107705cdb77dc7f1e57d367ecd96c5`, preserving the meaningful implementation history.
+- No R1-R6 validation configured a Paystack secret, made a real Paystack request, deployed the WP4 payment Functions or touched production.
 
 ## 5. Current priority: one visible vertical journey
 
@@ -99,7 +97,7 @@ Find vehicle
   -> admin can see rejected/conflicted payment case
 ```
 
-R6 should stay simple:
+The renter path stays simple:
 
 - existing booking review screen creates the hold;
 - initialize payment through the existing callable;
@@ -116,18 +114,36 @@ For MVP intervention, manual operations are acceptable. Staff can inspect the ca
 
 ## 6. Development integration
 
-After the mobile path typechecks/tests, the next meaningful gate is end-to-end development integration, not more architecture documentation:
+Active integration branch: `codex/dev-paystack-integration`.
 
-1. Deploy only to `mmg-concierge-dev` when explicitly moving to the integration gate.
-2. Use Paystack **test** secret only, through Secret Manager / function secret handling.
-3. Complete one native iOS or Android dev-build checkout.
-4. Confirm the sandbox webhook reaches development Firebase.
-5. Confirm one trusted paid outcome is created exactly once.
-6. Confirm renter and owner both see the resulting booking.
-7. Confirm owner confirm/reject works against that exact record.
-8. Confirm rejected/paid-conflict cases are visible to staff/admin for manual handling.
-9. Confirm callback/browser return without trusted provider success creates zero value.
-10. Keep `mmg-concierge` production and live Paystack credentials untouched.
+Current state:
+
+- merged code already defines `PAYSTACK_SECRET_KEY` with Firebase `defineSecret()` and binds it only to the payment Functions that require it;
+- the Paystack adapter is hard-locked to `requiredEnvironment: 'test'`, so a live secret fails closed;
+- payment initialization, webhook ingestion, independent verification, R4 value delivery and trusted reconciliation are already implemented;
+- no callback relay is required for the first native smoke: browser return is UX-only and the app reconciles trusted state after foreground return or explicit status check;
+- the development Paystack secret has not yet been configured and the WP4 payment Functions have not yet been deployed.
+
+Use the fixed dev-only commands from the repository root:
+
+```bash
+npm run firebase:paystack:secret:dev
+npm run firebase:deploy:booking-payment-dev
+```
+
+The deployment command is deliberately pinned to `mmg-concierge-dev` and deploys only the current booking/payment journey surface: `createBookingIntent`, `initializeBookingPayment`, `paystackWebhook`, `processPaystackPaymentEvent`, `reconcilePayment`, `confirmBooking`, and `rejectBooking`.
+
+After deployment:
+
+1. Use the exact `paystackWebhook` HTTPS URL printed by Firebase CLI as the Paystack **test-mode** webhook URL.
+2. Complete one native iOS or Android dev-build checkout.
+3. Confirm the sandbox webhook reaches development Firebase.
+4. Confirm one trusted paid outcome is created exactly once.
+5. Confirm renter and owner both see the resulting booking.
+6. Confirm owner confirm/reject works against that exact record.
+7. Confirm rejected/paid-conflict cases are visible to staff/admin for manual handling.
+8. Confirm callback/browser return without trusted provider success creates zero value.
+9. Keep `mmg-concierge` production and live Paystack credentials untouched.
 
 ## 7. Validation discipline
 
