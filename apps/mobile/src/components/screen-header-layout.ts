@@ -4,5 +4,5 @@ export function shouldCondenseScreenHeader(options: {
   width: number;
 }) {
   if (!options.hasRight) return false;
-  return options.hasBack ? options.width < 420 : options.width < 360;
+  return options.hasBack ? options.width <= 420 : options.width <= 360;
 }
