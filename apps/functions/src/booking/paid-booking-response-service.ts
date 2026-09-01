@@ -22,17 +22,26 @@ export type PaidBookingActor = {
 
 export type StoredPaidBooking = {
   bookingId: string;
+  intentId: string;
   renterId: string;
   ownerId: string;
   vehicleId: string;
+  startDate: string;
+  endDate: string;
   state: PaidBookingState;
   version: number;
-  blockId: string | null;
+  blockId: string;
 };
 
 export type StoredPaidBookingBlock = {
   blockId: string;
+  bookingId: string;
+  intentId: string;
+  renterId: string;
+  ownerId: string;
   vehicleId: string;
+  startDate: string;
+  endDate: string;
   state: 'held' | 'paid' | 'confirmed' | 'owner_block';
 };
 
@@ -158,17 +167,33 @@ function requirePaidPendingOwner(
   }
 }
 
-async function inspectBookingBlock(
+async function requireExactPaidBookingBlock(
   transaction: PaidBookingResponseTransaction,
   booking: StoredPaidBooking,
-): Promise<StoredPaidBookingBlock | null> {
-  if (!booking.blockId) return null;
+): Promise<StoredPaidBookingBlock> {
   const block = await transaction.getBookingBlock(booking.blockId);
-  if (!block) return null;
-  if (block.vehicleId !== booking.vehicleId || (block.state !== 'paid' && block.state !== 'confirmed')) {
+  if (!block) {
     throw new BookingCommandError(
       'FAILED_PRECONDITION',
-      'The paid booking availability record is invalid.',
+      'The paid booking availability record is missing.',
+      { reason: 'paid_block_missing' },
+    );
+  }
+
+  if (
+    block.state !== 'paid' ||
+    block.bookingId !== booking.bookingId ||
+    block.intentId !== booking.intentId ||
+    block.renterId !== booking.renterId ||
+    block.ownerId !== booking.ownerId ||
+    block.vehicleId !== booking.vehicleId ||
+    block.startDate !== booking.startDate ||
+    block.endDate !== booking.endDate
+  ) {
+    throw new BookingCommandError(
+      'FAILED_PRECONDITION',
+      'The paid booking availability record is inconsistent.',
+      { reason: 'paid_block_mismatch' },
     );
   }
   return block;
@@ -213,7 +238,7 @@ export async function confirmBooking(
     requireBookingActor(booking, actor);
     requirePaidPendingOwner(booking, command.data.expectedVersion, 'confirmed');
 
-    const block = await inspectBookingBlock(transaction, booking);
+    const block = await requireExactPaidBookingBlock(transaction, booking);
     const availabilityVersion = await transaction.readAvailabilitySentinel(booking.vehicleId);
     const nextVersion = booking.version + 1;
     transaction.updateBooking(booking.bookingId, {
@@ -222,9 +247,7 @@ export async function confirmBooking(
       updatedAt: now,
       lastOwnerDecisionReason: null,
     });
-    if (block?.state === 'paid') {
-      transaction.updateBookingBlock(block.blockId, 'confirmed', now);
-    }
+    transaction.updateBookingBlock(block.blockId, 'confirmed', now);
     transaction.writeAvailabilitySentinel(booking.vehicleId, availabilityVersion + 1, now);
     transaction.createAuditEvent({
       actorId: actor.uid,
@@ -236,10 +259,7 @@ export async function confirmBooking(
       toState: 'confirmed',
       requestId,
       occurredAt: now,
-      details: {
-        vehicleId: booking.vehicleId,
-        blockMissing: !block,
-      },
+      details: { vehicleId: booking.vehicleId },
     });
     transaction.createOutboxEvent({
       eventId: (dependencies.createId ?? randomUUID)(),
@@ -312,7 +332,7 @@ export async function rejectBooking(
     requireBookingActor(booking, actor);
     requirePaidPendingOwner(booking, command.data.expectedVersion, 'intervention_required');
 
-    const block = await inspectBookingBlock(transaction, booking);
+    const block = await requireExactPaidBookingBlock(transaction, booking);
     const availabilityVersion = await transaction.readAvailabilitySentinel(booking.vehicleId);
     const caseId = createId();
     const nextVersion = booking.version + 1;
@@ -322,7 +342,7 @@ export async function rejectBooking(
       updatedAt: now,
       lastOwnerDecisionReason: command.data.reason,
     });
-    if (block) transaction.deleteBookingBlock(block.blockId);
+    transaction.deleteBookingBlock(block.blockId);
     transaction.writeAvailabilitySentinel(booking.vehicleId, availabilityVersion + 1, now);
     transaction.createBookingCase({
       caseId,
@@ -347,7 +367,7 @@ export async function rejectBooking(
       toState: 'intervention_required',
       requestId,
       occurredAt: now,
-      details: { vehicleId: booking.vehicleId, caseId, blockMissing: !block },
+      details: { vehicleId: booking.vehicleId, caseId },
     });
     transaction.createAuditEvent({
       actorId: actor.uid,

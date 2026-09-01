@@ -1,180 +1,256 @@
 # MMG Concierge — Global Agent Context
 
-This is the repository-wide operating handoff for every coding agent working on MMG Concierge. Read this file first, then the task-specific source documents before editing code.
+Repository-wide operating handoff for every coding agent working on MMG Concierge. Read this file first, then the task-specific source documents before editing code.
 
-`CLAUDE.md` remains the detailed engineering guide. `apps/admin/AGENTS.md` remains the generated Next.js-specific guide. This file is the cross-surface coordination layer and current milestone snapshot.
+`CLAUDE.md` remains the detailed engineering guide. `apps/admin/AGENTS.md` remains the Next.js-specific admin guide. This file is the cross-surface source of truth for locked product rules, active implementation state, environment safety and validation gates.
 
-## 1. Project identity
+## 1. Project identity and authority
 
 - Product: Lagos-first marketplace for chauffeured luxury-car rentals.
-- Firebase projects: `mmg-concierge-dev` for cloud development/integration and `mmg-concierge` for controlled/public production.
-- Runtime surfaces:
-  - `apps/mobile`: Expo Router React Native renter/owner app.
-  - `apps/admin`: private Next.js staff operations portal.
-  - `apps/functions`: Firebase Cloud Functions v2, Node 22, `africa-south1`.
-  - `packages/contracts`: shared Zod schemas/DTOs/constants/errors.
-  - `packages/domain`: pure money/date/privacy/state-machine logic.
-  - `packages/brand`: shared MMG visual tokens.
-  - `firebase`: Firestore/Storage Rules, indexes and emulator tests.
+- Mobile: React Native + TypeScript + Expo Router, EAS custom development builds, React Native Firebase. Expo Go is unsupported for acceptance testing.
+- Admin: Next.js App Router.
+- Backend: Firebase Auth, Firestore, Functions v2 Node 22, Storage, FCM, App Check, Cloud Logging.
+- Functions region: `africa-south1`.
+- Scheduler region where required: `europe-west1`.
+- Admin App Hosting region: `europe-west4`.
+- Development project: `mmg-concierge-dev`.
+- Controlled production project: `mmg-concierge`.
+- Topology: local Emulator Suite -> cloud development -> controlled production. No MVP staging project.
 
-## 2. Authority and document precedence
+Resolve conflicting guidance in this order:
 
-When documents disagree, resolve them in this order:
-
-1. Locked product rules in the current user request/conversation.
+1. Locked rules in the current user request/conversation.
 2. `docs/architecture/MMG_CONCIERGE_TECHNICAL_ARCHITECTURE_AND_IMPLEMENTATION_HANDOFF.md`.
-3. Relevant detailed sequence specification, sprint handoff or accepted ADR.
+3. Relevant sequence/sprint specification or accepted ADR.
 4. `docs/implementation/PROJECT_COMPLETION_WITHOUT_PAYSTACK_IMPLEMENTATION_PLAN.md`.
-5. `docs/WP0_WP2_IMPLEMENTATION_STATUS.md` and `docs/IMPLEMENTATION_PHASES.md`.
-6. Older proposals, PDFs, external repositories, fixtures and screenshots as historical/reference material only.
+5. Current implementation/status documents.
+6. Older proposals, donor branches, screenshots and fixtures as historical/reference material only.
 
-If status documents conflict with code or Git history, report the discrepancy, verify it, and update the status source in the same bounded change when appropriate. Never silently invent a new state, role, collection, financial rule or permission.
+Never silently invent or rename a schema, state, role, collection, financial rule, security boundary or business policy.
 
-## 3. Context map
+## 2. Locked product and architecture invariants
 
-| Task | Required context |
-|---|---|
-| Any task | This file, `CLAUDE.md`, current `git status`, relevant package tests |
-| Product/business rule or architecture change | Architecture handoff §§2–4, 5–12, 14–16 |
-| Contracts, money, dates, transitions | `packages/contracts`, `packages/domain`, ADRs 0001–0003 |
-| Owner verification | Sequence 1 spec, owner Functions/Mobile/Admin files |
-| Renter profile/privacy/deletion | WP1 completion plan, renter Functions/Mobile, Rules |
-| Vehicle inventory/moderation | Sequence 2/3 spec, WP0/WP2 status, vehicle Functions/Admin, Rules |
-| Discovery/search/detail | Architecture §§3.5, 6.5, 8.4; Firestore schema evolution S1; discovery Functions/Mobile |
-| Firebase Auth/App Check/Firestore/Storage | Firestore schema plan, Firebase dev runbook, `firebase/`, Mobile Firebase core, Functions deploy entrypoint |
-| WP4 Paystack/booking | `docs/implementation/WP4_PAYSTACK_BOOKING_RECONCILIATION_SPRINT.md`, `docs/implementation/WP4_R2_CHECKPOINT.md`, `docs/implementation/WP4_R3_CHECKPOINT.md`, `docs/implementation/WP4_R4_CHECKPOINT.md`, architecture §§3.7–3.10, 6–9, ADR 0005, current booking Functions/tests |
-| Admin work | `apps/admin/AGENTS.md`, admin `CLAUDE.md`, auth/session and relevant gateway/service tests |
-| UI/brand/motion | Overall design plan, `packages/brand`, frontend conventions |
-| Wallet/refund/withdrawal | Architecture §§3.8–3.10 and 9; ADR 0005; WP6. Do not invent policy. |
+### Product
 
-## 4. Locked architecture invariants
+- Every MVP rental includes chauffeur and delivery. No self-drive.
+- Lagos-first. No live tracking in MVP.
+- Renter profile requires full name, verified email, verified phone and delivery address. Do not require renter government ID, licence, selfie, DOB or profile photo.
+- Owner verification state: `draft -> submitted -> under_review -> approved/rejected`, with `suspended/revoked` where defined.
+- Vehicle moderation: `draft -> pending_review -> approved/rejected`.
+- Vehicle visibility: `paused <-> active -> deleted`.
+- Only approved + active + discoverable vehicles are served to renter discovery.
+- Exact vehicle address/coordinates and persistent owner identifiers remain private.
+- Booking dates are `YYYY-MM-DD` Africa/Lagos date-only half-open intervals `[startDate, endDate)`.
+- Money is integer NGN kobo and server-authoritative.
 
-- Firebase is the backend: Auth, Firestore, Storage, Functions v2, App Check, FCM, Crashlytics and Cloud Logging.
-- Topology: Emulator Suite locally, `mmg-concierge-dev` for cloud development/integration and `mmg-concierge` for controlled/public production. No MVP staging project.
-- Firestore client access is deny-by-default; trusted state is written through Admin SDK/services.
-- Renter vehicle list/search/detail crosses authenticated, App-Check-protected Functions. Trusted vehicle/image records are never renter-readable Firestore documents.
-- Do not add parallel `listings`, `publicVehicles` or duplicate vehicle read-model collections without a reviewed ADR.
-- All money is integer NGN kobo and server-authoritative.
-- Dates are `YYYY-MM-DD` in `Africa/Lagos`; intervals are half-open `[startDate, endDate)`.
-- Mutations are contract-first, authorized, schema-validated, transactional where needed, audited and idempotent.
-- Owner/vehicle approval precedes public discoverability.
-- Exact addresses/coords, plates, persistent owner IDs, private storage paths, IDs, moderation notes, payout data and processing internals never cross renter discovery DTOs.
-- Admin roles are exactly `support`, `vehicle_admin`, `verification_admin`, `finance_admin`, `privacy_admin`, `super_admin` unless a reviewed architecture change says otherwise.
-- Every MVP rental includes chauffeur and delivery.
-- Payment-first: server price/hold -> server Paystack initialization -> verified provider event -> `paid_pending_owner` -> owner confirm/reject.
-- Callback/deep links are UX only and never payment truth.
-- Paystack transaction references are generated server-side and must satisfy the shared `paymentReferenceSchema`: ASCII alphanumeric characters plus `-`, `.`, and `=` only. Do not use `_`, `/`, spaces or a second validator.
-- Paystack webhooks are public HTTP transport but trusted only after raw-body HMAC SHA-512 verification using `x-paystack-signature`.
-- Signed webhook ingestion persists only minimal normalized event facts plus a body digest. Do not persist full provider payloads or signatures.
-- `charge.success` is still independently verified through Paystack Verify Transaction before any booking-value transition.
-- Independent verification must match local payment reference, configured environment, `success` status, `NGN` currency and exact authoritative kobo amount.
-- R3 `verified_success` is evidence only. R4 is the first boundary allowed to atomically transition trusted payment and booking value.
-- R4 value delivery has exactly two trusted outcomes: `paid_pending_owner` when the dates are atomically secured, or `paid_conflict` when a real late payment collides with another blocking interval. Both outcomes record the payment as `succeeded`; neither may claim owner confirmation.
-- R4 value delivery accepts only a persisted verified payment-event ID at the service boundary. Reference, amount, currency, dates, and target states are re-read server-side and are never accepted from the client or provider callback payload as transition input.
-- IDs used by the R4 transaction are generated once before entering Firestore transaction retry scope so retries remain stable and duplicate-safe.
-- R4 active-hold delivery atomically owns payment success, intent `paid`, held-block conversion to `paid`, version-1 `paid_pending_owner` booking creation, availability-sentinel advancement, audit evidence, one owner outbox record, and payment-event consumption.
-- R4 paid bookings preserve the immutable intent `priceSnapshot` and renter-safe `vehicleSnapshot`, and carry `intentId` so the renter Trips layer suppresses the superseded intent card. The booking uses the existing `blockId` convention required by owner confirm/reject.
-- If the original checkout hold has expired, R4 re-reads the availability sentinel plus overlapping blocks inside the same transaction. If no active blocker remains, it reacquires the exact interval as `paid`; otherwise it records `paid_conflict`, opens one urgent booking case, and creates no booking.
-- The intent's preexisting block, when present at R4 value delivery, must still be the exact matching `held` block for that intent/renter/owner/vehicle/date interval. Any other state or binding is an integrity failure and must fail closed with no partial value writes.
-- R4 requires an existing vehicle availability sentinel with a safe nonnegative integer version. A missing or malformed sentinel is never treated as version zero at value delivery.
-- Two overlapping late verified payments must serialize through the sentinel and block reads so exactly one can reacquire the dates. The losing charge is still `succeeded` and must become `paid_conflict`; never downgrade a real provider payment to failed/abandoned and never double-book.
-- R4 idempotency is payment/value scoped: same-event retry and a second distinct `verified_success` event for the same succeeded payment must reuse the original booking/conflict effect rather than create a second booking, block, outbox or audit effect.
-- R3-to-R4 orchestration must re-read durable event state after verification. A retry after `verified_success` was already committed can finish R4 without another provider verification or duplicate value effect.
-- Authenticated renter reconciliation invokes the same trusted R3-to-R4 processor. There is no separate renter verify-to-paid path.
+### Canonical collections
+
+Use the current canonical collections only unless an ADR/migration explicitly changes them:
+
+- `users`
+- `renterProfiles`
+- `ownerProfiles`
+- `ownerVerifications`
+- `ownerPayoutProfiles`
+- `vehicles`
+- `vehiclePrivate`
+- `vehicleRevisions`
+- `vehicles/{id}/images`
+- `vehicleAvailability`
+- `bookingBlocks`
+- `bookingIntents`
+- `bookings`
+- `payments`
+- `paymentEvents`
+- `refunds`
+- `bookingCases`
+- `conversations/messages`
+- `wallets/entries`
+- `withdrawalRequests`
+- `deviceTokens`
+- `notificationOutbox`
+- `adminAuditLogs`
+- `systemConfig/public/private`
+- `dataRightsRequests`
+
+Do not add parallel `listings`, `publicVehicles`, `vehiclePublic` or equivalent read-model collections without a reviewed ADR.
+
+### Admin roles
+
+Exactly:
+
+- `support`
+- `vehicle_admin`
+- `verification_admin`
+- `finance_admin`
+- `privacy_admin`
+- `super_admin`
+
+Never introduce `booking_admin`.
+
+### Security
+
+- Firestore/Storage client access is deny-by-default.
+- Critical state writes are server-authoritative through trusted Functions/Admin SDK services.
+- Renter discovery crosses authenticated, App-Check-protected Functions. Renter clients never directly read trusted vehicle/private image records.
+- Use Secret Manager for provider secrets.
+- Never log or prompt with secrets, full provider payloads, exact coordinates, government IDs, bank data, chat content or other unnecessary PII.
+- Strip EXIF/GPS from renter-visible vehicle media.
+- Admin money/privacy/approval/access mutations require audit evidence and a reason where applicable.
+- MFA remains required before admin release.
+
+## 3. Booking/payment source of truth
+
+Payment-first flow:
+
+```text
+server-priced intent
+  -> atomic full-interval checkout hold
+  -> server Paystack initialization
+  -> hosted checkout
+  -> signed webhook / authenticated reconciliation
+  -> independent Paystack verification
+  -> exact reference + environment + success + NGN + kobo amount match
+  -> atomic payment value delivery
+  -> paid_pending_owner
+  -> owner confirm OR owner reject + intervention
+```
+
+Locked payment rules:
+
+- Callback/deep link is UX only and never payment truth.
+- Paystack transaction references are server-generated and must satisfy shared `paymentReferenceSchema`: ASCII alphanumeric plus `-`, `.`, `=` only.
+- Webhook signatures use raw-body HMAC SHA-512 via `x-paystack-signature` before JSON processing.
+- Persist only normalized provider facts needed for reconciliation plus a body digest. Never persist the full webhook payload or signature.
+- `charge.success` is independently verified through Paystack Verify Transaction before value delivery.
+- Development payment integration is test-mode only. A live key must be rejected before any provider network request until a separate controlled-production change enables live mode.
+- Duplicate payment events must never duplicate bookings, blocks, notifications, refunds or other financial effects.
+- No automated test may charge live Paystack or mutate production.
+
+### R2 trusted checkout initialization
+
+- Client supplies only `intentId` plus command envelope/idempotency key.
+- Server derives renter identity/email/phone, amount, currency and reference.
+- Checkout requires Firebase-authenticated email + phone evidence matching the active renter profile.
+- Stable payment/reference is reserved transactionally before the Paystack network call.
+- Hosted checkout replay is allowed only while the hold remains active.
+- Paystack network calls never occur inside Firestore transaction retry scope.
+
+### R3 trusted verification
+
 - `paymentEvents` is server-only and client unreadable/unwritable.
-- Duplicate payment events must never duplicate bookings, blocks, notifications, refunds or financial effects.
-- Late verified payment after hold expiry may become `paid_conflict`; never double-book.
-- Owner rejection requires a reason, releases the interval and opens intervention. No automatic owner-rejection timeout.
-- Do not invent renter cancellation/refund economics.
-- Checkout requires Firebase-authenticated phone evidence plus matching active renter profile data. A manually stored phone string alone is not sufficient payment eligibility.
-- Development payment integration is test-mode only. A live Paystack key must be rejected before any provider request until a separate controlled-production change explicitly enables live mode.
-- Hosted checkout URLs are valid only while their atomic booking hold remains active; idempotent replay after hold expiry fails closed.
-- Emulator-backed Functions suites that share the same Firestore project/collections must run with file parallelism disabled. Do not rely on destructive per-file cleanup while Vitest runs emulator files concurrently.
-- Event-driven payment verification may retry transient failures, so processors must remain idempotent and terminal mismatch states must complete without retry loops.
-- Storage Rules cross-service Firestore lookups must guard nullable documents/data before dereferencing fields. Keep Storage Rules within Firebase's two Firestore document-access calls per evaluation.
-- Storage Rules emulator fixtures must use `mmg-concierge-dev`, matching `firebase/.firebaserc`; cross-service Storage/Firestore tests must never split data across different emulator project IDs.
-- Chat is payment-gated; wallet value is completion-gated. WP5/WP6 remain separate exit gates.
-- Expo Go is unsupported for native Firebase acceptance testing.
-- Decorative arrows are not permitted in CTA/button labels; arrows are reserved for functional navigation.
+- R3 `verified_success` is evidence only. It does not itself deliver booking value.
+- Provider verification matches local reference, configured environment, `success`, `NGN` and exact authoritative amount.
+- Event processing is idempotent and retry-safe. Terminal mismatches must not loop indefinitely.
 
-## 5. Current milestone snapshot
+### R4 trusted value delivery
 
-Snapshot date: **2026-09-01**.
+R4 consumes only persisted `verified_success` evidence. It has exactly two successful-charge outcomes:
+
+1. `payments.state = succeeded`, intent `paid`, exact interval secured as `paid`, booking `paid_pending_owner`.
+2. `payments.state = succeeded`, intent `paid_conflict`, one urgent intervention case when a late verified payment collides with another blocking interval.
+
+Neither outcome can claim owner confirmation.
+
+R4 invariants:
+
+- Service input is only a persisted payment-event ID. Reference, amount, currency, dates and target states are re-read server-side.
+- IDs used by retryable Firestore transactions are generated before transaction retry scope.
+- Active-hold delivery atomically owns payment success, intent state, paid block, booking/case, availability sentinel, audit/outbox and event-consumption effects.
+- R4 booking preserves immutable `priceSnapshot`, renter-safe `vehicleSnapshot`, `intentId`, `paymentId`, reference and existing `blockId` convention.
+- A preexisting checkout block must still be the exact matching `held` block for the intent/renter/owner/vehicle/date interval before R4 overwrites it.
+- The availability sentinel must already exist with a safe nonnegative integer version. Missing/malformed sentinel never becomes version zero.
+- Expired hold may be atomically reacquired only if no competing blocking interval exists.
+- Two overlapping late verified payments serialize through the sentinel + block reads. Exactly one can win the dates; the other becomes `paid_conflict`. Both real payments remain `succeeded`.
+- Same-event retry and distinct verified-success events for the same succeeded payment reuse the original value effect.
+- Durable R3 `verified_success` retry can finish R4 without another provider verification.
+- Authenticated renter reconciliation uses the same R3-to-R4 processor. No renter-specific verify-to-paid path exists.
+
+## 4. Owner response and intervention rules
+
+- Owner confirm/reject is allowed only from `paid_pending_owner`.
+- Owner rejection requires a meaningful reason, releases the paid interval and opens `intervention_required` / an intervention case.
+- There is no automatic owner-rejection timeout. SLA timers may create operations signals only.
+- Do not invent reassignment, cancellation or refund economics. Alternative/reassignment/refund work requires an explicitly approved policy or controlled admin intervention design.
+- R5 must treat the R4 paid availability record as an integrity boundary. A `paid_pending_owner` booking may advance only when its exact `paid` block exists and matches booking/intent/renter/owner/vehicle/date bindings.
+- R5 owner response must require an existing valid availability sentinel. Missing/malformed sentinel fails closed with no partial booking, block, case, audit or outbox writes.
+
+## 5. Current implementation status
+
+Snapshot: **2026-09-01**.
 
 | Milestone | Status | Evidence / next gate |
 |---|---|---|
 | Phase 1 | ✅ Complete | Experience foundation |
 | Sequence 1 | ✅ Merged | Owner verification pipeline |
-| Sequence 3 | ✅ Foundation complete | Renter trips/booking foundation |
-| WP0 | 🔶 Mostly complete | Client quote preview can still diverge from versioned server pricing |
-| WP1 | 🔶 Foundation complete | Phone verification UX/linking, erasure workflow and MFA remain |
-| WP2 | 🔶 Core complete | Vehicle inventory/moderation/image pipeline/fleet UI delivered; vehicle-upload GC remains |
-| WP3 | ✅ S1 hardening complete | Discovery/storage hardening green; Storage Rules standard gate 17/17 |
-| WP4 | 🔶 Active sprint | R0/R1/R2/R3 complete; R4 implementation complete and awaiting exact publication-commit validation |
+| Sequence 3 | ✅ Foundation complete | Renter trips, availability and owner-response foundation |
+| WP0 | 🔶 Mostly complete | Remaining quote-preview/versioned-pricing cleanup |
+| WP1 | 🔶 Foundation complete | Phone UX/linking, erasure workflow, MFA remain |
+| WP2 | 🔶 Core complete | Vehicle upload GC remains |
+| WP3 | ✅ S1 hardening complete | Discovery/storage boundary validated |
+| WP4 | 🔶 Active sprint | R0-R4 fully validated; R5 owner response/intervention active |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
 | WP8 | ⏳ Not started | Release hardening |
 
-### Firebase development checkpoint
+### Validated WP4 checkpoints
+
+- R1 adapter/contracts green after Paystack reference correction.
+- R2 green at `67359ba`: Functions 277 passed / 12 skipped; serialized Functions emulator 289 passed across 32 files; root 554 passed / 47 skipped; Admin 66 passed; all typecheck/lint/build/check gates clean.
+- R3 green at `89f1b0c`: Functions 289 passed / 18 skipped; serialized Functions emulator 307/307 across 36 files; root 568 passed / 55 skipped; Admin 66/66; Firestore Rules 20/20; webhook 7/7; verification service 5/5; verification repository 5/5; terminal verification 1/1; payment-event Rules 2/2.
+- Storage Rules follow-up is green 17/17 under the standard repository command after null-guard and emulator-project alignment fixes.
+- R4 green at `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`: Functions unit 299 passed / 30 skipped; serialized Functions emulator 329/329 across 40 files; root 583 passed / 67 skipped; Admin 66/66; Firestore Rules 20/20; Storage Rules 17/17; all Functions/Mobile/Admin typechecks, Functions build, Mobile/Admin lint, `npm run check` and `git diff --check` passed. Focused R4 unit 28/28 and transactional emulator 20/20.
+- No R1-R4 validation configured a Paystack secret, made a real Paystack request, deployed Firebase or mutated production.
+
+### R5 active checkpoint
+
+R5 starts from validated R4 head `edd5a485`.
+
+Current bounded checkpoint hardens existing owner response against R4 records:
+
+- booking record must carry exact R4 intent/renter/owner/vehicle/date/block identity;
+- referenced block must exist, be `paid`, and exactly match those bindings;
+- missing block or any mismatch fails closed;
+- existing availability sentinel is mandatory and its version must be a safe nonnegative integer;
+- confirm changes exact paid block to `confirmed`;
+- reject deletes exact paid block, opens one owner-rejection case and does not invent refund state;
+- emulator tests cover happy confirm/reject plus missing block and missing/malformed sentinel zero-partial-write behavior.
+
+This R5 checkpoint is implemented but not yet shell-validated. Do not call it green until the clean commit passes the required gate.
+
+## 6. Firebase development checkpoint
 
 `mmg-concierge-dev` currently has:
 
-1. Registered iOS, Android and Admin web apps; Email/Password and Google Auth enabled.
-2. Standard/Native Firestore in `africa-south1` with hardened S1 Rules/indexes.
-3. 22 Node 22 Functions in `africa-south1`, including protected discovery detail/search. R2/R3/R4 payment Functions remain undeployed.
-4. Private owner-verification cleanup scheduler via OIDC.
-5. Default Storage bucket `mmg-concierge-dev.firebasestorage.app` in `africa-south1` with Storage Rules.
-6. Verified native iOS App Check/Auth discovery smoke and live media metadata-strip/promotion/demotion/cleanup lifecycle.
+1. Registered iOS, Android and Admin web apps.
+2. Email/Password and Google Auth enabled.
+3. Standard/Native Firestore in `africa-south1` with hardened Rules/indexes.
+4. 22 Node 22 Functions in `africa-south1`, including protected discovery Functions.
+5. Default Storage bucket `mmg-concierge-dev.firebasestorage.app` in `africa-south1` with validated Rules.
+6. Native iOS App Check/Auth discovery smoke passed.
+7. Media metadata-strip/promotion/demotion/cleanup lifecycle passed.
+8. Owner verification cleanup scheduler exists.
 
-Production `mmg-concierge` is not a development target. Do not seed, reprovision, loosen, deploy to or clean production during ordinary sprint work.
+R2-R5 payment/paid-booking changes remain **undeployed**. Production `mmg-concierge` remains untouched and is not a development target.
 
-### Current GitHub baseline and active sprint
+## 7. Active branch and donor restrictions
 
-- `main` baseline: `87ad89e`, squash merge of PR #19 (`security(discovery): harden renter data boundary and development storage`).
-- Active branch: `codex/wp4-paystack-booking-reconciliation`, created from that exact baseline.
+- Active repository: `franklinnweke/mmgconciergeapp`.
+- Active branch: `codex/wp4-paystack-booking-reconciliation`.
+- R5 base: validated R4 head `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`.
 - Sprint source: `docs/implementation/WP4_PAYSTACK_BOOKING_RECONCILIATION_SPRINT.md`.
-- R0 is complete: architecture/donor reconciliation is committed and locked.
-- R1 adds `@mmg/contracts/payment`, a narrow `PaymentGateway` interface and a server-only Paystack initialize/verify adapter. The shell gate at `caf1efa` passed: Functions 268 tests with 7 skipped, root 543 tests with 42 skipped, Admin 66 tests, typecheck/lint/build/check and `git diff --check` clean. No live Paystack call or Firebase mutation occurred.
-- The Paystack transaction-reference correction at `c923c8a` was revalidated: Functions 268 passed / 7 skipped, root 545 passed / 42 skipped, Admin 66 passed, all typecheck/lint/build/check gates clean, no deployment or live Paystack call.
-- R2 adds server-authoritative `initializeBookingPayment`, deterministic provider-safe payment identity, verified renter email/phone matching, active-hold enforcement, Firestore `payments` binding, `intent_created -> checkout_pending`, a 30-second initialization lease, idempotent pending-checkout replay, provider-result finalization, audit records, App Check-protected callable wiring, Firebase Secret Manager binding and test-mode-only Paystack enforcement. It does not create a paid booking or process webhook value.
-- R2 is fully green at `67359ba`: Functions 277 passed / 12 skipped; serialized Functions emulator 289 passed across 32 files; root 554 passed / 47 skipped; Admin 66 passed; Functions/Mobile/Admin typecheck/lint/build/check and `git diff --check` clean. Payment initialization remained 5/5 and booking-intent emulator coverage 7/7 in the aggregate run. No secret, Paystack request, Firebase deploy or production mutation occurred.
-- R2 validation was performed from a clean clone of `franklinnweke/mmgconciergeapp` because an unrelated older local checkout pointed to `franklinnweke/mmgconciergeweb` and had a corrupt local ref. Do not use that unhealthy checkout as repository truth.
-- R3 adds raw-body signed `paystackWebhook`, a 256 KiB body limit, semantic event dedupe in server-only `paymentEvents`, retryable independent verification, owner-scoped App Check reconciliation, and exact reference/environment/status/currency/amount comparison. R3 intentionally leaves `payments.state` as `pending` and creates no booking value.
-- R3 is fully green at `89f1b0c`: Functions 289 passed / 18 skipped; serialized Functions emulator 307/307 across 36 files; root 568 passed / 55 skipped; Admin 66/66; Firestore Rules 20/20; webhook 7/7; payment-verification service 5/5; R3 verification repository emulator 5/5; terminal verification emulator 1/1; payment-events Rules 2/2; all typecheck/lint/build/check and `git diff --check` gates passed. No secret, real Paystack request, Firebase deployment, booking value transition, owner notification or production mutation occurred.
-- The unrelated Storage Rules regression exposed during R3 was repaired in two bounded commits: nullable cross-service Firestore lookups now fail closed, and the Storage Rules fixture uses the same `mmg-concierge-dev` project as the emulator command. The standard `npm run test:storage-rules` gate is green 17/17 with `git diff --check` clean.
-- R4 starts from validated branch head `1c06896`. Its contract boundary permits only `paid_pending_owner`/intent `paid` with a booking ID, or `paid_conflict`/intent `paid_conflict` with a case ID, with payment `succeeded` in either branch.
-- R4 trusted consumption service accepts only a persisted event ID, generates stable transaction IDs server-side, and validates the repository's returned transition against the canonical shared contract.
-- R4 Firestore value delivery handles active holds, expired-hold reacquisition and date conflicts atomically. It records payment success exactly once, preserves immutable intent snapshots, and creates either one `paid_pending_owner` booking or one urgent `paid_conflict` case.
-- R4 emulator coverage proves same-event and distinct-event success replay do not duplicate booking/outbox/audit effects; generated bookings are accepted unchanged by the existing owner response transaction.
-- R4 late-payment coverage includes a two-renter concurrent race where exactly one booking and one urgent case result while both provider-confirmed payments remain `succeeded`.
-- R4 now fails closed when the intent block is not the exact matching `held` block, when the availability sentinel is missing, or when the sentinel version is malformed; the attempted transaction leaves no partial value-delivery effects.
-- R4 runtime orchestration wires both the retryable webhook processor and authenticated renter reconciliation through the same trusted R3-to-R4 value processor. Post-success verification recognizes `succeeded` payments without reopening value delivery.
-- `docs/implementation/WP4_R4_CHECKPOINT.md` is the validation handoff. R4 is not green until the exact cleaned publication commit passes the full repository/unit/emulator/Rules gate.
-- Firebase Emulator Suite requires Java 21+; machines with an older default Java must select an installed Java 21+ runtime rather than weakening/skipping the emulator gate.
-- Old branch `codex/wp4-booking-operations` is **donor/reference only**. It is 56 commits behind current `main` and must not be merged or cherry-picked wholesale.
-- Donor code may be manually salvaged only after reconciliation with current contracts, roles, booking-block model and architecture.
-- Specifically reject donor `booking_admin`, renter-triggered verify-to-paid as payment truth, invented cancellation/refund policy, auto owner rejection timeout, unrelated seed/asset/UI changes and old schema copies.
+- R2/R3/R4 checkpoints: `docs/implementation/WP4_R2_CHECKPOINT.md`, `WP4_R3_CHECKPOINT.md`, `WP4_R4_CHECKPOINT.md`.
+- Old `codex/wp4-booking-operations` is donor/reference only and must not be merged/cherry-picked wholesale.
+- Reject donor `booking_admin`, renter verify-to-paid as payment truth, invented cancellation/refund policy, automatic owner-rejection timeout, old seed/schema copies and unrelated fleet/UI work.
 
-The following are not live merely because R2/R3/R4 code exists:
+An unrelated local checkout previously pointed to `franklinnweke/mmgconciergeweb` and had a corrupt local ref. Do not use it as repository truth. Validation should use a clean clone of `mmgconciergeapp` when necessary.
 
-1. Paystack production payments.
-2. `initializeBookingPayment`, `paystackWebhook`, `processPaystackPaymentEvent`, or `reconcilePayment` in cloud development. They remain undeployed until validation and explicit test-secret setup/deployment.
-3. R4 paid-booking value delivery is implemented but not validated or deployed. Do not treat it as green/live until the publication commit passes the R4 checkpoint.
-4. Refund settlement.
-5. In-app chat or production push notifications.
-6. Ledger, wallets or withdrawals.
+## 8. Validation gates
 
-## 6. WP4 sprint gate
+Firebase Emulator Suite requires Java 21+. Temurin 25 is known-good.
 
-Run at the start/end of bounded tasks:
-
-```bash
-git status -sb
-git log --oneline --decorate -8
-```
-
-Minimum repository gate for WP4 cross-package changes:
+Minimum cross-package WP4 gate:
 
 ```bash
 npm run functions:typecheck
@@ -191,70 +267,56 @@ npm run check
 git diff --check
 ```
 
-`npm run test:functions:emulator` is serialized at the Vitest file level because emulator suites currently share a Firestore project/collection namespace. It requires Java 21+.
+`npm run test:functions:emulator` must remain serialized at the Vitest file level while emulator suites share a Firestore project/collection namespace.
 
-When Firestore/Storage Rules or indexes change, also run:
+When Rules/indexes change, or for publication checkpoints that request full regression evidence, also run:
 
 ```bash
 npm run test:rules
 npm run test:storage-rules
 ```
 
-For the R4 publication checkpoint, run both Rules suites even though R4 does not intentionally change Rules.
+Payment/booking acceptance includes:
 
-Payment-specific acceptance must include:
+- no client-supplied trusted amount/currency/reference/payment state;
+- Paystack supported reference alphabet only;
+- live key rejected in development before network call;
+- raw-body webhook signature validation before parsing;
+- exact independent provider verification;
+- `paymentEvents` client denial;
+- one payment at most one booking/conflict value effect;
+- late-payment concurrency produces one winner and one `paid_conflict`, both payments succeeded;
+- callback-only path produces zero value;
+- owner confirm/reject accepts R4 booking/block unchanged;
+- owner response cannot proceed with missing/mismatched paid block or missing/malformed sentinel;
+- owner rejection opens intervention without automatic refund;
+- no automatic owner-response timeout.
 
-- Paystack initialize/verify adapter tests for provider failure and malformed payloads.
-- Paystack reference contract accepts only alphanumeric plus `-`, `.`, `=` and rejects `_`, `/`, spaces and other unsupported characters.
-- R2 Firestore emulator: exact intent amount/currency binding, one payment per intent, idempotent replay, active hold enforcement and verified-profile matching.
-- Development runtime rejects a live Paystack key before making a network request.
-- R3 webhook HMAC tests: valid, missing/invalid signature, malformed body, oversized body, unrelated signed event, duplicate/replay.
-- R3 Firestore verification: exact success leaves payment pending before R4, duplicate event one document, wrong reference/environment/currency/amount rejects, non-success stays non-paid, and post-R4 succeeded payments remain verifiable without being downgraded.
-- `paymentEvents` renter/staff-client/anonymous read/list/write denial in the Firestore Rules emulator.
-- R4 contract rejects any value-delivery result that overstates owner confirmation or mixes paid-booking and conflict fields.
-- R4 trusted service accepts only a persisted event ID and generates transaction IDs server-side.
-- R4 active-hold delivery creates exactly one paid booking/outbox/audit effect, preserves trusted snapshots, converts the hold to `paid`, and is accepted by the existing owner response path.
-- R4 same-event and distinct-event verified-success replays reuse the original payment value effect and cannot create duplicate booking/block/outbox/audit effects.
-- R4 expired-hold delivery reacquires only when the interval is still free; otherwise it creates one urgent `paid_conflict` case with no booking and no invented refund.
-- R4 concurrent late-payment test proves one overlapping payment wins the dates and the other becomes `paid_conflict`, with both `payments.state == succeeded`.
-- R4 inconsistent preexisting intent blocks, missing sentinels and malformed sentinel versions fail closed with zero partial value-delivery writes.
-- R3 durable `verified_success` retry can complete R4 without another provider verification, and authenticated reconciliation invokes the same trusted R4 processor.
-- Callback/deep-link-only path proves zero value delivery.
+## 9. Agent execution protocol
 
-No automated test may charge live Paystack or mutate production.
+Every clean agent-authored commit must update this root `AGENTS.md` in the same commit so downstream agents can reconstruct state. Temporary connector/WIP commits may exist only while assembling a bounded checkpoint and must be rewritten out before publication.
 
-## 7. Agent execution protocol
-
-### Commit/status synchronization policy
-
-Every agent-authored commit must update this root `AGENTS.md` in the same commit so downstream agents can reconstruct roadmap and operational state. Do not record a commit's own SHA inside that same commit. GitHub merge commits are the exception; the first following agent commit reconciles this file.
-
-1. Start with `git status -sb`; preserve unrelated changes.
-2. Declare bounded scope before editing.
-3. Read required context and nearest tests.
-4. Change contracts/domain first, then server/repository/Rules, then Admin/Mobile consumers.
+1. Start from the current branch/head and preserve unrelated changes.
+2. Declare bounded scope.
+3. Read this file, the relevant sprint/architecture docs and nearest tests.
+4. Change contracts/domain first when contracts change, then server/repository/Rules, then Admin/Mobile consumers.
 5. Prefer existing injectable gateways/repositories and canonical services.
-6. Financial/payment state changes require idempotency and audit evidence.
-7. Provider callbacks are not trusted state transitions.
-8. Fake/test payment adapters must be impossible to select in production.
-9. For production paths, fail closed; never silently replace failed live calls with fixtures.
-10. Emulator-backed Functions suites sharing Firestore state must use the serialized emulator runner unless they are explicitly isolated by project/namespace.
-11. Signed webhook handlers must authenticate raw bytes before JSON parsing and acknowledge only after durable event ingestion.
-12. Event-driven verification retries transient provider failures; terminal mismatches must be recorded and return without retry loops.
-13. Storage Rules cross-service Firestore reads must null-guard missing documents/data, stay within the two-access-call limit, and use the same emulator project ID as the Storage test fixture.
-14. R4 must consume persisted `verified_success` evidence server-side; it must never trust client-supplied payment facts when transitioning value.
-15. Generate IDs outside retryable Firestore transaction callbacks when those IDs are part of durable R4 records.
-16. R4 availability-changing transactions must read an existing valid vehicle sentinel and overlapping booking blocks before writes; payment, intent, block, booking/case, sentinel, audit/outbox, and event-consumption effects must commit atomically.
-17. Never coerce a missing/malformed R4 sentinel to version zero and never overwrite a non-`held` intent block to manufacture a successful delivery path.
-18. In a late-payment race, sentinel/block transaction retries are the serialization mechanism. Never resolve a collision by overwriting another renter's blocking record or by marking a successful provider charge failed.
-19. Webhook retry and renter reconciliation must converge on the same trusted R3-to-R4 processor; never add a client-specific value transition.
-20. Run narrow tests, then the full gate when crossing package/security/financial boundaries.
-21. Update this file and detailed status docs when evidence changes milestone state.
-22. End with summary, files changed, tests run, assumptions, risks, blockers and next task.
+6. Financial/payment changes require server authority, idempotency, transaction safety and audit evidence.
+7. Never trust provider callback/client state for value delivery.
+8. Generate durable IDs outside retryable Firestore transaction callbacks.
+9. Availability-changing transactions read existing valid sentinel + relevant blocks before writes.
+10. Fail closed rather than recreating missing financial/availability invariants.
+11. Do not silently replace provider failures with fixtures.
+12. No fake/test adapter may be selectable in production.
+13. No automatic refund, cancellation economics or owner-timeout transition without approved policy.
+14. Use only canonical staff roles.
+15. Run narrow tests first, then the full gate for cross-package/security/financial checkpoints.
+16. Update detailed status docs when milestone evidence changes.
+17. End with summary, files changed, tests/evidence, risks/blockers and next task.
 
-## 8. Definition of done
+## 10. Definition of done
 
-A feature is not complete because a screen renders. Contracts, domain transitions, authorization, provider verification, Rules/indexes, server read/write boundaries, client states, tests, docs and operational failure behavior must agree.
+A feature is not complete because code exists or a screen renders. Contracts, domain transitions, authorization, provider verification, Rules/indexes, server boundaries, client states, tests, documentation and operational failure behavior must agree.
 
 Controlled commercial flow:
 
@@ -272,4 +334,4 @@ approved owner
   -> admin-approved manual withdrawal
 ```
 
-WP4 may make **development Paystack test-mode** payment real. It must not imply live production settlement or WP5/WP6 completion.
+WP4 may make **development Paystack test-mode** payment real. It does not imply production settlement, completed refund economics, WP5 chat/FCM, or WP6 wallet/ledger completion.

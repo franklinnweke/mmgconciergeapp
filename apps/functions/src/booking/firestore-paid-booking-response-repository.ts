@@ -1,4 +1,4 @@
-import { paidBookingStateSchema } from '@mmg/contracts';
+import { dateOnlySchema, paidBookingStateSchema } from '@mmg/contracts';
 import { getFirestore, Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
@@ -15,16 +15,25 @@ import type {
 } from './paid-booking-response-service.js';
 
 const bookingSchema = z.object({
+  intentId: z.string().min(1).max(128),
   renterId: z.string().min(1).max(128),
   ownerId: z.string().min(1).max(128),
   vehicleId: z.string().min(1).max(128),
+  startDate: dateOnlySchema,
+  endDate: dateOnlySchema,
   state: paidBookingStateSchema,
-  version: z.number().int().positive().optional(),
-  blockId: z.string().min(1).max(128).nullable().optional(),
+  version: z.number().int().positive(),
+  blockId: z.string().min(1).max(128),
 }).passthrough();
 
 const bookingBlockSchema = z.object({
+  bookingId: z.string().min(1).max(128),
+  intentId: z.string().min(1).max(128),
+  renterId: z.string().min(1).max(128),
+  ownerId: z.string().min(1).max(128),
   vehicleId: z.string().min(1).max(128),
+  startDate: dateOnlySchema,
+  endDate: dateOnlySchema,
   state: z.enum(['held', 'paid', 'confirmed', 'owner_block']),
 }).passthrough();
 
@@ -53,12 +62,15 @@ class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTran
     }
     return {
       bookingId: snapshot.id,
+      intentId: parsed.data.intentId,
       renterId: parsed.data.renterId,
       ownerId: parsed.data.ownerId,
       vehicleId: parsed.data.vehicleId,
+      startDate: parsed.data.startDate,
+      endDate: parsed.data.endDate,
       state: parsed.data.state,
-      version: parsed.data.version ?? 1,
-      blockId: parsed.data.blockId ?? null,
+      version: parsed.data.version,
+      blockId: parsed.data.blockId,
     };
   }
 
@@ -74,11 +86,20 @@ class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTran
 
   async readAvailabilitySentinel(vehicleId: string): Promise<number> {
     const snapshot = await this.transaction.get(this.firestore.doc(`vehicleAvailability/${vehicleId}`));
-    if (!snapshot.exists) return 0;
+    if (!snapshot.exists) {
+      throw new BookingCommandError(
+        'FAILED_PRECONDITION',
+        'Availability sentinel is missing for this paid booking.',
+        { reason: 'availability_sentinel_missing' },
+      );
+    }
     const version = snapshot.data()?.version;
-    if (version === undefined) return 0;
     if (!Number.isSafeInteger(version) || version < 0) {
-      throw new BookingCommandError('FAILED_PRECONDITION', 'Availability version is invalid.');
+      throw new BookingCommandError(
+        'FAILED_PRECONDITION',
+        'Availability version is invalid.',
+        { reason: 'availability_sentinel_invalid' },
+      );
     }
     return version;
   }
@@ -110,11 +131,10 @@ class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTran
   }
 
   writeAvailabilitySentinel(vehicleId: string, version: number, updatedAt: Date): void {
-    this.transaction.set(this.firestore.doc(`vehicleAvailability/${vehicleId}`), {
-      vehicleId,
+    this.transaction.update(this.firestore.doc(`vehicleAvailability/${vehicleId}`), {
       version,
       updatedAt: Timestamp.fromDate(updatedAt),
-    }, { merge: true });
+    });
   }
 
   createBookingCase(record: PaidBookingCase): void {
