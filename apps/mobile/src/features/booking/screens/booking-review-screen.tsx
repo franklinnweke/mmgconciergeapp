@@ -20,6 +20,7 @@ import {
 } from '@/features/discovery/data/lagos-destinations';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
+import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
 import {
   BookingIntentSubmissionKey,
   createBookingIntentGateway,
@@ -262,17 +263,28 @@ export default function BookingReviewScreen({
         ) : null}
 
         {intentResult ? (
-          <View accessibilityLiveRegion="polite" style={styles.successCard}>
-            <Ionicons color={colors.success} name="checkmark-circle" size={24} />
-            <Text style={styles.successTitle}>Booking hold created</Text>
-            <Text style={styles.successText}>
-              Dates are held until {new Date(intentResult.result.expiresAt).toLocaleTimeString('en-NG', {
-                hour: 'numeric',
-                minute: '2-digit',
-                timeZone: 'Africa/Lagos',
-              })} Lagos time. No payment was taken, and your ride is not confirmed.
-            </Text>
-          </View>
+          <>
+            <View accessibilityLiveRegion="polite" style={styles.successCard}>
+              <Ionicons color={colors.success} name="checkmark-circle" size={24} />
+              <Text style={styles.successTitle}>Booking hold created</Text>
+              <Text style={styles.successText}>
+                Dates are held until {new Date(intentResult.result.expiresAt).toLocaleTimeString('en-NG', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  timeZone: 'Africa/Lagos',
+                })} Lagos time. Payment still needs to be completed and verified.
+              </Text>
+            </View>
+            <RenterPaymentCheckout
+              holdExpiresAt={intentResult.result.expiresAt}
+              intentId={intentResult.result.intentId}
+              onRestartHold={() => {
+                setIntentResult(null);
+                setErrorMessage(null);
+              }}
+              onViewTrips={() => router.replace('/trips')}
+            />
+          </>
         ) : (
           <PressableScale
             disabled={submitting}
@@ -305,7 +317,6 @@ export default function BookingReviewScreen({
               <Text style={styles.ctaText}>
                 {submitting ? 'CREATING SECURE HOLD...' : 'CREATE 15-MINUTE HOLD'}
               </Text>
-              <Ionicons color={colors.black} name="arrow-forward" size={16} />
             </View>
           </PressableScale>
         )}
@@ -352,8 +363,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
     borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
     justifyContent: 'center',
     marginTop: spacing.lg,
     paddingVertical: spacing.md,
