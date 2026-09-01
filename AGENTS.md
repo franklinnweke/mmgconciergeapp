@@ -66,9 +66,10 @@ If status documents conflict with code or Git history, report the discrepancy, v
 - Paystack transaction references are generated server-side and must satisfy the shared `paymentReferenceSchema`: ASCII alphanumeric characters plus `-`, `.`, and `=` only. Do not use `_`, `/`, spaces or a second validator.
 - Paystack webhooks are public HTTP transport but trusted only after raw-body HMAC SHA-512 verification using `x-paystack-signature`.
 - Signed webhook ingestion persists only minimal normalized event facts plus a body digest. Do not persist full provider payloads or signatures.
-- `charge.success` is still independently verified through Paystack Verify Transaction before any future booking-value transition.
+- `charge.success` is still independently verified through Paystack Verify Transaction before any booking-value transition.
 - Independent verification must match local payment reference, configured environment, `success` status, `NGN` currency and exact authoritative kobo amount.
-- R3 `verified_success` is evidence only. Payment remains `pending`; only R4 may atomically transition trusted booking/payment value.
+- R3 `verified_success` is evidence only. R4 is the first boundary allowed to atomically transition trusted payment and booking value.
+- R4 value delivery has exactly two trusted outcomes: `paid_pending_owner` when the dates are atomically secured, or `paid_conflict` when a real late payment collides with another blocking interval. Both outcomes record the payment as `succeeded`; neither may claim owner confirmation.
 - `paymentEvents` is server-only and client unreadable/unwritable.
 - Duplicate payment events must never duplicate bookings, blocks, notifications, refunds or financial effects.
 - Late verified payment after hold expiry may become `paid_conflict`; never double-book.
@@ -87,7 +88,7 @@ If status documents conflict with code or Git history, report the discrepancy, v
 
 ## 5. Current milestone snapshot
 
-Snapshot date: **2026-08-31**.
+Snapshot date: **2026-09-01**.
 
 | Milestone | Status | Evidence / next gate |
 |---|---|---|
@@ -97,8 +98,8 @@ Snapshot date: **2026-08-31**.
 | WP0 | 🔶 Mostly complete | Client quote preview can still diverge from versioned server pricing |
 | WP1 | 🔶 Foundation complete | Phone verification UX/linking, erasure workflow and MFA remain |
 | WP2 | 🔶 Core complete | Vehicle inventory/moderation/image pipeline/fleet UI delivered; vehicle-upload GC remains |
-| WP3 | ✅ S1 hardening complete | Functions-backed discovery + hardened Rules live in development; Storage Rules null-guard + emulator project alignment awaiting standard-command validation |
-| WP4 | 🔶 Active sprint | R0/R1/R2 complete; R3 payment boundary validated green; R4 blocked only on the standalone Storage Rules gate |
+| WP3 | ✅ S1 hardening complete | Discovery/storage hardening green; Storage Rules standard gate 17/17 |
+| WP4 | 🔶 Active sprint | R0/R1/R2/R3 complete; R4 verified-payment value delivery active, contract boundary staged |
 | WP5 | ⏳ Not started | FCM/chat/lifecycle |
 | WP6 | ⏳ Not started | Ledger/wallets/withdrawals |
 | WP7 | 🔶 Partial | Admin modules incomplete |
@@ -128,19 +129,20 @@ Production `mmg-concierge` is not a development target. Do not seed, reprovision
 - R2 adds server-authoritative `initializeBookingPayment`, deterministic provider-safe payment identity, verified renter email/phone matching, active-hold enforcement, Firestore `payments` binding, `intent_created -> checkout_pending`, a 30-second initialization lease, idempotent pending-checkout replay, provider-result finalization, audit records, App Check-protected callable wiring, Firebase Secret Manager binding and test-mode-only Paystack enforcement. It does not create a paid booking or process webhook value.
 - R2 is fully green at `67359ba`: Functions 277 passed / 12 skipped; serialized Functions emulator 289 passed across 32 files; root 554 passed / 47 skipped; Admin 66 passed; Functions/Mobile/Admin typecheck/lint/build/check and `git diff --check` clean. Payment initialization remained 5/5 and booking-intent emulator coverage 7/7 in the aggregate run. No secret, Paystack request, Firebase deploy or production mutation occurred.
 - R2 validation was performed from a clean clone of `franklinnweke/mmgconciergeapp` because an unrelated older local checkout pointed to `franklinnweke/mmgconciergeweb` and had a corrupt local ref. Do not use that unhealthy checkout as repository truth.
-- R3 adds: raw-body signed `paystackWebhook`; 256 KiB application body limit; semantic event dedupe in server-only `paymentEvents`; asynchronous retryable verification via `processPaystackPaymentEvent`; owner-only App Check `reconcilePayment`; exact reference/environment/status/currency/amount comparison; durable `verified_success`, `not_succeeded`, or `rejected` event outcomes; explicit client Rules denial for `paymentEvents`. R3 intentionally leaves `payments.state` as `pending` and creates no booking value.
-- R3 is payment-green at `89f1b0c`: Functions 289 passed / 18 skipped; serialized Functions emulator 307/307 across 36 files; root 568 passed / 55 skipped; Admin 66/66; Firestore Rules 20/20; webhook 7/7; payment-verification service 5/5; R3 verification repository emulator 5/5; terminal verification emulator 1/1; payment-events Rules 2/2; all typecheck/lint/build/check and `git diff --check` gates passed. No secret, real Paystack request, Firebase deployment, booking value transition, owner notification or production mutation occurred.
-- The R3 clean-clone validation exposed an unrelated Storage Rules gate issue. The nullable cross-service lookup repair preserved intended security semantics, and the suite passes 17/17 when Firestore and Storage share one project. The standard command still failed 5 positives because `.firebaserc` started `mmg-concierge-dev` while `storage.rules.test.ts` initialized `mmg-concierge`. The test fixture is now aligned to `mmg-concierge-dev`; validate the standard `npm run test:storage-rules` command before R4.
+- R3 adds raw-body signed `paystackWebhook`, a 256 KiB body limit, semantic event dedupe in server-only `paymentEvents`, retryable independent verification, owner-scoped App Check reconciliation, and exact reference/environment/status/currency/amount comparison. R3 intentionally leaves `payments.state` as `pending` and creates no booking value.
+- R3 is fully green at `89f1b0c`: Functions 289 passed / 18 skipped; serialized Functions emulator 307/307 across 36 files; root 568 passed / 55 skipped; Admin 66/66; Firestore Rules 20/20; webhook 7/7; payment-verification service 5/5; R3 verification repository emulator 5/5; terminal verification emulator 1/1; payment-events Rules 2/2; all typecheck/lint/build/check and `git diff --check` gates passed. No secret, real Paystack request, Firebase deployment, booking value transition, owner notification or production mutation occurred.
+- The unrelated Storage Rules regression exposed during R3 was repaired in two bounded commits: nullable cross-service Firestore lookups now fail closed, and the Storage Rules fixture uses the same `mmg-concierge-dev` project as the emulator command. The standard `npm run test:storage-rules` gate is green 17/17 with `git diff --check` clean.
+- R4 starts from validated branch head `1c06896`. Its first boundary adds a strict trusted value-delivery result contract: successful verified payment may resolve only to `paid_pending_owner`/intent `paid` with a booking ID, or `paid_conflict`/intent `paid_conflict` with a case ID. Payment state is `succeeded` in both branches.
 - Firebase Emulator Suite requires Java 21+; machines with an older default Java must select an installed Java 21+ runtime rather than weakening/skipping the emulator gate.
 - Old branch `codex/wp4-booking-operations` is **donor/reference only**. It is 56 commits behind current `main` and must not be merged or cherry-picked wholesale.
 - Donor code may be manually salvaged only after reconciliation with current contracts, roles, booking-block model and architecture.
 - Specifically reject donor `booking_admin`, renter-triggered verify-to-paid as payment truth, invented cancellation/refund policy, auto owner rejection timeout, unrelated seed/asset/UI changes and old schema copies.
 
-The following are not live merely because donor or R2/R3 code exists:
+The following are not live merely because R2/R3/R4 code exists:
 
 1. Paystack production payments.
 2. `initializeBookingPayment`, `paystackWebhook`, `processPaystackPaymentEvent`, or `reconcilePayment` in cloud development. They remain undeployed until validation and explicit test-secret setup/deployment.
-3. Any verified event transitioning payment to `succeeded` or creating `paid_pending_owner`. That is R4 only.
+3. R4 paid-booking value delivery is not live merely because its contract exists; Firestore transactional consumption and runtime wiring remain required.
 4. Refund settlement.
 5. In-app chat or production push notifications.
 6. Ledger, wallets or withdrawals.
@@ -189,7 +191,8 @@ Payment-specific acceptance must include:
 - R3 webhook HMAC tests: valid, missing/invalid signature, malformed body, oversized body, unrelated signed event, duplicate/replay.
 - R3 Firestore verification: exact success leaves payment pending, duplicate event one document, wrong reference/environment/currency/amount rejects, non-success stays non-paid.
 - `paymentEvents` renter/staff-client/anonymous read/list/write denial in the Firestore Rules emulator.
-- Concurrent hold/payment tests.
+- R4 contract rejects any value-delivery result that overstates owner confirmation or mixes paid-booking and conflict fields.
+- R4 concurrent hold/payment tests.
 - Callback/deep-link-only path proves zero value delivery.
 - Late payment after expired hold + dates taken produces `paid_conflict`, not a double booking.
 
@@ -214,9 +217,10 @@ Every agent-authored commit must update this root `AGENTS.md` in the same commit
 11. Signed webhook handlers must authenticate raw bytes before JSON parsing and acknowledge only after durable event ingestion.
 12. Event-driven verification retries transient provider failures; terminal mismatches must be recorded and return without retry loops.
 13. Storage Rules cross-service Firestore reads must null-guard missing documents/data, stay within the two-access-call limit, and use the same emulator project ID as the Storage test fixture.
-14. Run narrow tests, then the full gate when crossing package/security/financial boundaries.
-15. Update this file and detailed status docs when evidence changes milestone state.
-16. End with summary, files changed, tests run, assumptions, risks, blockers and next task.
+14. R4 must consume persisted `verified_success` evidence server-side; it must never trust client-supplied payment facts when transitioning value.
+15. Run narrow tests, then the full gate when crossing package/security/financial boundaries.
+16. Update this file and detailed status docs when evidence changes milestone state.
+17. End with summary, files changed, tests run, assumptions, risks, blockers and next task.
 
 ## 8. Definition of done
 

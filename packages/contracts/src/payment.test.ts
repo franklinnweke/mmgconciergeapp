@@ -5,9 +5,11 @@ import {
   paymentGatewayVerifyResultSchema,
   paymentReferenceSchema,
   paymentStateSchema,
+  paymentValueDeliveryOutcomeSchema,
   paymentVerificationOutcomeSchema,
   paystackTransactionStatusSchema,
   reconcilePaymentCommandSchema,
+  trustedPaymentValueDeliveryResultSchema,
 } from './payment.js';
 
 describe('payment contracts', () => {
@@ -36,6 +38,57 @@ describe('payment contracts', () => {
       'not_succeeded',
       'rejected',
     ]);
+  });
+
+  it('locks R4 value delivery to paid booking or paid conflict only', () => {
+    expect(paymentValueDeliveryOutcomeSchema.options).toEqual([
+      'paid_pending_owner',
+      'paid_conflict',
+    ]);
+
+    expect(trustedPaymentValueDeliveryResultSchema.parse({
+      eventId: 'event-123',
+      paymentId: 'payment-123',
+      intentId: 'intent-123',
+      outcome: 'paid_pending_owner',
+      paymentState: 'succeeded',
+      intentState: 'paid',
+      bookingId: 'booking-123',
+    }).outcome).toBe('paid_pending_owner');
+
+    expect(trustedPaymentValueDeliveryResultSchema.parse({
+      eventId: 'event-456',
+      paymentId: 'payment-456',
+      intentId: 'intent-456',
+      outcome: 'paid_conflict',
+      paymentState: 'succeeded',
+      intentState: 'paid_conflict',
+      caseId: 'case-456',
+    }).outcome).toBe('paid_conflict');
+  });
+
+  it('rejects R4 results that overstate confirmation or mix conflict fields', () => {
+    expect(() => trustedPaymentValueDeliveryResultSchema.parse({
+      eventId: 'event-123',
+      paymentId: 'payment-123',
+      intentId: 'intent-123',
+      outcome: 'paid_pending_owner',
+      paymentState: 'succeeded',
+      intentState: 'paid',
+      bookingId: 'booking-123',
+      bookingState: 'confirmed',
+    })).toThrow();
+
+    expect(() => trustedPaymentValueDeliveryResultSchema.parse({
+      eventId: 'event-456',
+      paymentId: 'payment-456',
+      intentId: 'intent-456',
+      outcome: 'paid_conflict',
+      paymentState: 'succeeded',
+      intentState: 'paid_conflict',
+      bookingId: 'booking-456',
+      caseId: 'case-456',
+    })).toThrow();
   });
 
   it('accepts only Paystack-supported transaction reference characters', () => {

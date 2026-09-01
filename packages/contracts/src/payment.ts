@@ -64,6 +64,40 @@ export const paymentVerificationOutcomeSchema = z.enum([
 ]);
 export type PaymentVerificationOutcome = z.infer<typeof paymentVerificationOutcomeSchema>;
 
+/**
+ * R4 consumes only durable R3 `verified_success` evidence. A real successful
+ * payment has exactly two booking-value outcomes: the requested dates are
+ * atomically secured into `paid_pending_owner`, or a late-payment collision is
+ * recorded as `paid_conflict`. Neither branch can claim owner confirmation.
+ */
+export const paymentValueDeliveryOutcomeSchema = z.enum([
+  'paid_pending_owner',
+  'paid_conflict',
+]);
+export type PaymentValueDeliveryOutcome = z.infer<typeof paymentValueDeliveryOutcomeSchema>;
+
+export const trustedPaymentValueDeliveryResultSchema = z.discriminatedUnion('outcome', [
+  z.object({
+    eventId: boundedIdSchema,
+    paymentId: boundedIdSchema,
+    intentId: boundedIdSchema,
+    outcome: z.literal('paid_pending_owner'),
+    paymentState: z.literal('succeeded'),
+    intentState: z.literal('paid'),
+    bookingId: boundedIdSchema,
+  }).strict(),
+  z.object({
+    eventId: boundedIdSchema,
+    paymentId: boundedIdSchema,
+    intentId: boundedIdSchema,
+    outcome: z.literal('paid_conflict'),
+    paymentState: z.literal('succeeded'),
+    intentState: z.literal('paid_conflict'),
+    caseId: boundedIdSchema,
+  }).strict(),
+]);
+export type TrustedPaymentValueDeliveryResult = z.infer<typeof trustedPaymentValueDeliveryResultSchema>;
+
 export const initializeBookingPaymentDataSchema = z.object({
   intentId: boundedIdSchema,
 }).strict();
