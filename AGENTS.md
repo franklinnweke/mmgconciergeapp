@@ -118,13 +118,19 @@ Active integration branch: `codex/dev-paystack-integration`.
 
 Current state:
 
+- integration-prep commit `7c885fe75d59d0e2b97c90ba5f9c76a42f6d0548` is validated green with a clean working tree;
+- root Vitest: 86 files passed, 12 skipped; 630 tests passed, 80 skipped;
+- mobile typecheck and lint passed;
+- Functions typecheck and build passed;
+- admin typecheck, lint and 66 tests passed;
+- `git diff --check` passed;
 - merged code already defines `PAYSTACK_SECRET_KEY` with Firebase `defineSecret()` and binds it only to the payment Functions that require it;
 - the Paystack adapter is hard-locked to `requiredEnvironment: 'test'`, so a live secret fails closed;
 - payment initialization, webhook ingestion, independent verification, R4 value delivery and trusted reconciliation are already implemented;
 - no callback relay is required for the first native smoke: browser return is UX-only and the app reconciles trusted state after foreground return or explicit status check;
 - the development Paystack secret has not yet been configured and the WP4 payment Functions have not yet been deployed.
 
-Use the fixed dev-only commands from the repository root:
+The next step is an authenticated development-environment mutation, not another code slice. From an authenticated terminal, use the fixed dev-only commands from the repository root:
 
 ```bash
 npm run firebase:paystack:secret:dev
