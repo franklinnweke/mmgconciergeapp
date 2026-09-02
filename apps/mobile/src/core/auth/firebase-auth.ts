@@ -24,9 +24,11 @@ import {
   type EmailPasswordRegistration,
   type EmailPasswordSignIn,
 } from '@mmg/contracts';
+import Constants from 'expo-constants';
 
-const GOOGLE_WEB_CLIENT_ID =
-  '78068107398-scr9stknfvcan7jf412vuqbki8hptn8b.apps.googleusercontent.com';
+import { readGoogleWebClientId } from './google-sign-in-config';
+
+const GOOGLE_WEB_CLIENT_ID = readGoogleWebClientId(Constants.expoConfig?.extra);
 
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,

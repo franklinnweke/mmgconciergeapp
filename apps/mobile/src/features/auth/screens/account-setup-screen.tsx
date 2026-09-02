@@ -12,7 +12,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
-const heroImage = require('../../../../assets/images/auth-prado-arrival.png');
+const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.jpg');
 
 const choices = [
   {

@@ -140,11 +140,16 @@ Current state:
 - EAS iOS build 17 failed before Xcode compilation because Metro could not resolve `./index.js` from the TypeScript contracts subpaths;
 - the contracts discovery, booking-case and payment subpaths now resolve shared schemas through the `@mmg/contracts` package export instead of a literal sibling `.js` path;
 - the repaired development configuration completed a local iOS Metro export: 1,936 modules bundled into a 5.2 MB Hermes bundle;
-- the post-repair repository gate remains green at 630 passed / 80 skipped root tests plus 66/66 Admin tests; build 18 is the next EAS build candidate.
+- the post-repair repository gate remained green at 630 passed / 80 skipped root tests plus 66/66 Admin tests;
 - the signed-out flow is now role-first: renter/owner registration creates the selected profile without a second chooser, while universal sign-in preserves any existing persisted role;
-- the auth surface now uses one debranded, documentary-style Lagos arrival image and removes the previous slogan, mode rail, helper paragraph, terms filler and decorative CTA arrows;
+- the auth surface removes the previous slogan, mode rail, helper paragraph, terms filler and decorative CTA arrows;
 - the auth refinement passed 632 root tests / 80 skipped, mobile typecheck and lint, Functions typecheck/build, Admin typecheck/lint and 66/66 tests, plus `git diff --check`;
 - responsive rendered checks passed at 390 px and 320 px for role choice, renter registration and universal sign-in; the iOS Metro export bundled 1,938 modules into a 5.3 MB Hermes bundle.
+- TestFlight build 20 exposed a real OAuth mismatch and is superseded: it could open Google's account chooser, but the development build's JavaScript still used the production web OAuth client;
+- Firebase selection is now deterministic across layers: EAS prebuild receives the selected plist/JSON and matching derived web OAuth client from `app.config.js`; local native runs select the same plist/JSON plus iOS callback schemes before compilation;
+- development and production selection were both exercised and switched back to development; the auth fix passed 637 root tests / 80 skipped, the full repository gate, and a 1,939-module / 5.3 MB development iOS Hermes export;
+- authentication now uses a real Victoria Island, Lagos photograph by Onaopemipo Oladipupo under the Unsplash License; the generated auth asset was removed and the source/crop attribution is tracked beside the image;
+- the next TestFlight build must be created after this auth-environment correction and is the first candidate for real Google and email/password device verification.
 
 The development-only configuration/deployment commands are:
 

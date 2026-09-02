@@ -11,7 +11,7 @@ import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 
-const heroImage = require('../../../../assets/images/auth-prado-arrival.png');
+const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.jpg');
 
 type AuthRoleChoiceScreenProps = {
   onChooseRole(accountType: AccountType): void;
@@ -58,7 +58,7 @@ export function AuthRoleChoiceScreen({ onChooseRole, onSignIn }: AuthRoleChoiceS
     >
       <View style={[styles.hero, { height: heroHeight }]}>
         <Image
-          accessibilityLabel="A dark executive SUV at a Lagos residence"
+          accessibilityLabel="Victoria Island traffic and modern architecture in Lagos"
           contentFit="cover"
           source={heroImage}
           style={StyleSheet.absoluteFill}

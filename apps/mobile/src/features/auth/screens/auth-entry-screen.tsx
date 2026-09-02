@@ -30,7 +30,7 @@ type AuthEntryScreenProps = {
   onBack(): void;
 };
 
-const heroImage = require('../../../../assets/images/auth-prado-arrival.png');
+const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.jpg');
 
 export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryScreenProps) {
   const insets = useSafeAreaInsets();
@@ -149,7 +149,7 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
       >
         <View style={styles.hero}>
           <Image
-            accessibilityLabel="A dark executive SUV at a Lagos residence"
+            accessibilityLabel="Victoria Island traffic and modern architecture in Lagos"
             contentFit="cover"
             source={heroImage}
             style={StyleSheet.absoluteFill}
