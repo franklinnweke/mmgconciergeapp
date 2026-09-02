@@ -24,11 +24,11 @@ type AuthContextValue = {
   profileLoadFailed: boolean;
   refreshUser(): Promise<void>;
   retryProfile(): Promise<void>;
-  register(input: EmailPasswordRegistration): Promise<void>;
+  register(input: EmailPasswordRegistration, accountType: AccountType): Promise<void>;
   requestReset(email: string): Promise<void>;
   resendVerification(): Promise<void>;
   signIn(input: EmailPasswordSignIn): Promise<void>;
-  signInGoogle(): Promise<'signed-in' | 'cancelled'>;
+  signInGoogle(accountType?: AccountType): Promise<'signed-in' | 'cancelled'>;
   signOut(): Promise<void>;
   user: PreviewUser | null;
 };
@@ -48,7 +48,13 @@ const previewProfile: AccountProfile = {
   email: previewUser.email,
 };
 
-function initialPreviewProfile(): AccountProfile {
+function isSignedOutPreview() {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('previewAuth') === 'signed-out';
+}
+
+function initialPreviewProfile(): AccountProfile | null {
+  if (isSignedOutPreview()) return null;
   if (typeof window === 'undefined') return previewProfile;
   const previewRole = new URLSearchParams(window.location.search).get('previewRole');
   return previewRole === 'owner'
@@ -61,7 +67,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // Native builds use auth-context.tsx and Firebase. Web previews stay deterministic
 // so UI development and static rendering never require a configured Firebase app.
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<PreviewUser | null>(previewUser);
+  const [user, setUser] = useState<PreviewUser | null>(() => isSignedOutPreview() ? null : previewUser);
   const [profile, setProfile] = useState<AccountProfile | null>(initialPreviewProfile);
 
   const value = useMemo<AuthContextValue>(
@@ -80,9 +86,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
       initializing: false,
       async refreshUser() {},
-      async register(input) {
-        setUser({ ...previewUser, displayName: input.displayName, email: input.email });
-        setProfile(null);
+      async register(input, accountType) {
+        const nextUser = { ...previewUser, displayName: input.displayName, email: input.email };
+        setUser(nextUser);
+        setProfile({
+          uid: nextUser.uid,
+          accountType,
+          displayName: nextUser.displayName,
+          email: nextUser.email,
+        });
       },
       async requestReset() {},
       async resendVerification() {},
@@ -90,9 +102,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setUser({ ...previewUser, email: input.email });
         setProfile({ ...previewProfile, email: input.email });
       },
-      async signInGoogle() {
+      async signInGoogle(accountType) {
         setUser(previewUser);
-        setProfile(null);
+        setProfile((existingProfile) => existingProfile ?? {
+          ...previewProfile,
+          accountType: accountType ?? 'renter',
+        });
         return 'signed-in';
       },
       async signOut() {

@@ -12,20 +12,20 @@ import { PressableScale } from '@/components/pressable-scale';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
-const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-hero.png');
+const heroImage = require('../../../../assets/images/auth-prado-arrival.png');
 
 const choices = [
   {
     accountType: 'renter' as const,
-    description: 'Start with our Prado-led fleet, with other chauffeur-ready luxury options alongside it.',
+    description: 'Book chauffeur-driven cars.',
     icon: 'car-sport-outline' as const,
-    label: 'I want to rent',
+    label: 'Rent a car',
   },
   {
     accountType: 'owner' as const,
-    description: 'Apply to list a Prado or another approved luxury vehicle with MMG Concierge.',
+    description: 'Apply to list an approved vehicle.',
     icon: 'key-outline' as const,
-    label: 'I own a car',
+    label: 'List your car',
   },
 ];
 
@@ -81,10 +81,8 @@ export function AccountSetupScreen() {
         showsVerticalScrollIndicator={false}
         style={[styles.scrollView, { opacity, transform: [{ translateY: translate }] }]}
       >
-        <Text style={styles.title}>How will you use MMG?</Text>
-        <Text style={styles.body}>
-          Choose how you’ll use MMG. This cannot be changed in the app.
-        </Text>
+        <Text style={styles.title}>Choose account type.</Text>
+        <Text style={styles.body}>This choice is permanent.</Text>
 
         <View style={styles.choiceList}>
           {choices.map((choice) => {
@@ -116,12 +114,9 @@ export function AccountSetupScreen() {
         <PressableScale disabled={busy} onPress={() => void continueWithSelection()}>
           <View style={[styles.primaryButton, busy && styles.disabled]}>
             {busy ? <ActivityIndicator color={colors.black} /> : (
-              <>
-                <Text style={styles.primaryText}>
-                  Continue as {selection === 'renter' ? 'renter' : 'car owner'}
-                </Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={18} />
-              </>
+              <Text style={styles.primaryText}>
+                Continue as {selection === 'renter' ? 'renter' : 'car owner'}
+              </Text>
             )}
           </View>
         </PressableScale>

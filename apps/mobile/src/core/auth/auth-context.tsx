@@ -4,9 +4,10 @@ import type {
   EmailPasswordRegistration,
   EmailPasswordSignIn,
 } from '@mmg/contracts';
-import { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
+import { createContext, PropsWithChildren, useContext, useEffect, useRef, useState } from 'react';
 
 import { createAccountProfile, loadAccountProfile } from './account-profile';
+import { resolveRegistrationAccountProfile } from './account-profile-domain';
 import {
   getFriendlyAuthError,
   refreshCurrentUser,
@@ -29,11 +30,11 @@ type AuthContextValue = {
   profileLoadFailed: boolean;
   refreshUser(): Promise<void>;
   retryProfile(): Promise<void>;
-  register(input: EmailPasswordRegistration): Promise<void>;
+  register(input: EmailPasswordRegistration, accountType: AccountType): Promise<void>;
   requestReset(email: string): Promise<void>;
   resendVerification(): Promise<void>;
   signIn(input: EmailPasswordSignIn): Promise<void>;
-  signInGoogle(): Promise<GoogleSignInResult>;
+  signInGoogle(accountType?: AccountType): Promise<GoogleSignInResult>;
   signOut(): Promise<void>;
   user: User | null;
 };
@@ -47,12 +48,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [, setRefreshVersion] = useState(0);
+  const profileMutationVersion = useRef(0);
 
   useEffect(() => {
     let active = true;
     let requestVersion = 0;
     const unsubscribe = subscribeToAuthState((nextUser) => {
       const currentRequest = ++requestVersion;
+      const currentMutation = profileMutationVersion.current;
       if (!active) return;
 
       setUser(nextUser);
@@ -68,16 +71,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setProfileInitializing(true);
       void loadAccountProfile(nextUser.uid)
         .then((nextProfile) => {
-          if (active && currentRequest === requestVersion) setProfile(nextProfile);
+          if (
+            active
+            && currentRequest === requestVersion
+            && currentMutation === profileMutationVersion.current
+            && currentMutation % 2 === 0
+          ) setProfile(nextProfile);
         })
         .catch(() => {
-          if (active && currentRequest === requestVersion) {
+          if (
+            active
+            && currentRequest === requestVersion
+            && currentMutation === profileMutationVersion.current
+            && currentMutation % 2 === 0
+          ) {
             setProfile(null);
             setProfileLoadFailed(true);
           }
         })
         .finally(() => {
-          if (active && currentRequest === requestVersion) setProfileInitializing(false);
+          if (
+            active
+            && currentRequest === requestVersion
+            && currentMutation === profileMutationVersion.current
+            && currentMutation % 2 === 0
+          ) setProfileInitializing(false);
         });
     });
 
@@ -90,7 +108,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const value: AuthContextValue = {
     async completeAccountSetup(accountType) {
       if (!user) throw new Error('Sign in before choosing an account type.');
-      setProfile(await createAccountProfile(user, accountType));
+      profileMutationVersion.current += 1;
+      setProfileInitializing(true);
+      try {
+        const nextProfile = await createAccountProfile(user, accountType);
+        setProfile(nextProfile);
+        setProfileLoadFailed(false);
+      } finally {
+        profileMutationVersion.current += 1;
+        setProfileInitializing(false);
+      }
     },
     errorMessage: getFriendlyAuthError,
     initializing: authInitializing || profileInitializing,
@@ -101,7 +128,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setUser(nextUser ? (Object.assign(Object.create(Object.getPrototypeOf(nextUser)), nextUser) as User) : null);
       setRefreshVersion((version) => version + 1);
     },
-    register: registerWithEmailPassword,
+    async register(input, accountType) {
+      profileMutationVersion.current += 1;
+      setProfileInitializing(true);
+      try {
+        const nextUser = await registerWithEmailPassword(input);
+        const nextProfile = await createAccountProfile(nextUser, accountType);
+        setProfile(nextProfile);
+        setProfileLoadFailed(false);
+      } finally {
+        profileMutationVersion.current += 1;
+        setProfileInitializing(false);
+      }
+    },
     requestReset: requestPasswordReset,
     resendVerification: resendVerificationEmail,
     async retryProfile() {
@@ -117,7 +156,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     },
     signIn: signInWithEmailPassword,
-    signInGoogle: signInWithGoogle,
+    async signInGoogle(accountType) {
+      if (!accountType) {
+        const result = await signInWithGoogle();
+        return result.status;
+      }
+
+      profileMutationVersion.current += 1;
+      setProfileInitializing(true);
+      try {
+        const result = await signInWithGoogle();
+        if (result.status === 'cancelled') {
+          return 'cancelled';
+        }
+
+        const existingProfile = await loadAccountProfile(result.user.uid);
+        const nextProfile = await resolveRegistrationAccountProfile(
+          existingProfile,
+          () => createAccountProfile(result.user, accountType),
+        );
+        setProfile(nextProfile);
+        setProfileLoadFailed(false);
+        return 'signed-in';
+      } finally {
+        profileMutationVersion.current += 1;
+        setProfileInitializing(false);
+      }
+    },
     signOut: signOutCurrentUser,
     user,
   };

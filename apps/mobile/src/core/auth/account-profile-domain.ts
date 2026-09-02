@@ -11,6 +11,13 @@ export function decodeAccountProfile(value: unknown, expectedUid: string): Accou
   return profile;
 }
 
+export async function resolveRegistrationAccountProfile(
+  existingProfile: AccountProfile | null,
+  createSelectedProfile: () => Promise<AccountProfile>,
+): Promise<AccountProfile> {
+  return existingProfile ?? createSelectedProfile();
+}
+
 export type IdentityDestination = 'auth' | 'account-setup' | 'verify-email' | 'renter' | 'owner';
 
 export function resolveIdentityDestination(input: {

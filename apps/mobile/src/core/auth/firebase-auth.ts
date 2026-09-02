@@ -35,6 +35,9 @@ GoogleSignin.configure({
 const auth = getAuth();
 
 export type GoogleSignInResult = 'signed-in' | 'cancelled';
+export type GoogleProviderSignInResult =
+  | { status: 'signed-in'; user: User }
+  | { status: 'cancelled' };
 
 export function subscribeToAuthState(listener: (user: User | null) => void) {
   return onAuthStateChanged(auth, listener);
@@ -50,6 +53,7 @@ export async function registerWithEmailPassword(input: EmailPasswordRegistration
 
   await updateProfile(result.user, { displayName: credentials.displayName });
   await sendEmailVerification(result.user);
+  return result.user;
 }
 
 export async function signInWithEmailPassword(input: EmailPasswordSignIn) {
@@ -57,12 +61,12 @@ export async function signInWithEmailPassword(input: EmailPasswordSignIn) {
   await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
 }
 
-export async function signInWithGoogle(): Promise<GoogleSignInResult> {
+export async function signInWithGoogle(): Promise<GoogleProviderSignInResult> {
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
 
   if (!isSuccessResponse(response)) {
-    return 'cancelled';
+    return { status: 'cancelled' };
   }
 
   if (!response.data.idToken) {
@@ -70,8 +74,8 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
   }
 
   const credential = GoogleAuthProvider.credential(response.data.idToken);
-  await signInWithCredential(auth, credential);
-  return 'signed-in';
+  const result = await signInWithCredential(auth, credential);
+  return { status: 'signed-in', user: result.user };
 }
 
 export async function requestPasswordReset(email: string) {
