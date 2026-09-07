@@ -7,7 +7,10 @@ import type {
 import { createContext, PropsWithChildren, useContext, useEffect, useRef, useState } from 'react';
 
 import { createAccountProfile, loadAccountProfile } from './account-profile';
-import { resolveRegistrationAccountProfile } from './account-profile-domain';
+import {
+  resolveRegistrationAccountProfile,
+  shouldPublishAuthSnapshot,
+} from './account-profile-domain';
 import {
   getFriendlyAuthError,
   refreshCurrentUser,
@@ -58,16 +61,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const currentMutation = profileMutationVersion.current;
       if (!active) return;
 
+      if (!shouldPublishAuthSnapshot(currentMutation)) {
+        return;
+      }
+
       setUser(nextUser);
       setAuthInitializing(false);
       if (!nextUser) {
         setProfile(null);
         setProfileLoadFailed(false);
         setProfileInitializing(false);
-        return;
-      }
-
-      if (currentMutation % 2 !== 0) {
         return;
       }
 
@@ -79,7 +82,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             active
             && currentRequest === requestVersion
             && currentMutation === profileMutationVersion.current
-            && currentMutation % 2 === 0
+            && shouldPublishAuthSnapshot(currentMutation)
           ) setProfile(nextProfile);
         })
         .catch(() => {
@@ -87,7 +90,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             active
             && currentRequest === requestVersion
             && currentMutation === profileMutationVersion.current
-            && currentMutation % 2 === 0
+            && shouldPublishAuthSnapshot(currentMutation)
           ) {
             setProfile(null);
             setProfileLoadFailed(true);
@@ -98,7 +101,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             active
             && currentRequest === requestVersion
             && currentMutation === profileMutationVersion.current
-            && currentMutation % 2 === 0
+            && shouldPublishAuthSnapshot(currentMutation)
           ) setProfileInitializing(false);
         });
     });
@@ -137,6 +140,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const nextProfile = await createAccountProfile(nextUser, accountType);
         setProfile(nextProfile);
         setProfileLoadFailed(false);
+        setUser(nextUser);
+      } catch (error) {
+        await signOutCurrentUser();
+        setUser(null);
+        setProfile(null);
+        setProfileLoadFailed(false);
+        throw error;
       } finally {
         profileMutationVersion.current += 1;
       }
@@ -176,7 +186,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         );
         setProfile(nextProfile);
         setProfileLoadFailed(false);
+        setUser(result.user);
         return 'signed-in';
+      } catch (error) {
+        await signOutCurrentUser();
+        setUser(null);
+        setProfile(null);
+        setProfileLoadFailed(false);
+        throw error;
       } finally {
         profileMutationVersion.current += 1;
       }

@@ -4,6 +4,7 @@ import {
   decodeAccountProfile,
   resolveIdentityDestination,
   resolveRegistrationAccountProfile,
+  shouldPublishAuthSnapshot,
 } from './account-profile-domain';
 
 const renterProfile = {
@@ -50,5 +51,12 @@ describe('account profile routing', () => {
   it('creates the selected role only when no persisted profile exists', async () => {
     const result = await resolveRegistrationAccountProfile(null, async () => renterProfile);
     expect(result).toEqual(renterProfile);
+  });
+
+  it('does not publish auth snapshots while a profile mutation owns the transition', () => {
+    expect(shouldPublishAuthSnapshot(0)).toBe(true);
+    expect(shouldPublishAuthSnapshot(1)).toBe(false);
+    expect(shouldPublishAuthSnapshot(2)).toBe(true);
+    expect(shouldPublishAuthSnapshot(3)).toBe(false);
   });
 });
