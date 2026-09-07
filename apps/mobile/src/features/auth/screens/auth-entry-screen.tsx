@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import type { AccountType } from '@mmg/contracts';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState, type ComponentProps } from 'react';
@@ -43,9 +44,25 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
   const [entranceOpacity] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
   const [entranceTranslate] = useState(() => new Animated.Value(reduceMotion ? 0 : 16));
   const [formOpacity] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    let active = true;
+    if (Platform.OS !== 'ios') return () => { active = false; };
+
+    void AppleAuthentication.isAvailableAsync()
+      .then((available) => {
+        if (active) setAppleSignInAvailable(available);
+      })
+      .catch(() => {
+        if (active) setAppleSignInAvailable(false);
+      });
+
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -256,18 +273,16 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
           </View>
 
           <View style={styles.socialButtons}>
-            {Platform.OS === 'ios' ? (
-              <PressableScale
-                accessibilityLabel="Continue with Apple"
-                accessibilityRole="button"
-                disabled={busy}
-                onPress={() => void handleAppleSignIn()}
-              >
-                <View style={styles.appleButton}>
-                  <Ionicons color={colors.ivory} name="logo-apple" size={19} />
-                  <Text style={styles.appleButtonText}>Continue with Apple</Text>
-                </View>
-              </PressableScale>
+            {appleSignInAvailable ? (
+              <View pointerEvents={busy ? 'none' : 'auto'} style={busy ? styles.disabledButton : undefined}>
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                  cornerRadius={27}
+                  onPress={() => void handleAppleSignIn()}
+                  style={styles.appleButton}
+                />
+              </View>
             ) : null}
 
             <PressableScale
@@ -337,6 +352,7 @@ function FeedbackMessage({ kind, message }: { kind: 'error' | 'notice'; message:
 }
 
 const styles = StyleSheet.create({
+  appleButton: { height: 54, width: '100%' },
   disabledButton: { opacity: 0.66 },
   divider: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
   dividerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
@@ -390,17 +406,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
     lineHeight: 40,
   },
-  appleButton: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 54,
-  },
-  appleButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
   googleButton: {
     alignItems: 'center',
     borderColor: colors.lineStrong,
