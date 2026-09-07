@@ -7,7 +7,10 @@ import type {
 import { createContext, PropsWithChildren, useContext, useEffect, useRef, useState } from 'react';
 
 import { createAccountProfile, loadAccountProfile } from './account-profile';
-import { resolveRegistrationAccountProfile } from './account-profile-domain';
+import {
+  resolveRegistrationAccountProfile,
+  shouldPublishAuthSnapshot,
+} from './account-profile-domain';
 import {
   getFriendlyAuthError,
   refreshCurrentUser,
@@ -61,16 +64,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const currentMutation = profileMutationVersion.current;
       if (!active) return;
 
+      if (!shouldPublishAuthSnapshot(currentMutation)) return;
+
       setUser(nextUser);
       setAuthInitializing(false);
       if (!nextUser) {
         setProfile(null);
         setProfileLoadFailed(false);
         setProfileInitializing(false);
-        return;
-      }
-
-      if (currentMutation % 2 !== 0) {
         return;
       }
 
@@ -82,7 +83,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             active
             && currentRequest === requestVersion
             && currentMutation === profileMutationVersion.current
-            && currentMutation % 2 === 0
+            && shouldPublishAuthSnapshot(currentMutation)
           ) setProfile(nextProfile);
         })
         .catch(() => {
@@ -90,7 +91,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             active
             && currentRequest === requestVersion
             && currentMutation === profileMutationVersion.current
-            && currentMutation % 2 === 0
+            && shouldPublishAuthSnapshot(currentMutation)
           ) {
             setProfile(null);
             setProfileLoadFailed(true);
@@ -101,7 +102,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             active
             && currentRequest === requestVersion
             && currentMutation === profileMutationVersion.current
-            && currentMutation % 2 === 0
+            && shouldPublishAuthSnapshot(currentMutation)
           ) setProfileInitializing(false);
         });
     });
@@ -111,6 +112,35 @@ export function AuthProvider({ children }: PropsWithChildren) {
       unsubscribe();
     };
   }, []);
+
+  async function completeProviderRegistration(
+    accountType: AccountType,
+    signIn: () => Promise<{ status: 'cancelled' } | { status: 'signed-in'; user: User }>,
+  ): Promise<'signed-in' | 'cancelled'> {
+    profileMutationVersion.current += 1;
+    try {
+      const result = await signIn();
+      if (result.status === 'cancelled') return 'cancelled';
+
+      const existingProfile = await loadAccountProfile(result.user.uid);
+      const nextProfile = await resolveRegistrationAccountProfile(
+        existingProfile,
+        () => createAccountProfile(result.user, accountType),
+      );
+      setProfile(nextProfile);
+      setProfileLoadFailed(false);
+      setUser(result.user);
+      return 'signed-in';
+    } catch (error) {
+      await signOutCurrentUser();
+      setUser(null);
+      setProfile(null);
+      setProfileLoadFailed(false);
+      throw error;
+    } finally {
+      profileMutationVersion.current += 1;
+    }
+  }
 
   const value: AuthContextValue = {
     async completeAccountSetup(accountType) {
@@ -140,6 +170,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const nextProfile = await createAccountProfile(nextUser, accountType);
         setProfile(nextProfile);
         setProfileLoadFailed(false);
+        setUser(nextUser);
+      } catch (error) {
+        await signOutCurrentUser();
+        setUser(null);
+        setProfile(null);
+        setProfileLoadFailed(false);
+        throw error;
       } finally {
         profileMutationVersion.current += 1;
       }
@@ -164,50 +201,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const result = await signInWithApple();
         return result.status;
       }
-
-      profileMutationVersion.current += 1;
-      try {
-        const result = await signInWithApple();
-        if (result.status === 'cancelled') {
-          return 'cancelled';
-        }
-
-        const existingProfile = await loadAccountProfile(result.user.uid);
-        const nextProfile = await resolveRegistrationAccountProfile(
-          existingProfile,
-          () => createAccountProfile(result.user, accountType),
-        );
-        setProfile(nextProfile);
-        setProfileLoadFailed(false);
-        return 'signed-in';
-      } finally {
-        profileMutationVersion.current += 1;
-      }
+      return completeProviderRegistration(accountType, signInWithApple);
     },
     async signInGoogle(accountType) {
       if (!accountType) {
         const result = await signInWithGoogle();
         return result.status;
       }
-
-      profileMutationVersion.current += 1;
-      try {
-        const result = await signInWithGoogle();
-        if (result.status === 'cancelled') {
-          return 'cancelled';
-        }
-
-        const existingProfile = await loadAccountProfile(result.user.uid);
-        const nextProfile = await resolveRegistrationAccountProfile(
-          existingProfile,
-          () => createAccountProfile(result.user, accountType),
-        );
-        setProfile(nextProfile);
-        setProfileLoadFailed(false);
-        return 'signed-in';
-      } finally {
-        profileMutationVersion.current += 1;
-      }
+      return completeProviderRegistration(accountType, signInWithGoogle);
     },
     signOut: signOutCurrentUser,
     user,
