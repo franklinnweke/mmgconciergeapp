@@ -18,6 +18,10 @@ export async function resolveRegistrationAccountProfile(
   return existingProfile ?? createSelectedProfile();
 }
 
+export function shouldPublishAuthSnapshot(profileMutationVersion: number): boolean {
+  return profileMutationVersion % 2 === 0;
+}
+
 export type IdentityDestination = 'auth' | 'account-setup' | 'verify-email' | 'renter' | 'owner';
 
 export function resolveIdentityDestination(input: {
