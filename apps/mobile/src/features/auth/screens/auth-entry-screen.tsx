@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
+import type { AccountType } from '@mmg/contracts';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -16,59 +18,76 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
 type Mode = 'sign-in' | 'register';
 
-const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-hero.png');
+type AuthEntryScreenProps = {
+  accountType: AccountType | null;
+  initialMode: Mode;
+  onBack(): void;
+};
 
-export function AuthEntryScreen() {
+const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.jpg');
+
+export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryScreenProps) {
   const insets = useSafeAreaInsets();
   const auth = useAuth();
   const reduceMotion = useReducedMotion();
-  const [mode, setMode] = useState<Mode>('sign-in');
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [entranceOpacity] = useState(() => new Animated.Value(0));
-  const [entranceTranslate] = useState(() => new Animated.Value(20));
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
+  const [entranceOpacity] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
+  const [entranceTranslate] = useState(() => new Animated.Value(reduceMotion ? 0 : 16));
   const [formOpacity] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
-    if (reduceMotion) {
-      entranceOpacity.setValue(1);
-      entranceTranslate.setValue(0);
-      return;
-    }
+    let active = true;
+    if (Platform.OS !== 'ios') return () => { active = false; };
+
+    void AppleAuthentication.isAvailableAsync()
+      .then((available) => {
+        if (active) setAppleSignInAvailable(available);
+      })
+      .catch(() => {
+        if (active) setAppleSignInAvailable(false);
+      });
+
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) return;
     Animated.parallel([
       Animated.timing(entranceOpacity, {
-        duration: 560,
+        duration: 480,
         toValue: 1,
         useNativeDriver: true,
       }),
       Animated.spring(entranceTranslate, {
-        damping: 18,
-        stiffness: 90,
+        damping: 20,
+        stiffness: 95,
         toValue: 0,
         useNativeDriver: true,
       }),
     ]).start();
   }, [entranceOpacity, entranceTranslate, reduceMotion]);
 
-  function changeMode(nextMode: Mode) {
-    if (nextMode === mode || busy) return;
+  function showSignIn() {
+    if (mode === 'sign-in' || busy) return;
     setError(null);
     setNotice(null);
 
     if (reduceMotion) {
-      setMode(nextMode);
-      formOpacity.setValue(1);
+      setMode('sign-in');
       return;
     }
 
@@ -77,9 +96,9 @@ export function AuthEntryScreen() {
       toValue: 0,
       useNativeDriver: true,
     }).start(() => {
-      setMode(nextMode);
+      setMode('sign-in');
       Animated.timing(formOpacity, {
-        duration: 220,
+        duration: 200,
         toValue: 1,
         useNativeDriver: true,
       }).start();
@@ -102,16 +121,31 @@ export function AuthEntryScreen() {
   async function handlePrimaryAction() {
     await run(async () => {
       if (mode === 'register') {
-        await auth.register({ displayName, email, password });
+        if (!accountType) throw new Error('Choose how you will use MMG before registering.');
+        await auth.register({ displayName, email, password }, accountType);
+        onBack();
         return;
       }
       await auth.signIn({ email, password });
+      onBack();
+    });
+  }
+
+  async function handleAppleSignIn() {
+    await run(async () => {
+      const result = await auth.signInApple(
+        mode === 'register' ? accountType ?? undefined : undefined,
+      );
+      if (result === 'signed-in') onBack();
     });
   }
 
   async function handleGoogleSignIn() {
     await run(async () => {
-      await auth.signInGoogle();
+      const result = await auth.signInGoogle(
+        mode === 'register' ? accountType ?? undefined : undefined,
+      );
+      if (result === 'signed-in') onBack();
     });
   }
 
@@ -121,6 +155,12 @@ export function AuthEntryScreen() {
       setNotice('Password reset instructions are on the way.');
     });
   }
+
+  const title = mode === 'sign-in'
+    ? 'Welcome back.'
+    : accountType === 'owner'
+      ? 'Create an owner account.'
+      : 'Create a renter account.';
 
   return (
     <KeyboardAvoidingView
@@ -134,10 +174,15 @@ export function AuthEntryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
-          <Image contentFit="cover" source={heroImage} style={StyleSheet.absoluteFill} />
+          <Image
+            accessibilityLabel="Victoria Island traffic and modern architecture in Lagos"
+            contentFit="cover"
+            source={heroImage}
+            style={StyleSheet.absoluteFill}
+          />
           <LinearGradient
-            colors={['rgba(4,4,4,0.25)', 'rgba(4,4,4,0.15)', colors.black]}
-            locations={[0, 0.52, 1]}
+            colors={['rgba(4,4,4,0.18)', 'rgba(4,4,4,0.08)', colors.black]}
+            locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
           <Animated.View
@@ -145,44 +190,17 @@ export function AuthEntryScreen() {
               styles.heroContent,
               {
                 opacity: entranceOpacity,
-                paddingTop: insets.top + spacing.md,
+                paddingTop: insets.top + spacing.sm,
                 transform: [{ translateY: entranceTranslate }],
               },
             ]}
           >
-            <View style={styles.topBar}>
-              <BrandWordmark withLogo />
-            </View>
-            <View>
-              <Text style={styles.heroTitle}>Lagos, handled in a Prado.</Text>
-            </View>
+            <ScreenHeader onBack={onBack} />
           </Animated.View>
         </View>
 
         <Animated.View style={[styles.formSection, { opacity: formOpacity }]}>
-          <View style={styles.modeRail}>
-            <ModeButton
-              active={mode === 'sign-in'}
-              label="Sign in"
-              onPress={() => changeMode('sign-in')}
-            />
-            <ModeButton
-              active={mode === 'register'}
-              label="Create account"
-              onPress={() => changeMode('register')}
-            />
-          </View>
-
-          <View style={styles.headingBlock}>
-            <Text style={styles.formTitle}>
-              {mode === 'sign-in' ? 'Sign in to your account.' : 'Create your account.'}
-            </Text>
-            <Text style={styles.formBody}>
-              {mode === 'sign-in'
-                ? 'View your journeys and account details.'
-                : 'Start with your name, email, and password.'}
-            </Text>
-          </View>
+          <Text accessibilityRole="header" style={styles.formTitle}>{title}</Text>
 
           <View style={styles.fields}>
             {mode === 'register' ? (
@@ -230,12 +248,9 @@ export function AuthEntryScreen() {
               {busy ? (
                 <ActivityIndicator color={colors.black} />
               ) : (
-                <>
-                  <Text style={styles.primaryButtonText}>
-                    {mode === 'sign-in' ? 'Sign in' : 'Create account'}
-                  </Text>
-                  <Ionicons color={colors.black} name="arrow-forward" size={18} />
-                </>
+                <Text style={styles.primaryButtonText}>
+                  {mode === 'sign-in' ? 'Sign in' : 'Create account'}
+                </Text>
               )}
             </View>
           </PressableScale>
@@ -245,9 +260,9 @@ export function AuthEntryScreen() {
               accessibilityRole="button"
               disabled={busy}
               onPress={() => void handlePasswordReset()}
-              style={styles.forgotPressable}
+              style={styles.textAction}
             >
-              <Text style={styles.forgotText}>Forgot password?</Text>
+              <Text style={styles.textActionLabel}>Forgot password?</Text>
             </PressableScale>
           ) : null}
 
@@ -257,40 +272,51 @@ export function AuthEntryScreen() {
             <View style={styles.divider} />
           </View>
 
+          <View style={styles.socialButtons}>
+            {appleSignInAvailable ? (
+              <View pointerEvents={busy ? 'none' : 'auto'} style={busy ? styles.disabledButton : undefined}>
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                  cornerRadius={27}
+                  onPress={() => void handleAppleSignIn()}
+                  style={styles.appleButton}
+                />
+              </View>
+            ) : null}
+
+            <PressableScale
+              accessibilityLabel="Continue with Google"
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={() => void handleGoogleSignIn()}
+            >
+              <View style={styles.googleButton}>
+                <Ionicons color={colors.ivory} name="logo-google" size={18} />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </View>
+            </PressableScale>
+          </View>
+
           <PressableScale
-            accessibilityLabel="Continue with Google"
             accessibilityRole="button"
             disabled={busy}
-            onPress={() => void handleGoogleSignIn()}
+            onPress={mode === 'register' ? showSignIn : onBack}
+            style={styles.textAction}
           >
-            <View style={styles.googleButton}>
-              <Ionicons color={colors.ivory} name="logo-google" size={18} />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </View>
+            <Text style={styles.textActionLabel}>
+              {mode === 'register'
+                ? 'Already have an account? Sign in'
+                : 'New to MMG? Choose account type'}
+            </Text>
           </PressableScale>
-
-          <Text style={styles.termsText}>
-            By continuing, you agree to MMG Concierge’s Terms and acknowledge the Privacy Notice.
-          </Text>
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-type ModeButtonProps = { active: boolean; label: string; onPress(): void };
-
-function ModeButton({ active, label, onPress }: ModeButtonProps) {
-  return (
-    <PressableScale accessibilityRole="tab" onPress={onPress} style={styles.modeButtonShell}>
-      <View style={[styles.modeButton, active && styles.modeButtonActive]}>
-        <Text style={[styles.modeButtonText, active && styles.modeButtonTextActive]}>{label}</Text>
-      </View>
-    </PressableScale>
-  );
-}
-
-type AuthFieldProps = React.ComponentProps<typeof TextInput> & {
+type AuthFieldProps = ComponentProps<typeof TextInput> & {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
 };
@@ -326,6 +352,7 @@ function FeedbackMessage({ kind, message }: { kind: 'error' | 'notice'; message:
 }
 
 const styles = StyleSheet.create({
+  appleButton: { height: 54, width: '100%' },
   disabledButton: { opacity: 0.66 },
   divider: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
   dividerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
@@ -334,13 +361,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodySemiBold,
     fontSize: 11,
     letterSpacing: 1.8,
-  },
-  eyebrow: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 2.1,
-    marginBottom: spacing.xs,
   },
   feedbackRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   feedbackText: {
@@ -373,32 +393,18 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   fields: { gap: spacing.lg },
-  forgotPressable: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  forgotText: {
-    color: colors.gold,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-    paddingVertical: spacing.xs,
-    textAlign: 'center',
-  },
-  formBody: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: spacing.xs,
-  },
   formSection: {
     backgroundColor: colors.black,
     gap: spacing.lg,
-    paddingBottom: 52,
+    paddingBottom: 44,
     paddingHorizontal: spacing.lg,
   },
   formTitle: {
     color: colors.ivory,
     fontFamily: typography.display,
-    fontSize: 32,
-    letterSpacing: -0.6,
+    fontSize: 34,
+    letterSpacing: -0.7,
+    lineHeight: 40,
   },
   googleButton: {
     alignItems: 'center',
@@ -411,60 +417,25 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   googleButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  headingBlock: { marginTop: spacing.xs },
-  hero: { backgroundColor: colors.black, height: 310 },
-  heroContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingBottom: 42,
-    paddingHorizontal: spacing.lg,
-  },
-  heroTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 42,
-    letterSpacing: -1.1,
-    lineHeight: 45,
-    maxWidth: 330,
-  },
-  marketDot: { backgroundColor: colors.success, borderRadius: radii.pill, height: 5, width: 5 },
-  marketText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.4,
-  },
-  modeButton: { alignItems: 'center', borderRadius: radii.pill, justifyContent: 'center', minHeight: 44 },
-  modeButtonActive: { backgroundColor: colors.ivory },
-  modeButtonShell: { flex: 1 },
-  modeButtonText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
-  modeButtonTextActive: { color: colors.black, fontFamily: typography.bodySemiBold },
-  modeRail: {
-    backgroundColor: colors.graphite,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    marginTop: -20,
-    padding: 4,
-  },
+  hero: { backgroundColor: colors.black, height: 260 },
+  heroContent: { paddingHorizontal: spacing.lg },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
     borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
     justifyContent: 'center',
     minHeight: 56,
   },
   primaryButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   screen: { backgroundColor: colors.black, flex: 1 },
   scrollContent: { backgroundColor: colors.black, flexGrow: 1 },
-  termsText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 11,
-    lineHeight: 16,
-    paddingHorizontal: spacing.md,
+  socialButtons: { gap: spacing.sm },
+  textAction: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  textActionLabel: {
+    color: colors.gold,
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
+    paddingVertical: spacing.xs,
     textAlign: 'center',
   },
-  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
 });

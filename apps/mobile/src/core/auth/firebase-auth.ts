@@ -1,4 +1,5 @@
 import {
+  AppleAuthProvider,
   createUserWithEmailAndPassword,
   getAuth,
   getIdToken,
@@ -17,6 +18,8 @@ import {
   GoogleSignin,
   isSuccessResponse,
 } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import {
   emailAddressSchema,
   emailPasswordRegistrationSchema,
@@ -24,9 +27,16 @@ import {
   type EmailPasswordRegistration,
   type EmailPasswordSignIn,
 } from '@mmg/contracts';
+import Constants from 'expo-constants';
 
-const GOOGLE_WEB_CLIENT_ID =
-  '78068107398-scr9stknfvcan7jf412vuqbki8hptn8b.apps.googleusercontent.com';
+import {
+  formatAppleDisplayName,
+  isAppleSignInCancellation,
+  requireAppleIdentityToken,
+} from './apple-sign-in-domain';
+import { readGoogleWebClientId } from './google-sign-in-config';
+
+const GOOGLE_WEB_CLIENT_ID = readGoogleWebClientId(Constants.expoConfig?.extra);
 
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,
@@ -35,6 +45,14 @@ GoogleSignin.configure({
 const auth = getAuth();
 
 export type GoogleSignInResult = 'signed-in' | 'cancelled';
+export type GoogleProviderSignInResult =
+  | { status: 'signed-in'; user: User }
+  | { status: 'cancelled' };
+
+export type AppleSignInResult = 'signed-in' | 'cancelled';
+export type AppleProviderSignInResult =
+  | { status: 'signed-in'; user: User }
+  | { status: 'cancelled' };
 
 export function subscribeToAuthState(listener: (user: User | null) => void) {
   return onAuthStateChanged(auth, listener);
@@ -50,6 +68,7 @@ export async function registerWithEmailPassword(input: EmailPasswordRegistration
 
   await updateProfile(result.user, { displayName: credentials.displayName });
   await sendEmailVerification(result.user);
+  return result.user;
 }
 
 export async function signInWithEmailPassword(input: EmailPasswordSignIn) {
@@ -57,12 +76,12 @@ export async function signInWithEmailPassword(input: EmailPasswordSignIn) {
   await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
 }
 
-export async function signInWithGoogle(): Promise<GoogleSignInResult> {
+export async function signInWithGoogle(): Promise<GoogleProviderSignInResult> {
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
 
   if (!isSuccessResponse(response)) {
-    return 'cancelled';
+    return { status: 'cancelled' };
   }
 
   if (!response.data.idToken) {
@@ -70,8 +89,46 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
   }
 
   const credential = GoogleAuthProvider.credential(response.data.idToken);
-  await signInWithCredential(auth, credential);
-  return 'signed-in';
+  const result = await signInWithCredential(auth, credential);
+  return { status: 'signed-in', user: result.user };
+}
+
+export async function signInWithApple(): Promise<AppleProviderSignInResult> {
+  if (!await AppleAuthentication.isAvailableAsync()) {
+    throw new Error('Apple Sign-In is not available on this device.');
+  }
+
+  const rawNonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    rawNonce,
+  );
+
+  let appleCredential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    appleCredential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+  } catch (caught: unknown) {
+    if (isAppleSignInCancellation(caught)) return { status: 'cancelled' };
+    throw caught;
+  }
+
+  const identityToken = requireAppleIdentityToken(appleCredential.identityToken);
+  const credential = AppleAuthProvider.credential(identityToken, rawNonce);
+  const result = await signInWithCredential(auth, credential);
+  const fullName = formatAppleDisplayName(appleCredential.fullName);
+
+  if (fullName && !result.user.displayName) {
+    await updateProfile(result.user, { displayName: fullName });
+    await reload(result.user);
+  }
+
+  return { status: 'signed-in', user: result.user };
 }
 
 export async function requestPasswordReset(email: string) {
@@ -88,9 +145,7 @@ export async function resendVerificationEmail() {
 }
 
 export async function refreshCurrentUser(): Promise<User | null> {
-  if (!auth.currentUser) {
-    return null;
-  }
+  if (!auth.currentUser) return null;
 
   await reload(auth.currentUser);
   await getIdToken(auth.currentUser, true);
@@ -125,6 +180,10 @@ export function getFriendlyAuthError(error: unknown): string {
     'auth/invalid-verification-code': 'That code is incorrect. Try again.',
     'auth/invalid-phone-number': 'Enter a valid Nigerian mobile number.',
     'auth/credential-already-in-use': 'That phone number is already used by another account.',
+    'auth/account-exists-with-different-credential':
+      'An account already exists with this email. Sign in using your existing method.',
+    'auth/operation-not-allowed': 'This sign-in method is not enabled yet. Try another method.',
+    'auth/apple-sign-in-failed': 'Apple sign-in could not be completed. Try again.',
     'storage/unauthorized': 'The document could not be stored. Try again.',
   };
 
