@@ -27,6 +27,16 @@ describe('native Firebase environment selection', () => {
     expect(result).not.toContain('78068107398');
   });
 
+  it('runs idempotently when schemes are already present', () => {
+    const alreadyConfigured = `
+      <string>com.googleusercontent.apps.133019251795-ios-client</string>
+      <string>app-1-133019251795-ios-development-app</string>
+    `;
+    const result = updateGoogleUrlSchemes(alreadyConfigured, firebasePlist);
+    expect(result).toContain('com.googleusercontent.apps.133019251795-ios-client');
+    expect(result).toContain('app-1-133019251795-ios-development-app');
+  });
+
   it('fails closed when required values or replaceable schemes are absent', () => {
     expect(() => readPlistString('', 'GOOGLE_APP_ID')).toThrow('Missing GOOGLE_APP_ID');
     expect(() => updateGoogleUrlSchemes('<plist />', firebasePlist)).toThrow(

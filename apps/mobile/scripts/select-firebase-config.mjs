@@ -21,7 +21,7 @@ export function updateGoogleUrlSchemes(infoPlist, firebasePlist) {
   );
   const withAppIdScheme = withClientScheme.replace(/app-1-[^<]+/, appIdScheme);
 
-  if (withAppIdScheme === infoPlist) {
+  if (!withAppIdScheme.includes(reversedClientId) || !withAppIdScheme.includes(appIdScheme)) {
     throw new Error('Native iOS Google URL schemes were not updated.');
   }
   return withAppIdScheme;

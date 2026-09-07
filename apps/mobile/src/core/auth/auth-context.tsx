@@ -67,6 +67,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
 
+      if (currentMutation % 2 !== 0) {
+        return;
+      }
+
       setProfileLoadFailed(false);
       setProfileInitializing(true);
       void loadAccountProfile(nextUser.uid)
@@ -109,14 +113,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     async completeAccountSetup(accountType) {
       if (!user) throw new Error('Sign in before choosing an account type.');
       profileMutationVersion.current += 1;
-      setProfileInitializing(true);
       try {
         const nextProfile = await createAccountProfile(user, accountType);
         setProfile(nextProfile);
         setProfileLoadFailed(false);
       } finally {
         profileMutationVersion.current += 1;
-        setProfileInitializing(false);
       }
     },
     errorMessage: getFriendlyAuthError,
@@ -130,7 +132,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     },
     async register(input, accountType) {
       profileMutationVersion.current += 1;
-      setProfileInitializing(true);
       try {
         const nextUser = await registerWithEmailPassword(input);
         const nextProfile = await createAccountProfile(nextUser, accountType);
@@ -138,7 +139,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setProfileLoadFailed(false);
       } finally {
         profileMutationVersion.current += 1;
-        setProfileInitializing(false);
       }
     },
     requestReset: requestPasswordReset,
@@ -163,7 +163,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       profileMutationVersion.current += 1;
-      setProfileInitializing(true);
       try {
         const result = await signInWithGoogle();
         if (result.status === 'cancelled') {
@@ -180,7 +179,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return 'signed-in';
       } finally {
         profileMutationVersion.current += 1;
-        setProfileInitializing(false);
       }
     },
     signOut: signOutCurrentUser,
