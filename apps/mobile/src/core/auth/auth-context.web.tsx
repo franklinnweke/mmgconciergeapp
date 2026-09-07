@@ -28,6 +28,7 @@ type AuthContextValue = {
   requestReset(email: string): Promise<void>;
   resendVerification(): Promise<void>;
   signIn(input: EmailPasswordSignIn): Promise<void>;
+  signInApple(accountType?: AccountType): Promise<'signed-in' | 'cancelled'>;
   signInGoogle(accountType?: AccountType): Promise<'signed-in' | 'cancelled'>;
   signOut(): Promise<void>;
   user: PreviewUser | null;
@@ -101,6 +102,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       async signIn(input) {
         setUser({ ...previewUser, email: input.email });
         setProfile({ ...previewProfile, email: input.email });
+      },
+      async signInApple(accountType) {
+        setUser(previewUser);
+        setProfile((existingProfile) => existingProfile ?? {
+          ...previewProfile,
+          accountType: accountType ?? 'renter',
+        });
+        return 'signed-in';
       },
       async signInGoogle(accountType) {
         setUser(previewUser);

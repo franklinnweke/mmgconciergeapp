@@ -14,10 +14,12 @@ import {
   registerWithEmailPassword,
   requestPasswordReset,
   resendVerificationEmail,
+  signInWithApple,
   signInWithEmailPassword,
   signInWithGoogle,
   signOutCurrentUser,
   subscribeToAuthState,
+  type AppleSignInResult,
   type GoogleSignInResult,
   type User,
 } from './firebase-auth';
@@ -34,6 +36,7 @@ type AuthContextValue = {
   requestReset(email: string): Promise<void>;
   resendVerification(): Promise<void>;
   signIn(input: EmailPasswordSignIn): Promise<void>;
+  signInApple(accountType?: AccountType): Promise<AppleSignInResult>;
   signInGoogle(accountType?: AccountType): Promise<GoogleSignInResult>;
   signOut(): Promise<void>;
   user: User | null;
@@ -156,6 +159,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     },
     signIn: signInWithEmailPassword,
+    async signInApple(accountType) {
+      if (!accountType) {
+        const result = await signInWithApple();
+        return result.status;
+      }
+
+      profileMutationVersion.current += 1;
+      try {
+        const result = await signInWithApple();
+        if (result.status === 'cancelled') {
+          return 'cancelled';
+        }
+
+        const existingProfile = await loadAccountProfile(result.user.uid);
+        const nextProfile = await resolveRegistrationAccountProfile(
+          existingProfile,
+          () => createAccountProfile(result.user, accountType),
+        );
+        setProfile(nextProfile);
+        setProfileLoadFailed(false);
+        return 'signed-in';
+      } finally {
+        profileMutationVersion.current += 1;
+      }
+    },
     async signInGoogle(accountType) {
       if (!accountType) {
         const result = await signInWithGoogle();

@@ -114,6 +114,15 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
     });
   }
 
+  async function handleAppleSignIn() {
+    await run(async () => {
+      const result = await auth.signInApple(
+        mode === 'register' ? accountType ?? undefined : undefined,
+      );
+      if (result === 'signed-in') onBack();
+    });
+  }
+
   async function handleGoogleSignIn() {
     await run(async () => {
       const result = await auth.signInGoogle(
@@ -246,17 +255,33 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
             <View style={styles.divider} />
           </View>
 
-          <PressableScale
-            accessibilityLabel="Continue with Google"
-            accessibilityRole="button"
-            disabled={busy}
-            onPress={() => void handleGoogleSignIn()}
-          >
-            <View style={styles.googleButton}>
-              <Ionicons color={colors.ivory} name="logo-google" size={18} />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </View>
-          </PressableScale>
+          <View style={styles.socialButtons}>
+            {Platform.OS === 'ios' ? (
+              <PressableScale
+                accessibilityLabel="Continue with Apple"
+                accessibilityRole="button"
+                disabled={busy}
+                onPress={() => void handleAppleSignIn()}
+              >
+                <View style={styles.appleButton}>
+                  <Ionicons color={colors.ivory} name="logo-apple" size={19} />
+                  <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                </View>
+              </PressableScale>
+            ) : null}
+
+            <PressableScale
+              accessibilityLabel="Continue with Google"
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={() => void handleGoogleSignIn()}
+            >
+              <View style={styles.googleButton}>
+                <Ionicons color={colors.ivory} name="logo-google" size={18} />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </View>
+            </PressableScale>
+          </View>
 
           <PressableScale
             accessibilityRole="button"
@@ -365,6 +390,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
     lineHeight: 40,
   },
+  appleButton: {
+    alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    minHeight: 54,
+  },
+  appleButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
   googleButton: {
     alignItems: 'center',
     borderColor: colors.lineStrong,
@@ -388,6 +424,7 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   screen: { backgroundColor: colors.black, flex: 1 },
   scrollContent: { backgroundColor: colors.black, flexGrow: 1 },
+  socialButtons: { gap: spacing.sm },
   textAction: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   textActionLabel: {
     color: colors.gold,

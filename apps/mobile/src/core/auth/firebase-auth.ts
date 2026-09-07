@@ -1,4 +1,5 @@
 import {
+  AppleAuthProvider,
   createUserWithEmailAndPassword,
   getAuth,
   getIdToken,
@@ -17,6 +18,8 @@ import {
   GoogleSignin,
   isSuccessResponse,
 } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import {
   emailAddressSchema,
   emailPasswordRegistrationSchema,
@@ -38,6 +41,11 @@ const auth = getAuth();
 
 export type GoogleSignInResult = 'signed-in' | 'cancelled';
 export type GoogleProviderSignInResult =
+  | { status: 'signed-in'; user: User }
+  | { status: 'cancelled' };
+
+export type AppleSignInResult = 'signed-in' | 'cancelled';
+export type AppleProviderSignInResult =
   | { status: 'signed-in'; user: User }
   | { status: 'cancelled' };
 
@@ -77,6 +85,58 @@ export async function signInWithGoogle(): Promise<GoogleProviderSignInResult> {
 
   const credential = GoogleAuthProvider.credential(response.data.idToken);
   const result = await signInWithCredential(auth, credential);
+  return { status: 'signed-in', user: result.user };
+}
+
+export async function signInWithApple(): Promise<AppleProviderSignInResult> {
+  const isAvailable = await AppleAuthentication.isAvailableAsync();
+  if (!isAvailable) {
+    throw new Error('Apple Sign-In is not available on this device.');
+  }
+
+  const rawNonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    rawNonce,
+  );
+
+  let appleCredential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    appleCredential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+  } catch (caught: unknown) {
+    if (
+      caught
+      && typeof caught === 'object'
+      && 'code' in caught
+      && caught.code === 'ERR_REQUEST_CANCELED'
+    ) {
+      return { status: 'cancelled' };
+    }
+    throw caught;
+  }
+
+  if (!appleCredential.identityToken) {
+    throw new Error('Apple did not return an identity token. Please try again.');
+  }
+
+  const credential = AppleAuthProvider.credential(appleCredential.identityToken, rawNonce);
+  const result = await signInWithCredential(auth, credential);
+
+  const fullName = [
+    appleCredential.fullName?.givenName,
+    appleCredential.fullName?.familyName,
+  ].filter(Boolean).join(' ').trim();
+
+  if (fullName && !result.user.displayName) {
+    await updateProfile(result.user, { displayName: fullName });
+  }
+
   return { status: 'signed-in', user: result.user };
 }
 
@@ -131,6 +191,9 @@ export function getFriendlyAuthError(error: unknown): string {
     'auth/invalid-verification-code': 'That code is incorrect. Try again.',
     'auth/invalid-phone-number': 'Enter a valid Nigerian mobile number.',
     'auth/credential-already-in-use': 'That phone number is already used by another account.',
+    'auth/account-exists-with-different-credential':
+      'An account already exists with this email using another sign-in method.',
+    'auth/apple-sign-in-failed': 'Apple sign-in could not be completed. Try again.',
     'storage/unauthorized': 'The document could not be stored. Try again.',
   };
 
