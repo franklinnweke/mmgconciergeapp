@@ -15,7 +15,8 @@ MMG Concierge is a Lagos-first marketplace for chauffeured luxury-car rentals.
 - Production is never a development/test target.
 
 Current repository: `franklinnweke/mmgconciergeapp`.
-Current integration branch: `codex/apple-authentication`, based on the stabilized auth head `7d9314ff723d0a85ee6f5e6b982ffe6a868e5a3e` and merged with the Apple sign-in feature history.
+Current integration branch: `main`.
+Validated auth + Apple integration merged through PR #23 at `55ffd2c39b619d2779b6f5b93d87f1f929b2a603`.
 
 **Build invariant:** every EAS/TestFlight build must originate from `main`. Feature branches may be developed and validated, but they must be merged into `main` before any EAS build is created.
 
@@ -57,9 +58,7 @@ These safeguards are essential and must remain:
 7. Atomic paid-booking creation and availability conversion/reacquisition.
 8. Sentinel/block concurrency protection against double booking.
 9. Payment callback/browser return is UX only, never payment truth.
-10. A verified successful payment produces either:
-   - `paid_pending_owner`, or
-   - `paid_conflict` when a late payment collides with unavailable dates.
+10. A verified successful payment produces either `paid_pending_owner` or `paid_conflict` when a late payment collides with unavailable dates.
 11. Both real successful charges remain `payments.state = succeeded`, including the conflict case.
 12. Owner confirmation/rejection is separate from payment success.
 13. Owner rejection requires a reason, releases the paid interval and opens intervention.
@@ -76,14 +75,14 @@ Only show it after trusted R4 value delivery returns `paid_pending_owner`.
 
 R1-R5 already established the backend payment, concurrency and owner-response boundaries. Do not expand WP4 with new backend state machines, case subtypes, financial workflows, or generalized orchestration unless a concrete end-to-end blocker proves they are necessary.
 
-Validated checkpoints:
+Validated historical checkpoints remain:
 
 - R2 green at `67359ba`.
-- R3 green at `89f1b0c`; Storage Rules follow-up is 17/17 green.
+- R3 green at `89f1b0c`; Storage Rules follow-up 17/17 green.
 - R4 green at `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`; Functions emulator 329/329, focused R4 transactional tests 20/20.
-- R5 green at `2278ef43b4de379a4a90619a0e64bf931e288e3b`; final Functions emulator 366/366 across 45/45 files.
-- R6 checkout is green; final responsive/header integration head `5709745da4d26f7246978e542923a3660265641a` passed the repository gate with 630 passed / 80 skipped root tests and was merged through PR #20.
-- PR #20 merged normally into `main` at `d2c8d4537b107705cdb77dc7f1e57d367ecd96c5`, preserving the meaningful implementation history.
+- R5 green at `2278ef43b4de379a4a90619a0e64bf931e288e3b`; Functions emulator 366/366 across 45 files.
+- R6 responsive/header integration head `5709745da4d26f7246978e542923a3660265641a` passed the repository gate and was merged through PR #20.
+- PR #20 merged normally into `main` at `d2c8d4537b107705cdb77dc7f1e57d367ecd96c5`.
 
 ## 5. Current priority: one visible vertical journey
 
@@ -118,25 +117,37 @@ The renter path stays simple:
 
 For MVP intervention, manual operations are acceptable. Staff visibility is read-only for the first live desk. Staff must not inherit the fixture desk's owner confirm/reject controls. Owner booking response remains an owner responsibility.
 
-## 6. Development integration
+## 6. Current integration state
 
-Current auth integration state:
+Authentication is merged into `main` through PR #23.
 
-- stabilized auth routing head `7d9314ff723d0a85ee6f5e6b982ffe6a868e5a3e` prevents registration/profile mutations from publishing intermediate Firebase auth snapshots to the router;
-- failed registration/profile creation signs out any transient Firebase session and keeps the local auth form able to surface the error and preserve inputs;
+Validated before merge at feature head `e45ef8a610cdf71b66f4767ba383c57b88498c11`:
+
+- root Vitest: 89 passed, 12 skipped files; 642 passed, 80 skipped tests;
+- Functions unit tests: 36 passed, 9 skipped files; 323 passed, 43 skipped tests;
+- Admin tests: 10 passed files; 66 passed tests;
+- focused auth tests: 4 passed files; 15 passed tests;
+- mobile, Functions and Admin typecheck/lint passed;
+- `git diff --check` passed;
+- Firebase emulator/Rules suites were not rerun in the final auth validation because the available local JDK was 17; auth changes do not alter the previously validated booking/payment backend or Rules architecture.
+
+Current auth behavior:
+
+- registration/profile mutations do not publish intermediate Firebase auth snapshots to the router;
+- failed registration/profile creation signs out any transient Firebase session and keeps the local auth form able to surface errors and preserve inputs;
 - native Firebase environment selection is idempotent and development/production selection remains explicit;
 - Google authentication uses the Firebase-environment-matched web OAuth client;
 - Apple authentication uses a cryptographically random raw nonce, SHA-256 nonce sent to Apple, and the raw nonce for Firebase credential exchange;
-- Apple first-login name data is persisted to Firebase Auth when provided and reloaded before MMG profile creation;
+- Apple first-login name data is persisted to Firebase Auth when supplied and reloaded before MMG profile creation;
 - Apple cancellation is a clean cancellation, not a false error;
-- Apple uses Expo's native `AppleAuthenticationButton` rather than a custom imitation;
-- returning provider users preserve the persisted Firestore `accountType`; first-time role-specific registration creates the selected profile;
+- Apple uses Expo's native `AppleAuthenticationButton`;
+- returning provider users preserve persisted Firestore `accountType`; first-time role-specific registration creates the selected profile;
 - same-email cross-provider collisions remain explicit and are not automatically linked;
-- Apple Sign in with Apple capability/provider setup, private relay configuration and physical-device acceptance remain operator tasks before release sign-off;
-- Apple-authenticated account deletion must include Apple token revocation before public App Store release. Existing deletion-request UI alone does not complete that provider requirement;
+- Apple Sign in with Apple capability and the development Firebase provider are configured; private email relay remains pending operator domain verification before public launch;
+- Apple-authenticated account deletion must include Apple token revocation before public App Store release;
 - production `mmg-concierge` and live payment credentials remain untouched.
 
-Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Do not repeat that pattern. The next EAS/TestFlight build must be created only after the accepted auth work is merged into `main`.
+Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Do not repeat that pattern.
 
 The development-only payment configuration/deployment commands remain:
 
@@ -147,14 +158,11 @@ npm run firebase:deploy:booking-payment-dev
 
 The next gates are:
 
-1. Run the full repository gate on the Apple/auth integration branch.
-2. Configure Sign in with Apple only in the development Apple/Firebase environment and verify private-relay requirements.
-3. Merge the validated auth integration into `main`.
-4. Create the next TestFlight build from `main` only.
-5. On a physical iPhone, validate email, Google and Apple registration/sign-in/cancellation/session/error recovery.
-6. Connect the minimal authorized, masked, read-only staff booking/case desk.
-7. Prove one complete Paystack test journey across renter, owner and staff.
-8. Keep production `mmg-concierge` and live Paystack credentials untouched.
+1. Create the next development TestFlight build from `main` at or after `55ffd2c39b619d2779b6f5b93d87f1f929b2a603` only.
+2. On a physical iPhone, validate email, Google and Apple registration/sign-in/cancellation/session/error recovery.
+3. Connect the minimal authorized, masked, read-only staff booking/case desk.
+4. Prove one complete Paystack test journey across renter, owner and staff.
+5. Keep production `mmg-concierge` and live Paystack credentials untouched.
 
 ## 7. Validation discipline
 
