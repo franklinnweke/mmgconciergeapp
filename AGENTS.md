@@ -15,7 +15,9 @@ MMG Concierge is a Lagos-first marketplace for chauffeured luxury-car rentals.
 - Production is never a development/test target.
 
 Current repository: `franklinnweke/mmgconciergeapp`.
-Current branch: `codex/auth-role-first-refinement`, based on merged `main` at `4df5302`.
+Current integration branch: `codex/apple-authentication`, based on the stabilized auth head `7d9314ff723d0a85ee6f5e6b982ffe6a868e5a3e` and merged with the Apple sign-in feature history.
+
+**Build invariant:** every EAS/TestFlight build must originate from `main`. Feature branches may be developed and validated, but they must be merged into `main` before any EAS build is created.
 
 ## 2. Locked product rules
 
@@ -28,6 +30,8 @@ Current branch: `codex/auth-role-first-refinement`, based on merged `main` at `4
 - Only approved, active, discoverable vehicles are renter-visible.
 - Signed-out onboarding asks renter versus owner intent before registration. Existing sign-in remains universal, and an existing Firestore `accountType` always wins over entry-path intent.
 - Normal registration creates the selected immutable account profile directly. The post-auth account-type chooser is recovery-only for legacy authenticated users whose profile is missing.
+- Email/password, Google and Apple are authentication entry methods only. They do not bypass renter phone/address requirements, owner phone/ID/verification, booking/payment authority, or staff authorization.
+- Cross-provider account collisions fail safely and direct the user to their existing sign-in method. Do not silently create or merge MMG identities.
 
 Canonical admin roles are exactly:
 
@@ -80,14 +84,14 @@ Validated checkpoints:
 - R5 green at `2278ef43b4de379a4a90619a0e64bf931e288e3b`; final Functions emulator 366/366 across 45/45 files.
 - R6 checkout is green; final responsive/header integration head `5709745da4d26f7246978e542923a3660265641a` passed the repository gate with 630 passed / 80 skipped root tests and was merged through PR #20.
 - PR #20 merged normally into `main` at `d2c8d4537b107705cdb77dc7f1e57d367ecd96c5`, preserving the meaningful implementation history.
-- No R1-R6 validation configured a Paystack secret, made a real Paystack request, deployed the WP4 payment Functions or touched production.
 
 ## 5. Current priority: one visible vertical journey
 
 Do not create another WP4 architecture slice before this works visibly:
 
 ```text
-Find vehicle
+Authenticate with email, Google or Apple
+  -> Find vehicle
   -> select dates
   -> receive authoritative held quote
   -> Pay with Paystack test mode
@@ -96,7 +100,7 @@ Find vehicle
   -> booking appears in renter Trips
   -> booking appears for owner
   -> owner confirms OR rejects with reason
-  -> admin can see rejected/conflicted payment case
+  -> authorized staff can see masked rejected/conflicted booking or case data
 ```
 
 The renter path stays simple:
@@ -112,65 +116,45 @@ The renter path stays simple:
 - abandoned, failed and expired-hold states remain truthful and recoverable;
 - CTA buttons do not use decorative arrows.
 
-For MVP intervention, manual operations are acceptable. Staff can inspect the case and contact the renter. Do not implement automated replacement negotiation, top-ups, partial refunds or complex sourcing/resolution flows before real-user testing.
+For MVP intervention, manual operations are acceptable. Staff visibility is read-only for the first live desk. Staff must not inherit the fixture desk's owner confirm/reject controls. Owner booking response remains an owner responsibility.
 
 ## 6. Development integration
 
-Active build branch: `codex/auth-role-first-refinement`.
+Current auth integration state:
 
-Current state:
+- stabilized auth routing head `7d9314ff723d0a85ee6f5e6b982ffe6a868e5a3e` prevents registration/profile mutations from publishing intermediate Firebase auth snapshots to the router;
+- failed registration/profile creation signs out any transient Firebase session and keeps the local auth form able to surface the error and preserve inputs;
+- native Firebase environment selection is idempotent and development/production selection remains explicit;
+- Google authentication uses the Firebase-environment-matched web OAuth client;
+- Apple authentication uses a cryptographically random raw nonce, SHA-256 nonce sent to Apple, and the raw nonce for Firebase credential exchange;
+- Apple first-login name data is persisted to Firebase Auth when provided and reloaded before MMG profile creation;
+- Apple cancellation is a clean cancellation, not a false error;
+- Apple uses Expo's native `AppleAuthenticationButton` rather than a custom imitation;
+- returning provider users preserve the persisted Firestore `accountType`; first-time role-specific registration creates the selected profile;
+- same-email cross-provider collisions remain explicit and are not automatically linked;
+- Apple Sign in with Apple capability/provider setup, private relay configuration and physical-device acceptance remain operator tasks before release sign-off;
+- Apple-authenticated account deletion must include Apple token revocation before public App Store release. Existing deletion-request UI alone does not complete that provider requirement;
+- production `mmg-concierge` and live payment credentials remain untouched.
 
-- integration-prep commit `7c885fe75d59d0e2b97c90ba5f9c76a42f6d0548` is validated green with a clean working tree;
-- root Vitest: 86 files passed, 12 skipped; 630 tests passed, 80 skipped;
-- mobile typecheck and lint passed;
-- Functions typecheck and build passed;
-- admin typecheck, lint and 66 tests passed;
-- `git diff --check` passed;
-- merged code already defines `PAYSTACK_SECRET_KEY` with Firebase `defineSecret()` and binds it only to the payment Functions that require it;
-- the Paystack adapter is hard-locked to `requiredEnvironment: 'test'`, so a live secret fails closed;
-- payment initialization, webhook ingestion, independent verification, R4 value delivery and trusted reconciliation are already implemented;
-- no callback relay is required for the first native smoke: browser return is UX-only and the app reconciles trusted state after foreground return or explicit status check;
-- `PAYSTACK_SECRET_KEY` version 1 is enabled in Secret Manager for `mmg-concierge-dev`; its value was not read or logged during deployment;
-- the ignored plaintext `apps/functions/.env` contained only the conflicting legacy `PAYSTACK_SECRET_KEY` entry and was removed after Secret Manager configuration;
-- the seven scoped WP4 Functions are deployed in `africa-south1`: `createBookingIntent`, `initializeBookingPayment`, `paystackWebhook`, `processPaystackPaymentEvent`, `reconcilePayment`, `confirmBooking`, and `rejectBooking`;
-- `processPaystackPaymentEvent` has retry-on-failure enabled and relies on the validated durable event deduplication/idempotency boundary;
-- the development webhook is `https://africa-south1-mmg-concierge-dev.cloudfunctions.net/paystackWebhook`;
-- an unsigned empty webhook smoke request reached the deployed endpoint and failed closed with `401 Invalid signature`;
-- the Firebase inventory now reports 26 deployed Functions; production `mmg-concierge`, Rules, Storage, Auth and Hosting were untouched.
-- EAS iOS build 17 failed before Xcode compilation because Metro could not resolve `./index.js` from the TypeScript contracts subpaths;
-- the contracts discovery, booking-case and payment subpaths now resolve shared schemas through the `@mmg/contracts` package export instead of a literal sibling `.js` path;
-- the repaired development configuration completed a local iOS Metro export: 1,936 modules bundled into a 5.2 MB Hermes bundle;
-- the post-repair repository gate remained green at 630 passed / 80 skipped root tests plus 66/66 Admin tests;
-- the signed-out flow is now role-first: renter/owner registration creates the selected profile without a second chooser, while universal sign-in preserves any existing persisted role;
-- the auth surface removes the previous slogan, mode rail, helper paragraph, terms filler and decorative CTA arrows;
-- the auth refinement passed 632 root tests / 80 skipped, mobile typecheck and lint, Functions typecheck/build, Admin typecheck/lint and 66/66 tests, plus `git diff --check`;
-- responsive rendered checks passed at 390 px and 320 px for role choice, renter registration and universal sign-in; the iOS Metro export bundled 1,938 modules into a 5.3 MB Hermes bundle.
-- TestFlight build 20 exposed a real OAuth mismatch and is superseded: it could open Google's account chooser, but the development build's JavaScript still used the production web OAuth client;
-- Firebase selection is now deterministic across layers: EAS prebuild receives the selected plist/JSON and matching derived web OAuth client from `app.config.js`; local native runs select the same plist/JSON plus iOS callback schemes before compilation;
-- development and production selection were both exercised and switched back to development; the auth fix passed 637 root tests / 80 skipped, the full repository gate, and a 1,939-module / 5.3 MB development iOS Hermes export;
-- authentication now uses a real Victoria Island, Lagos photograph by Onaopemipo Oladipupo under the Unsplash License; the generated auth asset was removed and the source/crop attribution is tracked beside the image;
-- the next TestFlight build must be created after this auth-environment correction and is the first candidate for real Google and email/password device verification.
+Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Do not repeat that pattern. The next EAS/TestFlight build must be created only after the accepted auth work is merged into `main`.
 
-The development-only configuration/deployment commands are:
+The development-only payment configuration/deployment commands remain:
 
 ```bash
 npm run firebase:paystack:secret:dev
 npm run firebase:deploy:booking-payment-dev
 ```
 
-The deployment command is deliberately pinned to `mmg-concierge-dev` and deploys only the current booking/payment journey surface: `createBookingIntent`, `initializeBookingPayment`, `paystackWebhook`, `processPaystackPaymentEvent`, `reconcilePayment`, `confirmBooking`, and `rejectBooking`.
+The next gates are:
 
-The next gate is product integration, not another code slice:
-
-1. Configure the exact deployed `paystackWebhook` URL above as the Paystack **test-mode** webhook URL.
-2. Complete one native iOS or Android dev-build checkout.
-3. Confirm the sandbox webhook reaches development Firebase.
-4. Confirm one trusted paid outcome is created exactly once.
-5. Confirm renter and owner both see the resulting booking.
-6. Confirm owner confirm/reject works against that exact record.
-7. Confirm rejected/paid-conflict cases are visible to staff/admin for manual handling.
-8. Confirm callback/browser return without trusted provider success creates zero value.
-9. Keep `mmg-concierge` production and live Paystack credentials untouched.
+1. Run the full repository gate on the Apple/auth integration branch.
+2. Configure Sign in with Apple only in the development Apple/Firebase environment and verify private-relay requirements.
+3. Merge the validated auth integration into `main`.
+4. Create the next TestFlight build from `main` only.
+5. On a physical iPhone, validate email, Google and Apple registration/sign-in/cancellation/session/error recovery.
+6. Connect the minimal authorized, masked, read-only staff booking/case desk.
+7. Prove one complete Paystack test journey across renter, owner and staff.
+8. Keep production `mmg-concierge` and live Paystack credentials untouched.
 
 ## 7. Validation discipline
 
@@ -196,6 +180,8 @@ git diff --check
 ```
 
 Firebase Emulator Suite requires Java 21+. Temurin 25 is known-good.
+
+**Build gate:** never run `eas build` from a feature branch. After the full gate and any required native acceptance prerequisites pass, merge into `main`, verify the exact `main` SHA, then build from that SHA.
 
 ## 8. Engineering rules
 
@@ -224,6 +210,6 @@ Do not require an `AGENTS.md` edit in every implementation commit. Do not create
 
 ## 10. Definition of done for the current phase
 
-The current phase is done when a real human can use a development build and complete the core journey with Paystack test mode, and the resulting trusted booking is visible to renter, owner and staff where applicable.
+The current phase is done when a real human can use a development build created from `main` and complete the core journey with Paystack test mode, and the resulting trusted booking is visible to renter, owner and authorized staff where applicable.
 
 Only after that should the project expand automated intervention/refund machinery, WP5 chat/FCM, WP6 wallet/ledger or other future operational layers.
