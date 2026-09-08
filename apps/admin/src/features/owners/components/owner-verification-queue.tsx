@@ -1,48 +1,44 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type { OwnerVerificationStatus } from '@mmg/contracts';
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  FileText,
-  UserCheck,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
 
+import { AdminOperationsShell } from '@/components/admin-operations-shell';
 import type { OwnerVerificationListItem } from '../domain/types';
 
 export type OwnerVerificationQueueProps = {
   items: OwnerVerificationListItem[];
-  /** True when the server has at least one further page after `items`. */
   hasMore?: boolean;
-  /** Cursor for the next page, or null on the last page. */
   nextCursor?: string | null;
-  /** False once the operator has paged forward at least once. */
   isFirstPage?: boolean;
   staffEmail?: string;
   staffRole?: string;
 };
 
-const STATUS_CONFIG: Record<
-  OwnerVerificationStatus,
-  { label: string; text: string; icon: typeof CheckCircle2 }
-> = {
-  draft: { label: 'Draft', text: '#9AA0A6', icon: FileText },
-  submitted: { label: 'Submitted', text: '#EAB308', icon: Clock },
-  under_review: { label: 'Under Review', text: '#60A5FA', icon: UserCheck },
-  approved: { label: 'Approved', text: '#4ADE80', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', text: '#F87171', icon: XCircle },
-  suspended: { label: 'Suspended', text: '#FB923C', icon: AlertTriangle },
-  revoked: { label: 'Revoked', text: '#EF4444', icon: XCircle },
-};
+const FILTERS: Array<{ id: OwnerVerificationStatus | 'all'; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'submitted', label: 'Submitted' },
+  { id: 'under_review', label: 'Under review' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'rejected', label: 'Rejected' },
+  { id: 'suspended', label: 'Suspended' },
+  { id: 'revoked', label: 'Revoked' },
+  { id: 'draft', label: 'Draft' },
+];
+
+function statusClass(status: OwnerVerificationStatus) {
+  if (status === 'approved') return 'green';
+  if (status === 'rejected' || status === 'revoked') return 'red';
+  if (status === 'under_review') return 'blue';
+  if (status === 'submitted' || status === 'suspended') return 'gold';
+  return 'muted';
+}
+
+function statusLabel(status: OwnerVerificationStatus) {
+  return status.replaceAll('_', ' ');
+}
 
 export function OwnerVerificationQueue({
   items,
@@ -52,408 +48,116 @@ export function OwnerVerificationQueue({
   staffEmail,
   staffRole,
 }: OwnerVerificationQueueProps) {
-  const router = useRouter();
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<OwnerVerificationStatus | 'all'>('all');
 
-  const counts: Record<string, number> = {
-    all: items.length,
-    submitted: items.filter((i) => i.status === 'submitted').length,
-    under_review: items.filter((i) => i.status === 'under_review').length,
-    approved: items.filter((i) => i.status === 'approved').length,
-    rejected: items.filter((i) => i.status === 'rejected').length,
-    suspended: items.filter((i) => i.status === 'suspended').length,
-    revoked: items.filter((i) => i.status === 'revoked').length,
-    draft: items.filter((i) => i.status === 'draft').length,
-  };
+  const counts = Object.fromEntries(
+    FILTERS.map((filter) => [
+      filter.id,
+      filter.id === 'all' ? items.length : items.filter((item) => item.status === filter.id).length,
+    ]),
+  );
 
   const filteredItems = items.filter((item) => {
-    if (selectedStatus !== 'all' && item.status !== selectedStatus) {
-      return false;
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const matchName = item.legalName.toLowerCase().includes(q);
-      const matchEmail = item.emailMasked.toLowerCase().includes(q);
-      const matchPhone = item.phoneMasked?.toLowerCase().includes(q);
-      const matchArea = item.areaLabel?.toLowerCase().includes(q);
-      const matchId = item.ownerId.toLowerCase().includes(q);
-      return matchName || matchEmail || matchPhone || matchArea || matchId;
-    }
-    return true;
+    if (selectedStatus !== 'all' && item.status !== selectedStatus) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [item.legalName, item.emailMasked, item.phoneMasked ?? '', item.areaLabel ?? '', item.ownerId]
+      .some((value) => value.toLowerCase().includes(q));
   });
 
-  const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/sign-in');
-    router.refresh();
-  };
+  const submittedCount = items.filter((item) => item.status === 'submitted').length;
+  const reviewCount = items.filter((item) => item.status === 'under_review').length;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
-      {/* Top Header */}
-      <header style={{ borderBottom: '1px solid #1E232E', backgroundColor: '#101318', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
-        <nav aria-label="Operations navigation" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <Link href="/" style={{ fontSize: '13px', fontWeight: '500', color: '#8E95A3', textDecoration: 'none', padding: '0 12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', borderRadius: '6px' }}>Bookings</Link>
-            <Link
-              href="/vehicles"
-              style={{
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#8E95A3',
-                textDecoration: 'none',
-                padding: '0 12px',
-                minHeight: '44px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderRadius: '6px',
-              }}
+    <AdminOperationsShell
+      activeSection="owners"
+      eyebrow="OWNER OPERATIONS"
+      headerMeta={(
+        <>
+          <strong>{staffEmail || 'Staff operator'}</strong>
+          <span>{(staffRole || 'verification_admin').replaceAll('_', ' ')}</span>
+        </>
+      )}
+      staffEmail={staffEmail}
+      staffRole={staffRole}
+      title="Owner verification"
+    >
+      <section className="admin-summary-row" aria-label="Owner verification summary">
+        <div className="admin-summary-item"><span>Loaded</span><strong>{items.length}</strong></div>
+        <div className="admin-summary-item"><span>Submitted</span><strong>{submittedCount}</strong></div>
+        <div className="admin-summary-item"><span>Under review</span><strong>{reviewCount}</strong></div>
+      </section>
+
+      <div className="admin-toolbar">
+        <div className="admin-filter-group" aria-label="Owner status filters">
+          {FILTERS.map((filter) => (
+            <button
+              className="admin-filter-button"
+              data-active={selectedStatus === filter.id}
+              key={filter.id}
+              onClick={() => setSelectedStatus(filter.id)}
+              type="button"
             >
-                Vehicles
-            </Link>
-            <Link
-              href="/owners"
-              aria-current="page"
-              style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                color: '#F3F4F6',
-                textDecoration: 'none',
-                padding: '0 12px',
-                minHeight: '44px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderRadius: '6px',
-                backgroundColor: '#181D26',
-              }}
-            >
-              Owners
-            </Link>
-        </nav>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#F3F4F6' }}>
-              {staffEmail || 'Staff Operator'}
-            </div>
-            <div style={{ fontSize: '12px', color: '#7E8695' }}>{staffRole || 'verification_admin'}</div>
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: '#181D26',
-              border: '1px solid #282F3D',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              color: '#A0A8B8',
-              fontSize: '12px',
-              minHeight: '44px',
-              cursor: 'pointer',
-            }}
-          >
-            <LogOut size={14} />
-            <span>Sign Out</span>
-          </button>
+              {filter.label}<span className="admin-filter-count">{counts[filter.id] ?? 0}</span>
+            </button>
+          ))}
         </div>
-      </header>
+        <label className="admin-search">
+          <Search size={15} />
+          <span className="sr-only">Search owners</span>
+          <input
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search owner, email or area"
+            type="search"
+            value={search}
+          />
+        </label>
+      </div>
 
-      {/* Main Container */}
-      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 24px' }}>
-        {/* Page Title & Search */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '24px',
-            flexWrap: 'wrap',
-            gap: '16px',
-          }}
-        >
-          <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '700', letterSpacing: '-0.02em', margin: 0 }}>
-              Owner verification
-            </h1>
-          </div>
-
-          <div style={{ position: 'relative', width: '320px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#636A78' }} />
-            <input
-              type="text"
-              placeholder="Search by name, email, phone, or area..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px 10px 36px',
-                backgroundColor: '#12151B',
-                border: '1px solid #232936',
-                borderRadius: '8px',
-                color: '#F3F4F6',
-                fontSize: '13px',
-                minHeight: '44px',
-                outline: 'none',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Filter Pills */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'submitted', label: 'Submitted' },
-            { id: 'under_review', label: 'Under Review' },
-            { id: 'approved', label: 'Approved' },
-            { id: 'rejected', label: 'Rejected' },
-            { id: 'suspended', label: 'Suspended' },
-            { id: 'revoked', label: 'Revoked' },
-            { id: 'draft', label: 'Draft' },
-          ].map((tab) => {
-            const isSelected = selectedStatus === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedStatus(tab.id as OwnerVerificationStatus | 'all')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 14px',
-                  minHeight: '44px',
-                  borderRadius: '6px',
-                  border: isSelected ? '1px solid #C89D46' : '1px solid #232936',
-                  backgroundColor: isSelected ? 'rgba(200, 157, 70, 0.15)' : '#12151B',
-                  color: isSelected ? '#C89D46' : '#8E95A3',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span>{tab.label}</span>
-                <span
-                  style={{
-                    backgroundColor: isSelected ? '#C89D46' : '#1E232E',
-                    color: isSelected ? '#090A0C' : '#8E95A3',
-                    padding: '1px 6px',
-                    borderRadius: '10px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                  }}
-                >
-                  {counts[tab.id] || 0}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Verification Queue Table */}
-        <div
-          style={{
-            backgroundColor: '#12151B',
-            border: '1px solid #1E232E',
-            borderRadius: '12px',
-            overflowX: 'auto',
-          }}
-        >
-            <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #1E232E', backgroundColor: '#161A22', color: '#8E95A3' }}>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Owner / Identity
-                </th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Lagos Location
-                </th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Status
-                </th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Submitted At
-                </th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Updated
-                </th>
-                <th style={{ padding: '14px 20px', textAlign: 'right', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Action
-                </th>
+      <div className="admin-table-panel">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Owner</th>
+              <th>Area</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th>Updated</th>
+              <th aria-label="Action" />
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.length === 0 ? (
+              <tr><td className="admin-empty" colSpan={6}>No owner applications match the current filters.</td></tr>
+            ) : filteredItems.map((item) => (
+              <tr key={item.ownerId}>
+                <td>
+                  <div className="admin-primary">{item.legalName}</div>
+                  <div className="admin-secondary">{item.emailMasked}{item.phoneMasked ? ` · ${item.phoneMasked}` : ''}</div>
+                </td>
+                <td>{item.areaLabel || 'Lagos'}</td>
+                <td><span className={`admin-status ${statusClass(item.status)}`}>{statusLabel(item.status)}</span></td>
+                <td>{item.submittedAt ? new Date(item.submittedAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                <td>{new Date(item.updatedAt).toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <Link className="admin-action-link" href={`/owners/${item.ownerId}`}>Inspect<ChevronRight size={14} /></Link>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: '48px 20px', textAlign: 'center', color: '#636A78' }}>
-                    No owner verification records found matching your filters.
-                  </td>
-                </tr>
-              ) : (
-                filteredItems.map((item) => {
-                  const statusInfo = STATUS_CONFIG[item.status] || STATUS_CONFIG.draft;
-                  const StatusIcon = statusInfo.icon;
-                  const formattedSubmitted = item.submittedAt
-                    ? new Date(item.submittedAt).toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })
-                    : '—';
-                  const formattedUpdated = new Date(item.updatedAt).toLocaleDateString('en-GB', {
-                    day: 'numeric',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-                  return (
-                    <tr
-                      key={item.ownerId}
-                      style={{
-                        borderBottom: '1px solid #1A1F29',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                    >
-                      <td style={{ padding: '16px 20px' }}>
-                        <div style={{ fontWeight: '600', color: '#FFFFFF' }}>{item.legalName}</div>
-                        <div style={{ fontSize: '12px', color: '#8E95A3' }}>{item.emailMasked}</div>
-                        {item.phoneMasked && (
-                          <div style={{ fontSize: '12px', color: '#C89D46', fontFamily: 'monospace', marginTop: '2px' }}>
-                            {item.phoneMasked}
-                          </div>
-                        )}
-                      </td>
-
-                      <td style={{ padding: '16px 20px', color: '#C5C9D3' }}>
-                        {item.areaLabel || 'Lagos, Nigeria'}
-                      </td>
-
-                      <td style={{ padding: '16px 20px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            padding: '0',
-                            color: statusInfo.text,
-                            fontSize: '12px',
-                            fontWeight: '600',
-                          }}
-                        >
-                          <StatusIcon size={12} />
-                          <span>{statusInfo.label}</span>
-                        </span>
-                      </td>
-
-                      <td style={{ padding: '16px 20px', color: '#A0A8B8', fontSize: '12px' }}>
-                        {formattedSubmitted}
-                      </td>
-
-                      <td style={{ padding: '16px 20px', color: '#7E8695', fontSize: '12px' }}>
-                        {formattedUpdated}
-                      </td>
-
-                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                        <Link
-                          href={`/owners/${item.ownerId}`}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            backgroundColor: '#1E232E',
-                            color: '#F3F4F6',
-                            border: '1px solid #2B3242',
-                            padding: '0 14px',
-                            minHeight: '44px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            textDecoration: 'none',
-                          }}
-                        >
-                          <span>Inspect</span>
-                          <ChevronRight size={14} />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      <div className="admin-pagination">
+        <span>
+          Showing {filteredItems.length} of {items.length} loaded applications{hasMore ? '. Filters cover this page only.' : '.'}
+        </span>
+        <div className="admin-pagination-actions">
+          {!isFirstPage ? <Link className="admin-page-link" href="/owners"><ChevronLeft size={14} />Newest</Link> : null}
+          {hasMore && nextCursor ? <Link className="admin-page-link" href={`/owners?cursor=${encodeURIComponent(nextCursor)}`}>Older<ChevronRight size={14} /></Link> : null}
         </div>
-
-        {/* Pagination — counts, search, and filters above apply to the loaded
-            page only, so say so rather than implying a whole-collection view. */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            marginTop: '16px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <p style={{ fontSize: '12px', color: '#7E8695', margin: 0 }}>
-            Showing {items.length} {items.length === 1 ? 'application' : 'applications'}
-            {hasMore ? ' on this page. Counts and search cover the loaded page only.' : '.'}
-          </p>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {!isFirstPage && (
-              <Link
-                href="/owners"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: '#12151B',
-                  color: '#A0A8B8',
-                  border: '1px solid #232936',
-                  padding: '8px 14px',
-                  minHeight: '44px',
-                  justifyContent: 'center',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  textDecoration: 'none',
-                }}
-              >
-                <ChevronLeft size={14} />
-                <span>Newest</span>
-              </Link>
-            )}
-
-            {hasMore && nextCursor && (
-              <Link
-                href={`/owners?cursor=${encodeURIComponent(nextCursor)}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: '#1E232E',
-                  color: '#F3F4F6',
-                  border: '1px solid #2B3242',
-                  padding: '8px 14px',
-                  minHeight: '44px',
-                  justifyContent: 'center',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  textDecoration: 'none',
-                }}
-              >
-                <span>Older</span>
-                <ChevronRight size={14} />
-              </Link>
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </AdminOperationsShell>
   );
 }

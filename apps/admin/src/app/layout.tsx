@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
 
 import './globals.css';
+import './admin-consolidation.css';
 
 const inter = localFont({
   variable: '--font-sans',
