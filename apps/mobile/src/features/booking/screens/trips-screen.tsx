@@ -1,25 +1,45 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
+import type { VehicleSummary } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
-import { Image } from 'expo-image';
+import { Image, type ImageSource } from 'expo-image';
 import { type Href, useRouter } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
+import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 import { groupTripsForDisplay, tripStateCopy, type RenterTrip } from '../domain/renter-trip';
 
+const sectionTitles = {
+  active: 'Active',
+  upcoming: 'Upcoming',
+  intervention: 'Needs attention',
+  past: 'Past',
+} as const;
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-NG', {
     day: 'numeric',
     month: 'short',
-    weekday: 'short',
     timeZone: 'Africa/Lagos',
   }).format(new Date(`${value}T12:00:00+01:00`));
+}
+
+function snapshotHasCanonicalImage(trip: RenterTrip): boolean {
+  // Trips deliberately does not trust fixture image keys. A persisted public URL
+  // is an immutable booking snapshot; otherwise we resolve the current safe
+  // renter-visible vehicle or render a neutral placeholder.
+  return Boolean(trip.vehicleSnapshot.imageUrl);
+}
+
+function isGenericSnapshotName(value: string): boolean {
+  return value === 'Booked vehicle' || value === 'Requested vehicle';
 }
 
 export default function TripsScreen() {
@@ -27,6 +47,39 @@ export default function TripsScreen() {
   const router = useRouter();
   const { initializing, syncError, trips } = useBookings();
   const groups = groupTripsForDisplay(trips);
+  const discoveryGateway = useMemo(() => createDiscoveryGateway(), []);
+  const [resolvedVehicles, setResolvedVehicles] = useState<Record<string, VehicleSummary | null>>({});
+
+  const unresolvedVehicleIds = useMemo(
+    () => [...new Set(
+      trips
+        .filter((trip) => !snapshotHasCanonicalImage(trip))
+        .map((trip) => trip.vehicleId),
+    )].sort(),
+    [trips],
+  );
+
+  useEffect(() => {
+    if (!unresolvedVehicleIds.length) return;
+    let active = true;
+
+    void Promise.all(
+      unresolvedVehicleIds.map(async (vehicleId) => {
+        try {
+          return [vehicleId, await discoveryGateway.getVehicleById(vehicleId)] as const;
+        } catch {
+          return [vehicleId, null] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (!active) return;
+      setResolvedVehicles((current) => ({ ...current, ...Object.fromEntries(entries) }));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [discoveryGateway, unresolvedVehicleIds]);
 
   return (
     <View style={styles.screen}>
@@ -47,79 +100,110 @@ export default function TripsScreen() {
           <Text style={styles.loadingText}>Loading trips…</Text>
         </View>
       ) : (
-        <View style={styles.flex}>
-          <View style={styles.scrollFrame}>
-            <View style={styles.scrollContent}>
-              {groups.length ? (
-                groups.map((section) => (
-                  <View key={section.group} style={styles.section}>
-                    <View style={styles.sectionHead}>
-                      <Text style={styles.sectionLabel}>{section.label}</Text>
-                      <Text style={styles.sectionCount}>{section.trips.length}</Text>
-                    </View>
-                    <View style={styles.tripList}>
-                      {section.trips.map((item) => <TripRow key={item.id} trip={item} />)}
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <EmptyTrips onExplore={() => router.push('/(renter)/browse')} />
-              )}
-            </View>
-          </View>
-        </View>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 108 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {groups.length ? (
+            groups.map((section) => (
+              <View key={section.group} style={styles.section}>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionLabel}>{sectionTitles[section.group]}</Text>
+                  <Text style={styles.sectionCount}>{section.trips.length}</Text>
+                </View>
+                <View style={styles.tripList}>
+                  {section.trips.map((item) => (
+                    <TripRow
+                      fallbackVehicle={resolvedVehicles[item.vehicleId] ?? null}
+                      key={item.id}
+                      trip={item}
+                    />
+                  ))}
+                </View>
+              </View>
+            ))
+          ) : (
+            <EmptyTrips onExplore={() => router.push('/(renter)/browse')} />
+          )}
+        </ScrollView>
       )}
     </View>
   );
 }
 
-function TripRow({ trip }: { trip: RenterTrip }) {
+function TripRow({
+  fallbackVehicle,
+  trip,
+}: {
+  fallbackVehicle: VehicleSummary | null;
+  trip: RenterTrip;
+}) {
   const router = useRouter();
   const vehicle = trip.vehicleSnapshot;
   const copy = tripStateCopy(trip.state);
   const attention = trip.group === 'intervention';
+  const positive = trip.state === 'confirmed' || trip.state === 'in_progress' || trip.state === 'completed';
+
+  let imageSource: ImageSource | null = null;
+  if (vehicle.imageUrl) {
+    imageSource = resolveVehicleImageSource({ imageUrl: vehicle.imageUrl });
+  } else if (fallbackVehicle) {
+    imageSource = resolveVehicleImageSource(fallbackVehicle);
+  }
+
+  const displayName = isGenericSnapshotName(vehicle.displayName) && fallbackVehicle
+    ? fallbackVehicle.displayName
+    : vehicle.displayName;
+  const areaLabel = vehicle.areaLabel === 'Lagos' && fallbackVehicle
+    ? fallbackVehicle.areaLabel
+    : vehicle.areaLabel;
 
   return (
     <PressableScale
       accessibilityHint="Opens trip details"
-      accessibilityLabel={`View ${vehicle.displayName}: ${copy.label}`}
+      accessibilityLabel={`View ${displayName}: ${copy.label}`}
       accessibilityRole="button"
       onPress={() => router.push(`/trip/${trip.id}` as Href)}
     >
       <View style={styles.tripRow}>
-        <Image
-          accessibilityLabel={vehicle.displayName}
-          contentFit="cover"
-          source={resolveVehicleImageSource(vehicle)}
-          style={styles.vehicleImage}
-        />
+        {imageSource ? (
+          <Image
+            accessibilityLabel={displayName}
+            contentFit="cover"
+            source={imageSource}
+            style={styles.vehicleImage}
+          />
+        ) : (
+          <View accessibilityLabel={`${displayName} image unavailable`} style={styles.vehiclePlaceholder}>
+            <Ionicons color={colors.muted} name="car-sport-outline" size={26} />
+          </View>
+        )}
+
         <View style={styles.tripBody}>
           <View style={styles.tripHeading}>
-            <View style={styles.flex}>
-              <Text numberOfLines={1} style={styles.vehicleName}>{vehicle.displayName}</Text>
-              <Text style={styles.area}>{vehicle.areaLabel} · Chauffeur included</Text>
-            </View>
-            <Ionicons color={colors.muted} name="chevron-forward" size={18} />
+            <Text numberOfLines={1} style={styles.vehicleName}>{displayName}</Text>
+            <Ionicons color={colors.muted} name="chevron-forward" size={17} />
           </View>
 
-          <Text style={[styles.stateText, attention && styles.stateTextAttention]}>{copy.label}</Text>
+          <Text
+            style={[
+              styles.stateText,
+              attention && styles.stateTextAttention,
+              positive && styles.stateTextPositive,
+            ]}
+          >
+            {copy.label}
+          </Text>
 
-          <View style={styles.dateRow}>
-            <View style={styles.dateBlock}>
-              <Text style={styles.dateLabel}>Pickup</Text>
-              <Text style={styles.dateValue}>{formatDate(trip.startDate)}</Text>
-            </View>
-            <View style={styles.dateDivider} />
-            <View style={styles.dateBlock}>
-              <Text style={styles.dateLabel}>Return</Text>
-              <Text style={styles.dateValue}>{formatDate(trip.endDate)}</Text>
-            </View>
-          </View>
+          <Text style={styles.dateText}>
+            {formatDate(trip.startDate)} → {formatDate(trip.endDate)}
+          </Text>
 
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>{trip.source === 'legacy' ? 'Earlier estimate' : 'Booking total'}</Text>
+          <View style={styles.metaRow}>
+            <Text numberOfLines={1} style={styles.area}>{areaLabel}</Text>
             <Text style={styles.total}>{formatNairaFromKobo(trip.priceSnapshot.renterTotalKobo)}</Text>
           </View>
+          {trip.source === 'legacy' ? <Text style={styles.legacyLabel}>Earlier estimate</Text> : null}
         </View>
       </View>
     </PressableScale>
@@ -142,39 +226,35 @@ function EmptyTrips({ onExplore }: { onExplore: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  area: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
-  dateBlock: { flex: 1, gap: 3 },
-  dateDivider: { backgroundColor: colors.line, height: 32, width: StyleSheet.hairlineWidth },
-  dateLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11 },
-  dateRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-  dateValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  area: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 12 },
+  dateText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 12 },
   empty: { alignItems: 'flex-start', gap: spacing.sm, paddingTop: spacing.xxl },
   emptyAction: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.pill, justifyContent: 'center', marginTop: spacing.md, minHeight: 48, paddingHorizontal: spacing.lg },
   emptyActionText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   emptyBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, maxWidth: 300 },
   emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
-  flex: { flex: 1 },
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
+  legacyLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 10 },
   loading: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
   loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
+  metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   screen: { backgroundColor: colors.black, flex: 1 },
-  scrollContent: { gap: spacing.xl, paddingBottom: 120, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  scrollFrame: { flex: 1 },
-  section: { gap: spacing.md },
+  scrollContent: { gap: spacing.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  section: { gap: spacing.sm },
   sectionCount: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
   sectionHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   sectionLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  stateText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
+  stateText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11 },
   stateTextAttention: { color: colors.danger },
+  stateTextPositive: { color: colors.success },
   syncNotice: { alignItems: 'center', backgroundColor: 'rgba(227,195,101,.08)', flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, padding: spacing.md },
   syncNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  total: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  totalLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
-  totalRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.md },
-  tripBody: { gap: spacing.md, paddingVertical: spacing.md },
-  tripHeading: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  tripList: { gap: spacing.xl },
-  tripRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },
-  vehicleImage: { borderRadius: radii.md, height: 176, width: '100%' },
-  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
+  total: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
+  tripBody: { flex: 1, gap: 6, justifyContent: 'center', minWidth: 0 },
+  tripHeading: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  tripList: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth },
+  tripRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 118, paddingVertical: spacing.md },
+  vehicleImage: { borderRadius: radii.sm, height: 84, width: 112 },
+  vehicleName: { color: colors.ivory, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 15 },
+  vehiclePlaceholder: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, height: 84, justifyContent: 'center', width: 112 },
 });
