@@ -18,7 +18,7 @@ import {
 import { resolveRentalJourney } from '@/features/discovery/data/rental-journey';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
-import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
+import { RenterCheckoutReadiness } from '../components/renter-checkout-readiness';
 import {
   BookingIntentSubmissionKey,
   createBookingIntentGateway,
@@ -197,10 +197,9 @@ export default function BookingReviewScreen({
                 </Text>
               </View>
             </View>
-            <RenterPaymentCheckout
+            <RenterCheckoutReadiness
               holdExpiresAt={intentResult.result.expiresAt}
               intentId={intentResult.result.intentId}
-              onCompleteProfile={() => router.push('/account')}
               onRestartHold={() => {
                 setIntentResult(null);
                 setErrorMessage(null);
