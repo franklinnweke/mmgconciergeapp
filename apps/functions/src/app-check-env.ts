@@ -26,6 +26,10 @@ function configuredProjectId(): string | null {
   return null;
 }
 
+function requestedEnforcement(): string | undefined {
+  return process.env.MMG_APP_CHECK_ENFORCED ?? process.env.MMG_ENFORCE_APP_CHECK;
+}
+
 export function isProductionAppCheck(): boolean {
   const projectId = configuredProjectId();
 
@@ -33,7 +37,7 @@ export function isProductionAppCheck(): boolean {
   if (projectId === 'mmg-concierge') return true;
 
   if (projectId === 'mmg-concierge-dev') {
-    if (process.env.MMG_ENFORCE_APP_CHECK === 'true') return true;
+    if (requestedEnforcement() === 'true') return true;
     // Development remains temporarily permissive unless explicitly enabled.
     return false;
   }
