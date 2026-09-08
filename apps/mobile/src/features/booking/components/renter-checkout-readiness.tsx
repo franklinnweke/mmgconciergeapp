@@ -42,7 +42,7 @@ export function RenterCheckoutReadiness({
 }: RenterCheckoutReadinessProps) {
   const auth = useAuth();
   const { profile, isLoading, saveProfile } = useRenterProfile();
-  const [phoneInput, setPhoneInput] = useState('');
+  const [userTypedPhone, setUserTypedPhone] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [session, setSession] = useState<PhoneVerificationSession | null>(null);
   const [verificationBusy, setVerificationBusy] = useState(false);
@@ -55,16 +55,12 @@ export function RenterCheckoutReadiness({
 
   const authPhone = isNigerianE164(auth.user?.phoneNumber) ? auth.user.phoneNumber : null;
   const verifiedPhone = verifiedPhoneOverride ?? authPhone;
-
-  useEffect(() => {
-    if (!phoneInput && profile?.phone && !verifiedPhone) setPhoneInput(profile.phone);
-  }, [phoneInput, profile?.phone, verifiedPhone]);
+  const phoneInput = userTypedPhone ?? (!verifiedPhone ? profile?.phone ?? '' : '');
 
   useEffect(() => {
     if (!verifiedPhone || !profile || profile.accountStatus !== 'active') return;
     if (profile.phone === verifiedPhone) {
       attemptedSync.current = null;
-      setSyncError(null);
       return;
     }
 
@@ -173,7 +169,7 @@ export function RenterCheckoutReadiness({
             <TextInput
               accessibilityLabel="Nigerian mobile number"
               keyboardType="phone-pad"
-              onChangeText={setPhoneInput}
+              onChangeText={setUserTypedPhone}
               placeholder="0801 234 5678"
               placeholderTextColor={colors.muted}
               style={styles.input}
