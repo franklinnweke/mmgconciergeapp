@@ -25,7 +25,8 @@ Unified account access, renter precision redesign, and owner-capability repair m
 
 - Every MVP rental includes chauffeur and delivery. No self-drive.
 - No live tracking in MVP.
-- Renter requires full name, verified email, verified phone and delivery address. Do not add renter government ID, licence, selfie or DOB.
+- Renter baseline access requires only an authenticated, verified email identity. Full name, phone, profile photo, delivery address and similar details are profile enrichment editable from the renter Account surface and must not be treated as renter identity-verification gates.
+- Never require renter government ID, driving licence, selfie or DOB. Government-ID verification belongs only to owner onboarding.
 - Booking dates are Africa/Lagos date-only half-open intervals `[startDate, endDate)`.
 - Trusted money is integer NGN kobo and server-authoritative.
 - Exact vehicle address/coordinates and owner-sensitive data remain private.
@@ -35,7 +36,7 @@ Unified account access, renter precision redesign, and owner-capability repair m
 - Listing vehicles is an additional owner application/capability on the same identity.
 - Firestore `users.accountType` remains compatibility metadata. It must not block renter access or force an existing owner into owner-only navigation.
 - Normal registration creates a compatibility profile directly. Legacy authenticated users missing `/users/{uid}` are repaired to the baseline renter compatibility profile.
-- Email/password, Google and Apple are authentication entry methods only. They do not bypass renter phone/address requirements, owner phone/ID/verification, booking/payment authority, or staff authorization.
+- Email/password, Google and Apple are authentication entry methods only. Renter profile enrichment remains separate from authentication. Authentication does not bypass owner phone/ID/verification, booking/payment authority, or staff authorization.
 - Cross-provider account collisions fail safely and direct the user to the existing sign-in method. Do not silently create or merge MMG identities.
 - A verified renter compatibility account may create and submit its own trusted owner application without mutating `users.accountType`.
 - Owner verification upload permission is based on a server-created draft/rejected owner application for the same authenticated UID.
@@ -163,6 +164,7 @@ Current auth/capability behavior:
 - authenticated verified users land in renter/Home by default regardless of legacy `accountType`;
 - choosing `List your car` carries owner intent through successful authentication into owner onboarding;
 - universal sign-in and `Rent a car` land in renter/Home;
+- renter government ID is never required; owner ID verification exists only inside owner onboarding;
 - a renter compatibility account may create/update/submit its own owner application without changing `users.accountType`;
 - owner verification document upload is allowed only for the authenticated user's server-created draft/rejected application;
 - vehicle asset/listing permissions remain restricted to approved owner capability and vehicle ownership;
@@ -181,7 +183,7 @@ Current UI/product behavior:
 - Booking Review prioritizes car, dates, quote truth and the hold action;
 - nested screens may use contextual titles rather than repeating the full MMG wordmark.
 
-Email verification remains required before entering live renter discovery and owner-application surfaces because the trusted backend still enforces that boundary.
+Renter profile enrichment is not an access gate. The current profile editor still saves full name, phone and delivery address as one bundle and does not yet provide profile-photo editing; treat that as profile UX follow-up, not renter verification. Email verification remains required before entering live renter discovery and owner-application surfaces because the trusted backend still enforces that boundary.
 
 Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Do not repeat that pattern.
 
