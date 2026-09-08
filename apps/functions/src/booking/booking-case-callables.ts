@@ -2,6 +2,7 @@ import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { requireBookingOperationsAdmin } from './callable-auth.js';
+import { isProductionAppCheck } from '../app-check-env.js';
 import { BookingCommandError } from './errors.js';
 import { FirestoreBookingCaseSourcingRepository } from './firestore-booking-case-sourcing-repository.js';
 import { startBookingCaseSourcing as startBookingCaseSourcingService } from './booking-case-sourcing-service.js';
@@ -25,7 +26,7 @@ export const startBookingCaseSourcing = onCall(
   {
     region: 'africa-south1',
     invoker: 'public',
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },

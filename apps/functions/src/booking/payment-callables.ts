@@ -4,6 +4,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 
 import { requireCheckoutRenter, requireVerifiedRenter } from './callable-auth.js';
+import { isProductionAppCheck } from '../app-check-env.js';
 import { CommandError } from '../errors.js';
 import { FirestoreBookingPaymentInitializationRepository } from './firestore-booking-payment-initialization-repository.js';
 import { FirestorePaymentVerificationRepository } from './firestore-payment-verification-repository.js';
@@ -49,7 +50,7 @@ export const initializeBookingPayment = onCall(
   {
     region: 'africa-south1',
     invoker: 'public',
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
     secrets: [paystackSecret],
@@ -196,7 +197,7 @@ export const reconcilePayment = onCall(
   {
     region: 'africa-south1',
     invoker: 'public',
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
     secrets: [paystackSecret],

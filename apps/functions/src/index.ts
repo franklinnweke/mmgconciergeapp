@@ -23,6 +23,7 @@ import {
   FirestoreDiscoveryVehicleSource,
   searchVehiclesService,
 } from './discovery/search-vehicles-service.js';
+import { isProductionAppCheck } from './app-check-env.js';
 import { CommandError } from './errors.js';
 import {
   requireAuthenticatedUser,
@@ -84,7 +85,7 @@ const httpsCodeByDomainCode = {
 export const createBookingIntent = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -116,7 +117,7 @@ export const createBookingIntent = onCall(
 export const getVehicleCalendar = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -148,7 +149,7 @@ export const getVehicleCalendar = onCall(
 export const getOwnerVehicleCalendar = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -182,7 +183,7 @@ export const getOwnerVehicleCalendar = onCall(
 export const setVehicleAvailabilityBlock = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -216,7 +217,7 @@ export const setVehicleAvailabilityBlock = onCall(
 export const removeVehicleAvailabilityBlock = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -250,7 +251,7 @@ export const removeVehicleAvailabilityBlock = onCall(
 export const confirmBooking = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -285,7 +286,7 @@ export const confirmBooking = onCall(
 export const rejectBooking = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -321,7 +322,7 @@ export const rejectBooking = onCall(
 export const completeOwnerProfile = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -354,7 +355,7 @@ export const completeOwnerProfile = onCall(
 export const submitOwnerVerification = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -390,7 +391,7 @@ export const submitOwnerVerification = onCall(
 export const reviewOwnerVerification = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -429,7 +430,7 @@ export const reviewOwnerVerification = onCall(
 export const createVehicleDraft = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -462,7 +463,7 @@ export const createVehicleDraft = onCall(
 export const createVehicleUploadSession = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -495,7 +496,7 @@ export const createVehicleUploadSession = onCall(
 export const finalizeVehicleImage = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     // This callable decodes an owner-supplied image and renders three variants.
     // The contract allows edges up to 8000px, so a worst-case source decodes to
     // roughly 8000×8000×4 bytes ≈ 256 MB of raw bitmap before any resize — the
@@ -534,7 +535,7 @@ export const finalizeVehicleImage = onCall(
 export const submitVehicleForReview = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -586,7 +587,7 @@ function logPublicationFailure(
 export const reviewVehicle = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     // Longer than the other commands: after the decision commits, this copies up
     // to 20 images × their variants into the public prefix.
     timeoutSeconds: 120,
@@ -625,7 +626,7 @@ export const reviewVehicle = onCall(
 export const setVehicleVisibility = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     // Same reason as reviewVehicle: activating an approved listing publishes its
     // images, pausing or deleting it removes them.
     timeoutSeconds: 120,
@@ -664,7 +665,7 @@ export const setVehicleVisibility = onCall(
 export const resolveSearchPlace = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 15,
     memory: '256MiB',
   },
@@ -685,7 +686,7 @@ export const resolveSearchPlace = onCall(
 export const searchVehicles = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -709,7 +710,7 @@ export const searchVehicles = onCall(
 export const completeRenterProfile = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },
@@ -740,7 +741,7 @@ export const completeRenterProfile = onCall(
 export const requestAccountDeletion = onCall(
   {
     ...callableRuntimeOptions,
-    enforceAppCheck: true,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
     timeoutSeconds: 30,
     memory: '256MiB',
   },

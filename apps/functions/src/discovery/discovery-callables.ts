@@ -18,10 +18,12 @@ import {
   searchVehiclesService,
 } from './search-vehicles-service.js';
 
+import { isProductionAppCheck } from '../app-check-env.js';
+
 const discoveryRuntimeOptions = {
   region: 'africa-south1',
   invoker: 'public' as const,
-  enforceAppCheck: true,
+  enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
   timeoutSeconds: 30,
   memory: '256MiB' as const,
 };
