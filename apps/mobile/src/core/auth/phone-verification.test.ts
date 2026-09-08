@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isNigerianE164, normalizeNigerianPhone } from './phone-verification';
+import { isNigerianE164, normalizeNigerianPhone } from './phone-verification-domain';
 
 describe('renter phone verification helpers', () => {
   it('normalizes common Nigerian mobile formats to E.164', () => {

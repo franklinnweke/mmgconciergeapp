@@ -13,9 +13,11 @@ import {
 import { PressableScale } from '@/components/pressable-scale';
 import { useAuth } from '@/core/auth/auth-context';
 import {
-  confirmPhoneVerification,
   isNigerianE164,
   normalizeNigerianPhone,
+} from '@/core/auth/phone-verification-domain';
+import {
+  confirmPhoneVerification,
   requestPhoneVerification,
   type PhoneVerificationSession,
 } from '@/core/auth/phone-verification';
