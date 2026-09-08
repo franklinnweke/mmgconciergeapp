@@ -182,14 +182,17 @@ Current UI/product behavior:
 - Vehicle Detail uses a more practical landscape gallery and reduced decorative chrome;
 - Booking Review prioritizes car, dates, quote truth and the hold action;
 - nested screens may use contextual titles rather than repeating the full MMG wordmark;
-- iOS app icon configured to use brand asset `./assets/images/icon.png`;
+- iOS app icon formatted to exact 1024×1024 square with safe area padding to eliminate zoomed-in cropping;
+- renter checkout readiness unblocked with inline SMS OTP verification and profile sync without dropping the 15-minute hold;
 - sign-out transitions gracefully to the signed-out welcome screen;
 - renter profile photo upload/delete is supported via secure Storage path `/private/renter-profile/{renterId}/avatar`;
 - admin portal includes a read-only booking intervention desk for authorized staff.
 
 Renter profile enrichment is not an access gate. Email verification remains required before entering live renter discovery and owner-application surfaces because the trusted backend still enforces that boundary.
 
-Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Do not repeat that pattern.
+Build state:
+- EAS Build 28 built from `main` SHA `c4f92607efdfacc12e9f84e30227350bcbb9a12f` and submitted to TestFlight (submission `76648fd9-6a32-4596-990c-fc9aa060286f`).
+- Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Build 27 was canceled.
 
 The development-only payment configuration/deployment commands remain:
 
@@ -200,13 +203,11 @@ npm run firebase:deploy:booking-payment-dev
 
 The next gates are:
 
-1. Create the next iOS development TestFlight build from the current `main` SHA only.
-2. On a physical iPhone, validate Email, Google and Apple authentication, including existing-owner → Rent a car and existing-renter → List your car behavior.
-3. Validate the redesigned Home → Vehicle Detail → Booking Review journey, including continuous 1–30 day date selection, exact date continuity, and successful hold creation.
-4. Smoke-test renter owner-application creation/upload/submission against `mmg-concierge-dev` and confirm renter identities do not gain approved-owner vehicle powers.
-5. Verify the minimal authorized, masked, read-only staff booking/case desk.
-6. Prove one complete Paystack test journey across renter, owner and staff.
-7. Keep production `mmg-concierge` and live Paystack credentials untouched.
+1. Await Apple processing of Build 28 on TestFlight.
+2. On a physical iPhone running Build 28, verify the app icon framing on the Home Screen.
+3. Validate the renter checkout journey: Select dates -> Reserve with Chauffeur (hold created) -> inline SMS OTP verification -> Pay with Paystack -> complete test payment -> verify canonical copy "Payment received — confirming your ride".
+4. Confirm booking appears in renter Trips and owner response desks.
+5. Keep production `mmg-concierge` and live Paystack credentials untouched.
 
 ## 7. Validation discipline
 
