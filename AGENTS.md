@@ -16,7 +16,8 @@ MMG Concierge is a Lagos-first marketplace for chauffeured luxury-car rentals.
 
 Current repository: `franklinnweke/mmgconciergeapp`.
 Current integration branch: `main`.
-Validated auth + Apple integration merged through PR #23 at `55ffd2c39b619d2779b6f5b93d87f1f929b2a603`.
+Validated auth + Apple integration merged through PR #23.
+Unified account access, renter precision redesign, and owner-capability repair merged through PR #24 at `490f565a9258212116c555a50e6ce27f86f930b4`.
 
 **Build invariant:** every EAS/TestFlight build must originate from `main`. Feature branches may be developed and validated, but they must be merged into `main` before any EAS build is created.
 
@@ -30,11 +31,16 @@ Validated auth + Apple integration merged through PR #23 at `55ffd2c39b619d2779b
 - Exact vehicle address/coordinates and owner-sensitive data remain private.
 - Only approved, active, discoverable vehicles are renter-visible.
 - Signed-out onboarding asks how the person wants to start: rent a car or list a car. This is a session intent, not a permanent navigation role.
-- Every verified authenticated MMG account can use the renter experience. Listing vehicles is an additional owner application/capability on the same identity.
-- The existing Firestore `accountType` field remains compatibility metadata and records the profile created by the original registration path. It must not block renter access or force an existing owner into owner-only navigation.
-- Normal registration still creates a compatibility account profile directly. Legacy authenticated users whose profile is missing are repaired to the baseline renter profile automatically instead of being forced through another role decision during normal sign-in.
+- Every verified authenticated MMG account can use the renter experience.
+- Listing vehicles is an additional owner application/capability on the same identity.
+- Firestore `users.accountType` remains compatibility metadata. It must not block renter access or force an existing owner into owner-only navigation.
+- Normal registration creates a compatibility profile directly. Legacy authenticated users missing `/users/{uid}` are repaired to the baseline renter compatibility profile.
 - Email/password, Google and Apple are authentication entry methods only. They do not bypass renter phone/address requirements, owner phone/ID/verification, booking/payment authority, or staff authorization.
-- Cross-provider account collisions fail safely and direct the user to their existing sign-in method. Do not silently create or merge MMG identities.
+- Cross-provider account collisions fail safely and direct the user to the existing sign-in method. Do not silently create or merge MMG identities.
+- A verified renter compatibility account may create and submit its own trusted owner application without mutating `users.accountType`.
+- Owner verification upload permission is based on a server-created draft/rejected owner application for the same authenticated UID.
+- Vehicle creation, vehicle uploads/documents, and owner operational capabilities remain restricted to trusted approved-owner/vehicle-ownership state. Applying to become an owner never grants blanket owner privileges.
+- Staff approval remains mandatory before owner operational capability is considered approved.
 
 Canonical admin roles are exactly:
 
@@ -106,54 +112,76 @@ Authenticate with email, Google or Apple
 
 The renter path stays simple:
 
-- existing booking review screen creates the hold;
-- initialize payment through the existing callable;
-- open the server-returned `https://checkout.paystack.com/...` URL;
-- returning from the browser does not imply success;
-- renter can check payment status through the existing trusted `reconcilePayment` callable;
-- provider `success` without R4 value delivery remains a checking state;
-- `paid_pending_owner` shows the canonical success copy;
-- `paid_conflict` explains that MMG will resolve the booking manually;
-- abandoned, failed and expired-hold states remain truthful and recoverable;
+- Home owns the selected journey dates and passes them through vehicle detail into booking review.
+- Rental duration supports the full continuous 1–30 day range.
+- Existing booking review creates the hold.
+- Initialize payment through the existing callable.
+- Open the server-returned `https://checkout.paystack.com/...` URL.
+- Returning from the browser does not imply success.
+- Renter can check payment status through the existing trusted `reconcilePayment` callable.
+- Provider `success` without R4 value delivery remains a checking state.
+- `paid_pending_owner` shows the canonical success copy.
+- `paid_conflict` explains that MMG will resolve the booking manually.
+- Abandoned, failed and expired-hold states remain truthful and recoverable.
 - CTA buttons do not use decorative arrows.
 
 For MVP intervention, manual operations are acceptable. Staff visibility is read-only for the first live desk. Staff must not inherit the fixture desk's owner confirm/reject controls. Owner booking response remains an owner responsibility.
 
 ## 6. Current integration state
 
-Authentication is merged into `main` through PR #23.
+PR #24 merged the validated three-commit stack into `main`:
 
-Validated before merge at feature head `e45ef8a610cdf71b66f4767ba383c57b88498c11`:
+1. `d86418267c76f43379b2677d73633ef805b88f5f` — unified authenticated account access.
+2. `c9f6f04986e0913765005f8e90470553c665c33e` — precision redesign for Home → Vehicle Detail → Booking Review.
+3. `7682f3d33e33fff602969561e19b02d66b65894e` — owner capability-boundary repair and restored full journey selection.
 
-- root Vitest: 89 passed, 12 skipped files; 642 passed, 80 skipped tests;
-- Functions unit tests: 36 passed, 9 skipped files; 323 passed, 43 skipped tests;
+PR #24 merge commit: `490f565a9258212116c555a50e6ce27f86f930b4`.
+
+Final validated feature-head gate before merge:
+
+- root Vitest: 90 passed files, 12 skipped; 688 passed tests, 93 skipped;
+- Functions unit tests: 36 passed files, 9 skipped; 334 passed tests, 43 skipped;
 - Admin tests: 10 passed files; 66 passed tests;
-- focused auth tests: 4 passed files; 15 passed tests;
-- mobile, Functions and Admin typecheck/lint passed;
-- `git diff --check` passed;
-- Firebase emulator/Rules suites were not rerun in the final auth validation because the available local JDK was 17; auth changes do not alter the previously validated booking/payment backend or Rules architecture.
+- mobile typecheck/lint: 0 errors, 0 warnings;
+- Functions typecheck/build: passed;
+- Admin typecheck/lint: 0 errors, 0 warnings;
+- `git diff --check`: passed.
 
-Current auth behavior:
+Development deployment completed before merge:
+
+- `mmg-concierge-dev` Storage Rules updated for trusted owner-application verification uploads;
+- affected owner onboarding Functions updated in `africa-south1`;
+- production `mmg-concierge` untouched;
+- Paystack live credentials untouched.
+
+Current auth/capability behavior:
 
 - registration/profile mutations do not publish intermediate Firebase auth snapshots to the router;
-- failed registration/profile creation signs out any transient Firebase session and keeps the local auth form able to surface errors and preserve inputs;
-- native Firebase environment selection is idempotent and development/production selection remains explicit;
-- Google authentication uses the Firebase-environment-matched web OAuth client;
-- Apple authentication uses a cryptographically random raw nonce, SHA-256 nonce sent to Apple, and the raw nonce for Firebase credential exchange;
-- Apple first-login name data is persisted to Firebase Auth when supplied and reloaded before MMG profile creation;
-- Apple cancellation is a clean cancellation, not a false error;
-- Apple uses Expo's native `AppleAuthenticationButton`;
-- returning provider users preserve persisted Firestore compatibility profile data; first-time role-specific registration creates the selected compatibility profile;
+- failed registration/profile creation signs out transient Firebase sessions and preserves form recovery;
+- Google authentication uses the Firebase-environment-matched OAuth client;
+- Apple authentication uses raw nonce + SHA-256 nonce correctly, persists first-login name data when supplied, handles cancellation cleanly, and uses Expo's native Apple button;
 - authenticated verified users land in renter/Home by default regardless of legacy `accountType`;
-- choosing `List your car` before authentication carries owner intent into the owner application after successful authentication, while `Rent a car` and universal sign-in land in renter/Home;
-- renter and owner route guards authorize the authenticated/verified identity rather than treating compatibility `accountType` as mutually exclusive access;
-- a legacy authenticated identity with no `/users/{uid}` profile is automatically repaired to the baseline renter compatibility profile;
+- choosing `List your car` carries owner intent through successful authentication into owner onboarding;
+- universal sign-in and `Rent a car` land in renter/Home;
+- a renter compatibility account may create/update/submit its own owner application without changing `users.accountType`;
+- owner verification document upload is allowed only for the authenticated user's server-created draft/rejected application;
+- vehicle asset/listing permissions remain restricted to approved owner capability and vehicle ownership;
 - same-email cross-provider collisions remain explicit and are not automatically linked;
-- Apple Sign in with Apple capability and the development Firebase provider are configured; private email relay remains pending operator domain verification before public launch;
-- Apple-authenticated account deletion must include Apple token revocation before public App Store release;
-- production `mmg-concierge` and live payment credentials remain untouched.
+- Apple private email relay remains pending operator domain verification before public App Store launch;
+- Apple-authenticated account deletion must include Apple token revocation before public App Store release.
 
-Email verification remains required before entering the live renter discovery and owner application surfaces because the current trusted discovery and owner callables enforce verified email. Do not weaken that backend trust boundary as part of navigation cleanup.
+Current UI/product behavior:
+
+- artificial 1.3-second splash delay is removed;
+- ordinary press interactions no longer haptic by default;
+- Home uses a compact location/date summary instead of stacked repetitive booking controls;
+- selected dates persist Home → Vehicle Detail → Booking Review;
+- rental duration supports 1–30 days;
+- Vehicle Detail uses a more practical landscape gallery and reduced decorative chrome;
+- Booking Review prioritizes car, dates, quote truth and the hold action;
+- nested screens may use contextual titles rather than repeating the full MMG wordmark.
+
+Email verification remains required before entering live renter discovery and owner-application surfaces because the trusted backend still enforces that boundary.
 
 Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Do not repeat that pattern.
 
@@ -166,10 +194,10 @@ npm run firebase:deploy:booking-payment-dev
 
 The next gates are:
 
-1. Validate the unified account-access change with focused auth routing tests plus the full repository gate.
-2. Merge the validated change into `main`.
-3. Create any subsequent development TestFlight build from the resulting `main` SHA only.
-4. On a physical iPhone, confirm an existing owner choosing `Rent a car` lands in renter/Home, an existing renter choosing `List your car` can enter owner onboarding, and universal sign-in lands in renter/Home.
+1. Create the next iOS development TestFlight build from the current `main` SHA only.
+2. On a physical iPhone, validate Email, Google and Apple authentication, including existing-owner → Rent a car and existing-renter → List your car behavior.
+3. Validate the redesigned Home → Vehicle Detail → Booking Review journey, including continuous 1–30 day date selection and exact date continuity.
+4. Smoke-test renter owner-application creation/upload/submission against `mmg-concierge-dev` and confirm renter identities do not gain approved-owner vehicle powers.
 5. Connect the minimal authorized, masked, read-only staff booking/case desk.
 6. Prove one complete Paystack test journey across renter, owner and staff.
 7. Keep production `mmg-concierge` and live Paystack credentials untouched.
