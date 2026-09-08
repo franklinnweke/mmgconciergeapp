@@ -48,6 +48,7 @@ export function RenterCheckoutReadiness({
   const [verifiedPhoneOverride, setVerifiedPhoneOverride] = useState<string | null>(null);
   const [syncingPhone, setSyncingPhone] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncRetryVersion, setSyncRetryVersion] = useState(0);
   const attemptedSync = useRef<string | null>(null);
 
   const authPhone = isNigerianE164(auth.user?.phoneNumber) ? auth.user.phoneNumber : null;
@@ -65,7 +66,7 @@ export function RenterCheckoutReadiness({
       return;
     }
 
-    const syncKey = `${profile.profileVersion}:${verifiedPhone}`;
+    const syncKey = `${profile.profileVersion}:${verifiedPhone}:${syncRetryVersion}`;
     if (attemptedSync.current === syncKey) return;
     attemptedSync.current = syncKey;
     setSyncingPhone(true);
@@ -87,7 +88,7 @@ export function RenterCheckoutReadiness({
         );
       })
       .finally(() => setSyncingPhone(false));
-  }, [profile, saveProfile, verifiedPhone]);
+  }, [profile, saveProfile, syncRetryVersion, verifiedPhone]);
 
   const sendCode = async () => {
     if (Platform.OS === 'web' || verificationBusy) return;
@@ -235,7 +236,7 @@ export function RenterCheckoutReadiness({
             onPress={() => {
               attemptedSync.current = null;
               setSyncError(null);
-              setVerifiedPhoneOverride((current) => current ? `${current}` : null);
+              setSyncRetryVersion((version) => version + 1);
             }}
           />
         </View>
