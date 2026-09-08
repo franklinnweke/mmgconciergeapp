@@ -217,9 +217,8 @@ export function RenterCheckoutReadiness({
         <Ionicons color={colors.goldStrong} name="alert-circle-outline" size={25} />
         <Text style={styles.title}>Checkout unavailable</Text>
         <Text style={styles.body}>
-          This renter profile is not active. Resolve the account status before starting another payment attempt.
+          This renter profile is not active. Resolve the account status before attempting payment. The current hold will expire automatically.
         </Text>
-        <PrimaryButton label="Release this attempt" onPress={onRestartHold} />
       </View>
     );
   }
