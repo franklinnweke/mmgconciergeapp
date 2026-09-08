@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { isProductionAppCheck } from './app-check-env.js';
 
 const ENV_KEYS = [
+  'MMG_APP_CHECK_ENFORCED',
   'MMG_ENFORCE_APP_CHECK',
   'GCLOUD_PROJECT',
   'GOOGLE_CLOUD_PROJECT',
@@ -35,6 +36,14 @@ describe('isProductionAppCheck', () => {
     expect(isProductionAppCheck()).toBe(true);
   });
 
+  it('cannot be disabled in production by the newer alias either', () => {
+    clearRelevantEnvironment();
+    process.env.GCLOUD_PROJECT = 'mmg-concierge';
+    process.env.MMG_APP_CHECK_ENFORCED = 'false';
+
+    expect(isProductionAppCheck()).toBe(true);
+  });
+
   it('keeps the temporary development bypass', () => {
     clearRelevantEnvironment();
     process.env.GCLOUD_PROJECT = 'mmg-concierge-dev';
@@ -47,6 +56,14 @@ describe('isProductionAppCheck', () => {
     clearRelevantEnvironment();
     process.env.GCLOUD_PROJECT = 'mmg-concierge-dev';
     process.env.MMG_ENFORCE_APP_CHECK = 'true';
+
+    expect(isProductionAppCheck()).toBe(true);
+  });
+
+  it('accepts the newer development enforcement alias', () => {
+    clearRelevantEnvironment();
+    process.env.GCLOUD_PROJECT = 'mmg-concierge-dev';
+    process.env.MMG_APP_CHECK_ENFORCED = 'true';
 
     expect(isProductionAppCheck()).toBe(true);
   });
