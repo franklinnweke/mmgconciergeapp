@@ -12,12 +12,14 @@ import {
 
 type PressableScaleProps = PropsWithChildren<
   Omit<PressableProps, 'style'> & {
+    haptic?: boolean;
     style?: StyleProp<ViewStyle>;
   }
 >;
 
 export function PressableScale({
   children,
+  haptic = false,
   onBlur,
   onFocus,
   onPressIn,
@@ -30,8 +32,8 @@ export function PressableScale({
 
   function animateTo(value: number) {
     Animated.spring(scale, {
-      damping: 18,
-      mass: 0.55,
+      damping: 20,
+      mass: 0.5,
       stiffness: 260,
       toValue: value,
       useNativeDriver: Platform.OS !== 'web',
@@ -39,8 +41,8 @@ export function PressableScale({
   }
 
   function handlePressIn(event: GestureResponderEvent) {
-    animateTo(0.975);
-    void Haptics.selectionAsync().catch(() => undefined);
+    animateTo(0.985);
+    if (haptic) void Haptics.selectionAsync().catch(() => undefined);
     onPressIn?.(event);
   }
 

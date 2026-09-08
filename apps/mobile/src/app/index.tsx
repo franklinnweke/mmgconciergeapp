@@ -16,21 +16,13 @@ import { VerifyEmailScreen } from '@/features/auth/screens/verify-email-screen';
 
 export default function IndexRoute() {
   const { initializing, profile, profileLoadFailed, user } = useAuth();
-  const [minSplashDone, setMinSplashDone] = useState(false);
   const [authIntent, setAuthIntent] = useState<AccountType | 'sign-in' | null>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMinSplashDone(true);
-    }, 1300);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (!user) setAuthIntent(null);
   }, [user]);
 
-  if (initializing || !minSplashDone) return <AuthLoadingScreen />;
+  if (initializing) return <AuthLoadingScreen />;
   if (profileLoadFailed) return <AccountProfileErrorScreen />;
   const destination = resolveIdentityDestination({
     emailVerified: user?.emailVerified ?? false,
