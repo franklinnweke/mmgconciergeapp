@@ -3,6 +3,7 @@ import { colors, typography } from '@mmg/brand';
 import { Redirect, Tabs } from 'expo-router';
 
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 
 const iconNames = {
   account: ['person-outline', 'person'] as const,
@@ -12,8 +13,9 @@ const iconNames = {
 };
 
 export default function RenterTabsLayout() {
-  const { initializing, user } = useAuth();
+  const { initializing, signingOut, user } = useAuth();
 
+  if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (!initializing && (!user || !user.emailVerified)) {
     return <Redirect href="/" />;
   }

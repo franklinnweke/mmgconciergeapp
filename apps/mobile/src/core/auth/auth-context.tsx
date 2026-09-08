@@ -41,6 +41,7 @@ type AuthContextValue = {
   signIn(input: EmailPasswordSignIn): Promise<void>;
   signInApple(accountType?: AccountType): Promise<AppleSignInResult>;
   signInGoogle(accountType?: AccountType): Promise<GoogleSignInResult>;
+  signingOut: boolean;
   signOut(): Promise<void>;
   user: User | null;
 };
@@ -52,9 +53,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profileInitializing, setProfileInitializing] = useState(false);
   const [profileLoadFailed, setProfileLoadFailed] = useState(false);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [, setRefreshVersion] = useState(0);
   const profileMutationVersion = useRef(0);
+  const signOutInFlight = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -156,6 +159,28 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }
 
+  function performSignOut(): Promise<void> {
+    if (signOutInFlight.current) return signOutInFlight.current;
+
+    profileMutationVersion.current += 1;
+    setSigningOut(true);
+    setProfileInitializing(false);
+    setProfileLoadFailed(false);
+    setProfile(null);
+    setUser(null);
+
+    const task = signOutCurrentUser().finally(() => {
+      profileMutationVersion.current += 1;
+      setAuthInitializing(false);
+      setProfileInitializing(false);
+      setSigningOut(false);
+      signOutInFlight.current = null;
+    });
+
+    signOutInFlight.current = task;
+    return task;
+  }
+
   const value: AuthContextValue = {
     async completeAccountSetup(accountType) {
       if (!user) throw new Error('Sign in before choosing an account type.');
@@ -228,7 +253,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
       return completeProviderRegistration(accountType, signInWithGoogle);
     },
-    signOut: signOutCurrentUser,
+    signingOut,
+    signOut: performSignOut,
     user,
   };
 
