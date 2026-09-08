@@ -7,7 +7,8 @@ import { emitOwnerResponseSlaSignals } from './owner-response-sla-service.js';
 export const emitOwnerResponseSlaAlerts = onSchedule(
   {
     schedule: 'every 5 minutes',
-    region: 'africa-south1',
+    // Cloud Scheduler is not available in africa-south1; europe-west1 is used for scheduling.
+    region: 'europe-west1',
     timeZone: 'Africa/Lagos',
     timeoutSeconds: 60,
     memory: '256MiB',
