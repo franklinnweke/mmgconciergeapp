@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
 import { type VehicleSummary } from '@mmg/contracts';
-import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
+import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -24,11 +24,9 @@ import { ScreenHeader } from '@/components/screen-header';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
 
 import {
-  addDaysToDateOnly,
   formatLagosDateOnly,
-  parseDateOnly,
-  todayLagosDateOnly,
 } from '../data/lagos-destinations';
+import { currentAvailability, resolveRentalJourney, type Availability } from '../data/rental-journey';
 import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
 import { resolveVehicleImageSource, vehicleImages } from '../data/vehicle-images';
 import {
@@ -46,24 +44,6 @@ export type VehicleDetailScreenProps = {
   vehicleId: string;
 };
 
-function initialJourney(startDate?: string, endDate?: string) {
-  const start = parseDateOnly(startDate) ?? todayLagosDateOnly();
-  try {
-    const end = parseDateOnly(endDate) ?? addDaysToDateOnly(start, 1);
-    return {
-      durationDays: calculateChargedDays(start, end),
-      endDate: end,
-      startDate: start,
-    };
-  } catch {
-    return {
-      durationDays: 1,
-      endDate: addDaysToDateOnly(start, 1),
-      startDate: start,
-    };
-  }
-}
-
 export default function VehicleDetailScreen({
   calendarGateway: injectedCalendarGateway,
   endDate: propEndDate,
@@ -77,7 +57,7 @@ export default function VehicleDetailScreen({
     () => injectedCalendarGateway ?? createVehicleCalendarGateway(),
     [injectedCalendarGateway],
   );
-  const journey = useMemo(() => initialJourney(propStartDate, propEndDate), [propEndDate, propStartDate]);
+  const journey = useMemo(() => resolveRentalJourney(propStartDate, propEndDate), [propEndDate, propStartDate]);
 
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
@@ -85,10 +65,14 @@ export default function VehicleDetailScreen({
   const [reloadKey, setReloadKey] = useState(0);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [availabilityReloadKey, setAvailabilityReloadKey] = useState(0);
-  const [availability, setAvailability] = useState<{
-    error: string | null;
-    status: 'loading' | 'available' | 'unavailable' | 'error';
-  }>({ error: null, status: 'loading' });
+  const availabilityKey = JSON.stringify([vehicleId, journey.startDate, journey.endDate, availabilityReloadKey]);
+  const [availabilityResult, setAvailabilityResult] = useState<{
+    key: string; gateway: VehicleCalendarGateway; value: Availability;
+  } | null>(null);
+  const availability = currentAvailability(
+    availabilityResult?.gateway === calendarGateway ? availabilityResult : null,
+    availabilityKey,
+  );
 
   const retryFetch = useCallback(() => {
     setFetchError(null);
@@ -118,7 +102,6 @@ export default function VehicleDetailScreen({
   useEffect(() => {
     if (!vehicleId) return;
     let active = true;
-    setAvailability({ error: null, status: 'loading' });
     calendarGateway.getCalendar({
       vehicleId,
       windowStartDate: journey.startDate,
@@ -127,13 +110,13 @@ export default function VehicleDetailScreen({
       if (!active) return;
       const fullyAvailable = result.days.length === journey.durationDays
         && result.days.every((day) => day.available);
-      setAvailability({ error: null, status: fullyAvailable ? 'available' : 'unavailable' });
+      setAvailabilityResult({ key: availabilityKey, gateway: calendarGateway, value: { error: null, status: fullyAvailable ? 'available' : 'unavailable' } });
     }).catch((error: unknown) => {
       if (!active) return;
-      setAvailability({ error: vehicleCalendarErrorMessage(error), status: 'error' });
+      setAvailabilityResult({ key: availabilityKey, gateway: calendarGateway, value: { error: vehicleCalendarErrorMessage(error), status: 'error' } });
     });
     return () => { active = false; };
-  }, [availabilityReloadKey, calendarGateway, journey.durationDays, journey.endDate, journey.startDate, vehicleId]);
+  }, [availabilityKey, calendarGateway, journey.durationDays, journey.endDate, journey.startDate, vehicleId]);
 
   const quote = useMemo(
     () => vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, journey.durationDays) : null,

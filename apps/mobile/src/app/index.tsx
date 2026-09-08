@@ -1,11 +1,12 @@
 import type { AccountType } from '@mmg/contracts';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Redirect, type Href } from 'expo-router';
 
 import { useAuth } from '@/core/auth/auth-context';
 import {
   resolveAuthenticatedIntentDestination,
   resolveIdentityDestination,
+  preserveAuthIntent,
 } from '@/core/auth/account-profile-domain';
 import { AccountSetupScreen } from '@/features/auth/screens/account-setup-screen';
 import { AccountProfileErrorScreen } from '@/features/auth/screens/account-profile-error-screen';
@@ -18,9 +19,12 @@ export default function IndexRoute() {
   const { initializing, profile, profileLoadFailed, user } = useAuth();
   const [authIntent, setAuthIntent] = useState<AccountType | 'sign-in' | null>(null);
 
-  useEffect(() => {
-    if (!user) setAuthIntent(null);
-  }, [user]);
+  const userId = user?.uid ?? null;
+  const [previousUserId, setPreviousUserId] = useState(userId);
+  if (previousUserId !== userId) {
+    setPreviousUserId(userId);
+    setAuthIntent(preserveAuthIntent(authIntent, previousUserId, userId));
+  }
 
   if (initializing) return <AuthLoadingScreen />;
   if (profileLoadFailed) return <AccountProfileErrorScreen />;

@@ -24,6 +24,11 @@ export function shouldPublishAuthSnapshot(profileMutationVersion: number): boole
 }
 
 export type AuthIntent = AccountType | 'sign-in' | null;
+// Preserve the choice through sign-in and verification; discard it on sign-out
+// or direct identity replacement, never merely because the form is signed out.
+export function preserveAuthIntent(intent: AuthIntent, previousUid: string | null, uid: string | null): AuthIntent {
+  return previousUid !== null && previousUid !== uid ? null : intent;
+}
 export type IdentityDestination = 'auth' | 'account-setup' | 'verify-email' | 'renter';
 export type AuthenticatedIntentDestination = 'renter' | 'owner';
 

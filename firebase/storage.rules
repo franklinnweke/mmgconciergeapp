@@ -9,11 +9,22 @@ service firebase.storage {
       return isAuth() && request.auth.uid == ownerId;
     }
 
-    function ownerAccount() {
+    function registeredAccount() {
       let account = firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
       return account != null
         && account.data != null
-        && account.data.accountType == 'owner';
+        && account.data.uid == request.auth.uid
+        && account.data.accountType in ['owner', 'renter'];
+    }
+
+    // Server-owned capability, never the registration-path compatibility label.
+    function ownerCapability(allowedStates) {
+      let profile = firestore.get(/databases/(default)/documents/ownerProfiles/$(request.auth.uid));
+      return request.auth.token.email_verified == true
+        && profile != null && profile.data != null
+        && profile.data.ownerId == request.auth.uid
+        && profile.data.version is int && profile.data.version > 0
+        && profile.data.verificationStatus in allowedStates;
     }
 
     function vehicleOwnedByAuth(vehicleId) {
@@ -35,7 +46,8 @@ service firebase.storage {
     match /private/owner-verification/{ownerId}/{uploadId} {
       allow read: if false;
       allow create: if pathUidIsAuth(ownerId)
-        && ownerAccount()
+        && registeredAccount()
+        && ownerCapability(['draft', 'rejected'])
         && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
         && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
         && allowedIdImage();
@@ -52,7 +64,7 @@ service firebase.storage {
     match /private/vehicle-uploads/{ownerId}/{vehicleId}/{uploadId} {
       allow read: if false;
       allow create: if pathUidIsAuth(ownerId)
-        && ownerAccount()
+        && ownerCapability(['approved'])
         && vehicleOwnedByAuth(vehicleId)
         && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
         && vehicleId.matches('^[A-Za-z0-9_-]{1,128}$')
@@ -67,7 +79,7 @@ service firebase.storage {
     match /private/vehicle-documents/{ownerId}/{vehicleId}/{uploadId} {
       allow read: if false;
       allow create: if pathUidIsAuth(ownerId)
-        && ownerAccount()
+        && ownerCapability(['approved'])
         && vehicleOwnedByAuth(vehicleId)
         && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
         && vehicleId.matches('^[A-Za-z0-9_-]{1,128}$')

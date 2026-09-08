@@ -89,10 +89,10 @@ export async function completeOwnerProfile(
     }
 
     const user = await transaction.getUser(auth.uid);
-    if (!user || user.accountType !== 'owner') {
+    if (!user || user.uid !== auth.uid || !['owner', 'renter'].includes(user.accountType)) {
       throw new CommandError(
         'FORBIDDEN',
-        'Only registered owner accounts can complete an owner profile.',
+        'A registered MMG account is required to complete an owner profile.',
         { reason: 'not_owner' },
       );
     }
@@ -125,6 +125,15 @@ export async function completeOwnerProfile(
 
     const targetStatus = existingVerification?.status ?? 'draft';
     const existingProfile = await transaction.getOwnerProfile(auth.uid);
+    if ((existingProfile !== null) !== (existingVerification !== null) ||
+      (existingProfile && existingVerification && (
+        existingProfile.ownerId !== auth.uid || existingVerification.ownerId !== auth.uid ||
+        existingProfile.verificationStatus !== existingVerification.status ||
+        !Number.isSafeInteger(existingProfile.version) || existingProfile.version < 1 ||
+        !Number.isSafeInteger(existingVerification.version) || existingVerification.version < 1
+      ))) {
+      throw new CommandError('FAILED_PRECONDITION', 'Owner application records are inconsistent.');
+    }
     const nextProfileVersion = (existingProfile?.version ?? 0) + 1;
     const nextVerificationVersion = (existingVerification?.version ?? 0) + 1;
 

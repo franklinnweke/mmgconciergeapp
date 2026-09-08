@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import { type CreateBookingIntentResult, type VehicleSummary } from '@mmg/contracts';
-import { calculateBookingQuote, calculateChargedDays, formatNairaFromKobo } from '@mmg/domain';
+import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,11 +13,9 @@ import { ScreenHeader } from '@/components/screen-header';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 import {
-  addDaysToDateOnly,
   formatLagosDateOnly,
-  parseDateOnly,
-  todayLagosDateOnly,
 } from '@/features/discovery/data/lagos-destinations';
+import { resolveRentalJourney } from '@/features/discovery/data/rental-journey';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
@@ -35,24 +33,6 @@ type BookingReviewScreenProps = {
   vehicleId: string;
 };
 
-function resolveJourney(startDate?: string, endDate?: string) {
-  const start = parseDateOnly(startDate) ?? todayLagosDateOnly();
-  try {
-    const end = parseDateOnly(endDate) ?? addDaysToDateOnly(start, 1);
-    return {
-      durationDays: calculateChargedDays(start, end),
-      endDate: end,
-      startDate: start,
-    };
-  } catch {
-    return {
-      durationDays: 1,
-      endDate: addDaysToDateOnly(start, 1),
-      startDate: start,
-    };
-  }
-}
-
 export default function BookingReviewScreen({
   bookingIntentGateway,
   endDate,
@@ -67,7 +47,7 @@ export default function BookingReviewScreen({
     [bookingIntentGateway],
   );
   const submissionKey = useRef(new BookingIntentSubmissionKey());
-  const journey = useMemo(() => resolveJourney(startDate, endDate), [endDate, startDate]);
+  const journey = useMemo(() => resolveRentalJourney(startDate, endDate), [endDate, startDate]);
 
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));

@@ -55,6 +55,11 @@ describeWithEmulator('private owner-verification Storage rules', () => {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      if (accountType === 'owner') {
+        await setDoc(doc(context.firestore(), `ownerProfiles/${uid}`), {
+          ownerId: uid, verificationStatus: 'draft', version: 1,
+        });
+      }
     });
   }
 
@@ -64,6 +69,9 @@ describeWithEmulator('private owner-verification Storage rules', () => {
         vehicleId,
         ownerId,
         discoverable,
+      });
+      await setDoc(doc(context.firestore(), `ownerProfiles/${ownerId}`), {
+        ownerId, verificationStatus: 'approved', version: 2,
       });
     });
   }
@@ -83,9 +91,9 @@ describeWithEmulator('private owner-verification Storage rules', () => {
     await assertFails(getBytes(targetRef));
   });
 
-  it('S2: allows owner with accountType == owner to create a valid private verification upload', async () => {
+  it('S2: allows a legacy owner with a trusted draft application to create a valid private verification upload', async () => {
     await seedUserAccount('owner-one', 'owner');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
     const targetRef = ref(ownerStorage, 'private/owner-verification/owner-one/upload-01');
 
     await assertSucceeds(uploadBytes(
@@ -115,7 +123,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
 
   it('S3: denies owner creating an upload under another owner prefix', async () => {
     await seedUserAccount('owner-one', 'owner');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
     const targetRef = ref(ownerStorage, 'private/owner-verification/owner-two/upload-01');
 
     await assertFails(uploadBytes(
@@ -130,7 +138,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
 
   it('S4: denies owner uploading to public or non-private prefixes', async () => {
     await seedUserAccount('owner-one', 'owner');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
     const publicRef = ref(ownerStorage, 'public/owner-verification/owner-one/upload-01');
 
     await assertFails(uploadBytes(
@@ -145,7 +153,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
 
   it('S5: denies upload with forbidden MIME types', async () => {
     await seedUserAccount('owner-one', 'owner');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
     const targetRef = ref(ownerStorage, 'private/owner-verification/owner-one/upload-01');
 
     await assertFails(uploadBytes(
@@ -169,7 +177,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
 
   it('S6: denies upload of oversized files (> 10 MiB)', async () => {
     await seedUserAccount('owner-one', 'owner');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
     const targetRef = ref(ownerStorage, 'private/owner-verification/owner-one/upload-01');
 
     // 10 MiB + 1 byte
@@ -189,8 +197,8 @@ describeWithEmulator('private owner-verification Storage rules', () => {
     await seedUserAccount('owner-one', 'owner');
     await seedUserAccount('owner-two', 'owner');
 
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
-    const otherStorage = environment.authenticatedContext('owner-two').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
+    const otherStorage = environment.authenticatedContext('owner-two', { email_verified: true }).storage();
     const targetRef = ref(ownerStorage, 'private/owner-verification/owner-one/upload-01');
 
     await assertSucceeds(uploadBytes(
@@ -211,7 +219,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
 
   it('S9: denies owner updating metadata or deleting an existing upload', async () => {
     await seedUserAccount('owner-one', 'owner');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
     const targetRef = ref(ownerStorage, 'private/owner-verification/owner-one/upload-01');
 
     await assertSucceeds(uploadBytes(
@@ -234,7 +242,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
 
   it('S10 & S11: denies staff verification_admin JS client from reading or writing storage objects', async () => {
     await seedUserAccount('owner-one', 'owner');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
     const targetRef = ref(ownerStorage, 'private/owner-verification/owner-one/upload-01');
 
     await assertSucceeds(uploadBytes(
@@ -269,10 +277,10 @@ describeWithEmulator('private owner-verification Storage rules', () => {
 
   it('S12: denies users with accountType == renter from creating private owner verification uploads', async () => {
     await seedUserAccount('renter-one', 'renter');
-    const renterStorage = environment.authenticatedContext('renter-one').storage();
+    const renterStorage = environment.authenticatedContext('renter-one', { email_verified: true }).storage();
     const targetRef = ref(renterStorage, 'private/owner-verification/renter-one/upload-01');
 
-    // S12: Denied because ownerAccount() check requires accountType == 'owner'
+    // Registration alone is not a server-created owner application.
     await assertFails(uploadBytes(
       targetRef,
       Buffer.from('valid-jpeg-bytes'),
@@ -283,10 +291,46 @@ describeWithEmulator('private owner-verification Storage rules', () => {
     ));
   });
 
-  it('V1: allows an approved owner account to create only its own private vehicle image/document uploads', async () => {
-    await seedUserAccount('owner-one', 'owner');
+  it.each(['draft', 'rejected'])('allows a renter with a trusted %s application to upload ID', async (status) => {
+    await seedUserAccount('renter-one', 'renter');
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'ownerProfiles/renter-one'), {
+        ownerId: 'renter-one', verificationStatus: status, version: 1,
+      });
+    });
+    await assertSucceeds(uploadBytes(
+      ref(environment.authenticatedContext('renter-one', { email_verified: true }).storage(), 'private/owner-verification/renter-one/upload-01'),
+      Buffer.from('jpeg'), { contentType: 'image/jpeg', customMetadata: { purpose: 'government_id', ownerId: 'renter-one' } },
+    ));
+  });
+
+  it.each(['submitted', 'under_review', 'approved', 'suspended', 'revoked', 'corrupt', 'wrong-owner', 'missing-version', 'unverified'])('denies ID upload for %s application', async (mode) => {
+    await seedUserAccount('renter-one', 'renter');
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'ownerProfiles/renter-one'), {
+        ownerId: mode === 'wrong-owner' ? 'someone-else' : 'renter-one',
+        verificationStatus: ['wrong-owner', 'missing-version', 'unverified'].includes(mode) ? 'draft' : mode,
+        ...(mode === 'missing-version' ? {} : { version: 1 }),
+      });
+    });
+    await assertFails(uploadBytes(
+      ref(environment.authenticatedContext('renter-one', { email_verified: mode !== 'unverified' }).storage(), 'private/owner-verification/renter-one/upload-01'),
+      Buffer.from('jpeg'), { contentType: 'image/jpeg', customMetadata: { purpose: 'government_id', ownerId: 'renter-one' } },
+    ));
+  });
+
+  it('denies a client creating its own owner capability', async () => {
+    await seedUserAccount('renter-one', 'renter');
+    const firestore = environment.authenticatedContext('renter-one', { email_verified: true }).firestore();
+    await assertFails(setDoc(doc(firestore, 'ownerProfiles/renter-one'), {
+      ownerId: 'renter-one', verificationStatus: 'approved', version: 1,
+    }));
+  });
+
+  it.each(['owner', 'renter'] as const)('V1: allows an approved %s compatibility account to create only its own private vehicle image/document uploads', async (accountType) => {
+    await seedUserAccount('owner-one', accountType);
     await seedVehicle('vehicle-one', 'owner-one');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
 
     await assertSucceeds(uploadBytes(
       ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-one/upload-vehicle-01'),
@@ -314,8 +358,8 @@ describeWithEmulator('private owner-verification Storage rules', () => {
     await seedVehicle('vehicle-one', 'owner-one');
     await seedVehicle('vehicle-two', 'owner-two');
 
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
-    const renterStorage = environment.authenticatedContext('renter-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
+    const renterStorage = environment.authenticatedContext('renter-one', { email_verified: true }).storage();
     const imageBytes = Buffer.from('vehicle-image');
 
     await assertFails(uploadBytes(
@@ -388,7 +432,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
       });
     });
 
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
 
     await assertSucceeds(getBytes(ref(ownerStorage, publicPath)));
     await assertFails(uploadBytes(ref(ownerStorage, publicPath), Buffer.from('overwrite'), {
@@ -419,7 +463,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
       });
     });
 
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
 
     await assertFails(getBytes(ref(ownerStorage, variantPath)));
     await assertFails(uploadBytes(ref(ownerStorage, variantPath), Buffer.from('client-variant'), {
@@ -434,7 +478,7 @@ describeWithEmulator('private owner-verification Storage rules', () => {
     // sibling segment must not fall into it, and must not find another rule.
     await seedUserAccount('owner-one', 'owner');
     await seedVehicle('vehicle-one', 'owner-one');
-    const ownerStorage = environment.authenticatedContext('owner-one').storage();
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
 
     for (const path of [
       'public/vehicles/vehicle-one/pending/image-one/card',

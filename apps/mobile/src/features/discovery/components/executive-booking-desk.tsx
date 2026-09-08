@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { adjustRentalDuration } from '../data/rental-journey';
 import {
   addDaysToDateOnly,
   formatLagosDateOnly,
@@ -33,7 +34,6 @@ type DateOption = {
   secondary: string;
 };
 
-const durationOptions = [1, 2, 3, 5, 7, 14] as const;
 
 function dateOptionCopy(dateOnly: string, offset: number): Omit<DateOption, 'date' | 'offset'> {
   const date = new Date(`${dateOnly}T12:00:00+01:00`);
@@ -179,22 +179,13 @@ export function ExecutiveBookingDesk({
 
             <Text style={styles.pickerLabel}>DURATION</Text>
             <View style={styles.durationGrid}>
-              {durationOptions.map((days) => {
-                const selected = days === durationDays;
-                return (
-                  <PressableScale
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    key={days}
-                    onPress={() => setDurationDays(days)}
-                    style={styles.durationFlex}
-                  >
-                    <View style={[styles.durationChip, selected && styles.durationChipSelected]}>
-                      <Text style={[styles.durationText, selected && styles.durationTextSelected]}>{days}d</Text>
-                    </View>
-                  </PressableScale>
-                );
-              })}
+              <PressableScale accessibilityLabel="Shorten rental by one day" accessibilityRole="button" accessibilityState={{ disabled: durationDays === 1 }} disabled={durationDays === 1} onPress={() => setDurationDays((days) => adjustRentalDuration(days, -1))}>
+                <View style={styles.durationChip}><Ionicons name="remove" size={22} color={durationDays === 1 ? colors.muted : colors.ivory} /></View>
+              </PressableScale>
+              <Text accessibilityLiveRegion="polite" style={styles.durationText}>{durationDays} {durationDays === 1 ? 'day' : 'days'}</Text>
+              <PressableScale accessibilityLabel="Extend rental by one day" accessibilityRole="button" accessibilityState={{ disabled: durationDays === 30 }} disabled={durationDays === 30} onPress={() => setDurationDays((days) => adjustRentalDuration(days, 1))}>
+                <View style={styles.durationChip}><Ionicons name="add" size={22} color={durationDays === 30 ? colors.muted : colors.ivory} /></View>
+              </PressableScale>
             </View>
 
             <View style={styles.rangeSummary}>
@@ -209,7 +200,7 @@ export function ExecutiveBookingDesk({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject },
+  backdrop: { ...StyleSheet.absoluteFill },
   container: { gap: spacing.sm, paddingHorizontal: spacing.md },
   dateChip: {
     alignItems: 'center',
@@ -235,12 +226,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
     minHeight: 46,
+    minWidth: 46,
   },
-  durationChipSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
-  durationFlex: { flexBasis: '30%', flexGrow: 1 },
-  durationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  durationGrid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   durationText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
-  durationTextSelected: { color: colors.black, fontFamily: typography.bodySemiBold },
   editText: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: fontSizes.xs },
   exploreButton: {
     alignItems: 'center',

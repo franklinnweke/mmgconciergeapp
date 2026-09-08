@@ -6,6 +6,7 @@ import {
   resolveIdentityDestination,
   resolveRegistrationAccountProfile,
   shouldPublishAuthSnapshot,
+  preserveAuthIntent,
 } from './account-profile-domain';
 
 const renterProfile = {
@@ -16,6 +17,14 @@ const renterProfile = {
 };
 
 describe('account profile routing', () => {
+  it('keeps list-car intent through auth and verification but clears it for the next identity', () => {
+    expect(preserveAuthIntent('owner', null, null)).toBe('owner');
+    expect(preserveAuthIntent('owner', null, 'owner-one')).toBe('owner');
+    expect(preserveAuthIntent('owner', 'owner-one', 'owner-one')).toBe('owner');
+    expect(preserveAuthIntent('owner', 'owner-one', null)).toBeNull();
+    expect(preserveAuthIntent('owner', 'owner-one', 'renter-two')).toBeNull();
+    expect(resolveAuthenticatedIntentDestination(preserveAuthIntent('owner', 'owner-one', null))).toBe('renter');
+  });
   it('requires authentication, account setup, and verification in order', () => {
     expect(resolveIdentityDestination({ emailVerified: false, hasUser: false, profile: null })).toBe('auth');
     expect(resolveIdentityDestination({ emailVerified: false, hasUser: true, profile: null })).toBe('account-setup');
