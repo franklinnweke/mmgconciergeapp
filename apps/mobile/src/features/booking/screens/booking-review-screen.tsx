@@ -200,6 +200,7 @@ export default function BookingReviewScreen({
             <RenterPaymentCheckout
               holdExpiresAt={intentResult.result.expiresAt}
               intentId={intentResult.result.intentId}
+              onCompleteProfile={() => router.push('/account')}
               onRestartHold={() => {
                 setIntentResult(null);
                 setErrorMessage(null);
