@@ -3,12 +3,30 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { FirestoreBookingIntentRepository } from './firestore-booking-intent-repository.js';
 
+type MockFirestoreReference = {
+  path: string;
+  collection: (name: string) => MockFirestoreReference;
+  where: (...args: unknown[]) => MockFirestoreReference;
+};
+
+function mockReference(path: string): MockFirestoreReference {
+  const reference = {
+    path,
+    collection: (name: string) => mockReference(`${path}/${name}`),
+    where: () => reference,
+  };
+  return reference;
+}
+
 describe('FirestoreBookingIntentRepository vehicle schema compatibility', () => {
   it('correctly parses real VehicleRecord shapes with discoverable invariant', async () => {
     const mockFirestore = {
       runTransaction: vi.fn(async (work) => {
         const mockTransaction = {
           get: vi.fn((docRef: { path: string }) => {
+            if (docRef.path === 'vehicles/veh-live-prado/images') {
+              return Promise.resolve({ docs: [] });
+            }
             if (docRef.path === 'vehicles/veh-live-prado') {
               return Promise.resolve({
                 exists: true,
@@ -32,7 +50,7 @@ describe('FirestoreBookingIntentRepository vehicle schema compatibility', () => 
         } as unknown as Transaction;
         return work(mockTransaction);
       }),
-      doc: (path: string) => ({ path }),
+      doc: (path: string) => mockReference(path),
     } as unknown as Firestore;
 
     const repository = new FirestoreBookingIntentRepository(mockFirestore);
@@ -59,6 +77,9 @@ describe('FirestoreBookingIntentRepository vehicle schema compatibility', () => 
       runTransaction: vi.fn(async (work) => {
         const mockTransaction = {
           get: vi.fn((docRef: { path: string }) => {
+            if (docRef.path === 'vehicles/veh-paused/images') {
+              return Promise.resolve({ docs: [] });
+            }
             if (docRef.path === 'vehicles/veh-paused') {
               return Promise.resolve({
                 exists: true,
@@ -80,7 +101,7 @@ describe('FirestoreBookingIntentRepository vehicle schema compatibility', () => 
         } as unknown as Transaction;
         return work(mockTransaction);
       }),
-      doc: (path: string) => ({ path }),
+      doc: (path: string) => mockReference(path),
     } as unknown as Firestore;
 
     const repository = new FirestoreBookingIntentRepository(mockFirestore);
@@ -95,6 +116,9 @@ describe('FirestoreBookingIntentRepository vehicle schema compatibility', () => 
       runTransaction: vi.fn(async (work) => {
         const mockTransaction = {
           get: vi.fn((docRef: { path: string }) => {
+            if (docRef.path === 'vehicles/veh-fixture/images') {
+              return Promise.resolve({ docs: [] });
+            }
             if (docRef.path === 'vehicles/veh-fixture') {
               return Promise.resolve({
                 exists: true,
@@ -115,7 +139,7 @@ describe('FirestoreBookingIntentRepository vehicle schema compatibility', () => 
         } as unknown as Transaction;
         return work(mockTransaction);
       }),
-      doc: (path: string) => ({ path }),
+      doc: (path: string) => mockReference(path),
     } as unknown as Firestore;
 
     const repository = new FirestoreBookingIntentRepository(mockFirestore);
