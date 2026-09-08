@@ -29,8 +29,10 @@ Validated auth + Apple integration merged through PR #23 at `55ffd2c39b619d2779b
 - Trusted money is integer NGN kobo and server-authoritative.
 - Exact vehicle address/coordinates and owner-sensitive data remain private.
 - Only approved, active, discoverable vehicles are renter-visible.
-- Signed-out onboarding asks renter versus owner intent before registration. Existing sign-in remains universal, and an existing Firestore `accountType` always wins over entry-path intent.
-- Normal registration creates the selected immutable account profile directly. The post-auth account-type chooser is recovery-only for legacy authenticated users whose profile is missing.
+- Signed-out onboarding asks how the person wants to start: rent a car or list a car. This is a session intent, not a permanent navigation role.
+- Every verified authenticated MMG account can use the renter experience. Listing vehicles is an additional owner application/capability on the same identity.
+- The existing Firestore `accountType` field remains compatibility metadata and records the profile created by the original registration path. It must not block renter access or force an existing owner into owner-only navigation.
+- Normal registration still creates a compatibility account profile directly. Legacy authenticated users whose profile is missing are repaired to the baseline renter profile automatically instead of being forced through another role decision during normal sign-in.
 - Email/password, Google and Apple are authentication entry methods only. They do not bypass renter phone/address requirements, owner phone/ID/verification, booking/payment authority, or staff authorization.
 - Cross-provider account collisions fail safely and direct the user to their existing sign-in method. Do not silently create or merge MMG identities.
 
@@ -141,11 +143,17 @@ Current auth behavior:
 - Apple first-login name data is persisted to Firebase Auth when supplied and reloaded before MMG profile creation;
 - Apple cancellation is a clean cancellation, not a false error;
 - Apple uses Expo's native `AppleAuthenticationButton`;
-- returning provider users preserve persisted Firestore `accountType`; first-time role-specific registration creates the selected profile;
+- returning provider users preserve persisted Firestore compatibility profile data; first-time role-specific registration creates the selected compatibility profile;
+- authenticated verified users land in renter/Home by default regardless of legacy `accountType`;
+- choosing `List your car` before authentication carries owner intent into the owner application after successful authentication, while `Rent a car` and universal sign-in land in renter/Home;
+- renter and owner route guards authorize the authenticated/verified identity rather than treating compatibility `accountType` as mutually exclusive access;
+- a legacy authenticated identity with no `/users/{uid}` profile is automatically repaired to the baseline renter compatibility profile;
 - same-email cross-provider collisions remain explicit and are not automatically linked;
 - Apple Sign in with Apple capability and the development Firebase provider are configured; private email relay remains pending operator domain verification before public launch;
 - Apple-authenticated account deletion must include Apple token revocation before public App Store release;
 - production `mmg-concierge` and live payment credentials remain untouched.
+
+Email verification remains required before entering the live renter discovery and owner application surfaces because the current trusted discovery and owner callables enforce verified email. Do not weaken that backend trust boundary as part of navigation cleanup.
 
 Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Do not repeat that pattern.
 
@@ -158,11 +166,13 @@ npm run firebase:deploy:booking-payment-dev
 
 The next gates are:
 
-1. Create the next development TestFlight build from `main` at or after `55ffd2c39b619d2779b6f5b93d87f1f929b2a603` only.
-2. On a physical iPhone, validate email, Google and Apple registration/sign-in/cancellation/session/error recovery.
-3. Connect the minimal authorized, masked, read-only staff booking/case desk.
-4. Prove one complete Paystack test journey across renter, owner and staff.
-5. Keep production `mmg-concierge` and live Paystack credentials untouched.
+1. Validate the unified account-access change with focused auth routing tests plus the full repository gate.
+2. Merge the validated change into `main`.
+3. Create any subsequent development TestFlight build from the resulting `main` SHA only.
+4. On a physical iPhone, confirm an existing owner choosing `Rent a car` lands in renter/Home, an existing renter choosing `List your car` can enter owner onboarding, and universal sign-in lands in renter/Home.
+5. Connect the minimal authorized, masked, read-only staff booking/case desk.
+6. Prove one complete Paystack test journey across renter, owner and staff.
+7. Keep production `mmg-concierge` and live Paystack credentials untouched.
 
 ## 7. Validation discipline
 

@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
-import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useAuth } from '@/core/auth/auth-context';
 import { useBookings } from '@/features/booking/booking-context';
 import {
@@ -22,18 +21,32 @@ import {
   selectHomeJourney,
 } from '@/features/booking/domain/home-journey';
 
-import { ExecutiveBookingDesk } from '../components/executive-booking-desk';
+import {
+  ExecutiveBookingDesk,
+  type JourneyPlan,
+} from '../components/executive-booking-desk';
 import { FeaturedVehicleCard } from '../components/featured-vehicle-card';
 import { LiveJourneyCard } from '../components/live-journey-card';
 import { PickupDistrictSheet } from '../components/pickup-district-sheet';
 import {
-  journeyDates,
-  journeyOptions,
+  addDaysToDateOnly,
   pickupDestinations,
+  todayLagosDateOnly,
 } from '../data/lagos-destinations';
 import { useFeaturedVehicles } from '../hooks/use-featured-vehicles';
 
 const carouselGap = spacing.md;
+
+function initialJourneyPlan(): JourneyPlan {
+  const startDate = todayLagosDateOnly();
+  return {
+    area: pickupDestinations[0].area,
+    startDate,
+    endDate: addDaysToDateOnly(startDate, 3),
+    durationDays: 3,
+    journeyLabel: 'Today',
+  };
+}
 
 export default function DiscoveryHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -42,21 +55,22 @@ export default function DiscoveryHomeScreen() {
   const { trips } = useBookings();
   const { error, isLoading, vehicles } = useFeaturedVehicles();
   const [area, setArea] = useState(pickupDestinations[0].area);
-  const journey = journeyOptions[1];
+  const [journeyPlan, setJourneyPlan] = useState<JourneyPlan>(initialJourneyPlan);
   const [destinationsOpen, setDestinationsOpen] = useState(false);
   const liveTrip = useMemo(() => selectHomeJourney(trips), [trips]);
   const firstName = firstNameFromDisplayName(user?.displayName);
   const featuredVehicles = vehicles;
   const { width: windowWidth } = useWindowDimensions();
   const cardWidth = Math.min(352, Math.max(280, windowWidth - 48));
-  const selectedJourneyDates = journeyDates(journey);
 
   function openFleet(nextArea = area) {
     router.push({
       pathname: '/(renter)/browse',
       params: {
         area: nextArea,
-        journey: journey.label,
+        startDate: journeyPlan.startDate,
+        endDate: journeyPlan.endDate,
+        journey: journeyPlan.journeyLabel,
       },
     });
   }
@@ -72,11 +86,7 @@ export default function DiscoveryHomeScreen() {
             right={(
               <View style={styles.topActions}>
                 <View style={styles.cityPill}>
-                  <RadarPulseDot
-                    color={colors.goldStrong}
-                    glowColor="rgba(227,195,101,0.35)"
-                    size={6}
-                  />
+                  <Ionicons color={colors.muted} name="location-outline" size={14} />
                   <Text style={styles.cityText}>Lagos</Text>
                 </View>
                 <PressableScale
@@ -86,9 +96,7 @@ export default function DiscoveryHomeScreen() {
                   style={styles.avatarPress}
                 >
                   <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>
-                      {firstName.charAt(0).toUpperCase()}
-                    </Text>
+                    <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
                   </View>
                 </PressableScale>
               </View>
@@ -108,6 +116,7 @@ export default function DiscoveryHomeScreen() {
         <ExecutiveBookingDesk
           areaLabel={area}
           onExploreFleet={(plan) => {
+            setJourneyPlan(plan);
             router.push({
               pathname: '/(renter)/browse',
               params: {
@@ -118,6 +127,7 @@ export default function DiscoveryHomeScreen() {
               },
             });
           }}
+          onPlanChange={setJourneyPlan}
           onPressArea={() => setDestinationsOpen(true)}
         />
 
@@ -129,9 +139,10 @@ export default function DiscoveryHomeScreen() {
         />
 
         <View style={[styles.inventoryHeading, styles.inset]}>
-          <Text accessibilityRole="header" style={styles.inventoryTitle}>
-            Available in Lagos
-          </Text>
+          <View>
+            <Text accessibilityRole="header" style={styles.inventoryTitle}>Cars in Lagos</Text>
+            <Text style={styles.inventorySubtitle}>Chauffeur and delivery included.</Text>
+          </View>
           <PressableScale accessibilityRole="button" onPress={() => openFleet()}>
             <Text style={styles.viewAll}>View all</Text>
           </PressableScale>
@@ -149,18 +160,14 @@ export default function DiscoveryHomeScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.horizontalClip}
           >
-            <LuxuryShimmer height={310} width={cardWidth} />
-            <LuxuryShimmer height={310} width={cardWidth} />
+            <LuxuryShimmer height={290} width={cardWidth} />
+            <LuxuryShimmer height={290} width={cardWidth} />
           </ScrollView>
         ) : featuredVehicles.length === 0 ? (
           <View style={[styles.emptyFeaturedBox, styles.inset]}>
-            <Ionicons color={colors.goldStrong} name="car-outline" size={28} />
-            <Text style={styles.emptyFeaturedTitle}>
-              No available listings in this category
-            </Text>
-            <Text style={styles.emptyFeaturedSubtitle}>
-              Check back soon or explore other vehicle categories.
-            </Text>
+            <Ionicons color={colors.muted} name="car-outline" size={26} />
+            <Text style={styles.emptyFeaturedTitle}>No cars available right now</Text>
+            <Text style={styles.emptyFeaturedSubtitle}>Try another date or check again soon.</Text>
           </View>
         ) : (
           <ScrollView
@@ -175,15 +182,14 @@ export default function DiscoveryHomeScreen() {
             {featuredVehicles.map((vehicle) => (
               <FeaturedVehicleCard
                 key={vehicle.id}
-                onPress={() =>
-                  router.push({
-                    pathname: '/vehicle/[vehicleId]',
-                    params: {
-                      ...selectedJourneyDates,
-                      vehicleId: vehicle.id,
-                    },
-                  })
-                }
+                onPress={() => router.push({
+                  pathname: '/vehicle/[vehicleId]',
+                  params: {
+                    startDate: journeyPlan.startDate,
+                    endDate: journeyPlan.endDate,
+                    vehicleId: vehicle.id,
+                  },
+                })}
                 vehicle={vehicle}
                 width={cardWidth}
               />
@@ -198,116 +204,49 @@ export default function DiscoveryHomeScreen() {
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.goldStrong,
+    backgroundColor: colors.ivory,
     borderRadius: radii.pill,
-    height: 44,
+    height: 40,
     justifyContent: 'center',
-    width: 44,
+    width: 40,
   },
-  avatarPress: {
-    flexShrink: 0,
-    height: 44,
-    width: 44,
-  },
-  avatarText: {
-    color: colors.black,
-    fontFamily: typography.display,
-    fontSize: fontSizes.lg,
-  },
-  carousel: {
-    gap: carouselGap,
-    paddingHorizontal: spacing.md,
-  },
+  avatarPress: { flexShrink: 0, height: 40, width: 40 },
+  avatarText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
+  carousel: { gap: carouselGap, paddingHorizontal: spacing.md },
   cityPill: {
     alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     flexShrink: 0,
     gap: 4,
-    minHeight: 44,
-    paddingHorizontal: 8,
+    minHeight: 40,
+    paddingHorizontal: 4,
   },
-  cityText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-  },
-  content: {
-    gap: spacing.lg,
-    paddingBottom: 120,
-  },
+  cityText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: fontSizes.xs },
+  content: { gap: spacing.md, paddingBottom: 116 },
   emptyFeaturedBox: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
     borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     gap: spacing.xs,
-    justifyContent: 'center',
     paddingVertical: spacing.xl,
   },
-  emptyFeaturedSubtitle: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-  },
-  emptyFeaturedTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-    marginTop: spacing.xs,
-  },
+  emptyFeaturedSubtitle: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
+  emptyFeaturedTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm, marginTop: spacing.xs },
   errorBox: {
     alignItems: 'center',
-    backgroundColor: 'rgba(209,133,120,0.12)',
     borderColor: colors.danger,
     borderRadius: radii.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
     padding: spacing.md,
   },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
-  },
-  horizontalClip: {
-    alignSelf: 'stretch',
-    overflow: 'visible',
-    width: '100%',
-  },
-  inset: {
-    marginHorizontal: spacing.md,
-  },
-  inventoryHeading: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  inventoryTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.lg,
-  },
-  screen: {
-    backgroundColor: colors.black,
-    flex: 1,
-    maxWidth: '100%',
-    overflow: 'hidden',
-    width: '100%',
-  },
-  topActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  viewAll: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
+  errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
+  horizontalClip: { alignSelf: 'stretch', overflow: 'visible', width: '100%' },
+  inset: { marginHorizontal: spacing.md },
+  inventoryHeading: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
+  inventorySubtitle: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 3 },
+  inventoryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
+  screen: { backgroundColor: colors.black, flex: 1, maxWidth: '100%', overflow: 'hidden', width: '100%' },
+  topActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  viewAll: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm, paddingVertical: spacing.xs },
 });

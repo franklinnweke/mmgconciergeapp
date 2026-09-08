@@ -123,29 +123,25 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
       if (mode === 'register') {
         if (!accountType) throw new Error('Choose how you will use MMG before registering.');
         await auth.register({ displayName, email, password }, accountType);
-        onBack();
         return;
       }
       await auth.signIn({ email, password });
-      onBack();
     });
   }
 
   async function handleAppleSignIn() {
     await run(async () => {
-      const result = await auth.signInApple(
+      await auth.signInApple(
         mode === 'register' ? accountType ?? undefined : undefined,
       );
-      if (result === 'signed-in') onBack();
     });
   }
 
   async function handleGoogleSignIn() {
     await run(async () => {
-      const result = await auth.signInGoogle(
+      await auth.signInGoogle(
         mode === 'register' ? accountType ?? undefined : undefined,
       );
-      if (result === 'signed-in') onBack();
     });
   }
 
@@ -156,11 +152,7 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
     });
   }
 
-  const title = mode === 'sign-in'
-    ? 'Welcome back.'
-    : accountType === 'owner'
-      ? 'Create an owner account.'
-      : 'Create a renter account.';
+  const title = mode === 'sign-in' ? 'Welcome back.' : 'Create your MMG account.';
 
   return (
     <KeyboardAvoidingView
@@ -307,7 +299,7 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
             <Text style={styles.textActionLabel}>
               {mode === 'register'
                 ? 'Already have an account? Sign in'
-                : 'New to MMG? Choose account type'}
+                : 'New to MMG? Choose how to start'}
             </Text>
           </PressableScale>
         </Animated.View>

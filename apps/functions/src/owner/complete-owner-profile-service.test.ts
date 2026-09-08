@@ -319,7 +319,7 @@ describe('completeOwnerProfile service', () => {
     }
   });
 
-  it('denies completion if user accountType is not owner (e.g. renter)', async () => {
+  it('creates a server-owned draft application for a renter without changing compatibility metadata', async () => {
     repository.users.set('renter-user', {
       uid: 'renter-user',
       accountType: 'renter',
@@ -335,10 +335,33 @@ describe('completeOwnerProfile service', () => {
         },
         { repository, now: () => now },
       ),
-    ).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-      safeDetails: { reason: 'not_owner' },
+    ).resolves.toMatchObject({
+      result: { ownerId: 'renter-user', verificationStatus: 'draft' },
     });
+    expect(repository.users.get('renter-user')?.accountType).toBe('renter');
+    expect(repository.profiles.get('renter-user')?.verificationStatus).toBe('draft');
+    expect(repository.verifications.get('renter-user')?.status).toBe('draft');
+  });
+
+  it.each(['missing', 'wrong-uid', 'invalid-type'])('denies %s registered identity with no writes', async (mode) => {
+    repository.users.delete('owner-one');
+    if (mode !== 'missing') repository.users.set('owner-one', {
+      uid: mode === 'wrong-uid' ? 'another-user' : 'owner-one',
+      email: 'musa@example.com',
+      accountType: (mode === 'invalid-type' ? 'staff' : 'renter') as TrustedUserAccount['accountType'],
+    });
+    await expect(completeOwnerProfile(validCommand(), {
+      uid: 'owner-one', token: { email: 'musa@example.com', email_verified: true },
+    }, { repository })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(repository.profiles.size).toBe(0);
+    expect(repository.verifications.size).toBe(0);
+    expect(repository.auditEvents).toHaveLength(0);
+  });
+
+  it('denies anonymous application creation without writes', async () => {
+    await expect(completeOwnerProfile(validCommand(), undefined, { repository }))
+      .rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    expect(repository.profiles.size).toBe(0);
   });
 
   it('denies completion if email is unverified', async () => {

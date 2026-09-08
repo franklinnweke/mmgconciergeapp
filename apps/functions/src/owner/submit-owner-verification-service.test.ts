@@ -225,7 +225,31 @@ describe('submitOwnerVerification service', () => {
     });
   });
 
+  it('submits a renter application without changing its compatibility account type', async () => {
+    repository.users.get('owner-one')!.accountType = 'renter';
+    const result = await submitOwnerVerification(validSubmitCommand(), validAuth, { repository, storageGateway, now: () => now });
+    expect(result.result.verificationStatus).toBe('submitted');
+    expect(repository.users.get('owner-one')!.accountType).toBe('renter');
+    expect(repository.profiles.get('owner-one')!.verificationStatus).toBe('submitted');
+  });
+
+  it.each(['profile-owner', 'verification-owner', 'status', 'version', 'missing-user', 'user-owner'])('fails closed on %s corruption without partial effects', async (mode) => {
+    if (mode === 'profile-owner') repository.profiles.get('owner-one')!.ownerId = 'other';
+    if (mode === 'verification-owner') repository.verifications.get('owner-one')!.ownerId = 'other';
+    if (mode === 'status') repository.profiles.get('owner-one')!.verificationStatus = 'approved';
+    if (mode === 'version') repository.profiles.get('owner-one')!.version = 0;
+    if (mode === 'missing-user') repository.users.delete('owner-one');
+    if (mode === 'user-owner') repository.users.get('owner-one')!.uid = 'other';
+    await expect(submitOwnerVerification(validSubmitCommand(), validAuth, { repository, storageGateway, now: () => now }))
+      .rejects.toMatchObject({ code: ['missing-user', 'user-owner'].includes(mode) ? 'FORBIDDEN' : 'FAILED_PRECONDITION' });
+    expect(repository.auditEvents).toHaveLength(0);
+    expect(repository.notifications).toHaveLength(0);
+    expect(repository.idempotency.size).toBe(0);
+    expect(repository.verifications.get('owner-one')!.status).toBe('draft');
+  });
+
   it('submits owner verification from rejected status and preserves previous reason', async () => {
+    repository.profiles.get('owner-one')!.verificationStatus = 'rejected';
     repository.verifications.set('owner-one', {
       ...repository.verifications.get('owner-one')!,
       status: 'rejected',
@@ -281,6 +305,7 @@ describe('submitOwnerVerification service', () => {
   });
 
   it('denies submission when already in submitted or resolved states', async () => {
+    repository.profiles.get('owner-one')!.verificationStatus = 'submitted';
     repository.verifications.set('owner-one', {
       ...repository.verifications.get('owner-one')!,
       status: 'submitted',

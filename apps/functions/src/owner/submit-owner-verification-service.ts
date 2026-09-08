@@ -77,10 +77,10 @@ export async function submitOwnerVerification(
     }
 
     const user = await transaction.getUser(auth.uid);
-    if (!user || user.accountType !== 'owner') {
+    if (!user || user.uid !== auth.uid || !['owner', 'renter'].includes(user.accountType)) {
       throw new CommandError(
         'FORBIDDEN',
-        'Only registered owner accounts can submit owner verification.',
+        'A registered MMG account is required to submit owner verification.',
         { reason: 'not_owner' },
       );
     }
@@ -93,6 +93,13 @@ export async function submitOwnerVerification(
         'PROFILE_INCOMPLETE',
         'Complete your owner profile before submitting verification.',
       );
+    }
+
+    if (existingProfile.ownerId !== auth.uid || existingVerification.ownerId !== auth.uid ||
+      existingProfile.verificationStatus !== existingVerification.status ||
+      !Number.isSafeInteger(existingProfile.version) || existingProfile.version < 1 ||
+      !Number.isSafeInteger(existingVerification.version) || existingVerification.version < 1) {
+      throw new CommandError('FAILED_PRECONDITION', 'Owner application records are inconsistent.');
     }
 
     if (

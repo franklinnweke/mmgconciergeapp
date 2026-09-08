@@ -4,10 +4,10 @@ import { useAuth } from '@/core/auth/auth-context';
 import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 
 export default function OwnerLayout() {
-  const { initializing, profile, user } = useAuth();
+  const { initializing, user } = useAuth();
 
   if (initializing) return <AuthLoadingScreen />;
-  if (!user || !user.emailVerified || profile?.accountType !== 'owner') {
+  if (!user || !user.emailVerified) {
     return <Redirect href="/" />;
   }
 

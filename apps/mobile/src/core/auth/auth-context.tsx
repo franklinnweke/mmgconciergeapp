@@ -78,9 +78,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setProfileLoadFailed(false);
       setProfileInitializing(true);
       void loadAccountProfile(nextUser.uid)
+        .then(async (nextProfile) => {
+          if (
+            !active
+            || currentRequest !== requestVersion
+            || currentMutation !== profileMutationVersion.current
+            || !shouldPublishAuthSnapshot(currentMutation)
+          ) return null;
+
+          return resolveRegistrationAccountProfile(
+            nextProfile,
+            () => createAccountProfile(nextUser, 'renter'),
+          );
+        })
         .then((nextProfile) => {
           if (
-            active
+            nextProfile
+            && active
             && currentRequest === requestVersion
             && currentMutation === profileMutationVersion.current
             && shouldPublishAuthSnapshot(currentMutation)
@@ -188,7 +202,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setProfileInitializing(true);
       setProfileLoadFailed(false);
       try {
-        setProfile(await loadAccountProfile(user.uid));
+        const existingProfile = await loadAccountProfile(user.uid);
+        setProfile(await resolveRegistrationAccountProfile(
+          existingProfile,
+          () => createAccountProfile(user, 'renter'),
+        ));
       } catch {
         setProfileLoadFailed(true);
       } finally {
