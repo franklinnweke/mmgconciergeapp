@@ -1,6 +1,7 @@
 import {
   accountProfileSchema,
   type AccountProfile,
+  type AccountType,
 } from '@mmg/contracts';
 
 export function decodeAccountProfile(value: unknown, expectedUid: string): AccountProfile {
@@ -22,7 +23,9 @@ export function shouldPublishAuthSnapshot(profileMutationVersion: number): boole
   return profileMutationVersion % 2 === 0;
 }
 
-export type IdentityDestination = 'auth' | 'account-setup' | 'verify-email' | 'renter' | 'owner';
+export type AuthIntent = AccountType | 'sign-in' | null;
+export type IdentityDestination = 'auth' | 'account-setup' | 'verify-email' | 'renter';
+export type AuthenticatedIntentDestination = 'renter' | 'owner';
 
 export function resolveIdentityDestination(input: {
   emailVerified: boolean;
@@ -32,5 +35,11 @@ export function resolveIdentityDestination(input: {
   if (!input.hasUser) return 'auth';
   if (!input.profile) return 'account-setup';
   if (!input.emailVerified) return 'verify-email';
-  return input.profile.accountType;
+  return 'renter';
+}
+
+export function resolveAuthenticatedIntentDestination(
+  intent: AuthIntent,
+): AuthenticatedIntentDestination {
+  return intent === 'owner' ? 'owner' : 'renter';
 }

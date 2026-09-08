@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   decodeAccountProfile,
+  resolveAuthenticatedIntentDestination,
   resolveIdentityDestination,
   resolveRegistrationAccountProfile,
   shouldPublishAuthSnapshot,
@@ -21,13 +22,20 @@ describe('account profile routing', () => {
     expect(resolveIdentityDestination({ emailVerified: false, hasUser: true, profile: renterProfile })).toBe('verify-email');
   });
 
-  it('routes verified users by their persisted account type', () => {
+  it('gives every verified MMG account renter access regardless of legacy account type', () => {
     expect(resolveIdentityDestination({ emailVerified: true, hasUser: true, profile: renterProfile })).toBe('renter');
     expect(resolveIdentityDestination({
       emailVerified: true,
       hasUser: true,
       profile: { ...renterProfile, accountType: 'owner' },
-    })).toBe('owner');
+    })).toBe('renter');
+  });
+
+  it('uses the signed-out choice as a session intent, not a permanent navigation role', () => {
+    expect(resolveAuthenticatedIntentDestination('owner')).toBe('owner');
+    expect(resolveAuthenticatedIntentDestination('renter')).toBe('renter');
+    expect(resolveAuthenticatedIntentDestination('sign-in')).toBe('renter');
+    expect(resolveAuthenticatedIntentDestination(null)).toBe('renter');
   });
 
   it('rejects mismatched identities and admin profiles', () => {
