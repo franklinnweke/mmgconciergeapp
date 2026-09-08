@@ -19,27 +19,27 @@ export type StaffRole =
  * `role`: a staffer can legitimately carry several claims at once, and the
  * scalar only records the highest-precedence one for display and audit.
  */
-export type StaffCapability = 'owners.read' | 'owners.review' | 'vehicles.read' | 'vehicles.review';
+export type StaffCapability =
+  | 'bookings.read'
+  | 'owners.read'
+  | 'owners.review'
+  | 'vehicles.read'
+  | 'vehicles.review';
 
 /**
- * Fail-closed by construction. A role absent from this map, or present with an
- * empty list, reaches no data desk — `finance_admin`, `support`, and
- * `privacy_admin` can authenticate but their desks are not built yet, so they
- * must not inherit the owner PII inspector or the vehicle queue by default.
+ * Fail closed by construction. The first booking desk is deliberately read-only:
+ * support and super-admin can inspect trusted intervention cases, but there is no
+ * booking write capability here. Owner booking responses remain owner actions.
  */
 const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
-  super_admin: ['owners.read', 'owners.review', 'vehicles.read', 'vehicles.review'],
+  super_admin: ['bookings.read', 'owners.read', 'owners.review', 'vehicles.read', 'vehicles.review'],
   verification_admin: ['owners.read', 'owners.review'],
   vehicle_admin: ['vehicles.read', 'vehicles.review'],
   finance_admin: [],
-  support: [],
+  support: ['bookings.read'],
   privacy_admin: [],
 };
 
-/**
- * Highest privilege first. Used only to pick the scalar `role` shown in the
- * header and sent to the callable services as the actor role.
- */
 const STAFF_ROLE_PRECEDENCE: readonly StaffRole[] = [
   'super_admin',
   'vehicle_admin',
@@ -52,14 +52,12 @@ const STAFF_ROLE_PRECEDENCE: readonly StaffRole[] = [
 export type StaffSession = {
   uid: string;
   email?: string;
-  /** Highest-precedence claim. For display and audit only — do not authorize on it. */
   role: StaffRole;
-  /** Every claim the staffer actually holds. */
   roles: StaffRole[];
 };
 
-/** A capability-gated desk, used to tell a denied staffer where they *can* go. */
 export const STAFF_DESKS: readonly { href: string; label: string; capability: StaffCapability }[] = [
+  { href: '/', label: 'Booking intervention desk', capability: 'bookings.read' },
   { href: '/owners', label: 'Owner verification desk', capability: 'owners.read' },
   { href: '/vehicles', label: 'Vehicle moderation desk', capability: 'vehicles.read' },
 ];
@@ -67,12 +65,10 @@ export const STAFF_DESKS: readonly { href: string; label: string; capability: St
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 const FIVE_MINUTES_SECONDS = 5 * 60;
 
-/** Every staff role the claims grant, in precedence order. Empty means not staff. */
 export function resolveStaffRoles(claims: Record<string, unknown> = {}): StaffRole[] {
   return STAFF_ROLE_PRECEDENCE.filter((role) => claims[role] === true);
 }
 
-/** The highest-precedence staff role, or null when the claims grant none. */
 export function resolveStaffRole(claims: Record<string, unknown> = {}): StaffRole | null {
   return resolveStaffRoles(claims)[0] ?? null;
 }
@@ -87,10 +83,6 @@ export function capabilitiesForRoles(roles: readonly StaffRole[]): StaffCapabili
   return [...capabilities];
 }
 
-/**
- * The single authorization predicate. Union of every held role's capabilities,
- * so granting a second claim can never revoke what the first one allowed.
- */
 export function staffSessionHasCapability(
   session: Pick<StaffSession, 'roles'>,
   capability: StaffCapability,
@@ -98,13 +90,6 @@ export function staffSessionHasCapability(
   return capabilitiesForRoles(session.roles).includes(capability);
 }
 
-/**
- * Which of the roles a callable service accepts should be recorded as the
- * actor. Services type their actor narrowly (e.g. `'verification_admin' |
- * 'super_admin'`), and a staffer holding several claims must be recorded under
- * one the service recognises — not under whichever claim happens to win the
- * display precedence.
- */
 export function staffActorRole<T extends StaffRole>(
   session: Pick<StaffSession, 'roles'>,
   accepted: readonly T[],
@@ -140,7 +125,7 @@ export async function createStaffSessionCookie(
 
   const roles = resolveStaffRoles(userRecord.customClaims || {});
   if (roles.length === 0) {
-    throw new Error('Access denied. Staff verification privileges required.');
+    throw new Error('Access denied. Staff privileges required.');
   }
 
   return auth.createSessionCookie(idToken, { expiresIn: FIVE_DAYS_MS });
@@ -201,12 +186,6 @@ export async function requireLiveStaffSession(): Promise<StaffSession> {
   return session;
 }
 
-/**
- * Page-level gate. Redirects rather than rendering, so a page body that reads
- * owner PII or mints signed ID-document URLs cannot run at all without the
- * capability. Server actions must use `staffSessionHasCapability` instead —
- * `redirect()` throws, and an action's own error handling would swallow it.
- */
 export async function requireStaffCapability(capability: StaffCapability): Promise<StaffSession> {
   const session = await requireLiveStaffSession();
 
