@@ -43,6 +43,14 @@ service firebase.storage {
         && request.resource.metadata.ownerId == request.auth.uid;
     }
 
+    function allowedProfilePhoto(renterId) {
+      return request.resource.contentType in [
+        'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'
+      ] && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.metadata.purpose == 'profile_photo'
+        && request.resource.metadata.renterId == renterId;
+    }
+
     match /private/owner-verification/{ownerId}/{uploadId} {
       allow read: if false;
       allow create: if pathUidIsAuth(ownerId)
@@ -52,6 +60,16 @@ service firebase.storage {
         && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
         && allowedIdImage();
       allow update, delete: if false;
+    }
+
+    // Renter profile photos are self-owned profile enrichment, not identity documents.
+    match /private/renter-profile/{renterId}/avatar {
+      allow read: if pathUidIsAuth(renterId) && registeredAccount();
+      allow create, update: if pathUidIsAuth(renterId)
+        && registeredAccount()
+        && renterId.matches('^[A-Za-z0-9_-]{1,128}$')
+        && allowedProfilePhoto(renterId);
+      allow delete: if pathUidIsAuth(renterId) && registeredAccount();
     }
 
     // ── Vehicle image paths ──

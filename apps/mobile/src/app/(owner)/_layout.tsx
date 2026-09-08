@@ -4,8 +4,9 @@ import { useAuth } from '@/core/auth/auth-context';
 import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 
 export default function OwnerLayout() {
-  const { initializing, user } = useAuth();
+  const { initializing, signingOut, user } = useAuth();
 
+  if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (initializing) return <AuthLoadingScreen />;
   if (!user || !user.emailVerified) {
     return <Redirect href="/" />;

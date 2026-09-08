@@ -1,29 +1,34 @@
-import { colors, radii, spacing } from "@mmg/brand";
-import { formatNairaFromKobo } from "@mmg/domain";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { colors, radii, spacing, typography } from '@mmg/brand';
+import type { OwnerVisibleBooking } from '@mmg/contracts';
+import { formatNairaFromKobo } from '@mmg/domain';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ownerCommandErrorMessage } from "@/features/owner/domain/owner-errors";
-import { useAuth } from "@/core/auth/auth-context";
-import { createOwnerBookingGateway } from "../data/owner-booking-gateway";
-import { createOwnerBookingRepository } from "../data/owner-booking-repository";
-import type { OwnerVisibleBooking } from "@mmg/contracts";
+import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
+import { useAuth } from '@/core/auth/auth-context';
+import { ownerCommandErrorMessage } from '@/features/owner/domain/owner-errors';
+import { createOwnerBookingGateway } from '../data/owner-booking-gateway';
+import { createOwnerBookingRepository } from '../data/owner-booking-repository';
 import {
   canOwnerRespond,
   hasReachedExpectedState,
   isDeclineReasonValid,
-} from "../domain/owner-booking";
+} from '../domain/owner-booking';
+
+function formatCommission(basisPoints: number) {
+  return `${(basisPoints / 100).toFixed(basisPoints % 100 === 0 ? 0 : 2)}%`;
+}
 
 export function OwnerBookingDetailScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
@@ -34,13 +39,14 @@ export function OwnerBookingDetailScreen() {
   const [booking, setBooking] = useState<OwnerVisibleBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<{
-    state: "confirmed" | "intervention_required";
+    state: 'confirmed' | 'intervention_required';
     version: number;
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
   const retry = () => {
     setError(null);
     setLoading(true);
@@ -52,24 +58,18 @@ export function OwnerBookingDetailScreen() {
     return repository.subscribe(
       user.uid,
       (snapshot) => {
-        const next =
-          snapshot.bookings.find((item) => item.id === bookingId) ?? null;
+        const next = snapshot.bookings.find((item) => item.id === bookingId) ?? null;
         setBooking(next);
         setLoading(false);
         setError(null);
         if (pending && hasReachedExpectedState(next, pending)) {
           setPending(null);
           setBusy(false);
-          Alert.alert(
-            "Booking updated",
-            "The booking record now reflects your response.",
-          );
+          Alert.alert('Booking updated', 'Your response has been saved.');
         }
       },
       () => {
-        setError(
-          "This booking could not be refreshed. Your last action has not been confirmed.",
-        );
+        setError('This booking could not be refreshed. Your last action has not been confirmed.');
         setPending(null);
         setBusy(false);
         setLoading(false);
@@ -77,38 +77,35 @@ export function OwnerBookingDetailScreen() {
     );
   }, [bookingId, pending, refreshKey, repository, user?.uid]);
 
-  const act = async (kind: "confirm" | "reject") => {
+  const act = async (kind: 'confirm' | 'reject') => {
     if (!booking || busy) return;
-    if (kind === "reject" && !isDeclineReasonValid(reason)) {
-      setError(
-        `Add a decline reason between 10 and 500 characters (${reason.trim().length}/500).`,
-      );
+    if (kind === 'reject' && !isDeclineReasonValid(reason)) {
+      setError(`Add a decline reason between 10 and 500 characters (${reason.trim().length}/500).`);
       return;
     }
+
     setBusy(true);
     setError(null);
-    const expected = {
-      state:
-        kind === "confirm"
-          ? ("confirmed" as const)
-          : ("intervention_required" as const),
+    setPending({
+      state: kind === 'confirm' ? 'confirmed' : 'intervention_required',
       version: booking.version + 1,
-    };
-    setPending(expected);
+    });
+
     try {
-      if (kind === "confirm")
+      if (kind === 'confirm') {
         await gateway.confirm(
           booking.id,
           booking.version,
           `owner_confirm_${booking.id}_${booking.version}`,
         );
-      else
+      } else {
         await gateway.reject(
           booking.id,
           booking.version,
           reason.trim(),
           `owner_reject_${booking.id}_${booking.version}`,
         );
+      }
     } catch (caught) {
       setPending(null);
       setBusy(false);
@@ -116,113 +113,78 @@ export function OwnerBookingDetailScreen() {
     }
   };
 
-  if (loading)
+  if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color={colors.gold} />
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.gold} />
+          <Text style={styles.muted}>Loading booking…</Text>
+        </View>
       </SafeAreaView>
     );
-  if (error && !booking)
+  }
+
+  if (!booking) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <Text style={styles.title}>Booking unavailable</Text>
           <Text accessibilityLiveRegion="polite" style={styles.muted}>
-            {error}
+            {error || 'This record may have changed or is not assigned to your fleet.'}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={retry}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>RETRY</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.back()}
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>BACK</Text>
-          </Pressable>
+          {error ? (
+            <PressableScale accessibilityRole="button" onPress={retry}>
+              <View style={styles.primaryButton}><Text style={styles.primaryButtonText}>Try again</Text></View>
+            </PressableScale>
+          ) : null}
+          <PressableScale accessibilityRole="button" onPress={() => router.back()}>
+            <View style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Back to bookings</Text></View>
+          </PressableScale>
         </View>
       </SafeAreaView>
     );
-  if (!booking)
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.title}>Booking unavailable</Text>
-          <Text style={styles.muted}>
-            This record may have changed or is not assigned to your fleet.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.back()}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>BACK</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <ScreenHeader onBack={() => router.back()} showBrand={false} title="Booking" />
+      </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <Pressable
-          accessibilityLabel="Back to booking desk"
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          style={styles.back}
-        >
-          <Text style={styles.backText}>‹ BACK TO BOOKINGS</Text>
-        </Pressable>
-        <Text style={styles.title}>{booking.vehicleSnapshot.displayName}</Text>
-        <Text style={styles.sectionTitle}>Booking summary</Text>
-        <View style={styles.card}>
-          <Text style={styles.label}>DATES</Text>
-          <Text style={styles.valueSmall}>
-            {booking.startDate} → {booking.endDate}
-          </Text>
-          <Text style={styles.label}>BASE RENTAL</Text>
-          <Text style={styles.value}>
-            {formatNairaFromKobo(booking.priceSnapshot.baseRentalKobo)}
-          </Text>
-          <Text style={styles.label}>MMG COMMISSION</Text>
-          <Text style={styles.value}>
-            {booking.priceSnapshot.ownerCommissionBps} bps
-          </Text>
-          <Text style={styles.label}>YOUR EARNINGS</Text>
-          <Text style={styles.value}>
-            {formatNairaFromKobo(booking.priceSnapshot.ownerEarningsKobo)}
-          </Text>
+        <View style={styles.intro}>
+          <Text style={styles.title}>{booking.vehicleSnapshot.displayName}</Text>
+          <Text style={styles.muted}>{booking.startDate} to {booking.endDate}</Text>
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Booking summary</Text>
+          <SummaryRow label="Base rental" value={formatNairaFromKobo(booking.priceSnapshot.baseRentalKobo)} />
+          <SummaryRow label="MMG commission" value={formatCommission(booking.priceSnapshot.ownerCommissionBps)} />
+          <SummaryRow label="Your earnings" value={formatNairaFromKobo(booking.priceSnapshot.ownerEarningsKobo)} emphasized />
+        </View>
+
         {error ? (
           <View style={styles.errorRow}>
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {error}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={retry} style={styles.retryButton}>
-              <Text style={styles.retryText}>RETRY</Text>
-            </Pressable>
+            <Text accessibilityLiveRegion="polite" style={styles.errorText}>{error}</Text>
+            <PressableScale accessibilityRole="button" onPress={retry}>
+              <Text style={styles.retryText}>Try again</Text>
+            </PressableScale>
           </View>
         ) : null}
-        {pending ? (
-          <Text accessibilityLiveRegion="polite" style={styles.muted}>
-            Refreshing booking status from MMG…
-          </Text>
-        ) : null}
+
+        {pending ? <Text accessibilityLiveRegion="polite" style={styles.muted}>Checking the updated booking status…</Text> : null}
+
         {canOwnerRespond(booking) ? (
-          <>
-            <Pressable
-              disabled={busy}
-              onPress={() => void act("confirm")}
-              style={[styles.button, busy && styles.disabled]}
-            >
-              <Text style={styles.buttonText}>
-                {busy ? "WAITING FOR REFRESH…" : "CONFIRM BOOKING"}
-              </Text>
-            </Pressable>
+          <View style={styles.actions}>
+            <Text style={styles.sectionTitle}>Your response</Text>
+            <Text style={styles.muted}>Confirm that you can take this trip, or decline with a reason so MMG can intervene.</Text>
+
+            <PressableScale disabled={busy} onPress={() => void act('confirm')}>
+              <View style={[styles.primaryButton, busy && styles.disabled]}>
+                {busy ? <ActivityIndicator color={colors.black} size="small" /> : <Text style={styles.primaryButtonText}>Confirm booking</Text>}
+              </View>
+            </PressableScale>
+
             <TextInput
               accessibilityLabel="Decline reason"
               accessibilityHint="Enter 10 to 500 characters"
@@ -230,117 +192,69 @@ export function OwnerBookingDetailScreen() {
               maxLength={500}
               multiline
               onChangeText={setReason}
-              placeholder="Why can you not take this journey? (10–500 characters)"
+              placeholder="Why can you not take this trip?"
               placeholderTextColor={colors.muted}
               style={styles.input}
               value={reason}
             />
-            <Text accessibilityLiveRegion="polite" style={styles.counter}>
-              {reason.trim().length}/500 characters
-            </Text>
-            <Pressable
+            <Text style={styles.counter}>{reason.trim().length}/500</Text>
+
+            <PressableScale
               disabled={busy}
-              onPress={() =>
-                Alert.alert(
-                  "Decline this booking?",
-                  "This releases the reserved dates and opens an MMG intervention case.",
-                  [
-                    { text: "Keep", style: "cancel" },
-                    {
-                      text: "Decline",
-                      style: "destructive",
-                      onPress: () => void act("reject"),
-                    },
-                  ],
-                )
-              }
-              style={styles.secondary}
+              onPress={() => Alert.alert(
+                'Decline this booking?',
+                'The reserved dates will be released and MMG will review what to do next.',
+                [
+                  { text: 'Keep booking', style: 'cancel' },
+                  { text: 'Decline booking', style: 'destructive', onPress: () => void act('reject') },
+                ],
+              )}
             >
-              <Text style={styles.secondaryText}>DECLINE</Text>
-            </Pressable>
-          </>
+              <View style={styles.declineButton}><Text style={styles.declineButtonText}>Decline booking</Text></View>
+            </PressableScale>
+          </View>
         ) : (
-          <Text style={styles.muted}>
-            This booking is no longer awaiting your response.
-          </Text>
+          <Text style={styles.muted}>This booking is no longer awaiting your response.</Text>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function SummaryRow({ label, value, emphasized = false }: { label: string; value: string; emphasized?: boolean }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={[styles.summaryValue, emphasized && styles.summaryValueEmphasized]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.black, flex: 1 },
-  content: { gap: spacing.md, padding: spacing.lg },
-  center: {
-    alignItems: "center",
-    flex: 1,
-    gap: spacing.md,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  back: { minHeight: 44, justifyContent: "center" },
-  backText: {
-    color: colors.gold,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-  title: { color: colors.ivory, fontSize: 30, fontWeight: "700" },
-  sectionTitle: { color: colors.gold, fontSize: 12, fontWeight: "800", letterSpacing: 1.2, marginTop: spacing.md },
-  muted: { color: colors.muted, fontSize: 15, lineHeight: 22 },
-  card: {
-    borderBottomColor: colors.graphite,
-    borderBottomWidth: 1,
-    borderTopColor: colors.graphite,
-    borderTopWidth: 1,
-    gap: 8,
-    paddingVertical: spacing.md,
-  },
-  label: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-  },
-  value: {
-    color: colors.ivory,
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: spacing.sm,
-  },
-  valueSmall: { color: colors.ivory, fontSize: 15, marginBottom: spacing.sm },
-  button: {
-    alignItems: "center",
-    backgroundColor: colors.gold,
-    borderRadius: radii.sm,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-  },
-  buttonText: { color: colors.black, fontWeight: "800", letterSpacing: 1 },
-  secondary: {
-    alignItems: "center",
-    borderColor: colors.danger,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
-  },
-  secondaryText: { color: colors.danger, fontWeight: "800", letterSpacing: 1 },
-  input: {
-    borderColor: colors.graphite,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.ivory,
-    minHeight: 96,
-    padding: spacing.md,
-    textAlignVertical: "top",
-  },
-  counter: { color: colors.muted, fontSize: 12, textAlign: "right" },
-  error: { color: "#FCA5A5" },
-  errorRow: { gap: spacing.sm },
-  retryButton: { alignItems: "center", borderColor: colors.gold, borderRadius: radii.sm, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: spacing.md, alignSelf: "flex-start" },
-  retryText: { color: colors.gold, fontWeight: "800", letterSpacing: 1 },
+  actions: { gap: spacing.md },
+  center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
+  content: { gap: spacing.xl, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+  counter: { color: colors.muted, fontFamily: typography.body, fontSize: 12, textAlign: 'right' },
+  declineButton: { alignItems: 'center', borderColor: colors.danger, borderRadius: radii.pill, borderWidth: 1, justifyContent: 'center', minHeight: 50 },
+  declineButtonText: { color: colors.danger, fontFamily: typography.bodySemiBold, fontSize: 14 },
   disabled: { opacity: 0.55 },
+  errorRow: { backgroundColor: 'rgba(239,68,68,0.10)', gap: spacing.sm, padding: spacing.md },
+  errorText: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
+  header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  input: { borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 96, padding: spacing.md, textAlignVertical: 'top' },
+  intro: { gap: spacing.xs },
+  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.pill, justifyContent: 'center', minHeight: 50, paddingHorizontal: spacing.lg },
+  primaryButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  retryText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  safe: { backgroundColor: colors.black, flex: 1 },
+  secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg },
+  secondaryButtonText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
+  section: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, paddingTop: spacing.lg },
+  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
+  summaryLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
+  summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48 },
+  summaryValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
+  summaryValueEmphasized: { fontFamily: typography.bodySemiBold, fontSize: 16 },
+  title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 24 },
 });

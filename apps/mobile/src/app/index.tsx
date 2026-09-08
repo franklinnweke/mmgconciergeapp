@@ -16,7 +16,7 @@ import { AuthRoleChoiceScreen } from '@/features/auth/screens/auth-role-choice-s
 import { VerifyEmailScreen } from '@/features/auth/screens/verify-email-screen';
 
 export default function IndexRoute() {
-  const { initializing, profile, profileLoadFailed, user } = useAuth();
+  const { initializing, profile, profileLoadFailed, signingOut, user } = useAuth();
   const [authIntent, setAuthIntent] = useState<AccountType | 'sign-in' | null>(null);
 
   const userId = user?.uid ?? null;
@@ -26,6 +26,7 @@ export default function IndexRoute() {
     setAuthIntent(preserveAuthIntent(authIntent, previousUserId, userId));
   }
 
+  if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (initializing) return <AuthLoadingScreen />;
   if (profileLoadFailed) return <AccountProfileErrorScreen />;
   const destination = resolveIdentityDestination({

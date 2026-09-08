@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import { type LagosAreaLabel, type RenterProfileRecord } from '@mmg/contracts';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,22 +19,33 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { uploadRenterProfilePhoto } from '../data/renter-profile-photo';
 import { useRenterProfile } from '../hooks/use-renter-profile';
 
 const LAGOS_AREAS: readonly LagosAreaLabel[] = [
   'Ikoyi',
   'Victoria Island',
+  'Lekki',
   'Lekki Phase 1',
-  'Banana Island',
   'Lagos Island',
+  'Banana Island',
+  'Oniru',
   'Ikeja',
+  'Maryland',
+  'Ajah',
+  'Yaba',
+  'Surulere',
 ];
 
 type RenterProfileFormProps = {
   profile: RenterProfileRecord | null;
   userDisplayName?: string | null;
   userEmail?: string | null;
+  userPhotoUrl?: string | null;
   isSaving: boolean;
+  isUploadingPhoto: boolean;
+  signingOut: boolean;
+  onChangePhoto: () => Promise<void>;
   onSave: (data: {
     fullName: string;
     phone: string;
@@ -48,15 +61,17 @@ function RenterProfileForm({
   profile,
   userDisplayName,
   userEmail,
+  userPhotoUrl,
   isSaving,
+  isUploadingPhoto,
+  signingOut,
+  onChangePhoto,
   onSave,
   onRequestDeletion,
   onSignOut,
 }: RenterProfileFormProps) {
   const insets = useSafeAreaInsets();
-  const [fullName, setFullName] = useState(
-    () => profile?.fullName || userDisplayName || '',
-  );
+  const [fullName, setFullName] = useState(() => profile?.fullName || userDisplayName || '');
   const [phone, setPhone] = useState(() => profile?.phone || '+234');
   const [selectedArea, setSelectedArea] = useState<LagosAreaLabel>(
     () => (profile?.defaultDeliveryAddress?.areaLabel as LagosAreaLabel) || 'Victoria Island',
@@ -67,26 +82,23 @@ function RenterProfileForm({
   const [landmark, setLandmark] = useState(
     () => profile?.defaultDeliveryAddress?.landmark || '',
   );
-
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletionReason, setDeletionReason] = useState('');
-  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const isDeletionPending = profile?.accountStatus === 'deletion_requested';
 
   const handleSave = async () => {
-    if (!fullName.trim() || fullName.trim().length < 2) {
-      Alert.alert('Full Name Required', 'Please provide your full legal name.');
+    if (fullName.trim().length < 2) {
+      Alert.alert('Complete profile details', 'Add your name before saving these details.');
       return;
     }
-
-    if (!phone.startsWith('+234') || phone.length < 13) {
-      Alert.alert('Phone Number Required', 'Please provide a valid Nigerian phone number starting with +234.');
+    if (!/^\+234[789]\d{9}$/.test(phone.trim())) {
+      Alert.alert('Complete profile details', 'Enter a valid Nigerian mobile number starting with +234.');
       return;
     }
-
-    if (!streetAddress.trim() || streetAddress.trim().length < 5) {
-      Alert.alert('Delivery Address Required', 'Please enter your default street address for chauffeur delivery in Lagos.');
+    if (streetAddress.trim().length < 5) {
+      Alert.alert('Complete profile details', 'Add a Lagos delivery address before saving these details.');
       return;
     }
 
@@ -98,10 +110,10 @@ function RenterProfileForm({
         streetAddress: streetAddress.trim(),
         landmark: landmark.trim() || undefined,
       });
-      setSuccessToast('Profile saved successfully.');
-      setTimeout(() => setSuccessToast(null), 3000);
+      setSuccessMessage('Profile details saved.');
+      setTimeout(() => setSuccessMessage(null), 2500);
     } catch {
-      // Error handled by parent
+      // Parent surfaces the provider-safe error.
     }
   };
 
@@ -110,11 +122,11 @@ function RenterProfileForm({
       await onRequestDeletion(deletionReason.trim() || undefined);
       setDeleteModalVisible(false);
       Alert.alert(
-        'Deletion Requested',
-        'Your account deletion request has been submitted. Any scheduled rentals must conclude before final anonymization.',
+        'Deletion requested',
+        'Your request has been submitted. Active rentals must conclude before final deletion can complete.',
       );
     } catch {
-      // Error handled by parent
+      // Parent surfaces the provider-safe error.
     }
   };
 
@@ -124,38 +136,67 @@ function RenterProfileForm({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.headerSection}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {(fullName || userDisplayName || 'M').charAt(0).toUpperCase()}
-          </Text>
+      <View style={styles.identitySection}>
+        <View style={styles.avatarShell}>
+          {userPhotoUrl ? (
+            <Image contentFit="cover" source={{ uri: userPhotoUrl }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarText}>
+                {(fullName || userDisplayName || 'M').charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
+          <PressableScale
+            accessibilityLabel="Change profile photo"
+            accessibilityRole="button"
+            disabled={isUploadingPhoto}
+            onPress={() => void onChangePhoto()}
+            style={styles.photoButtonPressable}
+          >
+            <View style={styles.photoButton}>
+              {isUploadingPhoto ? (
+                <ActivityIndicator color={colors.ivory} size="small" />
+              ) : (
+                <Ionicons color={colors.ivory} name="camera-outline" size={16} />
+              )}
+            </View>
+          </PressableScale>
         </View>
-        <Text style={styles.title}>{fullName || userDisplayName || 'MMG Guest'}</Text>
-        <Text style={styles.emailText}>{userEmail}</Text>
-        {isDeletionPending ? (
-          <View style={styles.deletionBadge}>
-            <Ionicons color={colors.gold} name="alert-circle" size={13} />
-            <Text style={styles.deletionBadgeText}>DELETION REQUESTED</Text>
-          </View>
-        ) : null}
+        <Text style={styles.name}>{fullName || userDisplayName || 'MMG account'}</Text>
+        <View style={styles.emailRow}>
+          <Ionicons color={colors.success} name="checkmark-circle" size={14} />
+          <Text style={styles.emailText}>{userEmail}</Text>
+        </View>
+        <Text style={styles.identityHint}>Your email is your renter identity. The details below are optional for app access.</Text>
       </View>
 
-      {successToast && (
+      {successMessage ? (
         <View style={styles.successBanner}>
           <Ionicons color={colors.success} name="checkmark-circle" size={16} />
-          <Text style={styles.successText}>{successToast}</Text>
+          <Text style={styles.successText}>{successMessage}</Text>
         </View>
-      )}
+      ) : null}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Personal details</Text>
+      {isDeletionPending ? (
+        <View style={styles.noticeRow}>
+          <Ionicons color={colors.gold} name="alert-circle-outline" size={18} />
+          <Text style={styles.noticeText}>Account deletion has been requested.</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Profile details</Text>
+        <Text style={styles.sectionDescription}>
+          Add these when convenient to make bookings and chauffeur delivery quicker. They do not verify your renter identity.
+        </Text>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>FULL LEGAL NAME</Text>
+          <Text style={styles.label}>NAME</Text>
           <TextInput
             editable={!isSaving}
             onChangeText={setFullName}
-            placeholder="e.g. Babatunde Adeleke"
+            placeholder="Your name"
             placeholderTextColor={colors.muted}
             style={styles.input}
             value={fullName}
@@ -163,7 +204,7 @@ function RenterProfileForm({
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>NIGERIAN PHONE NUMBER (E.164)</Text>
+          <Text style={styles.label}>PHONE</Text>
           <TextInput
             editable={!isSaving}
             keyboardType="phone-pad"
@@ -176,26 +217,25 @@ function RenterProfileForm({
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Lagos delivery address</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Default delivery</Text>
+        <Text style={styles.sectionDescription}>Used as a convenient starting point for future chauffeur delivery. You can still choose another location during booking.</Text>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>PRIMARY LAGOS DISTRICT</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.areaScroll}>
+          <Text style={styles.label}>AREA</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {LAGOS_AREAS.map((area) => {
-              const isSelected = selectedArea === area;
+              const selected = area === selectedArea;
               return (
                 <PressableScale
-                  accessibilityLabel={`Select Lagos district ${area}`}
+                  accessibilityLabel={`Select ${area}`}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}
+                  accessibilityState={{ selected }}
                   key={area}
                   onPress={() => setSelectedArea(area)}
-                  style={[styles.areaPill, isSelected && styles.areaPillSelected]}
+                  style={[styles.areaPill, selected && styles.areaPillSelected]}
                 >
-                  <Text style={[styles.areaPillText, isSelected && styles.areaPillTextSelected]}>
-                    {area}
-                  </Text>
+                  <Text style={[styles.areaText, selected && styles.areaTextSelected]}>{area}</Text>
                 </PressableScale>
               );
             })}
@@ -207,7 +247,7 @@ function RenterProfileForm({
           <TextInput
             editable={!isSaving}
             onChangeText={setStreetAddress}
-            placeholder="e.g. 15 Queens Drive, Ikoyi"
+            placeholder="15 Queens Drive, Ikoyi"
             placeholderTextColor={colors.muted}
             style={styles.input}
             value={streetAddress}
@@ -215,70 +255,57 @@ function RenterProfileForm({
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>NEARBY LANDMARK / BUILDING NAME</Text>
+          <Text style={styles.label}>LANDMARK (OPTIONAL)</Text>
           <TextInput
             editable={!isSaving}
             onChangeText={setLandmark}
-            placeholder="e.g. Near Federal High Court"
+            placeholder="Nearby building or landmark"
             placeholderTextColor={colors.muted}
             style={styles.input}
             value={landmark}
           />
         </View>
-      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Terms and privacy</Text>
-        <View style={styles.termsRow}>
-          <Ionicons color={colors.goldStrong} name="document-text-outline" size={18} />
-          <View style={styles.termsInfo}>
-            <Text style={styles.termsHeading}>Renter Terms & Privacy Notice</Text>
-          </View>
-          <Ionicons color={colors.success} name="checkmark-circle" size={18} />
-        </View>
-      </View>
-
-      <PressableScale
-        accessibilityRole="button"
-        disabled={isSaving}
-        onPress={handleSave}
-        style={styles.savePressable}
-      >
-        <View style={styles.saveButton}>
-          {isSaving ? (
-            <ActivityIndicator color={colors.black} size="small" />
-          ) : (
-            <>
-              <Ionicons color={colors.black} name="save-outline" size={18} />
-              <Text style={styles.saveButtonText}>SAVE PROFILE</Text>
-            </>
-          )}
-        </View>
-      </PressableScale>
-
-      {!isDeletionPending && (
-        <PressableScale
-          accessibilityRole="button"
-          onPress={() => setDeleteModalVisible(true)}
-          style={styles.deletePressable}
-        >
-          <View style={styles.deleteButton}>
-            <Ionicons color={colors.danger} name="trash-outline" size={17} />
-            <Text style={styles.deleteButtonText}>Request Account Deletion</Text>
+        <PressableScale accessibilityRole="button" disabled={isSaving} onPress={handleSave}>
+          <View style={styles.primaryButton}>
+            {isSaving ? (
+              <ActivityIndicator color={colors.black} size="small" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Save profile details</Text>
+            )}
           </View>
         </PressableScale>
-      )}
+      </View>
 
-      <PressableScale
-        accessibilityRole="button"
-        onPress={onSignOut}
-        style={styles.signOutPressable}
-      >
-        <View style={styles.signOutButton}>
-          <Ionicons color={colors.ivory} name="log-out-outline" size={18} />
-          <Text style={styles.signOutButtonText}>Sign Out</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.accountRow}>
+          <Ionicons color={colors.goldStrong} name="document-text-outline" size={18} />
+          <Text style={styles.accountRowText}>Renter terms & privacy notice</Text>
+          <Ionicons color={colors.success} name="checkmark-circle" size={17} />
         </View>
-      </PressableScale>
+
+        <PressableScale accessibilityRole="button" disabled={signingOut} onPress={onSignOut}>
+          <View style={styles.secondaryButton}>
+            {signingOut ? (
+              <ActivityIndicator color={colors.ivory} size="small" />
+            ) : (
+              <>
+                <Ionicons color={colors.ivory} name="log-out-outline" size={18} />
+                <Text style={styles.secondaryButtonText}>Sign out</Text>
+              </>
+            )}
+          </View>
+        </PressableScale>
+
+        {!isDeletionPending ? (
+          <PressableScale accessibilityRole="button" onPress={() => setDeleteModalVisible(true)}>
+            <View style={styles.deleteButton}>
+              <Text style={styles.deleteButtonText}>Request account deletion</Text>
+            </View>
+          </PressableScale>
+        ) : null}
+      </View>
 
       <Modal
         animationType="fade"
@@ -288,36 +315,25 @@ function RenterProfileForm({
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <View style={styles.modalIcon}>
-              <Ionicons color={colors.danger} name="warning" size={28} />
-            </View>
-            <Text style={styles.modalTitle}>Request Account Deletion</Text>
+            <Text style={styles.modalTitle}>Request account deletion</Text>
             <Text style={styles.modalDescription}>
-              This will request permanent deletion and anonymization of your profile and contact records under NDPR/GDPR.
-              Any active rentals must complete before deletion proceeds.
+              This requests permanent deletion and anonymization of your renter profile and contact records. Active rentals must complete first.
             </Text>
-
             <TextInput
               multiline
               numberOfLines={3}
               onChangeText={setDeletionReason}
-              placeholder="Reason for deletion (optional)"
+              placeholder="Reason (optional)"
               placeholderTextColor={colors.muted}
               style={styles.modalInput}
               value={deletionReason}
             />
-
             <View style={styles.modalActions}>
-              <PressableScale onPress={() => setDeleteModalVisible(false)} style={styles.modalCancelPress}>
-                <View style={styles.modalCancelButton}>
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </View>
+              <PressableScale onPress={() => setDeleteModalVisible(false)} style={styles.modalAction}>
+                <View style={styles.modalCancel}><Text style={styles.modalCancelText}>Cancel</Text></View>
               </PressableScale>
-
-              <PressableScale onPress={handleConfirmDeletion} style={styles.modalConfirmPress}>
-                <View style={styles.modalConfirmButton}>
-                  <Text style={styles.modalConfirmText}>Confirm Deletion</Text>
-                </View>
+              <PressableScale onPress={handleConfirmDeletion} style={styles.modalAction}>
+                <View style={styles.modalConfirm}><Text style={styles.modalConfirmText}>Request deletion</Text></View>
               </PressableScale>
             </View>
           </View>
@@ -328,9 +344,38 @@ function RenterProfileForm({
 }
 
 export function RenterProfileScreen() {
-  const { signOut, user } = useAuth();
-  const { profile, isLoading, isSaving, errorMessage, saveProfile, requestDeletion } =
-    useRenterProfile();
+  const { refreshUser, signOut, signingOut, user } = useAuth();
+  const { profile, isLoading, isSaving, errorMessage, saveProfile, requestDeletion } = useRenterProfile();
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handleChangePhoto = async () => {
+    if (!user?.uid) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Photo access needed', 'Allow photo-library access to choose a profile picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    const contentType = asset.mimeType || 'image/jpeg';
+    setIsUploadingPhoto(true);
+    try {
+      await uploadRenterProfilePhoto(user.uid, asset.uri, contentType);
+      await refreshUser();
+    } catch (error) {
+      Alert.alert('Could not update photo', error instanceof Error ? error.message : 'Try again.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   const handleSave = async (data: {
     fullName: string;
@@ -353,39 +398,36 @@ export function RenterProfileScreen() {
   };
 
   const handleRequestDeletion = async (reason?: string) => {
-    await requestDeletion({
-      confirmation: true,
-      reason,
-    });
+    await requestDeletion({ confirmation: true, reason });
   };
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
-      <View style={styles.topBar}>
-        <ScreenHeader />
-      </View>
-
-      {errorMessage && (
+      <View style={styles.topBar}><ScreenHeader showBrand={false} title="Account" /></View>
+      {errorMessage ? (
         <View style={styles.errorBanner}>
           <Ionicons color={colors.danger} name="warning-outline" size={16} />
           <Text style={styles.errorText}>{errorMessage}</Text>
         </View>
-      )}
-
+      ) : null}
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={colors.goldStrong} size="large" />
-          <Text style={styles.loadingText}>Loading profile details...</Text>
+          <Text style={styles.loadingText}>Loading account…</Text>
         </View>
       ) : (
         <RenterProfileForm
           isSaving={isSaving}
+          isUploadingPhoto={isUploadingPhoto}
+          onChangePhoto={handleChangePhoto}
           onRequestDeletion={handleRequestDeletion}
           onSave={handleSave}
           onSignOut={() => void signOut()}
           profile={profile}
+          signingOut={signingOut}
           userDisplayName={user?.displayName}
           userEmail={user?.email}
+          userPhotoUrl={user?.photoURL}
         />
       )}
     </SafeAreaView>
@@ -393,328 +435,55 @@ export function RenterProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  areaPill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    marginRight: spacing.sm,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  areaPillSelected: {
-    backgroundColor: colors.goldStrong,
-    borderColor: colors.goldStrong,
-  },
-  areaPillText: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-  },
-  areaPillTextSelected: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-  },
-  areaScroll: {
-    flexDirection: 'row',
-    marginTop: spacing.xs,
-  },
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    height: 76,
-    justifyContent: 'center',
-    width: 76,
-  },
-  avatarText: {
-    color: colors.black,
-    fontFamily: typography.display,
-    fontSize: 32,
-  },
-  card: {
-    borderBottomColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: spacing.md,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  cardTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 20,
-    letterSpacing: -0.3,
-  },
-  content: {
-    gap: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-  deleteButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-  },
-  deleteButtonText: {
-    color: colors.danger,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  deletePressable: {
-    alignSelf: 'center',
-    marginTop: spacing.xs,
-  },
-  deletionBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(227,195,101,0.12)',
-    borderColor: colors.gold,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  deletionBadgeText: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.2,
-  },
-  emailText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 14,
-  },
-  errorBanner: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(209,133,120,0.12)',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    padding: spacing.md,
-  },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  fieldGroup: {
-    gap: spacing.xs,
-  },
-  headerSection: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.md,
-  },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    color: colors.ivory,
-    fontFamily: typography.body,
-    fontSize: 14,
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-  },
-  label: {
-    color: colors.muted,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.2,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xxl,
-  },
-  loadingText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 13,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  modalBackdrop: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  modalCancelButton: {
-    alignItems: 'center',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: spacing.lg,
-  },
-  modalCancelPress: {
-    flex: 1,
-  },
-  modalCancelText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  modalCard: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    gap: spacing.md,
-    maxWidth: 400,
-    padding: spacing.xl,
-    width: '100%',
-  },
-  modalConfirmButton: {
-    alignItems: 'center',
-    backgroundColor: colors.danger,
-    borderRadius: radii.pill,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: spacing.lg,
-  },
-  modalConfirmPress: {
-    flex: 1,
-  },
-  modalConfirmText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-  },
-  modalDescription: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  modalIcon: {
-    alignItems: 'center',
-  },
-  modalInput: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    color: colors.ivory,
-    fontFamily: typography.body,
-    fontSize: 13,
-    minHeight: 70,
-    padding: spacing.md,
-    textAlignVertical: 'top',
-  },
-  modalTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 20,
-    textAlign: 'center',
-  },
-  saveButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 52,
-  },
-  saveButtonText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-    letterSpacing: 1.2,
-  },
-  savePressable: {
-    marginTop: spacing.sm,
-  },
-  screen: {
-    backgroundColor: colors.black,
-    flex: 1,
-  },
-  signOutButton: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 50,
-  },
-  signOutButtonText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: 14,
-  },
-  signOutPressable: {
-    marginBottom: spacing.lg,
-  },
-  statusDot: {
-    backgroundColor: '#4ECDC4',
-    borderRadius: 3,
-    height: 6,
-    width: 6,
-  },
-  successBanner: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(46,204,113,0.12)',
-    borderColor: colors.success,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  successText: {
-    color: colors.success,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  termsHeading: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: 13,
-  },
-  termsInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  termsRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  termsSub: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 11,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 28,
-    letterSpacing: -0.5,
-  },
-  topBar: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
+  accountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm },
+  accountRowText: { color: colors.ivory, flex: 1, fontFamily: typography.bodyMedium, fontSize: 14 },
+  areaPill: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: 1, marginRight: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  areaPillSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
+  areaText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
+  areaTextSelected: { color: colors.black },
+  avatarFallback: { alignItems: 'center', backgroundColor: colors.graphite, height: '100%', justifyContent: 'center', width: '100%' },
+  avatarImage: { height: '100%', width: '100%' },
+  avatarShell: { borderColor: colors.lineStrong, borderRadius: 48, borderWidth: 1, height: 88, overflow: 'visible', position: 'relative', width: 88 },
+  avatarText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 30 },
+  content: { gap: spacing.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  deleteButton: { alignItems: 'center', minHeight: 44, justifyContent: 'center' },
+  deleteButtonText: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 13 },
+  emailRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  emailText: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
+  errorBanner: { alignItems: 'center', backgroundColor: 'rgba(209,133,120,0.10)', flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, padding: spacing.md },
+  errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },
+  fieldGroup: { gap: spacing.xs },
+  identityHint: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, maxWidth: 320, textAlign: 'center' },
+  identitySection: { alignItems: 'center', gap: spacing.xs, paddingTop: spacing.sm },
+  input: { borderBottomColor: colors.lineStrong, borderBottomWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 15, minHeight: 48, paddingHorizontal: 0 },
+  label: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
+  loadingContainer: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
+  loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
+  modalAction: { flex: 1 },
+  modalActions: { flexDirection: 'row', gap: spacing.sm },
+  modalBackdrop: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.76)', flex: 1, justifyContent: 'center', padding: spacing.lg },
+  modalCancel: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, minHeight: 46, justifyContent: 'center' },
+  modalCancelText: { color: colors.ivory, fontFamily: typography.bodyMedium },
+  modalCard: { backgroundColor: colors.graphite, borderColor: colors.lineStrong, borderRadius: radii.lg, borderWidth: 1, gap: spacing.md, maxWidth: 420, padding: spacing.xl, width: '100%' },
+  modalConfirm: { alignItems: 'center', backgroundColor: colors.danger, borderRadius: radii.pill, minHeight: 46, justifyContent: 'center' },
+  modalConfirmText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  modalDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  modalInput: { borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, minHeight: 76, padding: spacing.md, textAlignVertical: 'top' },
+  modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18 },
+  name: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 22 },
+  noticeRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md },
+  noticeText: { color: colors.gold, fontFamily: typography.bodyMedium, fontSize: 13 },
+  photoButton: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.lineStrong, borderRadius: 18, borderWidth: 1, height: 34, justifyContent: 'center', width: 34 },
+  photoButtonPressable: { bottom: -2, position: 'absolute', right: -2 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.pill, justifyContent: 'center', minHeight: 50 },
+  primaryButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  screen: { backgroundColor: colors.black, flex: 1 },
+  secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 50 },
+  secondaryButtonText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
+  section: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.md, paddingTop: spacing.lg },
+  sectionDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
+  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
+  successBanner: { alignItems: 'center', backgroundColor: 'rgba(46,204,113,0.10)', flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+  successText: { color: colors.success, fontFamily: typography.bodyMedium, fontSize: 13 },
+  topBar: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
 });
