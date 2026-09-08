@@ -1,7 +1,9 @@
 import { dateOnlySchema, renterVehicleSnapshotSchema } from '@mmg/contracts';
 import { getFirestore, Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { z } from 'zod';
 
+import { buildBookingVehicleSnapshot } from './booking-vehicle-snapshot.js';
 import type {
   BlockingInterval,
   AvailabilityAuditEvent,
@@ -14,6 +16,11 @@ import type {
   TrustedVehicle,
 } from './create-booking-intent-service.js';
 import { BookingCommandError } from './errors.js';
+import {
+  googleCloudStoragePublicUrl,
+  type PublicObjectUrl,
+} from '../vehicle/renter-vehicle-view.js';
+import type { VehicleImageRecord } from '../vehicle/vehicle-repository.js';
 
 const vehicleSchema = z.object({
   ownerId: z.string().min(1).max(128),
@@ -60,7 +67,11 @@ const blockSchema = z.object({
 });
 
 class FirestoreBookingIntentTransaction implements BookingIntentTransaction {
-  constructor(private readonly firestore: Firestore, private readonly transaction: Transaction) {}
+  constructor(
+    private readonly firestore: Firestore,
+    private readonly transaction: Transaction,
+    private readonly publicObjectUrl?: PublicObjectUrl,
+  ) {}
 
   async getIdempotency(documentId: string): Promise<StoredIdempotency | null> {
     const snapshot = await this.transaction.get(this.firestore.doc(`idempotencyKeys/${documentId}`));
@@ -68,7 +79,8 @@ class FirestoreBookingIntentTransaction implements BookingIntentTransaction {
   }
 
   async getVehicle(vehicleId: string): Promise<TrustedVehicle | null> {
-    const snapshot = await this.transaction.get(this.firestore.doc(`vehicles/${vehicleId}`));
+    const vehicleRef = this.firestore.doc(`vehicles/${vehicleId}`);
+    const snapshot = await this.transaction.get(vehicleRef);
     if (!snapshot.exists) return null;
     const parsed = vehicleSchema.safeParse(snapshot.data());
     if (!parsed.success) return null;
@@ -76,7 +88,7 @@ class FirestoreBookingIntentTransaction implements BookingIntentTransaction {
     const data = parsed.data;
 
     // A vehicle is active if it explicitly sets active: true (legacy test fixtures)
-    // or satisfies the canonical invariant: approved + active visibility + discoverable
+    // or satisfies the canonical invariant: approved + active visibility + discoverable.
     const isActive =
       data.active === true ||
       (data.moderationStatus === 'approved' && data.visibility === 'active' && data.discoverable === true);
@@ -91,11 +103,44 @@ class FirestoreBookingIntentTransaction implements BookingIntentTransaction {
             ? data.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
             : 'Executive Vehicle');
 
-    const imageUrl =
+    // Booking snapshots must use the same renter-readable image source as
+    // Discovery. Read approved image records and resolve the deterministic card
+    // variant. This keeps Trips stable even if the listing changes later.
+    const imagesSnapshot = await this.transaction.get(
+      vehicleRef.collection('images').where('status', '==', 'approved'),
+    );
+    const images = imagesSnapshot.docs.map((document) => ({
+      ...document.data(),
+      imageId: typeof document.data().imageId === 'string' ? document.data().imageId : document.id,
+    } as VehicleImageRecord));
+
+    const storedImageUrl =
       data.imageUrl ??
       (data.primaryImagePath && (data.primaryImagePath.startsWith('http://') || data.primaryImagePath.startsWith('https://'))
         ? data.primaryImagePath
         : undefined);
+    const imageUrlResolver: PublicObjectUrl = this.publicObjectUrl ?? ((publicPath) => {
+      const bucketName = getStorage().bucket().name;
+      return googleCloudStoragePublicUrl(bucketName)(publicPath);
+    });
+    const isLegacyFixture =
+      data.active === true &&
+      data.moderationStatus === undefined &&
+      data.visibility === undefined &&
+      data.discoverable === undefined;
+
+    const vehicleSnapshot = buildBookingVehicleSnapshot(
+      {
+        displayName: data.displayName,
+        areaLabel: data.areaLabel,
+        categoryLabel,
+        ...(data.imageKey ? { imageKey: data.imageKey } : {}),
+        ...(storedImageUrl ? { imageUrl: storedImageUrl } : {}),
+      },
+      images,
+      imageUrlResolver,
+      { allowLegacyImageKeyFallback: isLegacyFixture },
+    );
 
     return {
       id: snapshot.id,
@@ -103,13 +148,7 @@ class FirestoreBookingIntentTransaction implements BookingIntentTransaction {
       approved: data.moderationStatus === 'approved' || data.active === true,
       active: isActive,
       ownerDailyRateKobo: data.ownerDailyRateKobo,
-      vehicleSnapshot: {
-        displayName: data.displayName,
-        areaLabel: data.areaLabel,
-        categoryLabel,
-        ...(data.imageKey ? { imageKey: data.imageKey } : {}),
-        ...(imageUrl ? { imageUrl } : {}),
-      },
+      vehicleSnapshot,
     };
   }
 
@@ -296,10 +335,13 @@ class FirestoreBookingIntentTransaction implements BookingIntentTransaction {
 }
 
 export class FirestoreBookingIntentRepository implements BookingIntentRepository {
-  constructor(private readonly firestore: Firestore = getFirestore()) {}
+  constructor(
+    private readonly firestore: Firestore = getFirestore(),
+    private readonly publicObjectUrl?: PublicObjectUrl,
+  ) {}
 
   runTransaction<T>(work: (transaction: BookingIntentTransaction) => Promise<T>): Promise<T> {
     return this.firestore.runTransaction((transaction) =>
-      work(new FirestoreBookingIntentTransaction(this.firestore, transaction)));
+      work(new FirestoreBookingIntentTransaction(this.firestore, transaction, this.publicObjectUrl)));
   }
 }
