@@ -10,7 +10,7 @@
     "ios": {
       "bundleIdentifier": "com.mmgconcierge.app",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "infoPlist": {
