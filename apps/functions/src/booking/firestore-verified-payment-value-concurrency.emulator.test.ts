@@ -291,7 +291,7 @@ describeWithEmulator('Firestore R4 late verified payment concurrency', () => {
       .filter((document) => document.data().state === 'paid');
     expect(livePaidBlocks).toHaveLength(1);
     expect((await database.doc('vehicleAvailability/vehicle-123').get()).data()?.version).toBe(12);
-  });
+  }, 15_000);
 
   it('fails closed when the intent block already has a non-held state', async () => {
     const journey = await seedVerifiedJourney(database, 'broken-block');

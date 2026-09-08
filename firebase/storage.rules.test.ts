@@ -491,4 +491,74 @@ describeWithEmulator('private owner-verification Storage rules', () => {
       }));
     }
   });
+
+  describe('renter profile-photo Storage rules', () => {
+    const profileMetadata = (uid: string, contentType = 'image/jpeg') => ({
+      contentType,
+      customMetadata: {
+        purpose: 'profile_photo',
+        renterId: uid,
+      },
+    });
+
+    it('allows a registered renter to create, replace, read and delete their own avatar', async () => {
+      await seedUserAccount('renter-one', 'renter');
+      const storage = environment.authenticatedContext('renter-one').storage();
+      const avatar = ref(storage, 'private/renter-profile/renter-one/avatar');
+
+      await assertSucceeds(uploadBytes(avatar, Buffer.from('first-avatar'), profileMetadata('renter-one')));
+      await assertSucceeds(getBytes(avatar));
+      await assertSucceeds(uploadBytes(avatar, Buffer.from('replacement-avatar'), profileMetadata('renter-one')));
+      await assertSucceeds(deleteObject(avatar));
+    });
+
+    it('denies anonymous users and other authenticated users from reading or writing an avatar', async () => {
+      await seedUserAccount('renter-one', 'renter');
+      await seedUserAccount('renter-two', 'renter');
+
+      const ownerStorage = environment.authenticatedContext('renter-one').storage();
+      const ownerAvatar = ref(ownerStorage, 'private/renter-profile/renter-one/avatar');
+      await assertSucceeds(uploadBytes(ownerAvatar, Buffer.from('avatar'), profileMetadata('renter-one')));
+
+      const otherStorage = environment.authenticatedContext('renter-two').storage();
+      await assertFails(getBytes(ref(otherStorage, 'private/renter-profile/renter-one/avatar')));
+      await assertFails(uploadBytes(
+        ref(otherStorage, 'private/renter-profile/renter-one/avatar'),
+        Buffer.from('tamper'),
+        profileMetadata('renter-two'),
+      ));
+
+      const anonymousStorage = environment.unauthenticatedContext().storage();
+      await assertFails(getBytes(ref(anonymousStorage, 'private/renter-profile/renter-one/avatar')));
+    });
+
+    it('denies profile-photo writes without a registered account or with invalid metadata/type', async () => {
+      const unregistered = environment.authenticatedContext('missing-user').storage();
+      await assertFails(uploadBytes(
+        ref(unregistered, 'private/renter-profile/missing-user/avatar'),
+        Buffer.from('avatar'),
+        profileMetadata('missing-user'),
+      ));
+
+      await seedUserAccount('renter-one', 'renter');
+      const storage = environment.authenticatedContext('renter-one').storage();
+      const avatar = ref(storage, 'private/renter-profile/renter-one/avatar');
+
+      await assertFails(uploadBytes(avatar, Buffer.from('script'), profileMetadata('renter-one', 'image/svg+xml')));
+      await assertFails(uploadBytes(avatar, Buffer.from('wrong-metadata'), {
+        contentType: 'image/jpeg',
+        customMetadata: { purpose: 'government_id', renterId: 'renter-one' },
+      }));
+    });
+
+    it('denies profile photos larger than 5 MiB', async () => {
+      await seedUserAccount('renter-one', 'renter');
+      const storage = environment.authenticatedContext('renter-one').storage();
+      await assertFails(uploadBytes(
+        ref(storage, 'private/renter-profile/renter-one/avatar'),
+        Buffer.alloc(5 * 1024 * 1024 + 1),
+        profileMetadata('renter-one'),
+      ));
+    });
+  });
 });
