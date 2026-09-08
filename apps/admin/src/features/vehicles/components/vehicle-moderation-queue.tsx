@@ -1,22 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import type { VehicleModerationStatus } from '@mmg/contracts';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { VehicleModerationStatus } from '@mmg/contracts';
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  FileText,
-  Eye,
-} from 'lucide-react';
+import { useState } from 'react';
 
+import { AdminOperationsShell } from '@/components/admin-operations-shell';
 import type { VehicleModerationListItem } from '../domain/types';
 
 export type VehicleModerationQueueProps = {
@@ -28,20 +18,24 @@ export type VehicleModerationQueueProps = {
   staffRole?: string;
 };
 
-const STATUS_CONFIG: Record<
-  VehicleModerationStatus,
-  { label: string; text: string; icon: typeof CheckCircle2 }
-> = {
-  draft: { label: 'Draft', text: '#9AA0A6', icon: FileText },
-  pending_review: { label: 'Pending review', text: '#EAB308', icon: Clock },
-  approved: { label: 'Approved', text: '#4ADE80', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', text: '#F87171', icon: XCircle },
-  suspended: { label: 'Suspended', text: '#EF4444', icon: AlertTriangle },
-};
+const FILTERS: Array<{ id: VehicleModerationStatus | 'all'; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'pending_review', label: 'Pending review' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'rejected', label: 'Rejected' },
+  { id: 'suspended', label: 'Suspended' },
+  { id: 'draft', label: 'Draft' },
+];
 
-function formatNaira(kobo: number): string {
-  const naira = Math.floor(kobo / 100);
-  return '₦' + naira.toLocaleString('en-NG');
+function formatNaira(kobo: number) {
+  return `₦${Math.floor(kobo / 100).toLocaleString('en-NG')}`;
+}
+
+function statusClass(status: VehicleModerationStatus) {
+  if (status === 'approved') return 'green';
+  if (status === 'rejected' || status === 'suspended') return 'red';
+  if (status === 'pending_review') return 'gold';
+  return 'muted';
 }
 
 export function VehicleModerationQueue({
@@ -56,455 +50,127 @@ export function VehicleModerationQueue({
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<VehicleModerationStatus | 'all'>('all');
 
-  const counts: Record<string, number> = {
-    all: items.length,
-    pending_review: items.filter((i) => i.moderationStatus === 'pending_review').length,
-    approved: items.filter((i) => i.moderationStatus === 'approved').length,
-    rejected: items.filter((i) => i.moderationStatus === 'rejected').length,
-    suspended: items.filter((i) => i.moderationStatus === 'suspended').length,
-    draft: items.filter((i) => i.moderationStatus === 'draft').length,
-  };
+  const counts = Object.fromEntries(
+    FILTERS.map((filter) => [
+      filter.id,
+      filter.id === 'all' ? items.length : items.filter((item) => item.moderationStatus === filter.id).length,
+    ]),
+  );
 
   const filteredItems = items.filter((item) => {
-    if (selectedStatus !== 'all' && item.moderationStatus !== selectedStatus) {
-      return false;
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const matchMake = item.make.toLowerCase().includes(q);
-      const matchModel = item.model.toLowerCase().includes(q);
-      const matchOwner = item.ownerLegalName.toLowerCase().includes(q);
-      const matchArea = item.areaLabel.toLowerCase().includes(q);
-      const matchPlate = item.plateMasked.toLowerCase().includes(q);
-      return matchMake || matchModel || matchOwner || matchArea || matchPlate;
-    }
-    return true;
+    if (selectedStatus !== 'all' && item.moderationStatus !== selectedStatus) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [item.make, item.model, item.ownerLegalName, item.areaLabel, item.plateMasked]
+      .some((value) => value.toLowerCase().includes(q));
   });
 
-  const handleSignOut = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/sign-in');
-    router.refresh();
-  };
+  const pendingCount = items.filter((item) => item.moderationStatus === 'pending_review').length;
+  const approvedCount = items.filter((item) => item.moderationStatus === 'approved').length;
 
   return (
-    <div className="vehicle-moderation-page" style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
-      <header
-        style={{
-          borderBottom: '1px solid #1E232E',
-          backgroundColor: '#101318',
-          padding: '14px 32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <nav className="vehicle-moderation-nav" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }} aria-label="Admin sections">
-            <Link
-              href="/"
-              style={{
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#9AA0A6',
-                textDecoration: 'none',
-                padding: '10px 12px',
-                minHeight: '44px',
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              Bookings
-            </Link>
-            <Link
-              href="/vehicles"
-              style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                color: '#F3F4F6',
-                textDecoration: 'none',
-                padding: '10px 12px',
-                minHeight: '44px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderBottom: '2px solid #C89D46',
-              }}
-              aria-current="page"
-            >
-              Vehicles
-            </Link>
-            <Link
-              href="/owners"
-              style={{
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#9AA0A6',
-                textDecoration: 'none',
-                padding: '10px 12px',
-                minHeight: '44px',
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              Owners
-            </Link>
-          </nav>
+    <AdminOperationsShell
+      activeSection="vehicles"
+      eyebrow="FLEET OPERATIONS"
+      headerMeta={(
+        <>
+          <strong>{staffEmail || 'Staff operator'}</strong>
+          <span>{(staffRole || 'vehicle_admin').replaceAll('_', ' ')}</span>
+        </>
+      )}
+      staffEmail={staffEmail}
+      staffRole={staffRole}
+      title="Vehicle moderation"
+    >
+      <section className="admin-summary-row" aria-label="Vehicle moderation summary">
+        <div className="admin-summary-item"><span>Loaded</span><strong>{items.length}</strong></div>
+        <div className="admin-summary-item"><span>Pending</span><strong>{pendingCount}</strong></div>
+        <div className="admin-summary-item"><span>Approved</span><strong>{approvedCount}</strong></div>
+      </section>
 
-        {/* Staff Profile & Sign Out */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {staffEmail && (
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#F3F4F6' }}>
-                {staffEmail}
-              </div>
-              <div style={{ fontSize: '12px', color: '#9AA0A6', textTransform: 'capitalize' }}>
-                {staffRole || 'Staff Operator'}
-              </div>
-            </div>
-          )}
-          <button
-            onClick={handleSignOut}
-            title="Sign Out"
-            style={{
-              background: 'none',
-              border: '1px solid #1E232E',
-              borderRadius: '6px',
-              padding: '10px 12px',
-              minHeight: '44px',
-              color: '#9AA0A6',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12px',
-            }}
-          >
-            <LogOut size={14} />
-            <span>Sign Out</span>
-          </button>
+      <div className="admin-toolbar">
+        <div className="admin-filter-group" aria-label="Vehicle moderation filters">
+          {FILTERS.map((filter) => (
+            <button
+              className="admin-filter-button"
+              data-active={selectedStatus === filter.id}
+              key={filter.id}
+              onClick={() => setSelectedStatus(filter.id)}
+              type="button"
+            >
+              {filter.label}<span className="admin-filter-count">{counts[filter.id] ?? 0}</span>
+            </button>
+          ))}
         </div>
-      </header>
+        <label className="admin-search">
+          <Search size={15} />
+          <span className="sr-only">Search vehicles</span>
+          <input
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search vehicle, owner or plate"
+            type="search"
+            value={search}
+          />
+        </label>
+      </div>
 
-      <main style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px' }}>
-        <div style={{ marginBottom: '24px' }}>
-            <h1
-              style={{
-                fontFamily: 'var(--font-display), Georgia, serif',
-                fontSize: '28px',
-                fontWeight: '600',
-                color: '#F9FAFB',
-                margin: '0 0 6px 0',
-              }}
-            >
-              Vehicle moderation
-            </h1>
-        </div>
-
-        {/* Filter Controls & Search */}
-        <div
-          className="vehicle-moderation-filters"
-          style={{
-            backgroundColor: '#101318',
-            border: '1px solid #1E232E',
-            borderRadius: '10px',
-            padding: '16px',
-            marginBottom: '20px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px',
-          }}
-        >
-          {/* Status Tabs */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {(['all', 'pending_review', 'approved', 'rejected', 'suspended', 'draft'] as const).map((st) => {
-              const isActive = selectedStatus === st;
-              const label =
-                st === 'all'
-                  ? 'All Vehicles'
-                  : STATUS_CONFIG[st as VehicleModerationStatus]?.label || st;
-              return (
-                <button
-                  key={st}
-                  onClick={() => setSelectedStatus(st)}
-                  style={{
-                    backgroundColor: isActive ? '#C89D46' : '#181D26',
-                    color: isActive ? '#090A0C' : '#9AA0A6',
-                    border: '1px solid',
-                    borderColor: isActive ? '#C89D46' : '#1E232E',
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    minHeight: '44px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <span>{label}</span>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      color: isActive ? '#090A0C' : '#D1D5DB',
-                    }}
-                  >
-                    {counts[st] ?? 0}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Search Box */}
-          <div
-            style={{
-              position: 'relative',
-              width: 'min(320px, 100%)',
-            }}
-          >
-            <Search
-              size={16}
-              style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#6B7280',
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Search make, model, owner, plate..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                backgroundColor: '#181D26',
-                border: '1px solid #1E232E',
-                borderRadius: '6px',
-                padding: '10px 12px 10px 36px',
-                minHeight: '44px',
-                fontSize: '13px',
-                color: '#F9FAFB',
-                outline: 'none',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Vehicle Table */}
-        <div
-          style={{
-            backgroundColor: '#101318',
-            border: '1px solid #1E232E',
-            borderRadius: '10px',
-            overflowX: 'auto',
-          }}
-        >
-          <table style={{ minWidth: '1040px', width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#141820', borderBottom: '1px solid #1E232E', color: '#9AA0A6', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '14px 20px', fontWeight: '600' }}>Vehicle Specification</th>
-                <th style={{ padding: '14px 20px', fontWeight: '600' }}>Category</th>
-                <th style={{ padding: '14px 20px', fontWeight: '600' }}>Owner Legal Name</th>
-                <th style={{ padding: '14px 20px', fontWeight: '600' }}>Lagos Base Area</th>
-                <th style={{ padding: '14px 20px', fontWeight: '600' }}>Daily Rate</th>
-                <th style={{ padding: '14px 20px', fontWeight: '600' }}>Moderation Status</th>
-                <th style={{ padding: '14px 20px', fontWeight: '600', textAlign: 'right' }}>Action</th>
+      <div className="admin-table-panel">
+        <table className="admin-table" style={{ minWidth: 980 }}>
+          <thead>
+            <tr>
+              <th>Vehicle</th>
+              <th>Owner</th>
+              <th>Area</th>
+              <th>Rate</th>
+              <th>Status</th>
+              <th aria-label="Action" />
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.length === 0 ? (
+              <tr><td className="admin-empty" colSpan={6}>No vehicles match the current filters.</td></tr>
+            ) : filteredItems.map((item) => (
+              <tr key={item.vehicleId}>
+                <td>
+                  <div className="admin-identity">
+                    <span
+                      aria-hidden="true"
+                      className="admin-thumb"
+                      style={{ backgroundImage: `url(${item.thumbnailUrl})`, backgroundPosition: 'center', backgroundSize: 'cover' }}
+                    />
+                    <div>
+                      <div className="admin-primary">{item.make} {item.model}</div>
+                      <div className="admin-secondary">{item.year} · {item.plateMasked} · {item.imageCount} photos</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div className="admin-primary">{item.ownerLegalName}</div>
+                  <div className="admin-secondary admin-mono">{item.ownerId.slice(0, 12)}…</div>
+                </td>
+                <td>{item.areaLabel}</td>
+                <td className="admin-primary">{formatNaira(item.dailyRateKobo)}</td>
+                <td><span className={`admin-status ${statusClass(item.moderationStatus)}`}>{item.moderationStatus.replaceAll('_', ' ')}</span></td>
+                <td style={{ textAlign: 'right' }}>
+                  <Link className="admin-action-link" href={`/vehicles/${item.vehicleId}`}>Inspect<ChevronRight size={14} /></Link>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: '48px 20px', textAlign: 'center', color: '#6B7280' }}>
-                    No vehicles found matching the active filters.
-                  </td>
-                </tr>
-              ) : (
-                filteredItems.map((item) => {
-                  const statusInfo = STATUS_CONFIG[item.moderationStatus] || STATUS_CONFIG.draft;
-                  const StatusIcon = statusInfo.icon;
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-                  return (
-                    <tr
-                      key={item.vehicleId}
-                      style={{
-                        borderBottom: '1px solid #181D26',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                    >
-                      {/* Vehicle Identity */}
-                      <td style={{ padding: '16px 20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div
-                            style={{
-                              width: '48px',
-                              height: '36px',
-                              borderRadius: '4px',
-                              backgroundColor: '#1E232E',
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center',
-                              backgroundImage: `url(${item.thumbnailUrl})`,
-                              border: '1px solid #28303F',
-                            }}
-                          />
-                          <div>
-                            <div style={{ fontWeight: '600', color: '#F9FAFB' }}>
-                              {item.make} {item.model}
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#9AA0A6' }}>
-                              Year {item.year} · Plate: {item.plateMasked} · {item.imageCount} photos · v{item.version}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Category */}
-                      <td style={{ padding: '16px 20px' }}>
-                        <span
-                          style={{
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: '#181D26',
-                            color: '#D1D5DB',
-                            border: '1px solid #28303F',
-                          }}
-                        >
-                          {item.category === 'executive_suv' ? 'SUV' : 'Sedan'}
-                        </span>
-                      </td>
-
-                      {/* Owner */}
-                      <td style={{ padding: '16px 20px' }}>
-                        <div style={{ color: '#F3F4F6', fontWeight: '500' }}>{item.ownerLegalName}</div>
-                        <div style={{ fontSize: '12px', color: '#6B7280' }}>ID: {item.ownerId.slice(0, 12)}…</div>
-                      </td>
-
-                      {/* Base Area */}
-                      <td style={{ padding: '16px 20px', color: '#D1D5DB' }}>
-                        {item.areaLabel}
-                      </td>
-
-                      {/* Daily Rate */}
-                      <td style={{ padding: '16px 20px' }}>
-                        <div style={{ fontWeight: '600', color: '#C89D46' }}>
-                          {formatNaira(item.dailyRateKobo)}
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td style={{ padding: '16px 20px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            minHeight: '44px',
-                            color: statusInfo.text,
-                          }}
-                        >
-                          <StatusIcon size={12} />
-                          {statusInfo.label}
-                        </span>
-                      </td>
-
-                      {/* Inspect Button */}
-                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                        <Link
-                          href={`/vehicles/${item.vehicleId}`}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            backgroundColor: '#1E232E',
-                            color: '#F9FAFB',
-                            textDecoration: 'none',
-                            padding: '10px 12px',
-                            minHeight: '44px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            border: '1px solid #28303F',
-                          }}
-                        >
-                          <Eye size={13} />
-                          <span>Inspect</span>
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-
-          {/* Pagination Controls */}
-          <div
-            style={{
-              padding: '14px 20px',
-              borderTop: '1px solid #1E232E',
-              backgroundColor: '#141820',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '12px',
-              color: '#9AA0A6',
-            }}
-          >
-            <div>
-              Showing {filteredItems.length} of {items.length} loaded records
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                disabled={isFirstPage}
-                onClick={() => router.push('/vehicles')}
-                style={{
-                  backgroundColor: '#181D26',
-                  color: isFirstPage ? '#4B5563' : '#F9FAFB',
-                  border: '1px solid #1E232E',
-                  borderRadius: '4px',
-                  padding: '10px 10px',
-                  minHeight: '44px',
-                  cursor: isFirstPage ? 'default' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <ChevronLeft size={14} />
-                <span>First Page</span>
-              </button>
-
-              <button
-                disabled={!hasMore || !nextCursor}
-                onClick={() => nextCursor && router.push(`/vehicles?cursor=${nextCursor}`)}
-                style={{
-                  backgroundColor: '#181D26',
-                  color: !hasMore ? '#4B5563' : '#F9FAFB',
-                  border: '1px solid #1E232E',
-                  borderRadius: '4px',
-                  padding: '10px 10px',
-                  minHeight: '44px',
-                  cursor: !hasMore ? 'default' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span>Next Page</span>
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
+      <div className="admin-pagination">
+        <span>Showing {filteredItems.length} of {items.length} loaded vehicles{hasMore ? '. Filters cover this page only.' : '.'}</span>
+        <div className="admin-pagination-actions">
+          {!isFirstPage ? (
+            <button className="admin-button secondary" onClick={() => router.push('/vehicles')} type="button"><ChevronLeft size={14} />Newest</button>
+          ) : null}
+          {hasMore && nextCursor ? (
+            <button className="admin-button secondary" onClick={() => router.push(`/vehicles?cursor=${encodeURIComponent(nextCursor)}`)} type="button">Older<ChevronRight size={14} /></button>
+          ) : null}
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminOperationsShell>
   );
 }
