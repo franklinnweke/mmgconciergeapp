@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  NODE_VERSION: '22'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run repository quality gate
+        run: npm run check
+
+      - name: Build admin application
+        env:
+          FIREBASE_PROJECT_ID: mmg-concierge-dev
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: mmg-concierge-dev
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: mmg-concierge-dev.firebasestorage.app
+        run: npm run admin:build
+
+  firebase-rules:
+    name: Firebase Rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test Firestore rules
+        run: npm run test:rules
+
+      - name: Test Storage rules
+        run: npm run test:storage-rules
+
+  functions-emulator:
+    name: Functions Emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Functions emulator suite
+        run: npm run test:functions:emulator
+
+  gate:
+    name: Gate
+    if: always()
+    needs:
+      - quality
+      - firebase-rules
+      - functions-emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every CI job to pass
+        shell: bash
+        run: |
+          if [[ "${{ needs.quality.result }}" != "success" || \
+                "${{ needs.firebase-rules.result }}" != "success" || \
+                "${{ needs.functions-emulator.result }}" != "success" ]]; then
+            echo "One or more required CI jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All required MMG Concierge CI checks passed."
