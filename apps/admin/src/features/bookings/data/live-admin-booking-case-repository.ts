@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Timestamp, type DocumentData } from 'firebase-admin/firestore';
 
-import { getAdminFirestore } from '@/features/auth/server/firebase-admin';
+import { getAdminFirestore } from '../../auth/server/firebase-admin';
 
 export type StaffInterventionCase = {
   caseId: string;

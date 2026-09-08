@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
+vi.mock('../../auth/server/firebase-admin', () => ({
+  getAdminFirestore: vi.fn(),
+}));
 
 import { maskOperationalReference } from './live-admin-booking-case-repository';
 

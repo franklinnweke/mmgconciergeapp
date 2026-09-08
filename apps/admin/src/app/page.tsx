@@ -15,16 +15,19 @@ export default async function OperationsPage() {
     return <BookingOperations mode="fixture" />;
   }
 
+  let snapshot = null;
+  let loadError: string | null = null;
   try {
-    const snapshot = await loadDevelopmentInterventionCases();
-    return <BookingInterventionDesk session={session} snapshot={snapshot} />;
+    snapshot = await loadDevelopmentInterventionCases();
   } catch (error) {
-    return (
-      <BookingInterventionDesk
-        error={error instanceof Error ? error.message : 'Booking intervention data could not be loaded.'}
-        session={session}
-        snapshot={null}
-      />
-    );
+    loadError = error instanceof Error ? error.message : 'Booking intervention data could not be loaded.';
   }
+
+  return (
+    <BookingInterventionDesk
+      error={loadError}
+      session={session}
+      snapshot={snapshot}
+    />
+  );
 }
