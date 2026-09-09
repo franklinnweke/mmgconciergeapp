@@ -5,8 +5,8 @@ import {
 } from '@mmg/contracts/rental-request';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
+import { clientRentalRequestProjection } from './client-rental-request-projection.js';
 import { BookingCommandError } from './errors.js';
-import { clientRentalRequestProjection } from './owner-rental-request-query.js';
 
 export class FirestoreRenterRentalRequestQuery {
   constructor(private readonly firestore: Firestore = getFirestore()) {}
