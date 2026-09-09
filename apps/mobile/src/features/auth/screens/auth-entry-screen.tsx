@@ -153,6 +153,10 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
   }
 
   const title = mode === 'sign-in' ? 'Welcome back.' : 'Create your MMG account.';
+  const googleButtonLabel = mode === 'sign-in' ? 'Sign in with Google' : 'Continue with Google';
+  const appleButtonType = mode === 'sign-in'
+    ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+    : AppleAuthentication.AppleAuthenticationButtonType.CONTINUE;
 
   return (
     <KeyboardAvoidingView
@@ -265,29 +269,29 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
           </View>
 
           <View style={styles.socialButtons}>
-            {appleSignInAvailable ? (
-              <View pointerEvents={busy ? 'none' : 'auto'} style={busy ? styles.disabledButton : undefined}>
-                <AppleAuthentication.AppleAuthenticationButton
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                  cornerRadius={27}
-                  onPress={() => void handleAppleSignIn()}
-                  style={styles.appleButton}
-                />
-              </View>
-            ) : null}
-
             <PressableScale
-              accessibilityLabel="Continue with Google"
+              accessibilityLabel={googleButtonLabel}
               accessibilityRole="button"
               disabled={busy}
               onPress={() => void handleGoogleSignIn()}
             >
               <View style={styles.googleButton}>
                 <Ionicons color={colors.ivory} name="logo-google" size={18} />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
+                <Text style={styles.googleButtonText}>{googleButtonLabel}</Text>
               </View>
             </PressableScale>
+
+            {appleSignInAvailable ? (
+              <View pointerEvents={busy ? 'none' : 'auto'} style={busy ? styles.disabledButton : undefined}>
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
+                  buttonType={appleButtonType}
+                  cornerRadius={22}
+                  onPress={() => void handleAppleSignIn()}
+                  style={styles.appleButton}
+                />
+              </View>
+            ) : null}
           </View>
 
           <PressableScale
@@ -344,7 +348,7 @@ function FeedbackMessage({ kind, message }: { kind: 'error' | 'notice'; message:
 }
 
 const styles = StyleSheet.create({
-  appleButton: { height: 54, width: '100%' },
+  appleButton: { height: 44, width: '100%' },
   disabledButton: { opacity: 0.66 },
   divider: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
   dividerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
@@ -406,9 +410,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 44,
   },
-  googleButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  googleButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
   hero: { backgroundColor: colors.black, height: 260 },
   heroContent: { paddingHorizontal: spacing.lg },
   primaryButton: {
