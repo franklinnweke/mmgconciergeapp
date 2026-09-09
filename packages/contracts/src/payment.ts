@@ -12,7 +12,7 @@ import {
  * Paystack transaction reference contract.
  *
  * Paystack accepts only ASCII alphanumeric characters plus `-`, `.`, and `=`.
- * Keep this exported and canonical so the R2 server-side generator, adapter,
+ * Keep this exported and canonical so the server-side generator, adapter,
  * persisted payment record, webhook payload parser, and reconciliation path
  * cannot drift onto different reference alphabets.
  */
@@ -65,26 +65,36 @@ export const paymentVerificationOutcomeSchema = z.enum([
 export type PaymentVerificationOutcome = z.infer<typeof paymentVerificationOutcomeSchema>;
 
 /**
- * R4 consumes only durable R3 `verified_success` evidence. A real successful
- * payment has exactly two booking-value outcomes: the requested dates are
- * atomically secured into `paid_pending_owner`, or a late-payment collision is
- * recorded as `paid_conflict`. Neither branch can claim owner confirmation.
+ * R4 consumes only durable R3 `verified_success` evidence. New request-first
+ * bookings are already availability-approved before payment and therefore move
+ * directly to `confirmed`. Historical pay-first intents retain
+ * `paid_pending_owner` compatibility. Unsafe late-payment collisions remain
+ * `paid_conflict` and require concierge intervention.
  */
 export const paymentValueDeliveryOutcomeSchema = z.enum([
+  'confirmed',
   'paid_pending_owner',
   'paid_conflict',
 ]);
 export type PaymentValueDeliveryOutcome = z.infer<typeof paymentValueDeliveryOutcomeSchema>;
 
+const deliveredBookingResultShape = {
+  eventId: boundedIdSchema,
+  paymentId: boundedIdSchema,
+  intentId: boundedIdSchema,
+  paymentState: z.literal('succeeded'),
+  intentState: z.literal('paid'),
+  bookingId: boundedIdSchema,
+} as const;
+
 export const trustedPaymentValueDeliveryResultSchema = z.discriminatedUnion('outcome', [
   z.object({
-    eventId: boundedIdSchema,
-    paymentId: boundedIdSchema,
-    intentId: boundedIdSchema,
+    ...deliveredBookingResultShape,
+    outcome: z.literal('confirmed'),
+  }).strict(),
+  z.object({
+    ...deliveredBookingResultShape,
     outcome: z.literal('paid_pending_owner'),
-    paymentState: z.literal('succeeded'),
-    intentState: z.literal('paid'),
-    bookingId: boundedIdSchema,
   }).strict(),
   z.object({
     eventId: boundedIdSchema,

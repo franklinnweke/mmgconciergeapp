@@ -26,31 +26,29 @@ describe('requireVerifiedRenter', () => {
 });
 
 describe('requireCheckoutRenter', () => {
-  it('requires verified email and Firebase-verified phone evidence', () => {
+  it('requires authentication, verified email, and usable email without requiring phone_number', () => {
     expect(() => requireCheckoutRenter(undefined))
       .toThrowError(expect.objectContaining<Partial<BookingCommandError>>({ code: 'UNAUTHENTICATED' }));
     expect(() => requireCheckoutRenter({
       uid: 'renter-one',
-      token: { email_verified: false, email: 'renter@example.com', phone_number: '+2348012345678' },
+      token: { email_verified: false, email: 'renter@example.com' },
     })).toThrowError(expect.objectContaining<Partial<BookingCommandError>>({ code: 'FORBIDDEN' }));
     expect(() => requireCheckoutRenter({
       uid: 'renter-one',
-      token: { email_verified: true, email: 'renter@example.com' },
+      token: { email_verified: true, email: '   ' },
     })).toThrowError(expect.objectContaining<Partial<BookingCommandError>>({ code: 'PROFILE_INCOMPLETE' }));
   });
 
-  it('returns normalized verified checkout identity', () => {
+  it('returns normalized verified checkout identity without auth phone_number claim', () => {
     expect(requireCheckoutRenter({
       uid: 'renter-one',
       token: {
         email_verified: true,
         email: ' RENTER@EXAMPLE.COM ',
-        phone_number: '+2348012345678',
       },
     })).toEqual({
       uid: 'renter-one',
       email: 'renter@example.com',
-      phoneNumber: '+2348012345678',
     });
   });
 });
