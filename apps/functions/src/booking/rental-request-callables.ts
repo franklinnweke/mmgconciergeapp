@@ -2,13 +2,16 @@ import { logger } from 'firebase-functions';
 import { defineSecret } from 'firebase-functions/params';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { initializeBookingPaymentCommandSchema } from '@mmg/contracts/payment';
+import { listOwnerRentalRequestsCommandSchema } from '@mmg/contracts/rental-request';
 
 import { isProductionAppCheck } from '../app-check-env.js';
 import { CommandError } from '../errors.js';
+import { requireVerifiedEmailOwnerAuth } from '../owner/callable-auth.js';
 import { requireCheckoutRenter, requireVerifiedRenter } from './callable-auth.js';
 import { FirestoreBookingPaymentInitializationRepository } from './firestore-booking-payment-initialization-repository.js';
 import { FirestoreRentalRequestRepository } from './firestore-rental-request-repository.js';
 import { initializeBookingPayment as initializeBookingPaymentService } from './initialize-booking-payment-service.js';
+import { FirestoreOwnerRentalRequestQuery } from './owner-rental-request-query.js';
 import { PaystackPaymentAdapter } from './paystack-payment-adapter.js';
 import { FirestoreRequestFirstPaymentProtection } from './request-first-payment-protection.js';
 import {
@@ -49,6 +52,14 @@ function requestFirstGateway(): PaystackPaymentAdapter {
 export const createRentalRequest = onCall({ ...runtime, enforceAppCheck: isProductionAppCheck() }, async (request) => {
   try { const renterId = requireVerifiedRenter(request.auth); return await createRentalRequestService(request.data, renterId, { repository: new FirestoreRentalRequestRepository() }); }
   catch (error) { return rethrow(error, 'rental_request.create_failed'); }
+});
+
+export const listOwnerRentalRequests = onCall({ ...runtime, enforceAppCheck: isProductionAppCheck() }, async (request) => {
+  try {
+    listOwnerRentalRequestsCommandSchema.parse(request.data);
+    const owner = requireVerifiedEmailOwnerAuth(request.auth);
+    return await new FirestoreOwnerRentalRequestQuery().list(owner.uid);
+  } catch (error) { return rethrow(error, 'rental_request.owner_list_failed'); }
 });
 
 export const approveRentalRequest = onCall({ ...runtime, enforceAppCheck: isProductionAppCheck() }, async (request) => {
