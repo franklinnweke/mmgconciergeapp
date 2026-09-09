@@ -20,7 +20,14 @@ export async function requestPhoneVerification(
   if (!auth.currentUser) throw new Error('Sign in before verifying your phone number.');
 
   const provider = new PhoneAuthProvider(auth);
-  const verificationId = await provider.verifyPhoneNumber(phoneE164);
+  // React Native Firebase's native SDK owns iOS app verification. The verifier
+  // argument is retained for the current TypeScript overload but is ignored by
+  // the native implementation; silent APNs verification is preferred and
+  // Firebase falls back to reCAPTCHA only when silent verification is unavailable.
+  const verificationId = await provider.verifyPhoneNumber(phoneE164, {
+    type: 'recaptcha',
+    verify: async () => '',
+  });
 
   return { verificationId, phoneE164 };
 }
