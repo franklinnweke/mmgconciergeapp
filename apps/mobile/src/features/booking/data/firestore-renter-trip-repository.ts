@@ -18,7 +18,7 @@ import {
 
 export const renterTripRemoteEnabled = true;
 
-function snapshotDocuments(snapshot: { docs: QueryDocumentSnapshot<DocumentData, DocumentData>[] }) {
+function docs(snapshot: { docs: QueryDocumentSnapshot<DocumentData, DocumentData>[] }) {
   return snapshot.docs.map((document) => ({ id: document.id, data: document.data() }));
 }
 
@@ -28,44 +28,25 @@ export function subscribeToTrustedRenterTrips(
   onError: (error: Error) => void,
 ) {
   const database = getFirestore();
-  const intentsQuery = query(
-    collection(database, renterTripReadQuery.collections[0]),
+  const scoped = renterTripReadQuery.collections.map((name) => query(
+    collection(database, name),
     where(renterTripReadQuery.equalityFilter.field, renterTripReadQuery.equalityFilter.operator, renterId),
-  );
-  const bookingsQuery = query(
-    collection(database, renterTripReadQuery.collections[1]),
-    where(renterTripReadQuery.equalityFilter.field, renterTripReadQuery.equalityFilter.operator, renterId),
-  );
-
+  ));
   let intents: { id: string; data: unknown }[] | null = null;
   let bookings: { id: string; data: unknown }[] | null = null;
+  let requests: { id: string; data: unknown }[] | null = null;
 
-  function emitIfReady() {
-    if (intents === null || bookings === null) return;
-    onSnapshotResult(decodeTrustedTripDocuments(intents, bookings));
+  function emit() {
+    if (intents === null || bookings === null || requests === null) return;
+    onSnapshotResult(decodeTrustedTripDocuments(intents, bookings, requests));
   }
 
-  const stopIntents = onSnapshot(
-    intentsQuery,
-    (snapshot) => {
-      intents = snapshotDocuments(snapshot);
-      emitIfReady();
-    },
-    onError,
-  );
-
-  const stopBookings = onSnapshot(
-    bookingsQuery,
-    (snapshot) => {
-      bookings = snapshotDocuments(snapshot);
-      emitIfReady();
-    },
-    onError,
-  );
-
-  return createUnsubscribeBundle(stopIntents, stopBookings);
+  const stops = [
+    onSnapshot(scoped[0]!, (snapshot) => { intents = docs(snapshot); emit(); }, onError),
+    onSnapshot(scoped[1]!, (snapshot) => { bookings = docs(snapshot); emit(); }, onError),
+    onSnapshot(scoped[2]!, (snapshot) => { requests = docs(snapshot); emit(); }, onError),
+  ];
+  return createUnsubscribeBundle(...stops);
 }
 
-export const firestoreRenterTripRepository: RenterTripRepository = {
-  subscribe: subscribeToTrustedRenterTrips,
-};
+export const firestoreRenterTripRepository: RenterTripRepository = { subscribe: subscribeToTrustedRenterTrips };

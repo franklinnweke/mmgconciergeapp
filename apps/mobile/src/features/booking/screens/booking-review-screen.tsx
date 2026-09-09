@@ -1,85 +1,80 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import { type CreateBookingIntentResult, type VehicleSummary } from '@mmg/contracts';
+import {
+  LAGOS_AREA_LABELS,
+  type LagosAreaLabel,
+  type VehicleSummary,
+} from '@mmg/contracts';
+import type { CreateRentalRequestResult } from '@mmg/contracts/rental-request';
 import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
+import { normalizeNigerianPhone } from '@/core/auth/phone-verification-domain';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
+import { useRenterProfile } from '@/features/account/hooks/use-renter-profile';
 import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
-import {
-  formatLagosDateOnly,
-} from '@/features/discovery/data/lagos-destinations';
+import { formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import { resolveRentalJourney } from '@/features/discovery/data/rental-journey';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
-import { RenterCheckoutReadiness } from '../components/renter-checkout-readiness';
 import {
-  BookingIntentSubmissionKey,
-  createBookingIntentGateway,
-  type BookingIntentGateway,
-} from '../data/booking-intent-gateway';
-import { bookingCommandErrorMessage } from '../domain/booking-errors';
+  createRentalRequestGateway,
+  RentalRequestSubmissionKey,
+  type RentalRequestGateway,
+} from '../data/rental-request-gateway';
 
 type BookingReviewScreenProps = {
-  bookingIntentGateway?: BookingIntentGateway;
+  rentalRequestGateway?: RentalRequestGateway;
   endDate?: string;
   startDate?: string;
   vehicleId: string;
 };
 
 export default function BookingReviewScreen({
-  bookingIntentGateway,
+  rentalRequestGateway,
   endDate,
   startDate,
   vehicleId,
 }: BookingReviewScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const gateway = useMemo(() => createDiscoveryGateway(), []);
-  const intentGateway = useMemo(
-    () => bookingIntentGateway ?? createBookingIntentGateway(),
-    [bookingIntentGateway],
+  const discovery = useMemo(() => createDiscoveryGateway(), []);
+  const requestGateway = useMemo(
+    () => rentalRequestGateway ?? createRentalRequestGateway(),
+    [rentalRequestGateway],
   );
-  const submissionKey = useRef(new BookingIntentSubmissionKey());
+  const submissionKey = useRef(new RentalRequestSubmissionKey());
+  const { profile } = useRenterProfile();
   const journey = useMemo(() => resolveRentalJourney(startDate, endDate), [endDate, startDate]);
 
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [intentResult, setIntentResult] = useState<CreateBookingIntentResult | null>(null);
+  const [requestResult, setRequestResult] = useState<CreateRentalRequestResult | null>(null);
+  const [requestFormOpen, setRequestFormOpen] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [areaLabel, setAreaLabel] = useState<LagosAreaLabel>('Victoria Island');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [confirmingRelease, setConfirmingRelease] = useState(false);
-  const [releasing, setReleasing] = useState(false);
 
-  const handleReleaseHold = async () => {
-    if (!intentResult || releasing) return;
-    setReleasing(true);
-    setErrorMessage(null);
-    try {
-      await intentGateway.releaseHold(intentResult.result.intentId);
-      setIntentResult(null);
-      setConfirmingRelease(false);
-      setErrorMessage(null);
-    } catch (error: unknown) {
-      setErrorMessage(
-        safeProviderError(
-          error,
-          'The hold could not be released. Your dates are still held. Try releasing again.',
-        ),
-      );
-      setConfirmingRelease(false);
-    } finally {
-      setReleasing(false);
-    }
-  };
+  useEffect(() => {
+    if (profile?.phone && !phone) setPhone(profile.phone);
+    if (profile?.defaultDeliveryAddress?.areaLabel) setAreaLabel(profile.defaultDeliveryAddress.areaLabel);
+  }, [phone, profile]);
 
   const retryFetch = useCallback(() => {
     setFetchError(null);
@@ -90,10 +85,10 @@ export default function BookingReviewScreen({
   useEffect(() => {
     if (!vehicleId) return;
     let active = true;
-    gateway.getVehicleById(vehicleId)
-      .then((nextVehicle) => {
+    discovery.getVehicleById(vehicleId)
+      .then((next) => {
         if (!active) return;
-        setVehicle(nextVehicle);
+        setVehicle(next);
         setLoading(false);
         setFetchError(null);
       })
@@ -101,43 +96,59 @@ export default function BookingReviewScreen({
         if (!active) return;
         setVehicle(null);
         setLoading(false);
-        setFetchError(safeProviderError(error, 'Unable to load your quote. Please try again.'));
+        setFetchError(safeProviderError(error, 'Unable to load this vehicle. Please try again.'));
       });
     return () => { active = false; };
-  }, [gateway, reloadKey, vehicleId]);
+  }, [discovery, reloadKey, vehicleId]);
 
   const quote = useMemo(
     () => vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, journey.durationDays) : null,
     [journey.durationDays, vehicle],
   );
-  const authoritativePrice = intentResult?.result.priceSnapshot ?? null;
+  const storedPhone = normalizeNigerianPhone(profile?.phone ?? '');
+  const normalizedPhone = storedPhone ?? normalizeNigerianPhone(phone);
+
+  const sendRequest = async () => {
+    if (!vehicle || !normalizedPhone || submitting) return;
+    const data = {
+      vehicleId: vehicle.id,
+      startDate: journey.startDate,
+      endDate: journey.endDate,
+      contactPhone: normalizedPhone,
+      serviceAreaLabel: areaLabel,
+    } as const;
+    setSubmitting(true);
+    setErrorMessage(null);
+    try {
+      const result = await requestGateway.createRequest(data, submissionKey.current.forData(data));
+      submissionKey.current.markSucceeded();
+      setRequestResult(result);
+    } catch (error) {
+      setErrorMessage(safeProviderError(error, 'Your request could not be sent. No dates were held and no payment was attempted.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
-        <View style={styles.headerInset}>
-          <ScreenHeader onBack={() => router.back()} title="Review booking" />
-        </View>
-        <View style={styles.stateCenter}>
-          <ActivityIndicator color={colors.goldStrong} size="large" />
-          <Text style={styles.stateText}>Loading booking details…</Text>
-        </View>
+        <View style={styles.headerInset}><ScreenHeader onBack={() => router.back()} title="Request to book" /></View>
+        <View style={styles.stateCenter}><ActivityIndicator color={colors.goldStrong} size="large" /><Text style={styles.muted}>Loading vehicle…</Text></View>
       </View>
     );
   }
 
   if (fetchError || !vehicle || !quote) {
     return (
-      <View style={[styles.stateScreen, { paddingTop: insets.top + spacing.sm }]}>
-        <ScreenHeader onBack={() => router.back()} title="Review booking" />
+      <View style={[styles.screen, { paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg }]}>
+        <ScreenHeader onBack={() => router.back()} title="Request to book" />
         <View style={styles.stateCenter}>
-          <Ionicons color={fetchError ? colors.danger : colors.muted} name={fetchError ? 'cloud-offline-outline' : 'car-outline'} size={34} />
-          <Text style={styles.stateTitle}>{fetchError ? 'Could not load quote' : 'Vehicle unavailable'}</Text>
-          <Text style={styles.stateText}>{fetchError ?? 'Return to the fleet and choose another vehicle.'}</Text>
-          <PressableScale accessibilityRole="button" haptic onPress={fetchError ? retryFetch : () => router.back()}>
-            <View style={styles.stateButton}>
-              <Text style={styles.stateButtonText}>{fetchError ? 'Try again' : 'Back to cars'}</Text>
-            </View>
+          <Ionicons color={colors.muted} name="car-outline" size={34} />
+          <Text style={styles.title}>{fetchError ? 'Could not load vehicle' : 'Vehicle unavailable'}</Text>
+          <Text style={styles.muted}>{fetchError ?? 'Choose another vehicle from the fleet.'}</Text>
+          <PressableScale accessibilityRole="button" onPress={fetchError ? retryFetch : () => router.back()}>
+            <View style={styles.primaryButton}><Text style={styles.primaryText}>{fetchError ? 'Try again' : 'Back to cars'}</Text></View>
           </PressableScale>
         </View>
       </View>
@@ -150,238 +161,149 @@ export default function BookingReviewScreen({
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader onBack={() => router.back()} title="Review booking" />
-
-        <Text style={styles.introText}>Check the car, dates and total before MMG creates a 15-minute hold. No payment is taken at this step.</Text>
+        <ScreenHeader onBack={() => router.back()} title="Request to book" />
 
         <View style={styles.vehicleRow}>
-          <Image
-            accessibilityLabel={vehicle.displayName}
-            contentFit="cover"
-            source={resolveVehicleImageSource(vehicle)}
-            style={styles.vehicleImage}
-          />
+          <Image accessibilityLabel={vehicle.displayName} contentFit="cover" source={resolveVehicleImageSource(vehicle)} style={styles.vehicleImage} />
           <View style={styles.vehicleCopy}>
             <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
-            <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · {vehicle.seats} passengers</Text>
-            <Text style={styles.vehicleMeta}>Chauffeur and Lagos delivery included</Text>
+            <Text style={styles.muted}>{vehicle.areaLabel} · {vehicle.seats} passengers</Text>
+            <Text style={styles.muted}>Chauffeur included</Text>
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Dates</Text>
-          <View style={styles.journeyRow}>
-            <JourneyPoint label="Pickup" value={formatLagosDateOnly(journey.startDate)} />
+          <View style={styles.dateRow}>
+            <DatePoint label="Pickup" value={formatLagosDateOnly(journey.startDate)} />
             <Ionicons color={colors.muted} name="arrow-forward" size={16} />
-            <JourneyPoint alignEnd label="Return" value={formatLagosDateOnly(journey.endDate)} />
+            <DatePoint alignEnd label="Return" value={formatLagosDateOnly(journey.endDate)} />
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{authoritativePrice ? 'Held quote' : 'Estimated total'}</Text>
-          <QuoteRow
-            label={`${formatNairaFromKobo(authoritativePrice?.ownerDailyRateKobo ?? vehicle.dailyRateKobo)} × ${authoritativePrice?.chargedDays ?? journey.durationDays} ${((authoritativePrice?.chargedDays ?? journey.durationDays) === 1) ? 'day' : 'days'}`}
-            value={formatNairaFromKobo(authoritativePrice?.baseRentalKobo ?? quote.rentalKobo)}
-          />
-          <QuoteRow
-            label="Service and protection"
-            value={formatNairaFromKobo(authoritativePrice?.serviceFeeKobo ?? quote.serviceFeeKobo)}
-          />
+          <Text style={styles.sectionTitle}>Estimated total</Text>
+          <QuoteRow label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${journey.durationDays} ${journey.durationDays === 1 ? 'day' : 'days'}`} value={formatNairaFromKobo(quote.rentalKobo)} />
+          <QuoteRow label="Service and protection" value={formatNairaFromKobo(quote.serviceFeeKobo)} />
           <QuoteRow label="Chauffeur and Lagos delivery" value="Included" />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>{authoritativePrice ? 'Held total' : 'Total'}</Text>
-            <Text style={styles.totalValue}>{formatNairaFromKobo(authoritativePrice?.renterTotalKobo ?? quote.totalKobo)}</Text>
-          </View>
-          <Text style={styles.noteText}>
-            {authoritativePrice
-              ? 'This server-authoritative amount is held with your dates until the hold expires.'
-              : 'MMG recalculates this amount on the server before creating the hold.'}
-          </Text>
+          <View style={styles.totalRow}><Text style={styles.totalLabel}>Estimated total</Text><Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text></View>
+          <Text style={styles.note}>Final availability and the payment total are confirmed by MMG Concierge before payment.</Text>
         </View>
 
-        {errorMessage ? (
-          <View accessibilityLiveRegion="polite" style={styles.errorRow}>
-            <Ionicons color={colors.danger} name="alert-circle" size={17} />
-            <Text style={styles.errorText}>{errorMessage}</Text>
+        {requestResult ? (
+          <View accessibilityLiveRegion="polite" style={styles.receivedCard}>
+            <Ionicons color={colors.success} name="checkmark-circle" size={28} />
+            <Text style={styles.title}>Request received</Text>
+            <Text style={styles.centerCopy}>We're confirming your car and will contact you shortly. No payment has been taken and these dates are not locked yet.</Text>
+            <PressableScale accessibilityRole="button" onPress={() => router.replace('/(renter)/trips')}>
+              <View style={styles.primaryButton}><Text style={styles.primaryText}>View requests</Text></View>
+            </PressableScale>
           </View>
-        ) : null}
-
-        {intentResult ? (
-          <>
-            <View accessibilityLiveRegion="polite" style={styles.holdSummary}>
-              <Ionicons color={colors.success} name="checkmark-circle" size={20} />
-              <View style={styles.holdCopy}>
-                <Text style={styles.holdTitle}>Dates held for 15 minutes</Text>
-                <Text style={styles.holdText}>
-                  Hold expires at {new Date(intentResult.result.expiresAt).toLocaleTimeString('en-NG', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    timeZone: 'Africa/Lagos',
-                  })} Lagos time. Payment still needs to be completed and verified.
-                </Text>
-              </View>
-            </View>
-
-            {confirmingRelease ? (
-              <View style={styles.confirmCard}>
-                <Text style={styles.confirmTitle}>Release these dates?</Text>
-                <Text style={styles.confirmBody}>
-                  No payment has been taken. The vehicle will become available for these dates again.
-                </Text>
-                <View style={styles.confirmActions}>
-                  <PressableScale
-                    accessibilityLabel="Keep dates"
-                    accessibilityRole="button"
-                    disabled={releasing}
-                    onPress={() => setConfirmingRelease(false)}
-                    style={styles.confirmActionButton}
-                  >
-                    <View style={styles.secondaryButton}>
-                      <Text style={styles.secondaryButtonText}>Keep dates</Text>
-                    </View>
-                  </PressableScale>
-                  <PressableScale
-                    accessibilityLabel="Release dates"
-                    accessibilityRole="button"
-                    disabled={releasing}
-                    onPress={handleReleaseHold}
-                    style={styles.confirmActionButton}
-                  >
-                    <View style={[styles.releaseButton, releasing && styles.disabled]}>
-                      {releasing ? <ActivityIndicator color={colors.black} size="small" /> : null}
-                      <Text style={styles.releaseButtonText}>{releasing ? 'Releasing…' : 'Release dates'}</Text>
-                    </View>
-                  </PressableScale>
-                </View>
+        ) : requestFormOpen ? (
+          <View style={styles.requestPanel}>
+            <Text style={styles.sectionTitle}>Where can we reach you?</Text>
+            {storedPhone ? (
+              <View style={styles.savedContact}>
+                <Ionicons color={colors.goldStrong} name="call-outline" size={18} />
+                <View><Text style={styles.smallLabel}>CONTACT PHONE</Text><Text style={styles.contactValue}>{storedPhone}</Text></View>
               </View>
             ) : (
-              <PressableScale
-                accessibilityLabel="Release dates"
-                accessibilityRole="button"
-                onPress={() => setConfirmingRelease(true)}
-              >
-                <View style={styles.releaseTriggerButton}>
-                  <Ionicons color={colors.goldStrong} name="calendar-outline" size={16} />
-                  <Text style={styles.releaseTriggerText}>Release dates</Text>
-                </View>
-              </PressableScale>
+              <TextInput
+                accessibilityLabel="Contact phone number"
+                keyboardType="phone-pad"
+                onChangeText={setPhone}
+                placeholder="0801 234 5678"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                value={phone}
+              />
             )}
 
-            <RenterCheckoutReadiness
-              holdExpiresAt={intentResult.result.expiresAt}
-              intentId={intentResult.result.intentId}
-              onRestartHold={() => {
-                setIntentResult(null);
-                setErrorMessage(null);
-                setConfirmingRelease(false);
-              }}
-              onViewTrips={() => router.replace('/trips')}
-            />
-          </>
-        ) : (
-          <PressableScale
-            disabled={submitting}
-            haptic
-            onPress={async () => {
-              setSubmitting(true);
-              setErrorMessage(null);
-              try {
-                const intentData = {
-                  endDate: journey.endDate,
-                  startDate: journey.startDate,
-                  vehicleId: vehicle.id,
-                };
-                const result = await intentGateway.createIntent(
-                  intentData,
-                  submissionKey.current.forData(intentData),
+            <Text style={styles.smallLabel}>WHERE WILL THE VEHICLE BE NEEDED?</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.areaScroller}>
+              {LAGOS_AREA_LABELS.map((area) => {
+                const selected = area === areaLabel;
+                return (
+                  <PressableScale
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    key={area}
+                    onPress={() => setAreaLabel(area)}
+                    style={[styles.areaPill, selected && styles.areaPillSelected]}
+                  >
+                    <Text style={[styles.areaText, selected && styles.areaTextSelected]}>{area}</Text>
+                  </PressableScale>
                 );
-                submissionKey.current.markSucceeded();
-                setIntentResult(result);
-              } catch (error: unknown) {
-                const reason = bookingCommandErrorMessage(error);
-                setErrorMessage(`${reason} No hold was created and no charge was attempted.`);
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-          >
-            <View style={[styles.ctaButton, submitting && styles.disabled]}>
-              {submitting ? <ActivityIndicator color={colors.black} size="small" /> : null}
-              <Text style={styles.ctaText}>{submitting ? 'Creating hold…' : 'Create 15-minute hold'}</Text>
-            </View>
-          </PressableScale>
+              })}
+            </ScrollView>
+
+            <Text style={styles.centerCopy}>MMG Concierge will contact you shortly to confirm availability and your booking details.</Text>
+            {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+            <PressableScale accessibilityRole="button" disabled={!normalizedPhone || submitting} haptic onPress={() => void sendRequest()}>
+              <View style={[styles.primaryButton, (!normalizedPhone || submitting) && styles.disabled]}>
+                {submitting ? <ActivityIndicator color={colors.black} size="small" /> : null}
+                <Text style={styles.primaryText}>{submitting ? 'Sending request…' : 'Send request'}</Text>
+              </View>
+            </PressableScale>
+          </View>
+        ) : (
+          <>
+            {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+            <PressableScale accessibilityRole="button" haptic onPress={() => setRequestFormOpen(true)}>
+              <View style={styles.primaryButton}><Text style={styles.primaryText}>Request to book</Text></View>
+            </PressableScale>
+          </>
         )}
       </ScrollView>
     </View>
   );
 }
 
-function JourneyPoint({ alignEnd = false, label, value }: { alignEnd?: boolean; label: string; value: string }) {
-  return (
-    <View style={[styles.point, alignEnd && styles.pointEnd]}>
-      <Text style={styles.pointLabel}>{label}</Text>
-      <Text style={styles.pointValue}>{value}</Text>
-    </View>
-  );
+function DatePoint({ alignEnd = false, label, value }: { alignEnd?: boolean; label: string; value: string }) {
+  return <View style={[styles.point, alignEnd && styles.pointEnd]}><Text style={styles.smallLabel}>{label.toUpperCase()}</Text><Text style={styles.pointValue}>{value}</Text></View>;
 }
-
 function QuoteRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.quoteRow}>
-      <Text style={styles.quoteLabel}>{label}</Text>
-      <Text style={styles.quoteValue}>{value}</Text>
-    </View>
-  );
+  return <View style={styles.quoteRow}><Text style={styles.quoteLabel}>{label}</Text><Text style={styles.quoteValue}>{value}</Text></View>;
 }
 
 const styles = StyleSheet.create({
-  confirmActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  confirmActionButton: { flex: 1 },
-  confirmBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 19, marginTop: spacing.xs },
-  confirmCard: { backgroundColor: colors.graphiteRaised, borderColor: 'rgba(209,133,120,.36)', borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, padding: spacing.lg },
-  confirmTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+  areaPill: { borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, marginRight: spacing.xs, minHeight: 38, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  areaPillSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
+  areaScroller: { flexGrow: 0 },
+  areaText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11 },
+  areaTextSelected: { color: colors.black },
+  centerCopy: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, textAlign: 'center' },
+  contactValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
   content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
-  ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
-  ctaText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  disabled: { opacity: 0.6 },
-  errorRow: { alignItems: 'center', borderColor: colors.danger, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },
+  dateRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+  disabled: { opacity: 0.55 },
+  error: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 12, lineHeight: 18, textAlign: 'center' },
   headerInset: { paddingHorizontal: spacing.lg },
-  holdCopy: { flex: 1 },
-  holdSummary: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md },
-  holdText: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 3 },
-  holdTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  introText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  journeyRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
-  noteText: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.sm },
-  point: { flex: 1, gap: 3 },
+  input: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
+  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+  note: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.sm },
+  point: { flex: 1, gap: 4 },
   pointEnd: { alignItems: 'flex-end' },
-  pointLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
   pointValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 52, paddingHorizontal: spacing.lg },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   quoteLabel: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 13 },
   quoteRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: 5 },
-  quoteValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, textAlign: 'right' },
-  releaseButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.md },
-  releaseButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  releaseTriggerButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.md },
-  releaseTriggerText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
+  quoteValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
+  receivedCard: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.lg, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
+  requestPanel: { backgroundColor: colors.graphite, borderColor: colors.lineStrong, borderRadius: radii.lg, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
+  savedContact: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderRadius: radii.sm, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   screen: { backgroundColor: colors.black, flex: 1 },
-  secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.md },
-  secondaryButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
   section: { gap: spacing.xs },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17, marginBottom: spacing.xs },
-  stateButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.pill, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
-  stateButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
+  smallLabel: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 0.7 },
   stateCenter: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', paddingHorizontal: spacing.xl },
-  stateScreen: { backgroundColor: colors.black, flex: 1, paddingHorizontal: spacing.lg },
-  stateText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, textAlign: 'center' },
-  stateTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18 },
+  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 20, textAlign: 'center' },
   totalLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
   totalRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.md },
   totalValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
   vehicleCopy: { flex: 1, gap: 4, justifyContent: 'center' },
-  vehicleImage: { borderRadius: radii.sm, height: 76, width: 100 },
-  vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
+  vehicleImage: { borderRadius: radii.sm, height: 84, width: 112 },
+  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
   vehicleRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.lg },
 });
