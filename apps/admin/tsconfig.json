@@ -26,6 +26,9 @@
       "@/*": [
         "./src/*"
       ],
+      "@mmg/functions-booking/*": [
+        "../functions/src/booking/*"
+      ],
       "@mmg/functions-owner/*": [
         "../functions/src/owner/*"
       ],
