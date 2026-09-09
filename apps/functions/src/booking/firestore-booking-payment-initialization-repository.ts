@@ -28,11 +28,21 @@ import type {
 const intentSchema = z.object({
   renterId: z.string().min(1).max(128),
   vehicleId: z.string().min(1).max(128),
+  rentalRequestId: z.string().min(1).max(128).optional(),
   state: z.enum(['intent_created', 'checkout_pending', 'paid', 'expired', 'failed', 'invalid', 'paid_conflict']),
   priceSnapshot: priceSnapshotSchema,
   expiresAt: z.instanceof(Timestamp),
   paymentId: z.string().min(1).max(128).optional(),
   paymentReference: paymentReferenceSchema.optional(),
+}).passthrough();
+
+const linkedRequestSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  renterId: z.string().min(1).max(128),
+  vehicleId: z.string().min(1).max(128),
+  state: z.literal('ready_for_payment'),
+  intentId: z.string().min(1).max(128),
+  holdExpiresAt: z.instanceof(Timestamp),
 }).passthrough();
 
 const heldBlockSchema = z.object({
@@ -84,7 +94,6 @@ function resultFromPayment(payment: z.infer<typeof paymentSchema>): InitializeBo
     !payment.accessCode ||
     !payment.checkoutRequestId
   ) return null;
-
   return initializeBookingPaymentResultSchema.parse({
     requestId: payment.checkoutRequestId,
     result: {
@@ -142,16 +151,32 @@ implements BookingPaymentInitializationRepository {
         hold.data.renterId !== input.actor.uid || hold.data.vehicleId !== intent.data.vehicleId ||
         hold.data.expiresAt.toMillis() <= input.now.getTime()
       ) {
-        throw new BookingCommandError('FAILED_PRECONDITION', 'The checkout hold has expired or is no longer valid.', { reason: 'expired' });
+        throw new BookingCommandError('FAILED_PRECONDITION', 'The payment window has expired or is no longer valid.', { reason: 'expired' });
+      }
+
+      if (intent.data.rentalRequestId) {
+        const requestSnapshot = await transaction.get(this.firestore.doc(`rentalRequests/${intent.data.rentalRequestId}`));
+        const linkedRequest = linkedRequestSchema.safeParse(requestSnapshot.data());
+        if (
+          !requestSnapshot.exists || !linkedRequest.success ||
+          linkedRequest.data.requestId !== intent.data.rentalRequestId ||
+          linkedRequest.data.renterId !== input.actor.uid ||
+          linkedRequest.data.vehicleId !== intent.data.vehicleId ||
+          linkedRequest.data.intentId !== input.intentId ||
+          linkedRequest.data.holdExpiresAt.toMillis() <= input.now.getTime()
+        ) {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            'This rental request is not currently approved for payment.',
+            { reason: 'request_not_ready' },
+          );
+        }
       }
 
       const profileRef = this.firestore.doc(`renterProfiles/${input.actor.uid}`);
       const profileSnapshot = await transaction.get(profileRef);
       const profile = renterProfileSchema.safeParse(profileSnapshot.data());
-      if (
-        !profileSnapshot.exists || !profile.success ||
-        profile.data.email !== input.actor.email.toLowerCase()
-      ) {
+      if (!profileSnapshot.exists || !profile.success || profile.data.email !== input.actor.email.toLowerCase()) {
         throw new BookingCommandError(
           'PROFILE_INCOMPLETE',
           'A complete renter profile with a contact phone and delivery address is required before checkout.',
@@ -173,7 +198,6 @@ implements BookingPaymentInitializationRepository {
         ) {
           throw new BookingCommandError('FAILED_PRECONDITION', 'Stored payment binding does not match the authoritative booking intent.');
         }
-
         const existingResult = resultFromPayment(payment.data);
         if (existingResult) {
           this.saveIdempotency(transaction, idempotencyRef, input.actor.uid, input.requestHash, existingResult, input.now);
@@ -205,7 +229,9 @@ implements BookingPaymentInitializationRepository {
 
       transaction.create(paymentRef, {
         paymentId: input.paymentId, intentId: input.intentId, renterId: input.actor.uid,
-        vehicleId: intent.data.vehicleId, provider: 'paystack', reference: input.reference,
+        vehicleId: intent.data.vehicleId,
+        ...(intent.data.rentalRequestId ? { rentalRequestId: intent.data.rentalRequestId } : {}),
+        provider: 'paystack', reference: input.reference,
         state: 'initialized', currency: 'NGN', amountKobo: intent.data.priceSnapshot.renterTotalKobo,
         holdExpiresAt: hold.data.expiresAt, initializationLeaseToken: input.requestId,
         initializationLeaseExpiresAt: Timestamp.fromDate(input.leaseExpiresAt),
@@ -218,7 +244,8 @@ implements BookingPaymentInitializationRepository {
       transaction.create(this.firestore.collection('auditEvents').doc(), {
         actorId: input.actor.uid, actorType: 'renter', entityId: input.paymentId, entityType: 'payment',
         eventType: 'booking_payment.initialization_reserved', fromState: null, toState: 'initialized',
-        requestId: input.requestId, occurredAt: Timestamp.fromDate(input.now), details: { intentId: input.intentId },
+        requestId: input.requestId, occurredAt: Timestamp.fromDate(input.now),
+        details: { intentId: input.intentId, ...(intent.data.rentalRequestId ? { rentalRequestId: intent.data.rentalRequestId } : {}) },
       });
       return {
         kind: 'ready', paymentId: input.paymentId, intentId: input.intentId, reference: input.reference,
@@ -242,7 +269,6 @@ implements BookingPaymentInitializationRepository {
       ) {
         throw new BookingCommandError('FAILED_PRECONDITION', 'Reserved payment binding changed unexpectedly.');
       }
-
       const existingResult = resultFromPayment(payment.data);
       if (existingResult) {
         const idempotencyRef = this.firestore.doc(`idempotencyKeys/${input.idempotencyDocumentId}`);
@@ -255,14 +281,12 @@ implements BookingPaymentInitializationRepository {
       if (input.providerResult.reference !== payment.data.reference) {
         throw new BookingCommandError('FAILED_PRECONDITION', 'Paystack reference does not match the reserved payment.');
       }
-
       const holdRef = this.firestore.doc(`bookingBlocks/${input.reservation.intentId}`);
       const holdSnapshot = await transaction.get(holdRef);
       const hold = heldBlockSchema.safeParse(holdSnapshot.data());
       if (!holdSnapshot.exists || !hold.success || hold.data.expiresAt.toMillis() <= input.now.getTime()) {
-        throw new BookingCommandError('FAILED_PRECONDITION', 'The checkout hold expired before payment initialization completed.', { reason: 'expired' });
+        throw new BookingCommandError('FAILED_PRECONDITION', 'The payment window expired before payment initialization completed.', { reason: 'expired' });
       }
-
       const result = initializeBookingPaymentResultSchema.parse({
         requestId: input.requestId,
         result: {
@@ -273,7 +297,6 @@ implements BookingPaymentInitializationRepository {
           holdExpiresAt: payment.data.holdExpiresAt.toDate().toISOString(),
         },
       });
-
       transaction.update(paymentRef, {
         state: 'pending', environment: input.providerResult.environment,
         authorizationUrl: input.providerResult.authorizationUrl, accessCode: input.providerResult.accessCode,

@@ -12,7 +12,7 @@ import {
  * Paystack transaction reference contract.
  *
  * Paystack accepts only ASCII alphanumeric characters plus `-`, `.`, and `=`.
- * Keep this exported and canonical so the R2 server-side generator, adapter,
+ * Keep this exported and canonical so the server-side generator, adapter,
  * persisted payment record, webhook payload parser, and reconciliation path
  * cannot drift onto different reference alphabets.
  */
@@ -65,18 +65,28 @@ export const paymentVerificationOutcomeSchema = z.enum([
 export type PaymentVerificationOutcome = z.infer<typeof paymentVerificationOutcomeSchema>;
 
 /**
- * R4 consumes only durable R3 `verified_success` evidence. A real successful
- * payment has exactly two booking-value outcomes: the requested dates are
- * atomically secured into `paid_pending_owner`, or a late-payment collision is
- * recorded as `paid_conflict`. Neither branch can claim owner confirmation.
+ * Trusted value delivery is compatibility-aware. Request-first intents were
+ * approved before payment, so verified payment can create a confirmed booking
+ * directly. Historical pay-first intents still produce paid_pending_owner.
+ * Any unsafe late-payment collision remains paid_conflict.
  */
 export const paymentValueDeliveryOutcomeSchema = z.enum([
+  'confirmed',
   'paid_pending_owner',
   'paid_conflict',
 ]);
 export type PaymentValueDeliveryOutcome = z.infer<typeof paymentValueDeliveryOutcomeSchema>;
 
 export const trustedPaymentValueDeliveryResultSchema = z.discriminatedUnion('outcome', [
+  z.object({
+    eventId: boundedIdSchema,
+    paymentId: boundedIdSchema,
+    intentId: boundedIdSchema,
+    outcome: z.literal('confirmed'),
+    paymentState: z.literal('succeeded'),
+    intentState: z.literal('paid'),
+    bookingId: boundedIdSchema,
+  }).strict(),
   z.object({
     eventId: boundedIdSchema,
     paymentId: boundedIdSchema,
