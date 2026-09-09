@@ -2,68 +2,36 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.userId;
-    }
-
-    function uidUnchanged() {
-      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
-    }
-
-    function uidNotModified() {
-      return request.resource.data.userId == resource.data.userId;
-    }
-
-    function hasRequiredFields(data, fields) {
-      return data.keys().hasAll(fields);
-    }
-
-    function hasOnlyAllowedFields(data, fields) {
-      return data.keys().hasOnly(fields);
-    }
-
-    function isRecent(time) {
-      return time is timestamp &&
-        time > request.time - duration.value(5, 'm') &&
-        time <= request.time;
-    }
-
+    function isAuthenticated() { return request.auth != null; }
+    function isOwner(userId) { return isAuthenticated() && request.auth.uid == userId; }
+    function isDocOwner() { return isAuthenticated() && request.auth.uid == resource.data.userId; }
+    function uidUnchanged() { return isAuthenticated() && request.resource.data.userId == request.auth.uid; }
+    function uidNotModified() { return request.resource.data.userId == resource.data.userId; }
+    function hasRequiredFields(data, fields) { return data.keys().hasAll(fields); }
+    function hasOnlyAllowedFields(data, fields) { return data.keys().hasOnly(fields); }
+    function isRecent(time) { return time is timestamp && time > request.time - duration.value(5, 'm') && time <= request.time; }
     function isRenterRecord() {
-      return isAuthenticated() &&
-        resource.data.renterId is string &&
-        resource.data.renterId.size() >= 1 &&
-        resource.data.renterId.size() <= 128 &&
+      return isAuthenticated() && resource.data.renterId is string &&
+        resource.data.renterId.size() >= 1 && resource.data.renterId.size() <= 128 &&
         resource.data.renterId == request.auth.uid;
     }
-
     function ownsVehicle(vehicleId) {
-      return isAuthenticated() &&
-        get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.ownerId == request.auth.uid;
+      return isAuthenticated() && get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.ownerId == request.auth.uid;
+    }
+    function canReadRentalRequest() {
+      return isAuthenticated() && (
+        resource.data.renterId == request.auth.uid ||
+        resource.data.ownerId == request.auth.uid
+      );
     }
 
     function isValidBookingRequest(data) {
-      let fields = [
-        'userId', 'vehicleId', 'durationDays', 'pickupAt', 'returnAt',
-        'dailyRateKobo', 'totalKobo', 'status', 'createdAt', 'updatedAt'
-      ];
-
-      return hasRequiredFields(data, fields) &&
-        hasOnlyAllowedFields(data, fields) &&
-        data.userId is string &&
-        data.userId.size() >= 1 && data.userId.size() <= 128 &&
-        data.vehicleId is string &&
-        data.vehicleId.size() >= 1 && data.vehicleId.size() <= 128 &&
+      let fields = ['userId', 'vehicleId', 'durationDays', 'pickupAt', 'returnAt', 'dailyRateKobo', 'totalKobo', 'status', 'createdAt', 'updatedAt'];
+      return hasRequiredFields(data, fields) && hasOnlyAllowedFields(data, fields) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.vehicleId is string && data.vehicleId.size() >= 1 && data.vehicleId.size() <= 128 &&
         data.durationDays is int && data.durationDays >= 1 && data.durationDays <= 30 &&
-        data.pickupAt is timestamp && data.returnAt is timestamp &&
-        data.returnAt > data.pickupAt &&
+        data.pickupAt is timestamp && data.returnAt is timestamp && data.returnAt > data.pickupAt &&
         data.dailyRateKobo is int && data.dailyRateKobo >= 1 && data.dailyRateKobo <= 1000000000 &&
         data.totalKobo is int && data.totalKobo >= 1 && data.totalKobo <= 50000000000 &&
         data.status in ['availability_requested', 'confirmed', 'payment_required', 'booked'] &&
@@ -72,9 +40,7 @@ service cloud.firestore {
 
     function isValidAccountProfile(data) {
       let fields = ['uid', 'accountType', 'displayName', 'email', 'createdAt', 'updatedAt'];
-
-      return hasRequiredFields(data, fields) &&
-        hasOnlyAllowedFields(data, fields) &&
+      return hasRequiredFields(data, fields) && hasOnlyAllowedFields(data, fields) &&
         data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
         data.accountType in ['renter', 'owner'] &&
         data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
@@ -85,116 +51,69 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) &&
-        request.resource.data.uid == request.auth.uid &&
-        request.resource.data.uid == userId &&
-        isValidAccountProfile(request.resource.data) &&
-        request.resource.data.createdAt == request.time &&
-        request.resource.data.updatedAt == request.time;
+      allow create: if isOwner(userId) && request.resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == userId && isValidAccountProfile(request.resource.data) &&
+        request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
       allow update, delete: if false;
     }
 
     match /users/{userId}/bookingRequests/{requestId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) &&
-        uidUnchanged() &&
-        isValidBookingRequest(request.resource.data) &&
-        request.resource.data.status == 'availability_requested' &&
-        request.resource.data.pickupAt > request.time &&
-        isRecent(request.resource.data.createdAt) &&
-        request.resource.data.createdAt == request.time &&
+      allow create: if isOwner(userId) && uidUnchanged() && isValidBookingRequest(request.resource.data) &&
+        request.resource.data.status == 'availability_requested' && request.resource.data.pickupAt > request.time &&
+        isRecent(request.resource.data.createdAt) && request.resource.data.createdAt == request.time &&
         request.resource.data.updatedAt == request.time;
-      allow update: if isOwner(userId) &&
-        isDocOwner() && uidNotModified() &&
-        isValidBookingRequest(request.resource.data) && false;
+      allow update: if isOwner(userId) && isDocOwner() && uidNotModified() && isValidBookingRequest(request.resource.data) && false;
     }
 
-    match /bookingIntents/{intentId} {
-      allow read: if isRenterRecord();
+    // Request-first concierge records expose only dates, vehicle, broad service
+    // area and safe pricing projections. Contact details live separately and are
+    // never readable by renter or owner clients.
+    match /rentalRequests/{requestId} {
+      allow read: if canReadRentalRequest();
+      allow write: if false;
+    }
+    match /rentalRequestContacts/{requestId} {
+      allow read, write: if false;
     }
 
+    match /bookingIntents/{intentId} { allow read: if isRenterRecord(); }
     match /bookings/{bookingId} {
-      allow read: if isRenterRecord() ||
-        (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow read: if isRenterRecord() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
     }
 
-    // Trusted owner/moderation records. Renter list/search/detail is served only
-    // by authenticated App Check Functions using the Admin SDK.
     match /vehicles/{vehicleId} {
       allow get, list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
     }
-
     match /vehiclePrivate/{vehicleId} {
       allow get, list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
     }
-
     match /vehicles/{vehicleId}/images/{imageId} {
-      // Image documents contain upload IDs, processing facts and private paths.
-      // Renters receive only strict URLs/metadata serialized by Functions.
       allow get, list: if ownsVehicle(vehicleId);
       allow write: if false;
     }
-
     match /vehicleRevisions/{revisionId} {
       allow get, list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
     }
-
     match /bookingCases/{caseId} {
-      allow read: if isAuthenticated() && (
-        resource.data.renterId == request.auth.uid ||
-        resource.data.ownerId == request.auth.uid
-      );
+      allow read: if isAuthenticated() && (resource.data.renterId == request.auth.uid || resource.data.ownerId == request.auth.uid);
       allow write: if false;
     }
-
-    match /ownerProfiles/{ownerId} {
-      allow get: if isOwner(ownerId);
-      allow list, write: if false;
-    }
-
-    match /renterProfiles/{renterId} {
-      allow get: if isOwner(renterId);
-      allow list, write: if false;
-    }
-
-    match /ownerVerifications/{ownerId} {
-      allow read, write: if false;
-    }
-
-    match /adminAuditLogs/{logId} {
-      allow read, write: if false;
-    }
-
-    match /bookingBlocks/{blockId} {
-      allow read, write: if false;
-    }
-    match /vehicleAvailability/{vehicleId} {
-      allow read, write: if false;
-    }
-    match /payments/{paymentId} {
-      allow read, write: if false;
-    }
-    match /paymentEvents/{eventId} {
-      allow read, write: if false;
-    }
-    match /auditEvents/{eventId} {
-      allow read, write: if false;
-    }
-    match /notificationOutbox/{eventId} {
-      allow read, write: if false;
-    }
-    match /idempotencyKeys/{idempotencyId} {
-      allow read, write: if false;
-    }
-    match /systemConfig/{configId} {
-      allow read, write: if false;
-    }
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /ownerProfiles/{ownerId} { allow get: if isOwner(ownerId); allow list, write: if false; }
+    match /renterProfiles/{renterId} { allow get: if isOwner(renterId); allow list, write: if false; }
+    match /ownerVerifications/{ownerId} { allow read, write: if false; }
+    match /adminAuditLogs/{logId} { allow read, write: if false; }
+    match /bookingBlocks/{blockId} { allow read, write: if false; }
+    match /vehicleAvailability/{vehicleId} { allow read, write: if false; }
+    match /payments/{paymentId} { allow read, write: if false; }
+    match /paymentEvents/{eventId} { allow read, write: if false; }
+    match /auditEvents/{eventId} { allow read, write: if false; }
+    match /notificationOutbox/{eventId} { allow read, write: if false; }
+    match /idempotencyKeys/{idempotencyId} { allow read, write: if false; }
+    match /systemConfig/{configId} { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
   }
 }

@@ -4,10 +4,7 @@
   "private": true,
   "description": "MMG Concierge marketplace monorepo",
   "packageManager": "npm@10.9.8",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "mobile": "npm run start --workspace @mmg/mobile",
     "mobile:ios": "npm run ios --workspace @mmg/mobile",
@@ -27,12 +24,12 @@
     "test:functions:emulator": "cd firebase && npx -y firebase-tools@latest emulators:exec --only firestore \"npm --prefix .. run test:emulator --workspace @mmg/functions\"",
     "check": "npm test && npm run typecheck && npm run lint && npm run functions:typecheck && npm run functions:build && npm run admin:typecheck && npm run admin:lint && npm run admin:test",
     "test": "vitest run",
-    "test:rules": "cd firebase && npx -y firebase-tools@latest emulators:exec --only firestore \"npm exec vitest -- --run firestore.rules.test.ts payment-events.rules.test.ts\"",
+    "test:rules": "cd firebase && npx -y firebase-tools@latest emulators:exec --only firestore \"npm exec vitest -- --run firestore.rules.test.ts payment-events.rules.test.ts rental-request.rules.test.ts\"",
     "test:storage-rules": "cd firebase && npx -y firebase-tools@latest emulators:exec --project mmg-concierge-dev --only storage,firestore \"npm exec vitest -- --run storage.rules.test.ts\"",
     "firebase:deploy:auth": "cd firebase && npx -y firebase-tools@latest deploy --only auth",
     "firebase:deploy:firestore": "cd firebase && npx -y firebase-tools@latest deploy --only firestore",
     "firebase:paystack:secret:dev": "npx -y firebase-tools@latest functions:secrets:set PAYSTACK_SECRET_KEY --project mmg-concierge-dev",
-    "firebase:deploy:booking-payment-dev": "npx -y firebase-tools@latest deploy --project mmg-concierge-dev --only functions:createBookingIntent,functions:releaseBookingHold,functions:initializeBookingPayment,functions:paystackWebhook,functions:processPaystackPaymentEvent,functions:reconcilePayment,functions:confirmBooking,functions:rejectBooking"
+    "firebase:deploy:booking-payment-dev": "npx -y firebase-tools@latest deploy --project mmg-concierge-dev --only functions:createBookingIntent,functions:releaseBookingHold,functions:createRentalRequest,functions:approveRentalRequest,functions:declineRentalRequest,functions:releaseRentalRequestPaymentHold,functions:expireRentalRequestPaymentWindows,functions:initializeBookingPayment,functions:paystackWebhook,functions:processPaystackPaymentEvent,functions:reconcilePayment,functions:confirmBooking,functions:rejectBooking"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.1",
