@@ -4,7 +4,7 @@ import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { Animated, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,9 +16,10 @@ import { useReducedMotion } from '@/components/use-reduced-motion';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
+import { createBookingIntentGateway } from '../data/booking-intent-gateway';
 import {
+  createRenterTripActionGateway,
   type RenterTripActionGateway,
-  unavailableRenterTripActionGateway,
 } from '../data/renter-trip-action-gateway';
 import {
   initialRenterTripActionSession,
@@ -43,6 +44,7 @@ const actionCopy: Record<RenterTripAction, { icon: keyof typeof Ionicons.glyphMa
   payment: { icon: 'lock-closed-outline', label: 'CONTINUE TO SECURE PAYMENT' },
   support: { icon: 'chatbubble-outline', label: 'CONTACT CONCIERGE' },
   cancellation: { icon: 'close-circle-outline', label: 'REQUEST CANCELLATION' },
+  release_hold: { icon: 'calendar-outline', label: 'RELEASE DATES' },
 };
 
 function formatDate(value: string) {
@@ -55,13 +57,17 @@ function formatDate(value: string) {
 }
 
 export default function TripDetailScreen({
-  actionGateway = unavailableRenterTripActionGateway,
+  actionGateway: actionGatewayProp,
   trip: tripOverride,
   tripId,
 }: TripDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const actionGateway = useMemo(
+    () => actionGatewayProp ?? createRenterTripActionGateway(createBookingIntentGateway()),
+    [actionGatewayProp],
+  );
   const { initializing, syncError, syncState, trips } = useBookings();
   const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
   const [session, dispatch] = useReducer(reduceRenterTripActionSession, initialRenterTripActionSession);
@@ -88,6 +94,9 @@ export default function TripDetailScreen({
     try {
       await actionGateway.perform(action, tripId);
       dispatch({ type: 'finish', action });
+      if (action === 'release_hold') {
+        router.replace('/(renter)/trips');
+      }
     } catch (error) {
       dispatch({ type: 'finish', action, error });
     }
@@ -279,15 +288,40 @@ export default function TripDetailScreen({
               </View>
             ) : null}
 
-            {!session.confirmingCancellation && presentation.primary ? (
+            {session.confirmingReleaseHold ? (
+              <View style={styles.confirmCard}>
+                <Text style={styles.confirmTitle}>Release these dates?</Text>
+                <Text style={styles.confirmBody}>
+                  No payment has been taken. The vehicle will become available for these dates again.
+                </Text>
+                <View style={styles.confirmActions}>
+                  <ActionButton
+                    disabled={busy}
+                    icon="arrow-back"
+                    label="KEEP DATES"
+                    onPress={() => dispatch({ type: 'dismiss-release-hold' })}
+                    secondary
+                  />
+                  <ActionButton
+                    disabled={busy}
+                    icon="calendar-outline"
+                    label="RELEASE DATES"
+                    loading={session.pendingAction === 'release_hold'}
+                    onPress={() => void perform('release_hold')}
+                  />
+                </View>
+              </View>
+            ) : null}
+
+            {!session.confirmingCancellation && !session.confirmingReleaseHold && presentation.primary ? (
               <View style={styles.actions}>
                 <ActionButton
                   disabled={busy}
                   icon={actionCopy[presentation.primary].icon}
                   label={actionCopy[presentation.primary].label}
                   loading={session.pendingAction === presentation.primary}
-                  onPress={() => presentation.primary === 'cancellation'
-                    ? dispatch({ type: 'begin', action: 'cancellation' })
+                  onPress={() => (presentation.primary === 'cancellation' || presentation.primary === 'release_hold')
+                    ? dispatch({ type: 'begin', action: presentation.primary })
                     : void perform(presentation.primary!)}
                 />
                 {presentation.secondary.map((action) => (
@@ -297,8 +331,8 @@ export default function TripDetailScreen({
                     icon={actionCopy[action].icon}
                     label={actionCopy[action].label}
                     loading={session.pendingAction === action}
-                    onPress={() => action === 'cancellation'
-                      ? dispatch({ type: 'begin', action: 'cancellation' })
+                    onPress={() => (action === 'cancellation' || action === 'release_hold')
+                      ? dispatch({ type: 'begin', action })
                       : void perform(action)}
                     secondary
                   />

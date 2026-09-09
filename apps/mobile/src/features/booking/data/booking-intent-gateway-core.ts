@@ -1,10 +1,15 @@
-import type { CreateBookingIntentData, CreateBookingIntentResult } from '@mmg/contracts';
+import type {
+  CreateBookingIntentData,
+  CreateBookingIntentResult,
+  ReleaseBookingHoldResult,
+} from '@mmg/contracts';
 
 export interface BookingIntentGateway {
   createIntent(
     data: CreateBookingIntentData,
     idempotencyKey: string,
   ): Promise<CreateBookingIntentResult>;
+  releaseHold(intentId: string): Promise<ReleaseBookingHoldResult>;
 }
 
 type IdempotencyKeyFactory = () => string;

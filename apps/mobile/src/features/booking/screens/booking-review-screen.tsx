@@ -56,6 +56,30 @@ export default function BookingReviewScreen({
   const [intentResult, setIntentResult] = useState<CreateBookingIntentResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [confirmingRelease, setConfirmingRelease] = useState(false);
+  const [releasing, setReleasing] = useState(false);
+
+  const handleReleaseHold = async () => {
+    if (!intentResult || releasing) return;
+    setReleasing(true);
+    setErrorMessage(null);
+    try {
+      await intentGateway.releaseHold(intentResult.result.intentId);
+      setIntentResult(null);
+      setConfirmingRelease(false);
+      setErrorMessage(null);
+    } catch (error: unknown) {
+      setErrorMessage(
+        safeProviderError(
+          error,
+          'The hold could not be released. Your dates are still held. Try releasing again.',
+        ),
+      );
+      setConfirmingRelease(false);
+    } finally {
+      setReleasing(false);
+    }
+  };
 
   const retryFetch = useCallback(() => {
     setFetchError(null);
@@ -197,12 +221,59 @@ export default function BookingReviewScreen({
                 </Text>
               </View>
             </View>
+
+            {confirmingRelease ? (
+              <View style={styles.confirmCard}>
+                <Text style={styles.confirmTitle}>Release these dates?</Text>
+                <Text style={styles.confirmBody}>
+                  No payment has been taken. The vehicle will become available for these dates again.
+                </Text>
+                <View style={styles.confirmActions}>
+                  <PressableScale
+                    accessibilityLabel="Keep dates"
+                    accessibilityRole="button"
+                    disabled={releasing}
+                    onPress={() => setConfirmingRelease(false)}
+                    style={styles.confirmActionButton}
+                  >
+                    <View style={styles.secondaryButton}>
+                      <Text style={styles.secondaryButtonText}>Keep dates</Text>
+                    </View>
+                  </PressableScale>
+                  <PressableScale
+                    accessibilityLabel="Release dates"
+                    accessibilityRole="button"
+                    disabled={releasing}
+                    onPress={handleReleaseHold}
+                    style={styles.confirmActionButton}
+                  >
+                    <View style={[styles.releaseButton, releasing && styles.disabled]}>
+                      {releasing ? <ActivityIndicator color={colors.black} size="small" /> : null}
+                      <Text style={styles.releaseButtonText}>{releasing ? 'Releasing…' : 'Release dates'}</Text>
+                    </View>
+                  </PressableScale>
+                </View>
+              </View>
+            ) : (
+              <PressableScale
+                accessibilityLabel="Release dates"
+                accessibilityRole="button"
+                onPress={() => setConfirmingRelease(true)}
+              >
+                <View style={styles.releaseTriggerButton}>
+                  <Ionicons color={colors.goldStrong} name="calendar-outline" size={16} />
+                  <Text style={styles.releaseTriggerText}>Release dates</Text>
+                </View>
+              </PressableScale>
+            )}
+
             <RenterCheckoutReadiness
               holdExpiresAt={intentResult.result.expiresAt}
               intentId={intentResult.result.intentId}
               onRestartHold={() => {
                 setIntentResult(null);
                 setErrorMessage(null);
+                setConfirmingRelease(false);
               }}
               onViewTrips={() => router.replace('/trips')}
             />
@@ -264,6 +335,11 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  confirmActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  confirmActionButton: { flex: 1 },
+  confirmBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 19, marginTop: spacing.xs },
+  confirmCard: { backgroundColor: colors.graphiteRaised, borderColor: 'rgba(209,133,120,.36)', borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, padding: spacing.lg },
+  confirmTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
   content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
   ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
   ctaText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
@@ -285,7 +361,13 @@ const styles = StyleSheet.create({
   quoteLabel: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 13 },
   quoteRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: 5 },
   quoteValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, textAlign: 'right' },
+  releaseButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.md },
+  releaseButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  releaseTriggerButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.md },
+  releaseTriggerText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
   screen: { backgroundColor: colors.black, flex: 1 },
+  secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.md },
+  secondaryButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
   section: { gap: spacing.xs },
   sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17, marginBottom: spacing.xs },
   stateButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.pill, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },

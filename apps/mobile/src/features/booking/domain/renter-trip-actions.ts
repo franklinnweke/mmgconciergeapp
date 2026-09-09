@@ -12,12 +12,14 @@ export type RenterTripActionNotice = {
 export type RenterTripActionSession = {
   pendingAction: RenterTripAction | null;
   confirmingCancellation: boolean;
+  confirmingReleaseHold: boolean;
   notice: RenterTripActionNotice | null;
 };
 
 export const initialRenterTripActionSession: RenterTripActionSession = {
   pendingAction: null,
   confirmingCancellation: false,
+  confirmingReleaseHold: false,
   notice: null,
 };
 
@@ -55,7 +57,9 @@ export function noticeForActionResult(action: RenterTripAction, error: unknown):
         ? 'The payment request could not be started. No charge was attempted.'
         : action === 'cancellation'
           ? 'The cancellation request could not be sent. Your journey was not changed.'
-          : 'The support request could not be sent. No message was sent and no journey state changed.',
+          : action === 'release_hold'
+            ? 'The hold could not be released. Your dates are still held. Try releasing again.'
+            : 'The support request could not be sent. No message was sent and no journey state changed.',
     };
   }
   return { tone: 'info', message: 'Request received. Refresh this journey for its verified state.' };
@@ -64,6 +68,7 @@ export function noticeForActionResult(action: RenterTripAction, error: unknown):
 export type RenterTripActionEvent =
   | { type: 'begin'; action: RenterTripAction }
   | { type: 'dismiss-cancellation' }
+  | { type: 'dismiss-release-hold' }
   | { type: 'start'; action: RenterTripAction }
   | { type: 'finish'; action: RenterTripAction; error?: unknown };
 
@@ -74,19 +79,27 @@ export function reduceRenterTripActionSession(
   if (event.type === 'begin') {
     if (state.pendingAction) return state;
     if (event.action === 'cancellation') {
-      return { ...state, confirmingCancellation: true, notice: null };
+      return { ...state, confirmingCancellation: true, confirmingReleaseHold: false, notice: null };
     }
-    return { ...state, confirmingCancellation: false, notice: null };
+    if (event.action === 'release_hold') {
+      return { ...state, confirmingCancellation: false, confirmingReleaseHold: true, notice: null };
+    }
+    return { ...state, confirmingCancellation: false, confirmingReleaseHold: false, notice: null };
   }
   if (event.type === 'dismiss-cancellation') {
     if (state.pendingAction) return state;
     return { ...state, confirmingCancellation: false };
+  }
+  if (event.type === 'dismiss-release-hold') {
+    if (state.pendingAction) return state;
+    return { ...state, confirmingReleaseHold: false };
   }
   if (event.type === 'start') {
     if (state.pendingAction) return state;
     return {
       pendingAction: event.action,
       confirmingCancellation: event.action === 'cancellation',
+      confirmingReleaseHold: event.action === 'release_hold',
       notice: null,
     };
   }
@@ -94,6 +107,7 @@ export function reduceRenterTripActionSession(
   return {
     pendingAction: null,
     confirmingCancellation: false,
+    confirmingReleaseHold: false,
     notice: noticeForActionResult(event.action, event.error),
   };
 }

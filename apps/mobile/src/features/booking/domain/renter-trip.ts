@@ -12,7 +12,7 @@ import {
 
 export type RenterTripState = BookingIntentState | PaidBookingState | 'legacy_availability_requested';
 export type RenterTripGroup = 'active' | 'upcoming' | 'intervention' | 'past';
-export type RenterTripAction = 'payment' | 'support' | 'cancellation';
+export type RenterTripAction = 'payment' | 'support' | 'cancellation' | 'release_hold';
 export type RenterTripTimelineStatus = 'complete' | 'current' | 'upcoming';
 export type RenterTripSource = 'trusted' | 'legacy' | 'preview';
 
@@ -88,13 +88,13 @@ export function stateGroup(state: RenterTripState): RenterTripGroup {
 }
 
 export function permittedRenterActions(state: RenterTripState): readonly RenterTripAction[] {
+  if (state === 'intent_created') return ['release_hold', 'support'];
   if (state === 'checkout_pending') return ['payment', 'support'];
   if (state === 'paid_pending_owner' || state === 'confirmed') return ['support', 'cancellation'];
   if (
     state === 'intervention_required' ||
     state === 'paid_conflict' ||
     state === 'refund_pending' ||
-    state === 'intent_created' ||
     state === 'legacy_availability_requested' ||
     state === 'paid' ||
     state === 'in_progress' ||
