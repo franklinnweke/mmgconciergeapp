@@ -77,6 +77,25 @@ class FirestoreRenterTransaction implements RenterTransaction {
     return !snap.empty;
   }
 
+  async hasActiveRentalRequests(renterId: string): Promise<boolean> {
+    const requestsRef = this.firestore.collection('rentalRequests');
+    const q = requestsRef
+      .where('renterId', '==', renterId)
+      .where('state', 'in', ['requested', 'approved', 'ready_for_payment', 'needs_attention']);
+    const snap = await this.transaction.get(q);
+    return !snap.empty;
+  }
+
+  async deleteRentalRequestContacts(renterId: string): Promise<number> {
+    const contacts = await this.transaction.get(
+      this.firestore.collection('rentalRequestContacts').where('renterId', '==', renterId),
+    );
+    for (const document of contacts.docs) {
+      this.transaction.delete(document.ref);
+    }
+    return contacts.size;
+  }
+
   async getIdempotency(documentId: string): Promise<StoredRenterIdempotency | null> {
     const docRef = this.firestore.collection('idempotencyKeys').doc(documentId);
     const snapshot = await this.transaction.get(docRef);
