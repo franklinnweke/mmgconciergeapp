@@ -17,6 +17,7 @@ export {
   declineRentalRequest,
   initializeRentalRequestPayment,
   listOwnerRentalRequests,
+  listRenterRentalRequests,
   releaseRentalRequestPaymentHold,
 } from './booking/rental-request-callables.js';
 export { expireRentalRequestPaymentWindows } from './booking/rental-request-payment-window-scheduler.js';
