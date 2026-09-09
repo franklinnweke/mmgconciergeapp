@@ -150,9 +150,12 @@ implements BookingPaymentInitializationRepository {
       const profile = renterProfileSchema.safeParse(profileSnapshot.data());
       if (
         !profileSnapshot.exists || !profile.success ||
-        profile.data.email !== input.actor.email.toLowerCase() || profile.data.phone !== input.actor.phoneNumber
+        profile.data.email !== input.actor.email.toLowerCase()
       ) {
-        throw new BookingCommandError('PROFILE_INCOMPLETE', 'A complete renter profile with the verified email and phone is required before checkout.', { reason: 'phone_unverified' });
+        throw new BookingCommandError(
+          'PROFILE_INCOMPLETE',
+          'A complete renter profile with a contact phone and delivery address is required before checkout.',
+        );
       }
 
       const paymentRef = this.firestore.doc(`payments/${input.paymentId}`);
