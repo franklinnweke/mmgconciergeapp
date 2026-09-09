@@ -21,22 +21,31 @@ export type StaffRole =
  */
 export type StaffCapability =
   | 'bookings.read'
+  | 'bookings.manage_requests'
   | 'owners.read'
   | 'owners.review'
   | 'vehicles.read'
   | 'vehicles.review';
 
 /**
- * Fail closed by construction. The first booking desk is deliberately read-only:
- * support and super-admin can inspect trusted intervention cases, but there is no
- * booking write capability here. Owner booking responses remain owner actions.
+ * Booking request management is intentionally narrower than generic booking
+ * writes. Support and super-admin may approve/decline soft requests and open
+ * the authoritative 30-minute payment window. Refunds, payouts and arbitrary
+ * paid-booking mutation remain outside this capability.
  */
 const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
-  super_admin: ['bookings.read', 'owners.read', 'owners.review', 'vehicles.read', 'vehicles.review'],
+  super_admin: [
+    'bookings.read',
+    'bookings.manage_requests',
+    'owners.read',
+    'owners.review',
+    'vehicles.read',
+    'vehicles.review',
+  ],
   verification_admin: ['owners.read', 'owners.review'],
   vehicle_admin: ['vehicles.read', 'vehicles.review'],
   finance_admin: [],
-  support: ['bookings.read'],
+  support: ['bookings.read', 'bookings.manage_requests'],
   privacy_admin: [],
 };
 
@@ -57,7 +66,7 @@ export type StaffSession = {
 };
 
 export const STAFF_DESKS: readonly { href: string; label: string; capability: StaffCapability }[] = [
-  { href: '/', label: 'Booking intervention desk', capability: 'bookings.read' },
+  { href: '/', label: 'Booking concierge desk', capability: 'bookings.read' },
   { href: '/owners', label: 'Owner verification desk', capability: 'owners.read' },
   { href: '/vehicles', label: 'Vehicle moderation desk', capability: 'vehicles.read' },
 ];
