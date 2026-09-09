@@ -1,4 +1,4 @@
-# MMG Concierge — Agent Source of Truth
+# MMG Concierge - Agent Source of Truth
 
 This file contains the durable rules, validated milestones, active release state, and major blockers that must not drift across agents. Do not turn it into a diary of every command or commit.
 
@@ -139,11 +139,11 @@ Renter-facing request vocabulary should remain truthful:
 
 ## 4. Request privacy and PII boundaries
 
-- `rentalRequests` stores operational booking-request state and is server-written only.
-- A renter may read only their own request records.
-- Owners do not directly read/query `rentalRequests`. Owner mobile uses the server-redacted `listOwnerRentalRequests` callable.
-- Owner-visible request projection may contain vehicle, dates, broad service area, request state/version and price/status information needed to decide availability.
-- Owner-visible request projection must never contain renter ID, phone, email, precise address, profile details, or internal concierge notes.
+- Raw `rentalRequests` records are server operational state and are denied to all mobile clients by Firestore Rules.
+- Renter mobile must use the server-redacted `listRenterRentalRequests` callable. Owner mobile must use the server-redacted `listOwnerRentalRequests` callable.
+- Renter and owner request projections are strict server allowlists, not raw Firestore documents.
+- Renter-visible projection may contain vehicle, dates, broad service area, request state/version, price/status information, payment-window intent/expiry, and resulting booking ID when required by the renter journey. It must not contain owner ID, staff IDs, contact PII, internal notes, or other server-only lifecycle metadata.
+- Owner-visible projection may contain vehicle, dates, broad service area, request state/version and price/status information needed to decide availability. It must never contain renter ID, owner ID, phone, email, precise address, profile details, staff IDs, or internal concierge notes.
 - `rentalRequestContacts/{requestId}` stores private renter contact information for MMG operations and is denied to all mobile clients by Firestore Rules.
 - Authorized Admin server code may join `rentalRequests` with `rentalRequestContacts` using the Admin SDK for the concierge desk.
 - Active rental requests block renter account deletion where operational resolution is still required.
@@ -213,13 +213,14 @@ Rules for the journey:
 - Booking Review submits a **soft request**, not an inventory hold.
 - No renter SMS/OTP step belongs in this checkout flow.
 - The owner or MMG approval state must be visible truthfully before payment is opened.
-- MMG staff explicitly opens the payment window after concierge contact/readiness.
+- MMG staff must follow `docs/operations/REQUEST_FIRST_CONCIERGE_RUNBOOK.md`: call the renter first and leave the request `approved` if the renter is unreachable or not ready to pay.
+- MMG staff explicitly opens the payment window only after concierge contact/readiness.
 - Payment initialization uses the dedicated request-first server callable.
 - Returning from Paystack/browser does not imply success.
 - Request-first trusted success displays confirmed-booking truth.
 - `paid_conflict` / `needs_attention` remains visible and truthful; do not invent a refund.
 - Abandoned, failed, declined, and expired-window states remain truthful and recoverable.
-- Manual staff operations are acceptable for the first MVP concierge desk.
+- Manual staff operations are acceptable for the first MVP concierge desk. FCM/chat/automated call orchestration remain deferred.
 
 ## 8. Current validated integration and build state
 
