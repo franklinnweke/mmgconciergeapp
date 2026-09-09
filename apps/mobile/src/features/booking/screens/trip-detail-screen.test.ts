@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { previewRenterTrips } from '../data/preview-renter-trips';
 import { RenterTripActionUnavailableError } from '../data/renter-trip-action-gateway';
@@ -8,7 +8,12 @@ import {
   tripDetailMode,
   tripDetailPresentation,
 } from '../domain/renter-trip-actions';
-import { permittedRenterActions, renterTripTimeline, tripStateCopy } from '../domain/renter-trip';
+import {
+  permittedRenterActions,
+  renterTripTimeline,
+  tripStateCopy,
+  type RenterTrip,
+} from '../domain/renter-trip';
 
 function preview(id: string) {
   const trip = previewRenterTrips.find((item) => item.id === id);
@@ -17,6 +22,41 @@ function preview(id: string) {
 }
 
 describe('trip detail screen flows', () => {
+  it('shows DATES HELD for intent_created, renders RELEASE DATES action, and handles release hold flow', async () => {
+    const trip: RenterTrip = {
+      ...preview('preview-checkout'),
+      id: 'preview-held',
+      state: 'intent_created',
+    };
+    const copy = tripStateCopy(trip.state);
+    expect(copy.label).toBe('DATES HELD');
+    const presentation = tripDetailPresentation(trip);
+    expect(presentation.primary).toBe('release_hold');
+    expect(presentation.secondary).toEqual(['support']);
+
+    let session = reduceRenterTripActionSession(initialRenterTripActionSession, {
+      type: 'begin',
+      action: 'release_hold',
+    });
+    expect(session.confirmingReleaseHold).toBe(true);
+    expect(session.confirmingCancellation).toBe(false);
+
+    session = reduceRenterTripActionSession(session, { type: 'start', action: 'release_hold' });
+    expect(session.pendingAction).toBe('release_hold');
+
+    const failedSession = reduceRenterTripActionSession(session, {
+      type: 'finish',
+      action: 'release_hold',
+      error: new Error('release-failed'),
+    });
+    expect(failedSession.notice?.message).toMatch(/dates are still held/i);
+
+    const fakeGateway = {
+      perform: vi.fn().mockResolvedValue(undefined),
+    };
+    await fakeGateway.perform('release_hold', trip.id);
+    expect(fakeGateway.perform).toHaveBeenCalledWith('release_hold', 'preview-held');
+  });
   it('shows a checkout price snapshot and a payment-failure notice that no charge occurred', () => {
     const trip = preview('preview-checkout');
     const copy = tripStateCopy(trip.state);

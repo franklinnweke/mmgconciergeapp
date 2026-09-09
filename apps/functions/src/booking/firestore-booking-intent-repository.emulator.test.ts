@@ -3,6 +3,7 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createBookingIntent } from './create-booking-intent-service.js';
+import { releaseBookingHold } from './release-booking-hold-service.js';
 import { BookingCommandError } from './errors.js';
 import { FirestoreBookingIntentRepository } from './firestore-booking-intent-repository.js';
 import { FirestorePaidBookingResponseRepository } from './firestore-paid-booking-response-repository.js';
@@ -23,6 +24,7 @@ async function clearCollections(database: Firestore) {
     'bookingCases',
     'bookingIntents',
     'bookings',
+    'releasedBookingHolds',
     'idempotencyKeys',
     'notificationOutbox',
     'systemConfig',
@@ -356,5 +358,83 @@ describeWithEmulator('Firestore booking-intent transaction', () => {
       createRequestId: () => 'request-after-owner-rejection',
       now: () => new Date('2026-08-20T12:01:00.000Z'),
     })).resolves.toMatchObject({ result: { state: 'intent_created' } });
+  });
+
+  it('releases an unpaid intent_created hold, deletes block and intent, increments sentinel, and frees dates for rebooking', async () => {
+    // 1. Create intent
+    const created = await createBookingIntent(command('booking-to-be-released'), 'renter-one', {
+      repository,
+      createId: () => 'intent-to-release',
+      createRequestId: () => 'req-create-release-test',
+      now: () => new Date('2026-08-20T12:00:00.000Z'),
+    });
+    expect(created.result.intentId).toBe('intent-to-release');
+    expect((await database.doc('bookingIntents/intent-to-release').get()).exists).toBe(true);
+    expect((await database.doc('bookingBlocks/intent-to-release').get()).exists).toBe(true);
+    expect((await database.doc('vehicleAvailability/vehicle-one').get()).data()?.version).toBe(1);
+
+    // 2. Competing hold attempt is blocked while held
+    await expect(createBookingIntent(command('booking-competing-while-held'), 'renter-two', {
+      repository,
+      createId: () => 'intent-competing',
+      createRequestId: () => 'req-competing',
+      now: () => new Date('2026-08-20T12:01:00.000Z'),
+    })).rejects.toMatchObject({ code: 'VEHICLE_UNAVAILABLE' });
+
+    // 3. Renter releases the hold
+    const releaseResult = await releaseBookingHold({
+      schemaVersion: 1,
+      idempotencyKey: 'release-test-emulator-001',
+      data: { intentId: 'intent-to-release' },
+    }, 'renter-one', {
+      repository,
+      now: () => new Date('2026-08-20T12:05:00.000Z'),
+      createRequestId: () => 'req-release-test-001',
+    });
+    expect(releaseResult.result).toMatchObject({
+      intentId: 'intent-to-release',
+      released: true,
+    });
+
+    // 4. Verify Firestore state:
+    // bookingBlocks deleted, bookingIntents deleted, releasedBookingHolds created, sentinel incremented
+    expect((await database.doc('bookingBlocks/intent-to-release').get()).exists).toBe(false);
+    expect((await database.doc('bookingIntents/intent-to-release').get()).exists).toBe(false);
+    expect((await database.doc('releasedBookingHolds/intent-to-release').get()).exists).toBe(true);
+    expect((await database.doc('vehicleAvailability/vehicle-one').get()).data()?.version).toBe(2);
+
+    // Audit event recorded
+    const auditSnapshot = await database.collection('auditEvents')
+      .where('entityId', '==', 'intent-to-release')
+      .where('eventType', '==', 'booking_hold.released')
+      .get();
+    expect(auditSnapshot.size).toBe(1);
+    expect(auditSnapshot.docs[0]?.data()).toMatchObject({
+      actorId: 'renter-one',
+      fromState: 'intent_created',
+      toState: 'released',
+    });
+
+    // 5. Repeated release is idempotent and harmless
+    const retryResult = await releaseBookingHold({
+      schemaVersion: 1,
+      idempotencyKey: 'release-test-emulator-002',
+      data: { intentId: 'intent-to-release' },
+    }, 'renter-one', {
+      repository,
+      now: () => new Date('2026-08-20T12:06:00.000Z'),
+      createRequestId: () => 'req-release-test-002',
+    });
+    expect(retryResult.result.released).toBe(true);
+
+    // 6. Another renter can now immediately book the exact same dates
+    await expect(createBookingIntent(command('booking-after-hold-released'), 'renter-two', {
+      repository,
+      createId: () => 'intent-new-winner',
+      createRequestId: () => 'req-new-winner',
+      now: () => new Date('2026-08-20T12:10:00.000Z'),
+    })).resolves.toMatchObject({ result: { state: 'intent_created' } });
+    expect((await database.doc('bookingBlocks/intent-new-winner').get()).exists).toBe(true);
+    expect((await database.doc('vehicleAvailability/vehicle-one').get()).data()?.version).toBe(3);
   });
 });

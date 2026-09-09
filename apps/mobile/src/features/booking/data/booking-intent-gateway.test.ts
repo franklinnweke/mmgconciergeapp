@@ -119,4 +119,42 @@ describe('NativeBookingIntentGateway', () => {
       new NativeBookingIntentGateway().createIntent(data, 'booking_intent_key_0001'),
     ).rejects.toBeInstanceOf(CallableContractError);
   });
+
+  it('calls the africa-south1 releaseBookingHold callable and parses the result', async () => {
+    mockCallable.mockResolvedValueOnce({
+      data: {
+        requestId: 'request-release-1',
+        result: {
+          intentId: 'intent-booking-1',
+          released: true,
+          releasedAt: '2026-08-20T15:10:00.000Z',
+        },
+      },
+    });
+
+    const result = await new NativeBookingIntentGateway().releaseHold('intent-booking-1');
+
+    expect(mockGetFunctions).toHaveBeenCalledWith(undefined, 'africa-south1');
+    expect(mockHttpsCallable).toHaveBeenCalledWith(
+      { region: 'africa-south1' },
+      'releaseBookingHold',
+    );
+    expect(mockCallable).toHaveBeenCalledWith({
+      schemaVersion: 1,
+      idempotencyKey: 'release_intent-booking-1',
+      data: { intentId: 'intent-booking-1' },
+    });
+    expect(result.result.intentId).toBe('intent-booking-1');
+    expect(result.result.released).toBe(true);
+  });
+
+  it('fails closed when releaseBookingHold response does not match contract', async () => {
+    mockCallable.mockResolvedValueOnce({
+      data: { requestId: 'request-release-1', result: { wrongField: true } },
+    });
+
+    await expect(
+      new NativeBookingIntentGateway().releaseHold('intent-booking-1'),
+    ).rejects.toBeInstanceOf(CallableContractError);
+  });
 });

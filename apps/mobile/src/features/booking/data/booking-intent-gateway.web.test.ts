@@ -74,4 +74,27 @@ describe('WebBookingIntentGateway', () => {
     );
     expect(result.result.intentId).toBe('intent-booking-1');
   });
+
+  it('uses the live africa-south1 callable for releaseBookingHold and validates its response', async () => {
+    mockCallable.mockResolvedValueOnce({
+      data: {
+        requestId: 'request-release-1',
+        result: {
+          intentId: 'intent-booking-1',
+          released: true,
+          releasedAt: '2026-08-20T15:10:00.000Z',
+        },
+      },
+    });
+
+    const result = await new WebBookingIntentGateway().releaseHold('intent-booking-1');
+
+    expect(mockGetFunctions).toHaveBeenCalledWith(undefined, 'africa-south1');
+    expect(mockHttpsCallable).toHaveBeenCalledWith(
+      { region: 'africa-south1' },
+      'releaseBookingHold',
+    );
+    expect(result.result.intentId).toBe('intent-booking-1');
+    expect(result.result.released).toBe(true);
+  });
 });

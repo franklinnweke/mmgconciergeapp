@@ -74,6 +74,44 @@ describe('renter trip detail actions', () => {
     expect(session.notice?.message).toMatch(/journey was not changed/i);
   });
 
+  it('permits release_hold for intent_created, requires confirmation, and avoids refund language', () => {
+    const presentation = tripDetailPresentation(trip({ state: 'intent_created' }));
+    expect(presentation.actions).toEqual(['release_hold', 'support']);
+    expect(presentation.primary).toBe('release_hold');
+    expect(presentation.secondary).toEqual(['support']);
+
+    let session = reduceRenterTripActionSession(initialRenterTripActionSession, {
+      type: 'begin',
+      action: 'release_hold',
+    });
+    expect(session.confirmingReleaseHold).toBe(true);
+    expect(session.confirmingCancellation).toBe(false);
+    expect(session.notice).toBeNull();
+
+    session = reduceRenterTripActionSession(session, { type: 'dismiss-release-hold' });
+    expect(session.confirmingReleaseHold).toBe(false);
+
+    session = reduceRenterTripActionSession(session, { type: 'start', action: 'release_hold' });
+    expect(session.pendingAction).toBe('release_hold');
+    expect(session.confirmingReleaseHold).toBe(true);
+
+    const failed = reduceRenterTripActionSession(session, {
+      type: 'finish',
+      action: 'release_hold',
+      error: new Error('network-failed'),
+    });
+    expect(failed.confirmingReleaseHold).toBe(false);
+    expect(failed.pendingAction).toBeNull();
+    expect(failed.notice?.message).toMatch(/dates are still held/i);
+    expect(failed.notice?.message.toLowerCase()).not.toContain('refund');
+
+    const succeeded = reduceRenterTripActionSession(session, {
+      type: 'finish',
+      action: 'release_hold',
+    });
+    expect(succeeded.notice?.message.toLowerCase()).not.toContain('refund');
+  });
+
   it('states that payment failure did not attempt a charge and support sent no message', () => {
     expect(noticeForActionResult('payment', new RenterTripActionUnavailableError('payment')).message)
       .toMatch(/no charge was attempted/i);
