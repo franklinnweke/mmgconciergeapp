@@ -1,23 +1,59 @@
 # MMG Concierge — Agent Source of Truth
 
-Use this file for the few rules that must not drift. Do not turn it into a diary of every commit.
+This file contains the durable rules, validated milestones, active release state, and major blockers that must not drift across agents. Do not turn it into a diary of every command or commit.
+
+For live cross-agent handoffs, use GitHub Issue #35: **MMG agent coordination and current handoff**.
+
+## 0. Multi-agent coordination protocol
+
+All substantial work by ChatGPT, Codex CLI, Antigravity CLI, or the VPS agent must follow the same coordination model:
+
+- `AGENTS.md` = durable product, architecture, release, and safety truth.
+- GitHub Issue #35 = live append-only handoffs and operational status.
+- Pull requests = code ownership and review.
+- GitHub CI = objective validation.
+- Git history = what actually landed.
+
+Before substantial work:
+
+1. Read this file.
+2. Fetch `main` and record the exact base SHA.
+3. Check Issue #35 for active work that could overlap.
+4. Use a narrow branch/task scope.
+
+When starting, blocking, or completing substantial work, comment on Issue #35 using:
+
+```text
+AGENT: <ChatGPT | Codex | Antigravity | VPS>
+BASE: <exact SHA>
+BRANCH: <branch or none>
+SCOPE: <narrow task>
+STATUS: <starting | blocked | completed>
+CHANGED: <files/behavior or none>
+VALIDATION: <actual commands/results>
+DEPLOYED: <exact environment/resources or none>
+PRODUCTION: untouched | explicitly authorized
+BLOCKERS: <none or concrete blocker>
+NEXT: <recommended next action>
+```
+
+Never treat another agent's unpushed local work as integrated state. Do not create additional heartbeat/status files unless this protocol proves insufficient.
 
 ## 1. Product and stack
 
 MMG Concierge is a Lagos-first marketplace for chauffeured luxury-car rentals.
 
-- Mobile: React Native + TypeScript + Expo Router, EAS custom dev builds, React Native Firebase.
+- Mobile: React Native + TypeScript + Expo Router, EAS custom development builds, React Native Firebase.
 - Admin: Next.js App Router.
 - Backend: Firebase Auth, Firestore, Functions v2 Node 22, Storage, FCM, App Check.
-- Functions region: `africa-south1`.
+- Primary Functions/data-plane region: `africa-south1`.
+- Cloud Scheduler region for owner SLA jobs: `europe-west1` where required by service availability.
 - Development Firebase project: `mmg-concierge-dev`.
 - Production Firebase project: `mmg-concierge`.
-- Production is never a development/test target.
+- Current repository: `franklinnweke/mmgconciergeapp`.
+- Integration branch: `main`.
 
-Current repository: `franklinnweke/mmgconciergeapp`.
-Current integration branch: `main`.
-Validated auth + Apple integration merged through PR #23.
-Unified account access, renter precision redesign, and owner-capability repair merged through PR #24 at `490f565a9258212116c555a50e6ce27f86f930b4`.
+Production is never a development or test target.
 
 **Build invariant:** every EAS/TestFlight build must originate from `main`. Feature branches may be developed and validated, but they must be merged into `main` before any EAS build is created.
 
@@ -25,23 +61,23 @@ Unified account access, renter precision redesign, and owner-capability repair m
 
 - Every MVP rental includes chauffeur and delivery. No self-drive.
 - No live tracking in MVP.
-- Renter baseline access requires only an authenticated, verified email identity. Full name, phone, profile photo, delivery address and similar details are profile enrichment editable from the renter Account surface and must not be treated as renter identity-verification gates.
-- Never require renter government ID, driving licence, selfie or DOB. Government-ID verification belongs only to owner onboarding.
+- Renter baseline access requires an authenticated, verified-email identity.
+- Full name, phone, profile photo, delivery address and similar renter details are profile enrichment, not government identity verification.
+- Never require renter government ID, driving licence, selfie or DOB.
+- Government-ID verification belongs only to owner onboarding.
 - Booking dates are Africa/Lagos date-only half-open intervals `[startDate, endDate)`.
 - Trusted money is integer NGN kobo and server-authoritative.
 - Exact vehicle address/coordinates and owner-sensitive data remain private.
 - Only approved, active, discoverable vehicles are renter-visible.
-- Signed-out onboarding asks how the person wants to start: rent a car or list a car. This is a session intent, not a permanent navigation role.
+- Signed-out `Rent a car` versus `List a car` is session intent, not a permanent navigation role.
 - Every verified authenticated MMG account can use the renter experience.
 - Listing vehicles is an additional owner application/capability on the same identity.
-- Firestore `users.accountType` remains compatibility metadata. It must not block renter access or force an existing owner into owner-only navigation.
-- Normal registration creates a compatibility profile directly. Legacy authenticated users missing `/users/{uid}` are repaired to the baseline renter compatibility profile.
-- Email/password, Google and Apple are authentication entry methods only. Renter profile enrichment remains separate from authentication. Authentication does not bypass owner phone/ID/verification, booking/payment authority, or staff authorization.
-- Cross-provider account collisions fail safely and direct the user to the existing sign-in method. Do not silently create or merge MMG identities.
-- A verified renter compatibility account may create and submit its own trusted owner application without mutating `users.accountType`.
-- Owner verification upload permission is based on a server-created draft/rejected owner application for the same authenticated UID.
-- Vehicle creation, vehicle uploads/documents, and owner operational capabilities remain restricted to trusted approved-owner/vehicle-ownership state. Applying to become an owner never grants blanket owner privileges.
-- Staff approval remains mandatory before owner operational capability is considered approved.
+- Firestore `users.accountType` is compatibility metadata. It must not block renter access or force an existing owner into owner-only navigation.
+- A verified renter compatibility account may create and submit its own owner application without mutating `users.accountType`.
+- Staff approval remains mandatory before owner operational capability is approved.
+- Vehicle creation/uploads and owner operations remain restricted to trusted approved-owner/vehicle-ownership state.
+- Email/password, Google, and Apple are authentication entry methods only. They do not bypass owner verification, booking/payment authority, or staff authorization.
+- Cross-provider account collisions fail safely and direct the user to the existing sign-in method. Do not silently merge MMG identities.
 
 Canonical admin roles are exactly:
 
@@ -56,162 +92,125 @@ Never add `booking_admin`.
 
 ## 3. Payment and booking integrity
 
-These safeguards are essential and must remain:
+These safeguards are essential:
 
 1. Server-authoritative pricing.
 2. Atomic full-interval checkout hold.
 3. Server-side Paystack initialization.
 4. Raw-body Paystack webhook HMAC SHA-512 verification.
-5. Independent Paystack transaction verification for reference, environment, status, NGN currency and exact kobo amount.
+5. Independent Paystack transaction verification for reference, environment, status, NGN currency, and exact kobo amount.
 6. Idempotent payment/event processing.
 7. Atomic paid-booking creation and availability conversion/reacquisition.
 8. Sentinel/block concurrency protection against double booking.
-9. Payment callback/browser return is UX only, never payment truth.
-10. A verified successful payment produces either `paid_pending_owner` or `paid_conflict` when a late payment collides with unavailable dates.
-11. Both real successful charges remain `payments.state = succeeded`, including the conflict case.
+9. Browser/payment-provider callback is UX only, never payment truth.
+10. Verified successful payment produces `paid_pending_owner` or `paid_conflict` if a late payment collides with unavailable dates.
+11. Successful charges remain `payments.state = succeeded`, including conflict cases.
 12. Owner confirmation/rejection is separate from payment success.
-13. Owner rejection requires a reason, releases the paid interval and opens intervention.
+13. Owner rejection requires a reason, releases the interval, and opens intervention.
 14. There is no automatic owner-rejection timeout.
-15. Do not invent refund, cancellation, top-up or reassignment economics.
+15. Do not invent refund, cancellation, top-up, reassignment, or payout economics.
 
-Renter success copy is canonical:
+Canonical renter success copy after trusted value delivery:
 
 `Payment received — confirming your ride`
 
-Only show it after trusted R4 value delivery returns `paid_pending_owner`.
+## 4. Architecture freeze / MVP scope
 
-## 4. Architecture freeze after R5
+The payment, concurrency, owner-response, owner-verification, and intervention foundations already exist. Do not expand the MVP with new generalized state machines or speculative orchestration unless an observed end-to-end blocker requires it.
 
-R1-R5 already established the backend payment, concurrency and owner-response boundaries. Do not expand WP4 with new backend state machines, case subtypes, financial workflows, or generalized orchestration unless a concrete end-to-end blocker proves they are necessary.
+Explicitly defer until after the current acceptance phase:
 
-Validated historical checkpoints remain:
+- chat / broad FCM product work;
+- wallet/ledger;
+- automated payouts;
+- automated refund orchestration;
+- replacement negotiation machinery;
+- live tracking;
+- self-drive;
+- multi-currency;
+- broad mobile redesign.
 
-- R2 green at `67359ba`.
-- R3 green at `89f1b0c`; Storage Rules follow-up 17/17 green.
-- R4 green at `edd5a485e0f2b447df5ffddfcde388c1a9e83dd2`; Functions emulator 329/329, focused R4 transactional tests 20/20.
-- R5 green at `2278ef43b4de379a4a90619a0e64bf931e288e3b`; Functions emulator 366/366 across 45 files.
-- R6 responsive/header integration head `5709745da4d26f7246978e542923a3660265641a` passed the repository gate and was merged through PR #20.
-- PR #20 merged normally into `main` at `d2c8d4537b107705cdb77dc7f1e57d367ecd96c5`.
+## 5. Current acceptance priority
 
-## 5. Current priority: one visible vertical journey
-
-Do not create another WP4 architecture slice before this works visibly:
+Prove one visible vertical journey:
 
 ```text
-Authenticate with email, Google or Apple
+Authenticate
   -> Find vehicle
   -> select dates
-  -> receive authoritative held quote
-  -> Pay with Paystack test mode
-  -> webhook / trusted reconcile verifies payment
-  -> renter sees trusted payment outcome
-  -> booking appears in renter Trips
-  -> booking appears for owner
-  -> owner confirms OR rejects with reason
-  -> authorized staff can see masked rejected/conflicted booking or case data
+  -> authoritative held quote
+  -> checkout readiness / verified phone
+  -> Paystack test payment
+  -> trusted payment verification
+  -> renter Trips
+  -> owner response
+  -> staff intervention when needed
 ```
 
-The renter path stays simple:
+Rules for the journey:
 
-- Home owns the selected journey dates and passes them through vehicle detail into booking review.
-- Rental duration supports the full continuous 1–30 day range.
-- Existing booking review creates the hold.
-- Initialize payment through the existing callable.
-- Open the server-returned `https://checkout.paystack.com/...` URL.
-- Returning from the browser does not imply success.
-- Renter can check payment status through the existing trusted `reconcilePayment` callable.
-- Provider `success` without R4 value delivery remains a checking state.
+- Home owns selected dates and passes them through Vehicle Detail to Booking Review.
+- Rental duration supports the continuous 1–30 day range.
+- Booking Review creates the hold.
+- Payment initialization uses the existing server callable.
+- Returning from Paystack/browser does not imply success.
 - `paid_pending_owner` shows the canonical success copy.
-- `paid_conflict` explains that MMG will resolve the booking manually.
-- Abandoned, failed and expired-hold states remain truthful and recoverable.
-- CTA buttons do not use decorative arrows.
+- `paid_conflict` remains visible and truthful; do not invent a refund.
+- Abandoned, failed, and expired-hold states remain truthful and recoverable.
+- Manual staff operations are acceptable for the first MVP intervention desk.
 
-For MVP intervention, manual operations are acceptable. Staff visibility is read-only for the first live desk. Staff must not inherit the fixture desk's owner confirm/reject controls. Owner booking response remains an owner responsibility.
+## 6. Current validated integration and build state
 
-## 6. Current integration state
+Validated Build 29 source checkpoint:
 
-PR #24 merged the validated three-commit stack into `main`:
+`013a547909642dfe27cbe2c6861dd319850b4511`
 
-1. `d86418267c76f43379b2677d73633ef805b88f5f` — unified authenticated account access.
-2. `c9f6f04986e0913765005f8e90470553c665c33e` — precision redesign for Home → Vehicle Detail → Booking Review.
-3. `7682f3d33e33fff602969561e19b02d66b65894e` — owner capability-boundary repair and restored full journey selection.
+This checkpoint is a green `main` revision and includes:
 
-PR #24 merge commit: `490f565a9258212116c555a50e6ce27f86f930b4`.
+- native Email/Google/Apple authentication and main-only EAS build policy;
+- unified renter access and owner-capability onboarding;
+- precision Home → Vehicle Detail → Booking Review journey;
+- renter checkout readiness with inline Firebase Auth SMS verification and profile synchronization;
+- App Check fail-closed production boundary;
+- development Paystack booking/payment operations;
+- graceful sign-out and renter profile-photo handling;
+- PR #27 Trips precision: real vertical scrolling, compact status-first rows, canonical imagery, and historical recovery;
+- PR #25 Admin consolidation: shared operations shell and read-only booking intervention presentation;
+- GitHub CI/CD scaffolding and CI stabilization.
 
-Final validated feature-head gate before merge:
+Build 29 was created from the exact checkpoint above:
 
-- root Vitest: 90 passed files, 12 skipped; 688 passed tests, 93 skipped;
-- Functions unit tests: 36 passed files, 9 skipped; 334 passed tests, 43 skipped;
-- Admin tests: 10 passed files; 66 passed tests;
-- mobile typecheck/lint: 0 errors, 0 warnings;
-- Functions typecheck/build: passed;
-- Admin typecheck/lint: 0 errors, 0 warnings;
-- `git diff --check`: passed.
+- build number: `29`
+- EAS build ID: `1f9f077b-d73c-4605-942b-4bcae3d5d52a`
+- submission ID: `36f81594-247b-4d90-ac3b-4280139f15cc`
+- development Firebase config selected
 
-Development deployment completed before merge:
+Build 28 remains historical and predates PR #27 Trips UI changes.
 
-- `mmg-concierge-dev` Storage Rules updated for trusted owner-application verification uploads;
-- affected owner onboarding Functions updated in `africa-south1`;
-- production `mmg-concierge` untouched;
-- Paystack live credentials untouched.
+Current known acceptance gaps / boundaries:
 
-Current auth/capability behavior:
+- Real SMS OTP delivery has not yet been proven on the user's physical device. Do not treat this as proof that the implementation is broken.
+- The PR #27 `createBookingIntent` server-side canonical image snapshot change must be confirmed deployed to `mmg-concierge-dev` before calling fresh-booking image snapshots accepted.
+- Automatic development CD remains intentionally disabled until Google Workload Identity variables are configured. This is infrastructure work, not an MVP functional blocker.
+- The Android local-validation/config-selection work reported by a local agent was validated locally but was not integrated into GitHub `main` as of the Build 29 checkpoint. Do not assume local agent work landed unless GitHub proves it.
+- Production `mmg-concierge` and live Paystack remain untouched.
 
-- registration/profile mutations do not publish intermediate Firebase auth snapshots to the router;
-- failed registration/profile creation signs out transient Firebase sessions and preserves form recovery;
-- Google authentication uses the Firebase-environment-matched OAuth client;
-- Apple authentication uses raw nonce + SHA-256 nonce correctly, persists first-login name data when supplied, handles cancellation cleanly, and uses Expo's native Apple button;
-- authenticated verified users land in renter/Home by default regardless of legacy `accountType`;
-- choosing `List your car` carries owner intent through successful authentication into owner onboarding;
-- universal sign-in and `Rent a car` land in renter/Home;
-- renter government ID is never required; owner ID verification exists only inside owner onboarding;
-- a renter compatibility account may create/update/submit its own owner application without changing `users.accountType`;
-- owner verification document upload is allowed only for the authenticated user's server-created draft/rejected application;
-- vehicle asset/listing permissions remain restricted to approved owner capability and vehicle ownership;
-- same-email cross-provider collisions remain explicit and are not automatically linked;
-- Apple private email relay remains pending operator domain verification before public App Store launch;
-- Apple-authenticated account deletion must include Apple token revocation before public App Store release.
+Current auth/UI expectations:
 
-Current UI/product behavior:
+- Google authentication uses the Firebase-environment-matched OAuth client.
+- Apple authentication uses nonce hashing, Firebase credential exchange, first-login name persistence when supplied, cancellation handling, and Expo's native Apple button.
+- Social sign-in presentation should place Google first and Apple immediately underneath on supported iOS devices.
+- Authenticated verified users land in renter/Home by default regardless of compatibility `accountType`.
+- `List your car` carries owner intent into owner onboarding.
 
-- artificial 1.3-second splash delay is removed;
-- ordinary press interactions no longer haptic by default;
-- Home uses a compact location/date summary instead of stacked repetitive booking controls;
-- selected dates persist Home → Vehicle Detail → Booking Review;
-- rental duration supports 1–30 days;
-- Vehicle Detail uses a more practical landscape gallery and reduced decorative chrome;
-- Booking Review prioritizes car, dates, quote truth and the hold action;
-- nested screens may use contextual titles rather than repeating the full MMG wordmark;
-- iOS app icon formatted to exact 1024×1024 square with safe area padding to eliminate zoomed-in cropping;
-- renter checkout readiness unblocked with inline SMS OTP verification and profile sync without dropping the 15-minute hold;
-- sign-out transitions gracefully to the signed-out welcome screen;
-- renter profile photo upload/delete is supported via secure Storage path `/private/renter-profile/{renterId}/avatar`;
-- admin portal includes a read-only booking intervention desk for authorized staff.
+Apple public-release work still pending:
 
-Renter profile enrichment is not an access gate. Email verification remains required before entering live renter discovery and owner-application surfaces because the trusted backend still enforces that boundary.
-
-Build state:
-- EAS Build 28 built from `main` SHA `c4f92607efdfacc12e9f84e30227350bcbb9a12f` and submitted to TestFlight (submission `76648fd9-6a32-4596-990c-fc9aa060286f`).
-- Historical build note: build 22 was created from feature-branch commit `7d9314f` before the builds-from-main-only invariant was adopted. Build 27 was canceled.
-
-The development-only payment configuration/deployment commands remain:
-
-```bash
-npm run firebase:paystack:secret:dev
-npm run firebase:deploy:booking-payment-dev
-```
-
-The next gates are:
-
-1. Await Apple processing of Build 28 on TestFlight.
-2. On a physical iPhone running Build 28, verify the app icon framing on the Home Screen.
-3. Validate the renter checkout journey: Select dates -> Reserve with Chauffeur (hold created) -> inline SMS OTP verification -> Pay with Paystack -> complete test payment -> verify canonical copy "Payment received — confirming your ride".
-4. Confirm booking appears in renter Trips and owner response desks.
-5. Keep production `mmg-concierge` and live Paystack credentials untouched.
+- private email relay/operator-domain verification as applicable;
+- Apple token revocation on account deletion before public App Store release.
 
 ## 7. Validation discipline
 
-Use focused tests while coding. Run the full repository/emulator/Rules gate at meaningful milestones, before integration/deploy, and before merge. Do not create a new checkpoint document for every small change.
+Use focused tests while coding. Run the full repository/emulator/Rules gate at meaningful milestones, before integration/deploy, and before merge.
 
 Core gate:
 
@@ -232,37 +231,53 @@ npm run test:storage-rules
 git diff --check
 ```
 
-Firebase Emulator Suite requires Java 21+. Temurin 25 is known-good.
+Firebase Emulator Suite requires Java 21+.
 
-**Build gate:** never run `eas build` from a feature branch. After the full gate and any required native acceptance prerequisites pass, merge into `main`, verify the exact `main` SHA, then build from that SHA.
+**Build gate:** never run `eas build` from a feature branch. Merge validated work into `main`, verify the exact `main` SHA, then build from that SHA.
 
-## 8. Engineering rules
+Agents must never claim tests, deployments, EAS state, Android Studio state, Firebase state, or VPS state without actual evidence.
+
+## 8. Engineering and security rules
 
 - Deny client access by default; critical writes stay server-authoritative.
-- Never log secrets, full provider payloads, exact coordinates, bank data or unnecessary PII.
+- Never log secrets, provider payloads, exact coordinates, bank data, or unnecessary PII.
 - Paystack secrets stay server-side only.
-- No real/live Paystack request in automated tests.
+- No live Paystack requests in automated tests.
 - Generate durable IDs outside retryable Firestore transaction callbacks.
-- Availability-changing transactions must read the existing valid sentinel and relevant blocks before writes.
+- Availability-changing transactions must read valid sentinel and relevant blocks before writes.
 - Fail closed rather than recreating missing payment/availability invariants.
 - Preserve existing contracts/state names unless an ADR/migration is genuinely required.
-- Do not add future-state modelling just because it might be useful later.
+- Do not add future-state modelling simply because it might be useful later.
+- Do not touch production without Franklin's explicit authorization for that production action.
 
-## 9. Commit and documentation policy
+## 9. Agent/tool ownership guidance
 
-Prefer a sensible number of meaningful commits. A substantial product slice may naturally be 3-7 commits, but do not split imports, tiny test edits or formatting into artificial activity commits.
+Prefer the agent with direct access to the system being tested:
 
-Update this `AGENTS.md` only when one of these changes:
+- ChatGPT/GitHub: repository state, PR review/merge, CI, release coordination, source-of-truth reconciliation.
+- Codex CLI: local repo execution, broad code changes, Firebase CLI, EAS CLI, repository test suites.
+- Antigravity CLI: Android Studio, Gradle, `adb`, emulator, Logcat, native Android validation.
+- VPS agent: server provisioning, HTTPS/reverse proxy, process supervision, firewall, Admin deployment/health.
+- Franklin: physical iPhone acceptance, real OTP receipt, Paystack human interaction, renter/owner/staff human workflow.
+
+VPS agents must not patch application code on the server to fix product defects. Report product defects back through GitHub.
+
+## 10. Commit and documentation policy
+
+Prefer a sensible number of meaningful commits. Do not split tiny imports, formatting, or test edits into artificial activity commits.
+
+Update this file only when one of these changes:
 
 - architecture/source-of-truth rule;
-- validated milestone;
+- validated milestone/build checkpoint;
 - active integration/deployment state;
-- major blocker or next product priority.
+- major blocker;
+- next product priority.
 
-Do not require an `AGENTS.md` edit in every implementation commit. Do not create new status documents when the code/tests and this file already express the state.
+Use Issue #35 for routine work handoffs instead of adding status files or diary entries here.
 
-## 10. Definition of done for the current phase
+## 11. Definition of done for the current phase
 
-The current phase is done when a real human can use a development build created from `main` and complete the core journey with Paystack test mode, and the resulting trusted booking is visible to renter, owner and authorized staff where applicable.
+The current phase is done when a real human can use a development build created from `main`, complete the core journey in Paystack test mode, and see the resulting trusted booking consistently across renter, owner, and authorized staff surfaces where applicable.
 
-Only after that should the project expand automated intervention/refund machinery, WP5 chat/FCM, WP6 wallet/ledger or other future operational layers.
+A sandbox MVP pilot and a public paid launch are separate gates. Production configuration, live Paystack, App Store release/security/privacy checks, and real-money operational policies require explicit launch approval.
