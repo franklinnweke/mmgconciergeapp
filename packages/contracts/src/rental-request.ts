@@ -15,7 +15,6 @@ export const RENTAL_REQUEST_STATES = [
   'requested',
   'approved',
   'ready_for_payment',
-  'payment_in_progress',
   'declined',
   'payment_window_expired',
   'confirmed',
@@ -68,9 +67,9 @@ const projectionShape = {
 } as const;
 
 function addProjectionRules(value: Record<string, unknown>, context: z.RefinementCtx): void {
-  if (value.state === 'ready_for_payment' || value.state === 'payment_in_progress') {
+  if (value.state === 'ready_for_payment') {
     if (!value.intentId || !value.holdExpiresAt || !value.authoritativePriceSnapshot) {
-      context.addIssue({ code: 'custom', message: 'Payment states require intent, expiry and authoritative price.' });
+      context.addIssue({ code: 'custom', message: 'Ready-for-payment requests require intent, expiry and authoritative price.' });
     }
   }
   if (value.state === 'confirmed' && !value.bookingId) {
@@ -86,6 +85,16 @@ export const renterVisibleRentalRequestSchema = z.object({
   renterId: boundedIdSchema,
 }).strict().superRefine(addProjectionRules);
 export type RenterVisibleRentalRequest = z.infer<typeof renterVisibleRentalRequestSchema>;
+
+export const listOwnerRentalRequestsCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+}).strict();
+export type ListOwnerRentalRequestsCommand = z.infer<typeof listOwnerRentalRequestsCommandSchema>;
+
+export const listOwnerRentalRequestsResultSchema = z.object({
+  requests: z.array(ownerVisibleRentalRequestSchema).max(200),
+}).strict();
+export type ListOwnerRentalRequestsResult = z.infer<typeof listOwnerRentalRequestsResultSchema>;
 
 export const createRentalRequestResultSchema = z.object({
   requestId: boundedIdSchema,
