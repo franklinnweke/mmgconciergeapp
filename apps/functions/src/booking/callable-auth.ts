@@ -21,6 +21,16 @@ export function requireVerifiedRenter(auth: CallableAuth): string {
   return auth.uid;
 }
 
+export function requireVerifiedRenterForRelease(auth: CallableAuth): string {
+  if (!auth?.uid) {
+    throw new BookingCommandError('UNAUTHENTICATED', 'Sign in to release a booking hold.');
+  }
+  if (auth.token.email_verified !== true) {
+    throw new BookingCommandError('FORBIDDEN', 'Verify your email before releasing a booking hold.');
+  }
+  return auth.uid;
+}
+
 export function requireCheckoutRenter(auth: CallableAuth): CheckoutRenter {
   if (!auth?.uid) {
     throw new BookingCommandError('UNAUTHENTICATED', 'Sign in to continue to payment.');

@@ -198,6 +198,28 @@ export type BookingTimelineEvent = z.infer<typeof bookingTimelineEventSchema>;
 export const isoDateTimeSchema = z.string().datetime({ offset: true });
 export const boundedIdSchema = z.string().trim().min(1).max(128);
 
+export const releaseBookingHoldDataSchema = z.object({
+  intentId: boundedIdSchema,
+}).strict();
+export type ReleaseBookingHoldData = z.infer<typeof releaseBookingHoldDataSchema>;
+
+export const releaseBookingHoldCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: releaseBookingHoldDataSchema,
+}).strict();
+export type ReleaseBookingHoldCommand = z.infer<typeof releaseBookingHoldCommandSchema>;
+
+export const releaseBookingHoldResultSchema = z.object({
+  requestId: z.string().min(1).max(128),
+  result: z.object({
+    intentId: boundedIdSchema,
+    released: z.literal(true),
+    releasedAt: isoDateTimeSchema,
+  }).strict(),
+}).strict();
+export type ReleaseBookingHoldResult = z.infer<typeof releaseBookingHoldResultSchema>;
+
 export const availabilityBlockReasonSchema = z.enum([
   'maintenance',
   'owner_use',
@@ -433,11 +455,21 @@ export const ownerVisibleBookingSchema = z.object({
 }).strict();
 export type OwnerVisibleBooking = z.infer<typeof ownerVisibleBookingSchema>;
 
+/**
+ * @deprecated Legacy availability-request status. The active booking flow
+ * uses `BookingIntentState` and `PaidBookingState` instead.
+ */
 export type BookingRequestStatus =
   | 'availability_requested'
   | 'confirmed'
   | 'payment_required'
   | 'booked';
+/**
+ * @deprecated Legacy availability-request record. The active booking flow
+ * uses `bookingIntents` / `bookings` collections with server-authoritative
+ * pricing and state machines. This type is retained only for Firestore Rules
+ * compatibility with the `bookingRequests` subcollection.
+ */
 export type BookingRequest = {
   id: string;
   userId: string;
@@ -452,6 +484,9 @@ export type BookingRequest = {
   updatedAt: string;
 };
 
+/**
+ * @deprecated Legacy availability-request input. See `CreateBookingIntentCommand`.
+ */
 export type CreateBookingRequestInput = Omit<
   BookingRequest,
   'createdAt' | 'id' | 'status' | 'updatedAt' | 'userId'

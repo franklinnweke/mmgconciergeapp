@@ -5,7 +5,12 @@ import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { createBookingIntent as createBookingIntentService } from './booking/create-booking-intent-service.js';
-import { requirePaidBookingActor, requireVerifiedRenter } from './booking/callable-auth.js';
+import { releaseBookingHold as releaseBookingHoldService } from './booking/release-booking-hold-service.js';
+import {
+  requirePaidBookingActor,
+  requireVerifiedRenter,
+  requireVerifiedRenterForRelease,
+} from './booking/callable-auth.js';
 import { FirestoreBookingIntentRepository } from './booking/firestore-booking-intent-repository.js';
 import { FirestorePaidBookingResponseRepository } from './booking/firestore-paid-booking-response-repository.js';
 import {
@@ -110,6 +115,38 @@ export const createBookingIntent = onCall(
       }
       logger.error('booking_intent.failed');
       throw new HttpsError('internal', 'Booking intent could not be created.');
+    }
+  },
+);
+
+export const releaseBookingHold = onCall(
+  {
+    ...callableRuntimeOptions,
+    enforceAppCheck: isProductionAppCheck(), // enforceAppCheck: true in production
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    try {
+      const renterId = requireVerifiedRenterForRelease(request.auth);
+      const result = await releaseBookingHoldService(request.data, renterId, { repository: bookingRepository });
+      logger.info('booking_hold.released', {
+        requestId: result.requestId,
+        intentId: result.result.intentId,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof CommandError) {
+        logger.warn('booking_hold.release_rejected', {
+          code: error.code,
+        });
+        throw new HttpsError(httpsCodeByDomainCode[error.code], error.message, {
+          code: error.code,
+          ...error.safeDetails,
+        });
+      }
+      logger.error('booking_hold.release_failed');
+      throw new HttpsError('internal', 'Booking hold could not be released.');
     }
   },
 );

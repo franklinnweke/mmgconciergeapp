@@ -1,7 +1,17 @@
-import { dateOnlySchema, renterVehicleSnapshotSchema } from '@mmg/contracts';
+import {
+  dateOnlySchema,
+  releaseBookingHoldResultSchema,
+  renterVehicleSnapshotSchema,
+  type ReleaseBookingHoldResult,
+} from '@mmg/contracts';
 import { getFirestore, Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { z } from 'zod';
+
+import type {
+  BookingHoldReleaseRepository,
+  ReleaseBookingHoldInput,
+} from './release-booking-hold-service.js';
 
 import { buildBookingVehicleSnapshot } from './booking-vehicle-snapshot.js';
 import type {
@@ -334,7 +344,8 @@ class FirestoreBookingIntentTransaction implements BookingIntentTransaction {
   }
 }
 
-export class FirestoreBookingIntentRepository implements BookingIntentRepository {
+export class FirestoreBookingIntentRepository
+  implements BookingIntentRepository, BookingHoldReleaseRepository {
   constructor(
     private readonly firestore: Firestore = getFirestore(),
     private readonly publicObjectUrl?: PublicObjectUrl,
@@ -343,5 +354,164 @@ export class FirestoreBookingIntentRepository implements BookingIntentRepository
   runTransaction<T>(work: (transaction: BookingIntentTransaction) => Promise<T>): Promise<T> {
     return this.firestore.runTransaction((transaction) =>
       work(new FirestoreBookingIntentTransaction(this.firestore, transaction, this.publicObjectUrl)));
+  }
+
+  async releaseHold(input: ReleaseBookingHoldInput): Promise<ReleaseBookingHoldResult> {
+    return this.firestore.runTransaction(async (transaction) => {
+      // 1. Check idempotency document
+      const idempotencyRef = this.firestore.doc(`idempotencyKeys/${input.idempotencyDocumentId}`);
+      const idempotencySnapshot = await transaction.get(idempotencyRef);
+      if (idempotencySnapshot.exists) {
+        const stored = idempotencySnapshot.data();
+        if (stored?.actorId !== input.renterId) {
+          throw new BookingCommandError('FAILED_PRECONDITION', 'Stored idempotency data is invalid.');
+        }
+        if (stored?.requestHash !== input.requestHash) {
+          throw new BookingCommandError(
+            'IDEMPOTENCY_CONFLICT',
+            'This idempotency key was already used for a different request.',
+          );
+        }
+        return releaseBookingHoldResultSchema.parse(stored.result);
+      }
+
+      // 2. Check released hold tombstone for idempotent retry
+      const releasedRef = this.firestore.doc(`releasedBookingHolds/${input.intentId}`);
+      const releasedSnapshot = await transaction.get(releasedRef);
+      if (releasedSnapshot.exists) {
+        const releasedData = releasedSnapshot.data();
+        if (releasedData?.renterId !== input.renterId) {
+          throw new BookingCommandError('FORBIDDEN', 'You cannot release this booking hold.');
+        }
+        const releasedAt =
+          releasedData?.releasedAt instanceof Timestamp
+            ? releasedData.releasedAt.toDate().toISOString()
+            : typeof releasedData?.releasedAt === 'string'
+              ? releasedData.releasedAt
+              : input.now.toISOString();
+        const replayResult = releaseBookingHoldResultSchema.parse({
+          requestId: input.requestId,
+          result: {
+            intentId: input.intentId,
+            released: true,
+            releasedAt,
+          },
+        });
+        transaction.set(idempotencyRef, {
+          actorId: input.renterId,
+          requestHash: input.requestHash,
+          result: replayResult,
+          createdAt: Timestamp.fromDate(input.now),
+        });
+        return replayResult;
+      }
+
+      // 3. Read bookingIntents/${intentId}
+      const intentRef = this.firestore.doc(`bookingIntents/${input.intentId}`);
+      const intentSnapshot = await transaction.get(intentRef);
+      if (!intentSnapshot.exists) {
+        throw new BookingCommandError('NOT_FOUND', 'Booking intent was not found.');
+      }
+      const intentData = intentSnapshot.data();
+      if (!intentData || typeof intentData !== 'object') {
+        throw new BookingCommandError('FAILED_PRECONDITION', 'Booking intent data is invalid.');
+      }
+      if (intentData.renterId !== input.renterId) {
+        throw new BookingCommandError('FORBIDDEN', 'You cannot release this booking hold.');
+      }
+      if (intentData.state !== 'intent_created') {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Only active unpaid date holds can be released.',
+        );
+      }
+
+      // 4. Read bookingBlocks/${intentId}
+      const blockRef = this.firestore.doc(`bookingBlocks/${input.intentId}`);
+      const blockSnapshot = await transaction.get(blockRef);
+
+      // 5. Read vehicle availability sentinel
+      const vehicleId = intentData.vehicleId;
+      if (typeof vehicleId !== 'string' || !vehicleId) {
+        throw new BookingCommandError('FAILED_PRECONDITION', 'Booking intent vehicle is invalid.');
+      }
+      const sentinelRef = this.firestore.doc(`vehicleAvailability/${vehicleId}`);
+      const sentinelSnapshot = await transaction.get(sentinelRef);
+      const currentVersion =
+        sentinelSnapshot.exists && typeof sentinelSnapshot.data()?.version === 'number'
+          ? (sentinelSnapshot.data()!.version as number)
+          : 0;
+
+      // ALL READS COMPLETE. WRITES BEGIN:
+      if (blockSnapshot.exists) {
+        transaction.delete(blockRef);
+      }
+
+      transaction.set(
+        sentinelRef,
+        {
+          vehicleId,
+          version: currentVersion + 1,
+          updatedAt: Timestamp.fromDate(input.now),
+        },
+        { merge: true },
+      );
+
+      // Delete active booking intent from renter-visible collection
+      transaction.delete(intentRef);
+
+      // Save audit-safe tombstone/record in releasedBookingHolds
+      const releasedAtIso = input.now.toISOString();
+      transaction.set(releasedRef, {
+        intentId: input.intentId,
+        renterId: input.renterId,
+        vehicleId,
+        ownerId: intentData.ownerId ?? null,
+        startDate: intentData.startDate ?? null,
+        endDate: intentData.endDate ?? null,
+        releasedAt: Timestamp.fromDate(input.now),
+        requestId: input.requestId,
+        createdAt: intentData.createdAt ?? null,
+        priceSnapshot: intentData.priceSnapshot ?? null,
+        vehicleSnapshot: intentData.vehicleSnapshot ?? null,
+      });
+
+      // Save audit event
+      const auditRef = this.firestore.collection('auditEvents').doc();
+      transaction.set(auditRef, {
+        actorId: input.renterId,
+        actorType: 'renter',
+        entityId: input.intentId,
+        entityType: 'bookingIntent',
+        eventType: 'booking_hold.released',
+        fromState: 'intent_created',
+        toState: 'released',
+        requestId: input.requestId,
+        occurredAt: Timestamp.fromDate(input.now),
+        details: {
+          vehicleId,
+          startDate: intentData.startDate ?? null,
+          endDate: intentData.endDate ?? null,
+        },
+      });
+
+      const result = releaseBookingHoldResultSchema.parse({
+        requestId: input.requestId,
+        result: {
+          intentId: input.intentId,
+          released: true,
+          releasedAt: releasedAtIso,
+        },
+      });
+
+      transaction.set(idempotencyRef, {
+        actorId: input.renterId,
+        requestHash: input.requestHash,
+        result,
+        createdAt: Timestamp.fromDate(input.now),
+      });
+
+      return result;
+    });
   }
 }

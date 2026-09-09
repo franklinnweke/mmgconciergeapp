@@ -36,6 +36,8 @@ import {
   priceSnapshotSchema,
   rejectBookingCommandSchema,
   rejectBookingResultSchema,
+  releaseBookingHoldCommandSchema,
+  releaseBookingHoldResultSchema,
   removeVehicleAvailabilityBlockCommandSchema,
   renterVisibleBookingIntentSchema,
   renterVisibleBookingSchema,
@@ -246,6 +248,31 @@ describe('booking command contracts', () => {
         endDate: '2026-09-04',
       },
     })).toMatchObject({ schemaVersion: 1 });
+  });
+
+  it('accepts valid releaseBookingHold command and result contracts', () => {
+    expect(releaseBookingHoldCommandSchema.parse({
+      schemaVersion: 1,
+      idempotencyKey: 'release_01JABCDEFGHIJK',
+      data: {
+        intentId: 'intent-12345',
+      },
+    })).toMatchObject({ schemaVersion: 1, data: { intentId: 'intent-12345' } });
+
+    expect(releaseBookingHoldResultSchema.parse({
+      requestId: 'req-12345',
+      result: {
+        intentId: 'intent-12345',
+        released: true,
+        releasedAt: '2026-08-13T12:00:00.000Z',
+      },
+    })).toMatchObject({ result: { released: true } });
+
+    expect(releaseBookingHoldCommandSchema.safeParse({
+      schemaVersion: 1,
+      idempotencyKey: 'short',
+      data: { intentId: 'intent-12345' },
+    }).success).toBe(false);
   });
 
   it('rejects impossible dates, extra client fields, and short idempotency keys', () => {
