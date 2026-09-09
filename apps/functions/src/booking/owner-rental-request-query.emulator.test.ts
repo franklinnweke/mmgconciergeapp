@@ -62,10 +62,10 @@ describeWithEmulator('owner rental request safe projection', () => {
       },
       createdAt: now,
       updatedAt: now,
-      // Deliberate polluted/private-looking fields must never cross projection.
       contactPhone: '+2348012345678',
       renterEmail: 'private@example.com',
       internalNotes: 'VIP customer',
+      approvedBy: 'staff-secret',
     });
     await database.doc('rentalRequests/request-owner-two').set({
       requestId: 'request-owner-two',
@@ -93,21 +93,26 @@ describeWithEmulator('owner rental request safe projection', () => {
     if (database) await clear(database);
   });
 
-  it('returns only the requesting owner records and omits renter identity/contact data', async () => {
+  it('returns only the requesting owner records and omits all identity/contact/internal fields', async () => {
     const result = await query.list('owner-one');
 
     expect(result.requests).toHaveLength(1);
     expect(result.requests[0]).toMatchObject({
       requestId: 'request-owner-one',
-      ownerId: 'owner-one',
       vehicleId: 'vehicle-one',
       state: 'requested',
     });
 
     const record = result.requests[0] as unknown as Record<string, unknown>;
-    expect(record).not.toHaveProperty('renterId');
-    expect(record).not.toHaveProperty('contactPhone');
-    expect(record).not.toHaveProperty('renterEmail');
-    expect(record).not.toHaveProperty('internalNotes');
+    for (const key of [
+      'renterId',
+      'ownerId',
+      'contactPhone',
+      'renterEmail',
+      'internalNotes',
+      'approvedBy',
+    ]) {
+      expect(record).not.toHaveProperty(key);
+    }
   });
 });
