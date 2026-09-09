@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 
 import {
   assertFails,
-  assertSucceeds,
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
@@ -60,31 +59,27 @@ describeWithEmulator('rental request Firestore privacy rules', () => {
 
   afterAll(async () => environment.cleanup());
 
-  it('allows a renter to read and query only their own request documents', async () => {
-    const renter = environment.authenticatedContext('renter-one').firestore();
+  it('denies every mobile identity direct reads and queries of raw rental requests', async () => {
+    const contexts = [
+      environment.authenticatedContext('renter-one').firestore(),
+      environment.authenticatedContext('owner-one').firestore(),
+      environment.authenticatedContext('staff-one', { support: true }).firestore(),
+      environment.authenticatedContext('super-one', { super_admin: true }).firestore(),
+      environment.unauthenticatedContext().firestore(),
+    ];
 
-    await assertSucceeds(getDoc(doc(renter, 'rentalRequests/request-one')));
-    await assertSucceeds(getDocs(query(
-      collection(renter, 'rentalRequests'),
-      where('renterId', '==', 'renter-one'),
-    )));
-
-    await assertFails(getDoc(doc(renter, 'rentalRequests/request-two')));
-    await assertFails(getDocs(collection(renter, 'rentalRequests')));
-  });
-
-  it('denies owners, other renters and anonymous users direct rental request access', async () => {
-    const owner = environment.authenticatedContext('owner-one').firestore();
-    const attacker = environment.authenticatedContext('renter-two').firestore();
-    const anonymous = environment.unauthenticatedContext().firestore();
-
-    await assertFails(getDoc(doc(owner, 'rentalRequests/request-one')));
-    await assertFails(getDocs(query(
-      collection(owner, 'rentalRequests'),
-      where('ownerId', '==', 'owner-one'),
-    )));
-    await assertFails(getDoc(doc(attacker, 'rentalRequests/request-one')));
-    await assertFails(getDoc(doc(anonymous, 'rentalRequests/request-one')));
+    for (const database of contexts) {
+      await assertFails(getDoc(doc(database, 'rentalRequests/request-one')));
+      await assertFails(getDocs(collection(database, 'rentalRequests')));
+      await assertFails(getDocs(query(
+        collection(database, 'rentalRequests'),
+        where('renterId', '==', 'renter-one'),
+      )));
+      await assertFails(getDocs(query(
+        collection(database, 'rentalRequests'),
+        where('ownerId', '==', 'owner-one'),
+      )));
+    }
   });
 
   it('denies direct contact PII access to renter, owner, privileged-looking client claims and anonymous users', async () => {
