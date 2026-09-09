@@ -13,10 +13,17 @@
       "icon": "./assets/images/icon.png",
       "supportsTablet": false,
       "usesAppleSignIn": true,
+      "entitlements": {
+        "aps-environment": "development"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "MMG Concierge uses the camera to photograph your government ID for owner verification. The image stays private.",
-        "NSPhotoLibraryUsageDescription": "MMG Concierge accesses your photo library so you can upload your government ID for owner verification. The image stays private."
+        "NSPhotoLibraryUsageDescription": "MMG Concierge accesses your photo library so you can upload your government ID for owner verification. The image stays private.",
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
