@@ -13,7 +13,6 @@ export type PhoneVerificationSession = {
 
 export { isNigerianE164, normalizeNigerianPhone } from './phone-verification-domain';
 
-
 export async function requestPhoneVerification(
   phoneE164: string,
 ): Promise<PhoneVerificationSession> {
@@ -21,10 +20,7 @@ export async function requestPhoneVerification(
   if (!auth.currentUser) throw new Error('Sign in before verifying your phone number.');
 
   const provider = new PhoneAuthProvider(auth);
-  const verificationId = await provider.verifyPhoneNumber(phoneE164, {
-    type: 'recaptcha',
-    verify: async () => '',
-  });
+  const verificationId = await provider.verifyPhoneNumber(phoneE164);
 
   return { verificationId, phoneE164 };
 }
