@@ -11,6 +11,26 @@ function timestampIso(value: unknown): string | undefined {
   return value instanceof Timestamp ? value.toDate().toISOString() : undefined;
 }
 
+export function clientRentalRequestProjection(documentId: string, data: Record<string, unknown>) {
+  return {
+    requestId: typeof data.requestId === 'string' ? data.requestId : documentId,
+    vehicleId: data.vehicleId,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    serviceAreaLabel: data.serviceAreaLabel,
+    state: data.state,
+    version: data.version,
+    estimatedPriceSnapshot: data.estimatedPriceSnapshot,
+    ...(data.authoritativePriceSnapshot ? { authoritativePriceSnapshot: data.authoritativePriceSnapshot } : {}),
+    vehicleSnapshot: data.vehicleSnapshot,
+    ...(typeof data.intentId === 'string' ? { intentId: data.intentId } : {}),
+    ...(timestampIso(data.holdExpiresAt) ? { holdExpiresAt: timestampIso(data.holdExpiresAt) } : {}),
+    ...(typeof data.bookingId === 'string' ? { bookingId: data.bookingId } : {}),
+    createdAt: timestampIso(data.createdAt),
+    updatedAt: timestampIso(data.updatedAt),
+  };
+}
+
 export class FirestoreOwnerRentalRequestQuery {
   constructor(private readonly firestore: Firestore = getFirestore()) {}
 
@@ -22,26 +42,9 @@ export class FirestoreOwnerRentalRequestQuery {
       .get();
 
     const requests = snapshot.docs.map((document) => {
-      const data = document.data();
-      const projection = {
-        requestId: typeof data.requestId === 'string' ? data.requestId : document.id,
-        ownerId: data.ownerId,
-        vehicleId: data.vehicleId,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        serviceAreaLabel: data.serviceAreaLabel,
-        state: data.state,
-        version: data.version,
-        estimatedPriceSnapshot: data.estimatedPriceSnapshot,
-        ...(data.authoritativePriceSnapshot ? { authoritativePriceSnapshot: data.authoritativePriceSnapshot } : {}),
-        vehicleSnapshot: data.vehicleSnapshot,
-        ...(typeof data.intentId === 'string' ? { intentId: data.intentId } : {}),
-        ...(timestampIso(data.holdExpiresAt) ? { holdExpiresAt: timestampIso(data.holdExpiresAt) } : {}),
-        ...(typeof data.bookingId === 'string' ? { bookingId: data.bookingId } : {}),
-        createdAt: timestampIso(data.createdAt),
-        updatedAt: timestampIso(data.updatedAt),
-      };
-      const parsed = ownerVisibleRentalRequestSchema.safeParse(projection);
+      const parsed = ownerVisibleRentalRequestSchema.safeParse(
+        clientRentalRequestProjection(document.id, document.data()),
+      );
       if (!parsed.success) {
         throw new BookingCommandError('FAILED_PRECONDITION', 'A rental request cannot be displayed safely.');
       }
