@@ -3,8 +3,14 @@ import type {
   ReconcilePaymentResult,
 } from '@mmg/contracts/payment';
 
+export type PaymentCheckoutMode = 'pay_first' | 'request_first';
+
 export interface PaymentCheckoutGateway {
-  initializePayment(intentId: string, idempotencyKey: string): Promise<InitializeBookingPaymentResult>;
+  initializePayment(
+    intentId: string,
+    idempotencyKey: string,
+    mode?: PaymentCheckoutMode,
+  ): Promise<InitializeBookingPaymentResult>;
   reconcilePayment(intentId: string, idempotencyKey: string): Promise<ReconcilePaymentResult>;
 }
 

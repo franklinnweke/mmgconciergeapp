@@ -23,18 +23,22 @@ export class NativePaymentCheckoutGateway implements PaymentCheckoutGateway {
   async initializePayment(
     intentId: string,
     idempotencyKey: string,
+    mode: 'pay_first' | 'request_first' = 'pay_first',
   ): Promise<InitializeBookingPaymentResult> {
     const command = initializeBookingPaymentCommandSchema.parse({
       schemaVersion: 1,
       idempotencyKey,
       data: { intentId },
     });
-    const callable = httpsCallable(this.functions, 'initializeBookingPayment');
+    const commandName = mode === 'request_first'
+      ? 'initializeRentalRequestPayment'
+      : 'initializeBookingPayment';
+    const callable = httpsCallable(this.functions, commandName);
     const response = await callable(command);
     return parseCallableResult(
       initializeBookingPaymentResultSchema,
       response.data,
-      'initializeBookingPayment',
+      commandName,
     );
   }
 

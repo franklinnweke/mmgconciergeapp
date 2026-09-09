@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@mmg/brand';
+import type { OwnerVisibleRentalRequest } from '@mmg/contracts/rental-request';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -20,12 +21,16 @@ import {
   createOwnerBookingRepository,
   type OwnerBookingSnapshot,
 } from '../data/owner-booking-repository';
+import { createOwnerRentalRequestGateway } from '../data/owner-rental-request-gateway';
 import { groupOwnerBookings } from '../domain/owner-booking';
+import { ownerRequestStateCopy } from '../domain/owner-rental-request';
 
 export function OwnerBookingsDeskScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const repository = useMemo(() => createOwnerBookingRepository(), []);
+  const requestGateway = useMemo(() => createOwnerRentalRequestGateway(), []);
+  const [requests, setRequests] = useState<OwnerVisibleRentalRequest[]>([]);
   const [snapshot, setSnapshot] = useState<OwnerBookingSnapshot>({
     bookings: [],
     skippedInvalidCount: 0,
@@ -43,7 +48,15 @@ export function OwnerBookingsDeskScreen() {
 
   useEffect(() => {
     if (!user?.uid) return undefined;
-    return repository.subscribe(
+    let active = true;
+    void requestGateway.listRequests()
+      .then((listed) => {
+        if (active) setRequests(listed.requests);
+      })
+      .catch(() => {
+        if (active) setError('Rental requests could not be loaded. Check your connection and try again.');
+      });
+    const stop = repository.subscribe(
       user.uid,
       (next) => {
         setSnapshot(next);
@@ -55,7 +68,11 @@ export function OwnerBookingsDeskScreen() {
         setError('Bookings could not be loaded. Check your connection and try again.');
       },
     );
-  }, [repository, user?.uid, refreshKey]);
+    return () => {
+      active = false;
+      stop();
+    };
+  }, [refreshKey, repository, requestGateway, user?.uid]);
 
   const groups = groupOwnerBookings(snapshot.bookings);
   const sections = [
@@ -103,11 +120,44 @@ export function OwnerBookingsDeskScreen() {
           </View>
         ) : null}
 
-        {!loading && !error && snapshot.bookings.length === 0 ? (
+        {!loading && !error && snapshot.bookings.length === 0 && requests.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons color={colors.muted} name="calendar-outline" size={28} />
             <Text style={styles.emptyTitle}>No bookings yet</Text>
-            <Text style={styles.muted}>Paid renter bookings assigned to your vehicles will appear here.</Text>
+            <Text style={styles.muted}>Renter requests and paid bookings for your vehicles will appear here.</Text>
+          </View>
+        ) : null}
+
+        {requests.length ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionLabel}>Rental requests</Text>
+              <Text style={styles.sectionCount}>{requests.length}</Text>
+            </View>
+            {requests.map((request) => {
+              const copy = ownerRequestStateCopy(request.state);
+              const price = request.authoritativePriceSnapshot ?? request.estimatedPriceSnapshot;
+              return (
+                <PressableScale
+                  key={request.requestId}
+                  accessibilityLabel={`Open request for ${request.vehicleSnapshot.displayName}`}
+                  accessibilityRole="button"
+                  onPress={() => router.push({
+                    pathname: '/(owner)/owner-bookings/request/[requestId]' as never,
+                    params: { requestId: request.requestId },
+                  })}
+                >
+                  <View style={styles.row}>
+                    <View style={styles.rowBody}>
+                      <Text style={styles.vehicle}>{request.vehicleSnapshot.displayName}</Text>
+                      <Text style={styles.meta}>{request.startDate} to {request.endDate} · {request.serviceAreaLabel}</Text>
+                      <Text style={styles.meta}>{copy.label} · {formatNairaFromKobo(price.ownerEarningsKobo)} earnings</Text>
+                    </View>
+                    <Ionicons color={colors.muted} name="chevron-forward" size={18} />
+                  </View>
+                </PressableScale>
+              );
+            })}
           </View>
         ) : null}
 

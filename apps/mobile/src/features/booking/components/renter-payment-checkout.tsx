@@ -19,6 +19,7 @@ import {
   createPaymentCheckoutGateway,
   PaymentCheckoutSubmissionKeys,
 } from '../data/payment-checkout-gateway';
+import type { PaymentCheckoutMode } from '../data/payment-checkout-gateway-core';
 import {
   resolveRenterCheckoutState,
   type RenterCheckoutState,
@@ -29,6 +30,7 @@ type CheckoutUiState = 'ready' | 'opening' | RenterCheckoutState;
 type RenterPaymentCheckoutProps = {
   holdExpiresAt: string;
   intentId: string;
+  mode?: PaymentCheckoutMode;
   onRestartHold: () => void;
   onViewTrips: () => void;
 };
@@ -48,6 +50,7 @@ function assertApprovedCheckoutUrl(value: string): void {
 export function RenterPaymentCheckout({
   holdExpiresAt,
   intentId,
+  mode = 'pay_first',
   onRestartHold,
   onViewTrips,
 }: RenterPaymentCheckoutProps) {
@@ -67,7 +70,11 @@ export function RenterPaymentCheckout({
       );
       const nextState = resolveRenterCheckoutState(reconciliation, { holdExpiresAt });
       setState(nextState);
-      if (nextState === 'payment_received' || nextState === 'paid_conflict') {
+      if (
+        nextState === 'payment_received' ||
+        nextState === 'booking_confirmed' ||
+        nextState === 'paid_conflict'
+      ) {
         keys.current.reset(intentId);
       }
     } catch (error) {
@@ -102,6 +109,7 @@ export function RenterPaymentCheckout({
       const initialized = await gateway.initializePayment(
         intentId,
         keys.current.forInitialization(intentId),
+        mode,
       );
       const authorizationUrl = initialized.result.authorizationUrl;
       assertApprovedCheckoutUrl(authorizationUrl);
@@ -130,7 +138,18 @@ export function RenterPaymentCheckout({
         ),
       );
     }
-  }, [checkPayment, gateway, holdExpiresAt, intentId]);
+  }, [checkPayment, gateway, holdExpiresAt, intentId, mode]);
+
+  if (state === 'booking_confirmed') {
+    return (
+      <StatusCard icon="checkmark-circle" tone="success" title="Payment verified — booking secured">
+        <Text style={styles.bodyText}>
+          Your payment was verified and the chauffeur booking is confirmed.
+        </Text>
+        <ActionButton label="View trips" onPress={onViewTrips} />
+      </StatusCard>
+    );
+  }
 
   if (state === 'payment_received') {
     return (
@@ -156,11 +175,16 @@ export function RenterPaymentCheckout({
 
   if (state === 'expired_hold') {
     return (
-      <StatusCard icon="time-outline" tone="warning" title="Checkout hold expired">
+      <StatusCard icon="time-outline" tone="warning" title={mode === 'request_first' ? 'Payment window expired' : 'Checkout hold expired'}>
         <Text style={styles.bodyText}>
-          Create a new hold before attempting payment again. No ride has been confirmed.
+          {mode === 'request_first'
+            ? 'The 30-minute payment window ended. Dates were released and no charge was taken.'
+            : 'Create a new hold before attempting payment again. No ride has been confirmed.'}
         </Text>
-        <ActionButton label="Create a new hold" onPress={onRestartHold} />
+        <ActionButton
+          label={mode === 'request_first' ? 'View trips' : 'Create a new hold'}
+          onPress={mode === 'request_first' ? onViewTrips : onRestartHold}
+        />
       </StatusCard>
     );
   }
@@ -169,7 +193,7 @@ export function RenterPaymentCheckout({
     return (
       <StatusCard icon="close-circle-outline" tone="warning" title={state === 'abandoned' ? 'Payment not completed' : 'Payment failed'}>
         <Text style={styles.bodyText}>
-          The ride is not confirmed. You can try the Paystack checkout again while the hold is active.
+          The ride is not confirmed. You can try Paystack again while the payment window is still open.
         </Text>
         <ActionButton label="Try payment again" onPress={() => void openCheckout()} />
       </StatusCard>
@@ -203,7 +227,9 @@ export function RenterPaymentCheckout({
         <Text style={styles.panelTitle}>Pay securely with Paystack</Text>
       </View>
       <Text style={styles.bodyText}>
-        Your held total is server-authoritative. Returning from Paystack does not confirm payment until MMG verifies it.
+        {mode === 'request_first'
+          ? 'Complete payment within 30 minutes. Returning from Paystack does not confirm the booking until MMG verifies it.'
+          : 'Your held total is server-authoritative. Returning from Paystack does not confirm payment until MMG verifies it.'}
       </Text>
       <ActionButton label="Pay with Paystack" onPress={() => void openCheckout()} />
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}

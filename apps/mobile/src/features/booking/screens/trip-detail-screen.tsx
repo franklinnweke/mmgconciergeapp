@@ -16,6 +16,7 @@ import { useReducedMotion } from '@/components/use-reduced-motion';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
+import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
 import {
   type RenterTripActionGateway,
   unavailableRenterTripActionGateway,
@@ -62,7 +63,7 @@ export default function TripDetailScreen({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
-  const { initializing, syncError, syncState, trips } = useBookings();
+  const { initializing, refreshRentalRequests, syncError, syncState, trips } = useBookings();
   const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
   const [session, dispatch] = useReducer(reduceRenterTripActionSession, initialRenterTripActionSession);
   const trip = tripOverride !== undefined ? tripOverride : trips.find((candidate) => candidate.id === tripId) ?? null;
@@ -135,6 +136,10 @@ export default function TripDetailScreen({
   const presentation = tripDetailPresentation(trip);
   const timeline = renterTripTimeline(trip.state);
   const busy = session.pendingAction !== null;
+  const requestFirstPayment = trip.source === 'request'
+    && trip.state === 'ready_for_payment'
+    && Boolean(trip.intentId)
+    && Boolean(trip.holdExpiresAt);
   const syncPill = mode !== 'ready' ? (
     <View style={styles.syncPill}>
       <RadarPulseDot
@@ -279,7 +284,20 @@ export default function TripDetailScreen({
               </View>
             ) : null}
 
-            {!session.confirmingCancellation && presentation.primary ? (
+            {requestFirstPayment && trip.intentId && trip.holdExpiresAt ? (
+              <RenterPaymentCheckout
+                holdExpiresAt={trip.holdExpiresAt}
+                intentId={trip.intentId}
+                mode="request_first"
+                onRestartHold={() => { void refreshRentalRequests(); }}
+                onViewTrips={() => {
+                  void refreshRentalRequests();
+                  router.replace('/(renter)/trips');
+                }}
+              />
+            ) : null}
+
+            {!requestFirstPayment && !session.confirmingCancellation && presentation.primary ? (
               <View style={styles.actions}>
                 <ActionButton
                   disabled={busy}

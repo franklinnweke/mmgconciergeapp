@@ -10,11 +10,20 @@ import {
   type RenterVehicleSnapshot,
 } from '@mmg/contracts';
 
-export type RenterTripState = BookingIntentState | PaidBookingState | 'legacy_availability_requested';
+export type RenterTripState =
+  | BookingIntentState
+  | PaidBookingState
+  | 'legacy_availability_requested'
+  | 'requested'
+  | 'approved'
+  | 'ready_for_payment'
+  | 'declined'
+  | 'payment_window_expired'
+  | 'needs_attention';
 export type RenterTripGroup = 'active' | 'upcoming' | 'intervention' | 'past';
 export type RenterTripAction = 'payment' | 'support' | 'cancellation';
 export type RenterTripTimelineStatus = 'complete' | 'current' | 'upcoming';
-export type RenterTripSource = 'trusted' | 'legacy' | 'preview';
+export type RenterTripSource = 'trusted' | 'legacy' | 'preview' | 'request';
 
 export const allRenterTripStates = [
   'intent_created',
@@ -34,6 +43,12 @@ export const allRenterTripStates = [
   'completion_pending',
   'completed',
   'legacy_availability_requested',
+  'requested',
+  'approved',
+  'ready_for_payment',
+  'declined',
+  'payment_window_expired',
+  'needs_attention',
 ] as const satisfies readonly RenterTripState[];
 
 export const renterTripGroupCopy: Record<RenterTripGroup, string> = {
@@ -62,6 +77,10 @@ export type RenterTrip = {
   source: RenterTripSource;
   vehicleSnapshot: RenterVehicleSnapshot;
   supersedesId?: string;
+  intentId?: string;
+  holdExpiresAt?: string;
+  bookingId?: string;
+  requestVersion?: number;
 };
 
 const legacyState = {
@@ -78,21 +97,27 @@ const terminalStates: readonly RenterTripState[] = [
   'expired',
   'failed',
   'invalid',
+  'declined',
+  'payment_window_expired',
 ];
 
 export function stateGroup(state: RenterTripState): RenterTripGroup {
-  if (state === 'intervention_required' || state === 'paid_conflict') return 'intervention';
+  if (state === 'intervention_required' || state === 'paid_conflict' || state === 'needs_attention') {
+    return 'intervention';
+  }
   if (state === 'confirmed') return 'upcoming';
   if (terminalStates.includes(state)) return 'past';
   return 'active';
 }
 
 export function permittedRenterActions(state: RenterTripState): readonly RenterTripAction[] {
+  if (state === 'ready_for_payment') return ['payment'];
   if (state === 'checkout_pending') return ['payment', 'support'];
   if (state === 'paid_pending_owner' || state === 'confirmed') return ['support', 'cancellation'];
   if (
     state === 'intervention_required' ||
     state === 'paid_conflict' ||
+    state === 'needs_attention' ||
     state === 'refund_pending' ||
     state === 'intent_created' ||
     state === 'legacy_availability_requested' ||
@@ -196,6 +221,36 @@ export function tripStateCopy(state: RenterTripState): {
       title: 'Journey complete.',
       body: 'Thank you for travelling with MMG Concierge.',
     },
+    requested: {
+      label: 'REQUEST RECEIVED',
+      title: 'Request received — MMG is confirming.',
+      body: 'No payment has been taken and the dates are not locked.',
+    },
+    approved: {
+      label: 'APPROVED',
+      title: 'Your request is approved.',
+      body: 'MMG will contact you before payment is opened. No payment window yet.',
+    },
+    ready_for_payment: {
+      label: 'READY FOR PAYMENT',
+      title: 'Vehicle available for payment.',
+      body: 'Complete payment within 30 minutes. Returning from checkout does not confirm the booking.',
+    },
+    declined: {
+      label: 'DECLINED',
+      title: 'This request was declined.',
+      body: 'No payment was taken and the dates were not locked.',
+    },
+    payment_window_expired: {
+      label: 'PAYMENT WINDOW EXPIRED',
+      title: 'The payment window expired.',
+      body: 'Dates were released. No charge was taken. You can send a new request.',
+    },
+    needs_attention: {
+      label: 'NEEDS ATTENTION',
+      title: 'MMG Concierge is resolving the booking.',
+      body: 'A payment was recorded but the dates could not be confirmed automatically.',
+    },
   };
   return copy[state];
 }
@@ -210,6 +265,36 @@ export function renterTripTimeline(state: RenterTripState): readonly RenterTripT
 
   if (state === 'legacy_availability_requested') {
     return [item('request', 'Availability requested', 'Saved as an estimate only. No dates are held.', 'current')];
+  }
+  if (state === 'requested') {
+    return [
+      item('request', 'Request received', 'MMG is confirming the request. Dates are not locked.', 'current'),
+      item('checkout', 'Payment window', 'Opens only after MMG contacts you.', 'upcoming'),
+    ];
+  }
+  if (state === 'approved') {
+    return [
+      item('request', 'Request approved', 'MMG will contact you before payment is opened.', 'complete'),
+      item('checkout', 'Payment window', 'Not opened yet. No dates are locked.', 'current'),
+    ];
+  }
+  if (state === 'ready_for_payment') {
+    return [
+      item('request', 'Request approved', 'The vehicle can be reserved for these dates.', 'complete'),
+      item('checkout', 'Complete payment', 'You have 30 minutes. Browser return is not confirmation.', 'current'),
+    ];
+  }
+  if (state === 'declined') {
+    return [item('resolution', 'Request declined', 'No payment was taken and the dates were not locked.', 'complete')];
+  }
+  if (state === 'payment_window_expired') {
+    return [item('resolution', 'Payment window expired', 'Dates were released. No charge was taken.', 'complete')];
+  }
+  if (state === 'needs_attention') {
+    return [
+      item('payment', 'Payment recorded', 'A payment was recorded against this request.', 'complete'),
+      item('resolution', 'Concierge intervention', 'MMG is resolving the booking. Confirmation is not complete.', 'current'),
+    ];
   }
   if (state === 'intent_created') {
     return [
