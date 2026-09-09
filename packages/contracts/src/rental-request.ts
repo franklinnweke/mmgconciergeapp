@@ -47,9 +47,11 @@ export const createRentalRequestCommandSchema = z.object({
 }).strict();
 export type CreateRentalRequestCommand = z.infer<typeof createRentalRequestCommandSchema>;
 
-const projectionShape = {
+// Deliberately contains no renterId, ownerId, staff IDs, contact data, precise
+// address, decline reason, internal notes, or audit metadata. Mobile request
+// views are server projections rather than raw Firestore documents.
+const clientProjectionShape = {
   requestId: boundedIdSchema,
-  ownerId: boundedIdSchema,
   vehicleId: boundedIdSchema,
   startDate: dateOnlySchema,
   endDate: dateOnlySchema,
@@ -77,13 +79,16 @@ function addProjectionRules(value: Record<string, unknown>, context: z.Refinemen
   }
 }
 
-export const ownerVisibleRentalRequestSchema = z.object(projectionShape).strict().superRefine(addProjectionRules);
+export const ownerVisibleRentalRequestSchema = z
+  .object(clientProjectionShape)
+  .strict()
+  .superRefine(addProjectionRules);
 export type OwnerVisibleRentalRequest = z.infer<typeof ownerVisibleRentalRequestSchema>;
 
-export const renterVisibleRentalRequestSchema = z.object({
-  ...projectionShape,
-  renterId: boundedIdSchema,
-}).strict().superRefine(addProjectionRules);
+export const renterVisibleRentalRequestSchema = z
+  .object(clientProjectionShape)
+  .strict()
+  .superRefine(addProjectionRules);
 export type RenterVisibleRentalRequest = z.infer<typeof renterVisibleRentalRequestSchema>;
 
 export const listOwnerRentalRequestsCommandSchema = z.object({
@@ -95,6 +100,16 @@ export const listOwnerRentalRequestsResultSchema = z.object({
   requests: z.array(ownerVisibleRentalRequestSchema).max(200),
 }).strict();
 export type ListOwnerRentalRequestsResult = z.infer<typeof listOwnerRentalRequestsResultSchema>;
+
+export const listRenterRentalRequestsCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+}).strict();
+export type ListRenterRentalRequestsCommand = z.infer<typeof listRenterRentalRequestsCommandSchema>;
+
+export const listRenterRentalRequestsResultSchema = z.object({
+  requests: z.array(renterVisibleRentalRequestSchema).max(200),
+}).strict();
+export type ListRenterRentalRequestsResult = z.infer<typeof listRenterRentalRequestsResultSchema>;
 
 export const createRentalRequestResultSchema = z.object({
   requestId: boundedIdSchema,
