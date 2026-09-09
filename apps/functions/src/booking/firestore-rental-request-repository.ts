@@ -65,7 +65,7 @@ const rentalRequestSchema = z.object({
   requestId: z.string().min(1).max(128), renterId: z.string().min(1).max(128), ownerId: z.string().min(1).max(128),
   vehicleId: z.string().min(1).max(128), startDate: dateOnlySchema, endDate: dateOnlySchema,
   serviceAreaLabel: rentalRequestServiceAreaSchema,
-  state: z.enum(['requested', 'approved', 'ready_for_payment', 'payment_in_progress', 'declined', 'payment_window_expired', 'confirmed', 'needs_attention']),
+  state: z.enum(['requested', 'approved', 'ready_for_payment', 'declined', 'payment_window_expired', 'confirmed', 'needs_attention']),
   version: z.number().int().positive(), estimatedPriceSnapshot: priceSnapshotSchema,
   authoritativePriceSnapshot: priceSnapshotSchema.optional(), vehicleSnapshot: renterVehicleSnapshotSchema,
   intentId: z.string().min(1).max(128).optional(), holdExpiresAt: z.instanceof(Timestamp).optional(),
@@ -368,7 +368,7 @@ export class FirestoreRentalRequestRepository implements RentalRequestRepository
           // Payment initialization moves the intent to checkout_pending before any provider call.
           // Never release inventory underneath an in-flight or completed payment.
           if (intent.data.state !== 'intent_created') return 'protected' as const;
-          await this.releaseReadyRequest(transaction, request, now, 'system', 'payment-window-expiry');
+          await this.releaseReadyRequest(transaction, request, now, 'system', 'system', 'payment-window-expiry');
           transaction.update(document.ref, { state: 'payment_window_expired', version: request.version + 1, releasedAt: Timestamp.fromDate(now), holdExpiresAt: FieldValue.delete(), updatedAt: Timestamp.fromDate(now) });
           return 'expired' as const;
         });
