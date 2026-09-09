@@ -25,7 +25,15 @@ The renter supplies a normal operational contact phone and broad Lagos service-a
 
 The assigned owner, or authorized MMG `support` / `super_admin`, may approve or decline a request. Approval remains soft: it does not lock inventory and does not start the payment countdown.
 
-MMG may use this approved state to complete human concierge coordination with the renter before payment is made available.
+MMG uses this approved state to complete human concierge coordination with the renter before payment is made available.
+
+### Manual concierge readiness
+
+For the MVP, the human phone step is part of the operating model, not optional presentation copy.
+
+Authorized MMG staff must call the renter before pressing **Open payment window**. If the renter cannot be reached or is not ready to pay, the request remains `approved` and inventory remains unlocked. The detailed operating procedure is documented in `docs/operations/REQUEST_FIRST_CONCIERGE_RUNBOOK.md`.
+
+FCM, chat, and automated call orchestration are explicitly deferred. The manual phone workflow is sufficient for the concierge MVP.
 
 ### Payment-window activation
 
@@ -59,11 +67,13 @@ If a verified successful payment cannot safely receive the requested dates, the 
 
 ## Privacy model
 
-`rentalRequests` contains operational request state. Clients cannot write it.
+`rentalRequests` contains server operational request state. Clients cannot read or write it directly.
 
-A renter may read only their own request documents.
+Renter mobile uses the server-redacted `listRenterRentalRequests` callable. Owner mobile uses the server-redacted `listOwnerRentalRequests` callable. Both projections are strict allowlists rather than raw Firestore documents.
 
-Owners do not directly query `rentalRequests`. The owner app uses a server-redacted `listOwnerRentalRequests` callable. The owner projection may include vehicle, dates, broad service area, state/version, and required price/status information, but never renter ID, phone, email, precise address, profile information, or internal concierge notes.
+The renter projection may contain vehicle, dates, broad service area, request state/version, price/status information, payment-window intent/expiry, and resulting booking ID when needed by the renter experience. It must not contain owner ID, staff IDs, decline/internal notes, contact PII, or other server-only lifecycle metadata.
+
+The owner projection may contain vehicle, dates, broad service area, request state/version, and required price/status information, but never renter ID, owner ID, phone, email, precise address, profile information, staff IDs, or internal concierge notes.
 
 `rentalRequestContacts/{requestId}` contains the private renter contact phone used by MMG operations and is denied to all mobile clients. Authorized Admin server code may read it through the Admin SDK.
 
