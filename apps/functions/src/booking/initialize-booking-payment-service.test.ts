@@ -15,7 +15,6 @@ import type { PaymentGateway } from './payment-gateway.js';
 const actor: CheckoutRenter = {
   uid: 'renter-123',
   email: 'renter@example.com',
-  phoneNumber: '+2348012345678',
 };
 
 const command = {

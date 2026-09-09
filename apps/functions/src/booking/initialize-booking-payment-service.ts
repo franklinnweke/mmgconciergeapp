@@ -13,7 +13,6 @@ import type { PaymentGateway } from './payment-gateway.js';
 export type CheckoutRenter = {
   uid: string;
   email: string;
-  phoneNumber: string;
 };
 
 export type PaymentInitializationReservation =
@@ -91,7 +90,7 @@ export async function initializeBookingPayment(
     throw new BookingCommandError('INVALID_ARGUMENT', 'Payment initialization request is invalid.');
   }
 
-  if (!actor.uid || !actor.email || !actor.phoneNumber) {
+  if (!actor.uid || !actor.email) {
     throw new BookingCommandError(
       'PROFILE_INCOMPLETE',
       'Complete your verified renter profile before checkout.',

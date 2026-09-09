@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { normalizeNigerianPhone } from '@/core/auth/phone-verification-domain';
 
 const LAGOS_AREAS: readonly LagosAreaLabel[] = [
   'Ikoyi',
@@ -27,8 +28,9 @@ const LAGOS_AREAS: readonly LagosAreaLabel[] = [
   'Surulere',
 ];
 
-type CheckoutProfileData = {
+export type CheckoutProfileData = {
   fullName: string;
+  phone: string;
   areaLabel: LagosAreaLabel;
   streetAddress: string;
   landmark?: string;
@@ -36,14 +38,15 @@ type CheckoutProfileData = {
 
 export function RenterCheckoutProfileCompletion({
   defaultName,
+  defaultPhone,
   onSubmit,
-  verifiedPhone,
 }: {
   defaultName?: string | null;
+  defaultPhone?: string | null;
   onSubmit: (data: CheckoutProfileData) => Promise<void>;
-  verifiedPhone: string;
 }) {
   const [fullName, setFullName] = useState(defaultName ?? '');
+  const [phone, setPhone] = useState(defaultPhone ?? '');
   const [areaLabel, setAreaLabel] = useState<LagosAreaLabel>('Victoria Island');
   const [streetAddress, setStreetAddress] = useState('');
   const [landmark, setLandmark] = useState('');
@@ -56,6 +59,11 @@ export function RenterCheckoutProfileCompletion({
       setError('Add your name to continue.');
       return;
     }
+    const normalizedPhone = normalizeNigerianPhone(phone.trim());
+    if (!normalizedPhone) {
+      setError('Add a valid Nigerian mobile number for chauffeur coordination.');
+      return;
+    }
     if (streetAddress.trim().length < 5) {
       setError('Add your Lagos delivery address to continue.');
       return;
@@ -66,6 +74,7 @@ export function RenterCheckoutProfileCompletion({
     try {
       await onSubmit({
         fullName: fullName.trim(),
+        phone: normalizedPhone,
         areaLabel,
         streetAddress: streetAddress.trim(),
         landmark: landmark.trim() || undefined,
@@ -81,7 +90,7 @@ export function RenterCheckoutProfileCompletion({
     <View style={styles.panel}>
       <Text style={styles.title}>Complete checkout details</Text>
       <Text style={styles.body}>
-        Add the delivery details needed for this booking. Your verified phone is already linked. Renters do not upload government ID.
+        Add your contact and delivery details for chauffeur coordination. Renters do not upload government ID.
       </Text>
 
       <View style={styles.field}>
@@ -97,8 +106,17 @@ export function RenterCheckoutProfileCompletion({
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>VERIFIED PHONE</Text>
-        <View style={styles.readOnlyField}><Text style={styles.readOnlyText}>{verifiedPhone}</Text></View>
+        <Text style={styles.label}>CONTACT PHONE</Text>
+        <TextInput
+          accessibilityLabel="Contact phone number"
+          editable={!busy}
+          keyboardType="phone-pad"
+          onChangeText={setPhone}
+          placeholder="0801 234 5678"
+          placeholderTextColor={colors.muted}
+          style={styles.input}
+          value={phone}
+        />
       </View>
 
       <View style={styles.field}>
@@ -172,7 +190,5 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 46, paddingHorizontal: spacing.md },
   label: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 0.7 },
   panel: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, gap: spacing.md, marginTop: spacing.md, padding: spacing.lg },
-  readOnlyField: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.md },
-  readOnlyText: { color: colors.success, fontFamily: typography.bodySemiBold, fontSize: 14 },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 18, textAlign: 'center' },
 });
