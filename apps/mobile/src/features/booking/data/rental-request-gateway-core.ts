@@ -1,3 +1,4 @@
+import type { CancelRentalRequestResult } from '@mmg/contracts/cancellation';
 import type {
   ApproveRentalRequestResult,
   CreateRentalRequestData,
@@ -26,7 +27,8 @@ export interface RentalRequestGateway {
     idempotencyKey: string,
     reason?: string,
   ): Promise<DeclineRentalRequestResult>;
-  /** Releases an unopened request-first payment window. The server rejects payment-in-flight windows. */
+  cancelRequest(requestId: string, expectedVersion: number): Promise<CancelRentalRequestResult>;
+  /** Legacy release-only action retained for compatibility with Build 31. */
   releasePaymentHold(requestId: string): Promise<ReleaseRentalRequestPaymentHoldResult>;
 }
 
