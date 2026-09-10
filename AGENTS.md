@@ -237,18 +237,33 @@ Build 29 was created from the exact checkpoint above:
 
 Build 29 is historical acceptance evidence only. It predates the request-first Build 30 architecture and must not be used as evidence that the new flow is integrated.
 
-Post-Build-29 green `main` before the request-first implementation began:
+Post-Build-29 baseline before request-first integration began:
 
 `df15b2d33e318965425303caf2f41942d31408eb`
 
-Active Build 30 integration work is on draft PR #38:
+Validated Build 30 source checkpoint merged to `main`:
 
-- branch: `feat/build30-request-first-concierge`
-- base: `df15b2d33e318965425303caf2f41942d31408eb`
-- status: unmerged, undeployed, not an EAS/TestFlight build source
-- production `mmg-concierge`: untouched
+`9d629c2d87325edf0e85e6975bd5b468a2633b21`
 
-Do not call Build 30 implemented, deployed, or release-ready until PR #38 and its coordinated mobile work are green, merged into `main`, the required development Functions/Rules are deployed to `mmg-concierge-dev`, and end-to-end acceptance has been completed.
+Consolidation and merge sequence:
+- PR #40 (`codex/pr39-renter-release-action`) merged into PR #39.
+- PR #39 (`antigravity/build30-request-first-mobile`) merged into PR #38.
+- PR #38 (`feat/build30-request-first-concierge`) merged into `main`.
+- Validated tree: `7b2dfc06d01d9ffee9a7a97ec1315faa2d05150c`.
+- Post-merge CI #77 (`34425965734`) passed green across all jobs.
+
+Current state:
+- Request-first architecture: merged to `main`
+- Renter release-payment-window action: merged to `main`
+- Mobile renter/owner integration: merged to `main`
+- Admin concierge controls: merged to `main`
+- Main CI: green
+- Production `mmg-concierge`: untouched
+- Firebase development deployment (`mmg-concierge-dev`): pending
+- EAS/TestFlight Build 30: not created yet
+- Android native validation: explicitly deferred for this iOS-first Build 30 path
+
+Do not call Build 30 deployed or release-ready until the required development Functions/Rules/indexes are deployed to `mmg-concierge-dev`, Admin is deployed by the VPS/Admin agent, and end-to-end human acceptance has been completed.
 
 Current auth/UI expectations:
 
