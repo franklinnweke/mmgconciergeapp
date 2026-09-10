@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
+import type { BookingCancellationQuote } from '@mmg/contracts/cancellation';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,10 +14,15 @@ import { ScreenHeader } from '@/components/screen-header';
 import { LuxuryEmblemLoader } from '@/components/ui/luxury-emblem-loader';
 import { RadarPulseDot } from '@/components/ui/radar-pulse-dot';
 import { useReducedMotion } from '@/components/use-reduced-motion';
+import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
+import {
+  createRenterCancellationGateway,
+  type RenterCancellationGateway,
+} from '../data/renter-cancellation-gateway';
 import {
   type RenterTripActionGateway,
   unavailableRenterTripActionGateway,
@@ -40,6 +46,7 @@ import {
 
 type TripDetailScreenProps = {
   actionGateway?: RenterTripActionGateway;
+  cancellationGateway?: RenterCancellationGateway;
   rentalRequestGateway?: RentalRequestGateway;
   trip?: RenterTrip | null;
   tripId: string;
@@ -62,6 +69,7 @@ function formatDate(value: string) {
 
 export default function TripDetailScreen({
   actionGateway = unavailableRenterTripActionGateway,
+  cancellationGateway,
   rentalRequestGateway,
   trip: tripOverride,
   tripId,
@@ -72,9 +80,16 @@ export default function TripDetailScreen({
   const { initializing, refreshRentalRequests, syncError, syncState, trips } = useBookings();
   const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
   const [session, dispatch] = useReducer(reduceRenterTripActionSession, initialRenterTripActionSession);
+  const [cancellationQuote, setCancellationQuote] = useState<BookingCancellationQuote | null>(null);
+  const [cancellationError, setCancellationError] = useState<string | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const requestGateway = useMemo(
     () => rentalRequestGateway ?? createRentalRequestGateway(),
     [rentalRequestGateway],
+  );
+  const paidCancellationGateway = useMemo(
+    () => cancellationGateway ?? createRenterCancellationGateway(),
+    [cancellationGateway],
   );
   const trip = tripOverride !== undefined ? tripOverride : trips.find((candidate) => candidate.id === tripId) ?? null;
   const vehicle = trip?.vehicleSnapshot ?? null;
@@ -93,10 +108,55 @@ export default function TripDetailScreen({
     Animated.timing(entrance, { duration: 460, toValue: 1, useNativeDriver: Platform.OS !== 'web' }).start();
   }, [entrance, reduceMotion]);
 
+  async function beginCancellation() {
+    if (!trip || session.pendingAction || quoteLoading) return;
+    setCancellationError(null);
+    setCancellationQuote(null);
+
+    if (trip.source !== 'trusted') {
+      dispatch({ type: 'begin', action: 'cancellation' });
+      return;
+    }
+
+    setQuoteLoading(true);
+    try {
+      const result = await paidCancellationGateway.quoteBooking(trip.id);
+      setCancellationQuote(result.quote);
+      dispatch({ type: 'begin', action: 'cancellation' });
+    } catch (error) {
+      setCancellationError(safeProviderError(
+        error,
+        'Cancellation terms could not be loaded. Your booking has not changed.',
+      ));
+    } finally {
+      setQuoteLoading(false);
+    }
+  }
+
   async function perform(action: RenterTripAction) {
-    if (session.pendingAction) return;
+    if (!trip || session.pendingAction) return;
     dispatch({ type: 'start', action });
     try {
+      if (action === 'cancellation' && trip.source === 'request') {
+        if (!trip.requestVersion) throw new Error('Refresh this request before cancelling.');
+        await requestGateway.cancelRequest(trip.id, trip.requestVersion);
+        await refreshRentalRequests();
+        dispatch({ type: 'finish', action });
+        router.replace('/(renter)/trips');
+        return;
+      }
+
+      if (action === 'cancellation' && trip.source === 'trusted') {
+        if (!cancellationQuote?.selfServiceAllowed || !cancellationQuote.bookingVersion) {
+          throw new Error('This booking needs concierge review before it can be cancelled.');
+        }
+        await paidCancellationGateway.cancelBooking(trip.id, cancellationQuote.bookingVersion);
+        await refreshRentalRequests();
+        dispatch({ type: 'finish', action });
+        router.replace('/(renter)/trips');
+        return;
+      }
+
       await actionGateway.perform(action, tripId);
       dispatch({ type: 'finish', action });
     } catch (error) {
@@ -145,11 +205,14 @@ export default function TripDetailScreen({
   const copy = tripStateCopy(trip.state);
   const presentation = tripDetailPresentation(trip);
   const timeline = renterTripTimeline(trip.state);
-  const busy = session.pendingAction !== null;
+  const busy = session.pendingAction !== null || quoteLoading;
   const requestFirstPayment = trip.source === 'request'
     && trip.state === 'ready_for_payment'
     && Boolean(trip.intentId)
     && Boolean(trip.holdExpiresAt);
+  const requestCancellation = trip.source === 'request';
+  const selfServicePaidCancellation = cancellationQuote?.selfServiceAllowed === true
+    && Boolean(cancellationQuote.bookingVersion);
   const syncPill = mode !== 'ready' ? (
     <View style={styles.syncPill}>
       <RadarPulseDot
@@ -262,6 +325,13 @@ export default function TripDetailScreen({
               </View>
             </View>
 
+            {cancellationError ? (
+              <View accessibilityLiveRegion="polite" style={styles.notice}>
+                <Ionicons color={colors.goldStrong} name="alert-circle-outline" size={19} />
+                <Text style={styles.noticeText}>{cancellationError}</Text>
+              </View>
+            ) : null}
+
             {session.notice ? (
               <View accessibilityLiveRegion="polite" style={styles.notice}>
                 <Ionicons color={colors.goldStrong} name="information-circle-outline" size={19} />
@@ -271,45 +341,77 @@ export default function TripDetailScreen({
 
             {session.confirmingCancellation ? (
               <View style={styles.confirmCard}>
-                <Text style={styles.confirmTitle}>Request cancellation?</Text>
-                <Text style={styles.confirmBody}>
-                  This asks the service to review the request. It does not promise a refund or change the journey until the server confirms it.
+                <Text style={styles.confirmTitle}>
+                  {requestCancellation ? 'Cancel this request?' : 'Cancel this paid booking?'}
                 </Text>
+                {requestCancellation ? (
+                  <Text style={styles.confirmBody}>
+                    No payment has been confirmed. If checkout has not started, MMG will cancel the request and release any active hold immediately. If Paystack is already processing, the hold stays protected until payment resolves and MMG will then finish the cancellation safely.
+                  </Text>
+                ) : cancellationQuote ? (
+                  <>
+                    <Text style={styles.confirmBody}>{cancellationQuote.consequenceText}</Text>
+                    <View style={styles.cancellationFacts}>
+                      <PriceRow label="Payment captured" value={formatNairaFromKobo(cancellationQuote.amountPaidKobo)} />
+                      <PriceRow label="Cancellation policy" value={cancellationQuote.cancellationPolicyVersion} />
+                      <PriceRow label="Refund amount" value="Pending manual review" />
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.confirmBody}>Cancellation terms are unavailable. Your booking has not changed.</Text>
+                )}
                 <View style={styles.confirmActions}>
                   <ActionButton
                     disabled={busy}
                     icon="arrow-back"
                     label="KEEP JOURNEY"
-                    onPress={() => dispatch({ type: 'dismiss-cancellation' })}
+                    onPress={() => {
+                      setCancellationQuote(null);
+                      setCancellationError(null);
+                      dispatch({ type: 'dismiss-cancellation' });
+                    }}
                     secondary
                   />
-                  <ActionButton
-                    disabled={busy}
-                    icon="close-circle-outline"
-                    label="SEND REQUEST"
-                    loading={session.pendingAction === 'cancellation'}
-                    onPress={() => void perform('cancellation')}
-                  />
+                  {(requestCancellation || selfServicePaidCancellation) ? (
+                    <ActionButton
+                      disabled={busy}
+                      icon="close-circle-outline"
+                      label={requestCancellation ? 'CANCEL REQUEST' : 'CONFIRM CANCELLATION'}
+                      loading={session.pendingAction === 'cancellation'}
+                      onPress={() => void perform('cancellation')}
+                    />
+                  ) : null}
                 </View>
+                {!requestCancellation && cancellationQuote && !cancellationQuote.selfServiceAllowed ? (
+                  <Text style={styles.confirmBody}>Contact MMG Concierge for manual review. No inventory or refund state has changed.</Text>
+                ) : null}
               </View>
             ) : null}
 
             {requestFirstPayment && trip.intentId && trip.holdExpiresAt ? (
-              <RenterPaymentCheckout
-                holdExpiresAt={trip.holdExpiresAt}
-                intentId={trip.intentId}
-                mode="request_first"
-                onReleaseDates={async () => {
-                  await requestGateway.releasePaymentHold(trip.id);
-                  await refreshRentalRequests();
-                  router.replace('/(renter)/trips');
-                }}
-                onRestartHold={() => { void refreshRentalRequests(); }}
-                onViewTrips={() => {
-                  void refreshRentalRequests();
-                  router.replace('/(renter)/trips');
-                }}
-              />
+              <>
+                <RenterPaymentCheckout
+                  holdExpiresAt={trip.holdExpiresAt}
+                  intentId={trip.intentId}
+                  mode="request_first"
+                  onRestartHold={() => { void refreshRentalRequests(); }}
+                  onViewTrips={() => {
+                    void refreshRentalRequests();
+                    router.replace('/(renter)/trips');
+                  }}
+                />
+                {!session.confirmingCancellation ? (
+                  <View style={styles.actions}>
+                    <ActionButton
+                      disabled={busy}
+                      icon="close-circle-outline"
+                      label={quoteLoading ? 'CHECKING…' : 'CANCEL REQUEST'}
+                      onPress={() => void beginCancellation()}
+                      secondary
+                    />
+                  </View>
+                ) : null}
+              </>
             ) : null}
 
             {!requestFirstPayment && !session.confirmingCancellation && presentation.primary ? (
@@ -317,10 +419,10 @@ export default function TripDetailScreen({
                 <ActionButton
                   disabled={busy}
                   icon={actionCopy[presentation.primary].icon}
-                  label={actionCopy[presentation.primary].label}
+                  label={presentation.primary === 'cancellation' && quoteLoading ? 'CHECKING…' : actionCopy[presentation.primary].label}
                   loading={session.pendingAction === presentation.primary}
                   onPress={() => presentation.primary === 'cancellation'
-                    ? dispatch({ type: 'begin', action: 'cancellation' })
+                    ? void beginCancellation()
                     : void perform(presentation.primary!)}
                 />
                 {presentation.secondary.map((action) => (
@@ -328,10 +430,10 @@ export default function TripDetailScreen({
                     key={action}
                     disabled={busy}
                     icon={actionCopy[action].icon}
-                    label={actionCopy[action].label}
+                    label={action === 'cancellation' && quoteLoading ? 'CHECKING…' : actionCopy[action].label}
                     loading={session.pendingAction === action}
                     onPress={() => action === 'cancellation'
-                      ? dispatch({ type: 'begin', action: 'cancellation' })
+                      ? void beginCancellation()
                       : void perform(action)}
                     secondary
                   />
@@ -422,6 +524,7 @@ const styles = StyleSheet.create({
   actionWrapper: { minHeight: 44 },
   actions: { gap: spacing.sm, marginTop: spacing.xl },
   body: { paddingBottom: 120, paddingHorizontal: spacing.lg },
+  cancellationFacts: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.md },
   centeredBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 21, marginTop: spacing.md, textAlign: 'center' },
   centeredContent: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl },
   centeredEyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.8, marginTop: spacing.lg },

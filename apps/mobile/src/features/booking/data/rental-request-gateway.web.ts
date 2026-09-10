@@ -1,3 +1,4 @@
+import type { CancelRentalRequestResult } from '@mmg/contracts/cancellation';
 import type {
   ApproveRentalRequestResult,
   CreateRentalRequestData,
@@ -52,6 +53,10 @@ export class WebRentalRequestGateway implements RentalRequestGateway {
     _reason?: string,
   ): Promise<DeclineRentalRequestResult> {
     this.unavailable('owner decline');
+  }
+
+  async cancelRequest(_requestId: string, _expectedVersion: number): Promise<CancelRentalRequestResult> {
+    this.unavailable('request cancellation');
   }
 
   async releasePaymentHold(_requestId: string): Promise<ReleaseRentalRequestPaymentHoldResult> {

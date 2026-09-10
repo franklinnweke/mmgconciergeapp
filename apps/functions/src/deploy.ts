@@ -20,6 +20,12 @@ export {
   listRenterRentalRequests,
   releaseRentalRequestPaymentHold,
 } from './booking/rental-request-callables.js';
+export {
+  cancelBooking,
+  cancelRentalRequest,
+  quoteBookingCancellation,
+} from './booking/renter-cancellation-callables.js';
 export { expireRentalRequestPaymentWindows } from './booking/rental-request-payment-window-scheduler.js';
+export { resolveRenterCancellations } from './booking/renter-cancellation-scheduler.js';
 export { startBookingCaseSourcing } from './booking/booking-case-callables.js';
 export { emitOwnerResponseSlaAlerts } from './booking/owner-response-sla-scheduler.js';

@@ -15,6 +15,8 @@ export const RENTAL_REQUEST_STATES = [
   'requested',
   'approved',
   'ready_for_payment',
+  'cancellation_requested',
+  'cancelled_by_renter',
   'declined',
   'payment_window_expired',
   'confirmed',
@@ -64,6 +66,8 @@ const clientProjectionShape = {
   intentId: boundedIdSchema.optional(),
   holdExpiresAt: isoDateTimeSchema.optional(),
   bookingId: boundedIdSchema.optional(),
+  cancellationRequestedAt: isoDateTimeSchema.optional(),
+  cancelledAt: isoDateTimeSchema.optional(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
 } as const;
@@ -73,6 +77,12 @@ function addProjectionRules(value: Record<string, unknown>, context: z.Refinemen
     if (!value.intentId || !value.holdExpiresAt || !value.authoritativePriceSnapshot) {
       context.addIssue({ code: 'custom', message: 'Ready-for-payment requests require intent, expiry and authoritative price.' });
     }
+  }
+  if (value.state === 'cancellation_requested' && !value.intentId) {
+    context.addIssue({ code: 'custom', message: 'In-flight cancellation requests require an intentId.' });
+  }
+  if (value.state === 'cancelled_by_renter' && !value.cancelledAt) {
+    context.addIssue({ code: 'custom', message: 'Cancelled requests require cancelledAt.' });
   }
   if (value.state === 'confirmed' && !value.bookingId) {
     context.addIssue({ code: 'custom', message: 'Confirmed requests require a bookingId.' });

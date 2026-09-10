@@ -9,17 +9,13 @@ import {
   type RenterVisibleBookingIntent,
   type RenterVehicleSnapshot,
 } from '@mmg/contracts';
+import type { RentalRequestState } from '@mmg/contracts/rental-request';
 
 export type RenterTripState =
   | BookingIntentState
   | PaidBookingState
-  | 'legacy_availability_requested'
-  | 'requested'
-  | 'approved'
-  | 'ready_for_payment'
-  | 'declined'
-  | 'payment_window_expired'
-  | 'needs_attention';
+  | RentalRequestState
+  | 'legacy_availability_requested';
 export type RenterTripGroup = 'active' | 'upcoming' | 'intervention' | 'past';
 export type RenterTripAction = 'payment' | 'support' | 'cancellation';
 export type RenterTripTimelineStatus = 'complete' | 'current' | 'upcoming';
@@ -46,6 +42,8 @@ export const allRenterTripStates = [
   'requested',
   'approved',
   'ready_for_payment',
+  'cancellation_requested',
+  'cancelled_by_renter',
   'declined',
   'payment_window_expired',
   'needs_attention',
@@ -93,6 +91,7 @@ const legacyState = {
 const terminalStates: readonly RenterTripState[] = [
   'completed',
   'cancelled',
+  'cancelled_by_renter',
   'refunded',
   'expired',
   'failed',
@@ -111,13 +110,15 @@ export function stateGroup(state: RenterTripState): RenterTripGroup {
 }
 
 export function permittedRenterActions(state: RenterTripState): readonly RenterTripAction[] {
-  if (state === 'ready_for_payment') return ['payment'];
+  if (state === 'requested' || state === 'approved') return ['cancellation'];
+  if (state === 'ready_for_payment') return ['payment', 'cancellation'];
   if (state === 'checkout_pending') return ['payment', 'support'];
   if (state === 'paid_pending_owner' || state === 'confirmed') return ['support', 'cancellation'];
   if (
     state === 'intervention_required' ||
     state === 'paid_conflict' ||
     state === 'needs_attention' ||
+    state === 'cancellation_requested' ||
     state === 'refund_pending' ||
     state === 'intent_created' ||
     state === 'legacy_availability_requested' ||
@@ -178,7 +179,7 @@ export function tripStateCopy(state: RenterTripState): {
     },
     paid_pending_owner: {
       label: 'AWAITING OWNER',
-      title: 'Paid—awaiting vehicle confirmation.',
+      title: 'Paid - awaiting vehicle confirmation.',
       body: 'The verified payment is held while the owner confirms the vehicle and chauffeur.',
     },
     confirmed: {
@@ -198,8 +199,8 @@ export function tripStateCopy(state: RenterTripState): {
     },
     refund_pending: {
       label: 'REFUND PENDING',
-      title: 'Your refund is being processed.',
-      body: 'The provider has not yet reported the refund as complete.',
+      title: 'Your cancellation is being reviewed.',
+      body: 'Payment was captured. MMG is reviewing the refund consequence under the policy saved with this booking.',
     },
     refunded: {
       label: 'REFUNDED',
@@ -223,18 +224,28 @@ export function tripStateCopy(state: RenterTripState): {
     },
     requested: {
       label: 'REQUEST RECEIVED',
-      title: 'Request received — MMG is confirming.',
-      body: 'No payment has been taken and the dates are not locked.',
+      title: 'Request received - MMG is confirming.',
+      body: 'No payment has been taken and the dates are not locked. You can cancel this request.',
     },
     approved: {
       label: 'APPROVED',
       title: 'Your request is approved.',
-      body: 'MMG will contact you before payment is opened. No payment window yet.',
+      body: 'MMG will contact you before payment is opened. No payment window yet, and you can still cancel.',
     },
     ready_for_payment: {
       label: 'READY FOR PAYMENT',
       title: 'Vehicle available for payment.',
-      body: 'Complete payment within 30 minutes. Returning from checkout does not confirm the booking.',
+      body: 'Complete payment within 30 minutes, or cancel the request before checkout begins.',
+    },
+    cancellation_requested: {
+      label: 'CANCELLATION REQUESTED',
+      title: 'Your cancellation request is recorded.',
+      body: 'Payment processing had already started, so MMG is preserving the dates until Paystack resolves. If payment succeeds, the booking will move to refund review.',
+    },
+    cancelled_by_renter: {
+      label: 'CANCELLED',
+      title: 'You cancelled this request.',
+      body: 'No payment is due. Any temporary date hold tied to this request has been released.',
     },
     declined: {
       label: 'DECLINED',
@@ -249,7 +260,7 @@ export function tripStateCopy(state: RenterTripState): {
     needs_attention: {
       label: 'NEEDS ATTENTION',
       title: 'MMG Concierge is resolving the booking.',
-      body: 'A payment was recorded but the dates could not be confirmed automatically.',
+      body: 'A payment was recorded but the booking could not be completed automatically.',
     },
   };
   return copy[state];
@@ -283,6 +294,15 @@ export function renterTripTimeline(state: RenterTripState): readonly RenterTripT
       item('request', 'Request approved', 'The vehicle can be reserved for these dates.', 'complete'),
       item('checkout', 'Complete payment', 'You have 30 minutes. Browser return is not confirmation.', 'current'),
     ];
+  }
+  if (state === 'cancellation_requested') {
+    return [
+      item('checkout', 'Payment resolving', 'MMG will not release the hold underneath an in-flight payment.', 'complete'),
+      item('resolution', 'Cancellation pending', 'The request will resolve after Paystack reaches a safe terminal outcome.', 'current'),
+    ];
+  }
+  if (state === 'cancelled_by_renter') {
+    return [item('resolution', 'Request cancelled', 'The request is closed and any safe temporary hold was released.', 'complete')];
   }
   if (state === 'declined') {
     return [item('resolution', 'Request declined', 'No payment was taken and the dates were not locked.', 'complete')];
@@ -357,10 +377,10 @@ export function renterTripTimeline(state: RenterTripState): readonly RenterTripT
       item('payment', 'Payment verified', 'A payment was recorded for this booking.', 'complete'),
       item(
         'resolution',
-        state === 'refunded' ? 'Refund complete' : 'Refund processing',
+        state === 'refunded' ? 'Refund complete' : 'Refund review pending',
         state === 'refunded'
           ? 'The provider reported the refund as complete.'
-          : 'Provider confirmation is still pending.',
+          : 'MMG is reviewing the amount due under the saved cancellation policy.',
         state === 'refunded' ? 'complete' : 'current',
       ),
     ];

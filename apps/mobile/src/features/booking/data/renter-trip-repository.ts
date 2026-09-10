@@ -169,13 +169,21 @@ export function mergeRequestFirstTrips(
   authoritative: readonly RenterTrip[],
   legacy: readonly RenterTrip[] = [],
 ): RenterTrip[] {
+  const authoritativeIds = new Set(authoritative.map((trip) => trip.id));
+  const visibleRequests = requests.filter((request) => {
+    if (!request.bookingId || !authoritativeIds.has(request.bookingId)) return true;
+    // While a payment-race cancellation is unresolved, keep the request-level
+    // cancellation state visible and hide the transient confirmed booking.
+    return request.state === 'cancellation_requested';
+  });
+
   const hiddenIds = new Set<string>();
-  for (const request of requests) {
+  for (const request of visibleRequests) {
     if (request.intentId) hiddenIds.add(request.intentId);
     if (request.bookingId) hiddenIds.add(request.bookingId);
   }
   const visibleAuthoritative = authoritative.filter((trip) => !hiddenIds.has(trip.id));
-  return mergeRenterTrips([...requests, ...visibleAuthoritative], legacy);
+  return mergeRenterTrips([...visibleRequests, ...visibleAuthoritative], legacy);
 }
 
 export function resolveVisibleRenterTrips(input: {

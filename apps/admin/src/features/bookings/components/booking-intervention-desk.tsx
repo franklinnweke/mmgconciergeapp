@@ -27,8 +27,10 @@ function formatTimestamp(value: string) {
   }).format(new Date(value));
 }
 
-function typeLabel(type: 'paid_conflict' | 'owner_rejection') {
-  return type === 'paid_conflict' ? 'Paid conflict' : 'Owner declined';
+function typeLabel(type: 'paid_conflict' | 'owner_rejection' | 'renter_cancellation') {
+  if (type === 'paid_conflict') return 'Paid conflict';
+  if (type === 'renter_cancellation') return 'Renter cancellation';
+  return 'Owner declined';
 }
 
 export function BookingInterventionDesk({
@@ -100,7 +102,7 @@ export function BookingInterventionDesk({
             </thead>
             <tbody>
               {cases.length === 0 ? (
-                <tr><td className="admin-empty" colSpan={4}>No intervention cases. Paid conflicts and owner-declined paid bookings will appear here.</td></tr>
+                <tr><td className="admin-empty" colSpan={4}>No intervention cases. Paid conflicts, owner-declined paid bookings and renter refund reviews will appear here.</td></tr>
               ) : cases.map((item) => (
                 <tr key={item.caseId}>
                   <td>
@@ -135,7 +137,7 @@ export function BookingInterventionDesk({
         <ShieldCheck size={17} />
         <span>
           <strong>Bounded concierge authority</strong>
-          Support and super-admin may approve or decline soft requests and open the 30-minute payment window. Refunds, payouts, reassignment and arbitrary paid-booking changes remain unavailable from this desk.
+          Support and super-admin may approve or decline soft requests and open the 30-minute payment window. Renter cancellations after payment appear here for manual refund-policy review. Refund execution, payouts, reassignment and arbitrary paid-booking changes remain unavailable from this desk.
         </span>
       </div>
     </AdminOperationsShell>
