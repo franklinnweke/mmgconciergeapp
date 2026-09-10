@@ -82,6 +82,19 @@ Typical mutation flow:
 
 Preserve the established idempotency, payment-verification, availability-sentinel, and state-machine boundaries documented in `AGENTS.md` and ADRs.
 
+## Request-first booking constraints
+
+Build 30 uses the request-first concierge model documented in `AGENTS.md` and ADR-0009. Do not revive the Build 29 hold-first sequence in new code.
+
+- Booking Review creates a soft rental request, not a hold.
+- Approval is still soft and does not lock inventory.
+- Only authorized MMG staff opens the 30-minute payment window.
+- Renter checkout requires verified email, not Firebase Phone Auth/SMS OTP.
+- Use the dedicated request-first Paystack initialization boundary.
+- Request-first trusted success confirms directly; historical pay-first compatibility remains separate.
+- Owner mobile must use the server-redacted owner request callable and must not query full `rentalRequests` directly.
+- `rentalRequestContacts` is concierge-only PII and must not cross mobile client boundaries.
+
 ## Security invariants
 
 - Firestore/Storage access is deny-by-default and server-authoritative for critical state.
@@ -104,9 +117,9 @@ Preserve the established idempotency, payment-verification, availability-sentine
 
 Do not maintain a duplicate live capability matrix here. The repository has evolved quickly and stale capability claims are dangerous.
 
-For current answers about Paystack, booking/availability, Trips, owner response, Admin intervention, OTP, Android validation, Build 29, or deployment status, read `AGENTS.md` and Issue #35 and verify the relevant code/CI/cloud evidence.
+For current answers about Paystack, booking/availability, Trips, owner response, Admin intervention, renter phone requirements, Android validation, Build 29/Build 30, or deployment status, read `AGENTS.md` and Issue #35 and verify the relevant code/CI/cloud evidence.
 
-Unimplemented or unverified paths must fail honestly. Never stub a success for payment, support, cancellation, OTP, deployment, or provider delivery merely to make a demo pass.
+Unimplemented or unverified paths must fail honestly. Never stub a success for payment, support, cancellation, deployment, or provider delivery merely to make a demo pass.
 
 ## Agent coordination
 
@@ -123,7 +136,7 @@ Important rules:
 
 ## Admin / Next.js
 
-The Admin uses Next.js App Router. Preserve existing staff authorization and server-side PII masking when changing presentation. Do not patch application code directly on the VPS; product changes belong in Git branches/PRs.
+The Admin uses Next.js App Router. Preserve existing staff authorization and server-side PII masking when changing presentation. The bounded `bookings.manage_requests` capability does not authorize refunds, payouts, reassignment, or arbitrary booking mutation. Do not patch application code directly on the VPS; product changes belong in Git branches/PRs.
 
 ## Documentation policy
 

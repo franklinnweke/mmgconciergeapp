@@ -4,6 +4,7 @@ export type RenterCheckoutState =
   | 'checking'
   | 'pending'
   | 'payment_received'
+  | 'booking_confirmed'
   | 'paid_conflict'
   | 'abandoned'
   | 'failed'
@@ -15,6 +16,7 @@ export function resolveRenterCheckoutState(
 ): RenterCheckoutState {
   const result = reconciliation.result;
 
+  if (result.valueDeliveryOutcome === 'confirmed') return 'booking_confirmed';
   if (result.valueDeliveryOutcome === 'paid_pending_owner') return 'payment_received';
   if (result.valueDeliveryOutcome === 'paid_conflict') return 'paid_conflict';
 
@@ -52,6 +54,7 @@ export function resolveRenterCheckoutState(
 
 export function checkoutStateIsResolved(state: RenterCheckoutState): boolean {
   return state === 'payment_received' ||
+    state === 'booking_confirmed' ||
     state === 'paid_conflict' ||
     state === 'abandoned' ||
     state === 'failed';

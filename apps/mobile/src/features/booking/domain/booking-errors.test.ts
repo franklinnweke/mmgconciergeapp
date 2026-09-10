@@ -5,7 +5,7 @@ describe('bookingCommandErrorMessage', () => {
   it('maps unsafe internal exceptions to safe copy', () => {
     const message = bookingCommandErrorMessage(new Error('Internal Firestore trace /secret'));
     expect(message).not.toContain('Firestore');
-    expect(message).toContain('No charge was attempted');
+    expect(message).toMatch(/no charge was attempted/i);
   });
   it('maps overlap and network failures', () => {
     expect(bookingCommandErrorMessage({ details: { code: 'VEHICLE_UNAVAILABLE', reason: 'dates_overlap' } })).toContain('Choose different dates');

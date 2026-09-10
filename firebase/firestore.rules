@@ -111,11 +111,26 @@ service cloud.firestore {
 
     match /bookingIntents/{intentId} {
       allow read: if isRenterRecord();
+      allow write: if false;
     }
 
     match /bookings/{bookingId} {
       allow read: if isRenterRecord() ||
         (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Raw rental request records contain server operational identifiers and
+    // lifecycle metadata. Every mobile role consumes a strict callable
+    // projection instead of reading this collection directly.
+    match /rentalRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    // Contact data is concierge-only PII. Mobile clients, including the renter
+    // and owner tied to the request, never receive direct Firestore access.
+    match /rentalRequestContacts/{requestId} {
+      allow read, write: if false;
     }
 
     // Trusted owner/moderation records. Renter list/search/detail is served only

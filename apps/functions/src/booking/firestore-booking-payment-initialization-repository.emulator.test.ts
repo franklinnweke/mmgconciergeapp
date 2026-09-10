@@ -12,7 +12,6 @@ const describeWithEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : de
 const actor: CheckoutRenter = {
   uid: 'renter-one',
   email: 'renter@example.com',
-  phoneNumber: '+2348012345678',
 };
 
 const priceSnapshot = {
@@ -111,7 +110,7 @@ describeWithEmulator('Firestore booking-payment initialization transaction', () 
       renterId: actor.uid,
       fullName: 'Test Renter',
       email: actor.email,
-      phone: actor.phoneNumber,
+      phone: '+2348012345678',
       defaultDeliveryAddress: {
         streetAddress: '1 Test Street',
         areaLabel: 'Victoria Island',
@@ -217,14 +216,14 @@ describeWithEmulator('Firestore booking-payment initialization transaction', () 
     expect((await database.collection('payments').get()).empty).toBe(true);
   });
 
-  it('fails before Paystack when Firebase phone evidence does not match the renter profile', async () => {
+  it('fails before Paystack when renter profile email does not match the authenticated renter', async () => {
     const paymentGateway = gateway();
 
-    await expect(initializeBookingPayment(command(), { ...actor, phoneNumber: '+2348099999999' }, {
+    await expect(initializeBookingPayment(command(), { ...actor, email: 'different@example.com' }, {
       repository,
       paymentGateway,
       now: () => new Date('2026-09-01T12:01:00.000Z'),
-      createRequestId: () => 'request-phone',
+      createRequestId: () => 'request-email-mismatch',
     })).rejects.toMatchObject<Partial<BookingCommandError>>({ code: 'PROFILE_INCOMPLETE' });
 
     expect(paymentGateway.initializePayment).not.toHaveBeenCalled();

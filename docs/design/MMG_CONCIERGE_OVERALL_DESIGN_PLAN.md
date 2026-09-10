@@ -262,7 +262,8 @@ Use these as a system, not on every screen. Once Prado leadership is established
 |---|---|---|
 | Preview quote | “Estimated quote” | “Final amount” |
 | Payment unavailable | “Payment is not available in this build.” | “Pay now” |
-| Verified payment, awaiting owner | “Payment received — confirming your ride.” | “Ride confirmed” |
+| Historical pay-first verified payment, awaiting owner | “Payment received — confirming your ride.” | “Ride confirmed” |
+| Request-first verified payment | “Payment verified — booking secured.” | “Payment received — confirming your ride” |
 | Owner response pending | “Confirming vehicle and chauffeur.” | “Chauffeur assigned” |
 | Intervention | “Concierge is resolving this.” | “Cancelled” unless cancellation is final |
 | Fixture data | “Preview fleet” in QA/dev context | “Available now” without live inventory |

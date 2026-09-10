@@ -118,6 +118,7 @@ describe('admin staff session management', () => {
 describe('staff capability model', () => {
   const ALL_CAPABILITIES: StaffCapability[] = [
     'bookings.read',
+    'bookings.manage_requests',
     'owners.read',
     'owners.review',
     'vehicles.read',
@@ -144,9 +145,13 @@ describe('staff capability model', () => {
     expect(capabilitiesForRoles(['vehicle_admin']).sort()).toEqual(['vehicles.read', 'vehicles.review']);
   });
 
-  it('grants support read-only booking visibility without owner or vehicle privileges', () => {
-    expect(capabilitiesForRoles(['support'])).toEqual(['bookings.read']);
+  it('grants support only booking visibility and bounded rental-request management', () => {
+    expect(capabilitiesForRoles(['support']).sort()).toEqual([
+      'bookings.manage_requests',
+      'bookings.read',
+    ]);
     expect(staffSessionHasCapability({ roles: ['support'] }, 'bookings.read')).toBe(true);
+    expect(staffSessionHasCapability({ roles: ['support'] }, 'bookings.manage_requests')).toBe(true);
     expect(staffSessionHasCapability({ roles: ['support'] }, 'owners.read')).toBe(false);
     expect(staffSessionHasCapability({ roles: ['support'] }, 'vehicles.read')).toBe(false);
   });
@@ -171,6 +176,7 @@ describe('staff capability model', () => {
     expect(staffActorRole(dual, ['super_admin', 'verification_admin'] as const)).toBe('verification_admin');
     expect(staffActorRole(dual, ['super_admin', 'vehicle_admin'] as const)).toBe('vehicle_admin');
     expect(staffActorRole({ roles: ['support'] }, ['super_admin', 'vehicle_admin'] as const)).toBeNull();
+    expect(staffActorRole({ roles: ['support'] }, ['support', 'super_admin'] as const)).toBe('support');
   });
 
   it('prefers super_admin as the recorded actor when it is held', () => {

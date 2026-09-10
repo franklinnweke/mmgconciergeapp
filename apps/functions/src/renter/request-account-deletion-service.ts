@@ -33,7 +33,6 @@ export async function requestAccountDeletionService(
   const nowIso = now.toISOString();
 
   return repository.runTransaction(async (tx) => {
-    // 1. Idempotency check
     const existingIdempotency = await tx.getIdempotency(idempotencyDocId);
     if (existingIdempotency) {
       if (existingIdempotency.requestHash !== requestHash) {
@@ -42,7 +41,6 @@ export async function requestAccountDeletionService(
       return existingIdempotency.result as RequestAccountDeletionResult;
     }
 
-    // 2. Fetch existing profile
     const existing = await tx.getRenterProfile(actor.uid);
     if (!existing) {
       throw new CommandError('NOT_FOUND', 'Renter profile not found.');
@@ -52,11 +50,20 @@ export async function requestAccountDeletionService(
       throw new CommandError('FAILED_PRECONDITION', `Account in ${existing.accountStatus} status cannot request deletion.`);
     }
 
-    // 3. Active booking hold check
     const hasBookings = await tx.hasActiveBookings(actor.uid);
     if (hasBookings) {
       throw new CommandError('FAILED_PRECONDITION', 'Cannot delete account with active or in-progress rentals.');
     }
+
+    const hasRequests = await tx.hasActiveRentalRequests(actor.uid);
+    if (hasRequests) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Cannot delete account while a concierge rental request is still active.',
+      );
+    }
+
+    const deletedRequestContacts = await tx.deleteRentalRequestContacts(actor.uid);
 
     const updatedProfile = {
       ...existing,
@@ -80,6 +87,7 @@ export async function requestAccountDeletionService(
       occurredAt: now,
       details: {
         reason: data.reason ?? null,
+        deletedRentalRequestContactCount: deletedRequestContacts,
       },
     });
 

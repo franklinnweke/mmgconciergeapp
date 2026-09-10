@@ -1,59 +1,66 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import { type CreateBookingIntentResult, type VehicleSummary } from '@mmg/contracts';
+import { LAGOS_AREA_LABELS, type LagosAreaLabel, type VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
+import { normalizeNigerianPhone } from '@/core/auth/phone-verification-domain';
+import { useAuth } from '@/core/auth/auth-context';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
+import { useRenterProfile } from '@/features/account/hooks/use-renter-profile';
 import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
-import {
-  formatLagosDateOnly,
-} from '@/features/discovery/data/lagos-destinations';
+import { formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import { resolveRentalJourney } from '@/features/discovery/data/rental-journey';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
-import { RenterCheckoutReadiness } from '../components/renter-checkout-readiness';
 import {
-  BookingIntentSubmissionKey,
-  createBookingIntentGateway,
-  type BookingIntentGateway,
-} from '../data/booking-intent-gateway';
+  createRentalRequestGateway,
+  RentalRequestSubmissionKey,
+  type RentalRequestGateway,
+} from '../data/rental-request-gateway';
 import { bookingCommandErrorMessage } from '../domain/booking-errors';
+import { resolveServiceAreaLabel } from '../domain/renter-rental-request';
 
 type BookingReviewScreenProps = {
-  bookingIntentGateway?: BookingIntentGateway;
   endDate?: string;
+  rentalRequestGateway?: RentalRequestGateway;
   startDate?: string;
   vehicleId: string;
 };
 
 export default function BookingReviewScreen({
-  bookingIntentGateway,
   endDate,
+  rentalRequestGateway,
   startDate,
   vehicleId,
 }: BookingReviewScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const auth = useAuth();
+  const { profile, saveProfile } = useRenterProfile();
   const gateway = useMemo(() => createDiscoveryGateway(), []);
-  const intentGateway = useMemo(
-    () => bookingIntentGateway ?? createBookingIntentGateway(),
-    [bookingIntentGateway],
+  const requestGateway = useMemo(
+    () => rentalRequestGateway ?? createRentalRequestGateway(),
+    [rentalRequestGateway],
   );
-  const submissionKey = useRef(new BookingIntentSubmissionKey());
+  const submissionKey = useRef(new RentalRequestSubmissionKey());
   const journey = useMemo(() => resolveRentalJourney(startDate, endDate), [endDate, startDate]);
 
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [intentResult, setIntentResult] = useState<CreateBookingIntentResult | null>(null);
+  const [phoneDraft, setPhoneDraft] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [streetDraft, setStreetDraft] = useState<string | null>(null);
+  const [serviceArea, setServiceArea] = useState<LagosAreaLabel>('Victoria Island');
+  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -72,6 +79,8 @@ export default function BookingReviewScreen({
         setVehicle(nextVehicle);
         setLoading(false);
         setFetchError(null);
+        const fromVehicle = resolveServiceAreaLabel(nextVehicle?.areaLabel);
+        if (fromVehicle) setServiceArea(fromVehicle);
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -82,21 +91,25 @@ export default function BookingReviewScreen({
     return () => { active = false; };
   }, [gateway, reloadKey, vehicleId]);
 
+  const phoneInput = phoneDraft ?? profile?.phone ?? '';
+  const fullName = nameDraft ?? profile?.fullName ?? '';
+  const streetAddress = streetDraft ?? profile?.defaultDeliveryAddress?.streetAddress ?? '';
+
   const quote = useMemo(
     () => vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, journey.durationDays) : null,
     [journey.durationDays, vehicle],
   );
-  const authoritativePrice = intentResult?.result.priceSnapshot ?? null;
+  const needsProfile = !profile || profile.accountStatus !== 'active';
 
   if (loading) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.headerInset}>
-          <ScreenHeader onBack={() => router.back()} title="Review booking" />
+          <ScreenHeader onBack={() => router.back()} title="Request this car" />
         </View>
         <View style={styles.stateCenter}>
           <ActivityIndicator color={colors.goldStrong} size="large" />
-          <Text style={styles.stateText}>Loading booking details…</Text>
+          <Text style={styles.stateText}>Loading request details…</Text>
         </View>
       </View>
     );
@@ -105,7 +118,7 @@ export default function BookingReviewScreen({
   if (fetchError || !vehicle || !quote) {
     return (
       <View style={[styles.stateScreen, { paddingTop: insets.top + spacing.sm }]}>
-        <ScreenHeader onBack={() => router.back()} title="Review booking" />
+        <ScreenHeader onBack={() => router.back()} title="Request this car" />
         <View style={styles.stateCenter}>
           <Ionicons color={fetchError ? colors.danger : colors.muted} name={fetchError ? 'cloud-offline-outline' : 'car-outline'} size={34} />
           <Text style={styles.stateTitle}>{fetchError ? 'Could not load quote' : 'Vehicle unavailable'}</Text>
@@ -126,9 +139,11 @@ export default function BookingReviewScreen({
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader onBack={() => router.back()} title="Review booking" />
+        <ScreenHeader onBack={() => router.back()} title="Request this car" />
 
-        <Text style={styles.introText}>Check the car, dates and total before MMG creates a 15-minute hold. No payment is taken at this step.</Text>
+        <Text style={styles.introText}>
+          Send a request to MMG. This does not lock dates or take payment. MMG will confirm the car, then contact you before opening a 30-minute payment window.
+        </Text>
 
         <View style={styles.vehicleRow}>
           <Image
@@ -154,26 +169,93 @@ export default function BookingReviewScreen({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{authoritativePrice ? 'Held quote' : 'Estimated total'}</Text>
+          <Text style={styles.sectionTitle}>Estimated total</Text>
           <QuoteRow
-            label={`${formatNairaFromKobo(authoritativePrice?.ownerDailyRateKobo ?? vehicle.dailyRateKobo)} × ${authoritativePrice?.chargedDays ?? journey.durationDays} ${((authoritativePrice?.chargedDays ?? journey.durationDays) === 1) ? 'day' : 'days'}`}
-            value={formatNairaFromKobo(authoritativePrice?.baseRentalKobo ?? quote.rentalKobo)}
+            label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${journey.durationDays} ${journey.durationDays === 1 ? 'day' : 'days'}`}
+            value={formatNairaFromKobo(quote.rentalKobo)}
           />
-          <QuoteRow
-            label="Service and protection"
-            value={formatNairaFromKobo(authoritativePrice?.serviceFeeKobo ?? quote.serviceFeeKobo)}
-          />
+          <QuoteRow label="Service and protection" value={formatNairaFromKobo(quote.serviceFeeKobo)} />
           <QuoteRow label="Chauffeur and Lagos delivery" value="Included" />
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>{authoritativePrice ? 'Held total' : 'Total'}</Text>
-            <Text style={styles.totalValue}>{formatNairaFromKobo(authoritativePrice?.renterTotalKobo ?? quote.totalKobo)}</Text>
+            <Text style={styles.totalLabel}>Estimated total</Text>
+            <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
           </View>
           <Text style={styles.noteText}>
-            {authoritativePrice
-              ? 'This server-authoritative amount is held with your dates until the hold expires.'
-              : 'MMG recalculates this amount on the server before creating the hold.'}
+            This is a client-preview estimate. MMG recalculates the authoritative amount only when the payment window is opened.
           </Text>
         </View>
+
+        {submittedRequestId ? (
+          <View accessibilityLiveRegion="polite" style={styles.holdSummary}>
+            <Ionicons color={colors.success} name="checkmark-circle" size={20} />
+            <View style={styles.holdCopy}>
+              <Text style={styles.holdTitle}>Request received — MMG is confirming</Text>
+              <Text style={styles.holdText}>
+                No payment was taken and the dates are not locked. Track this request in Trips.
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Contact phone</Text>
+              <TextInput
+                accessibilityLabel="Nigerian mobile number"
+                autoComplete="tel"
+                keyboardType="phone-pad"
+                onChangeText={setPhoneDraft}
+                placeholder="0801 234 5678"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                value={phoneInput}
+              />
+              <Text style={styles.noteText}>Used by MMG to call you before payment. This is not an SMS login step.</Text>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Lagos service area</Text>
+              <View style={styles.areaWrap}>
+                {LAGOS_AREA_LABELS.map((area) => {
+                  const selected = area === serviceArea;
+                  return (
+                    <PressableScale
+                      key={area}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => setServiceArea(area)}
+                    >
+                      <View style={[styles.areaChip, selected && styles.areaChipSelected]}>
+                        <Text style={[styles.areaChipText, selected && styles.areaChipTextSelected]}>{area}</Text>
+                      </View>
+                    </PressableScale>
+                  );
+                })}
+              </View>
+            </View>
+
+            {needsProfile ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Renter details</Text>
+                <TextInput
+                  accessibilityLabel="Full name"
+                  onChangeText={setNameDraft}
+                  placeholder="Full name"
+                  placeholderTextColor={colors.muted}
+                  style={styles.input}
+                  value={fullName}
+                />
+                <TextInput
+                  accessibilityLabel="Lagos delivery address"
+                  onChangeText={setStreetDraft}
+                  placeholder="Street address"
+                  placeholderTextColor={colors.muted}
+                  style={styles.input}
+                  value={streetAddress}
+                />
+              </View>
+            ) : null}
+          </>
+        )}
 
         {errorMessage ? (
           <View accessibilityLiveRegion="polite" style={styles.errorRow}>
@@ -182,53 +264,61 @@ export default function BookingReviewScreen({
           </View>
         ) : null}
 
-        {intentResult ? (
-          <>
-            <View accessibilityLiveRegion="polite" style={styles.holdSummary}>
-              <Ionicons color={colors.success} name="checkmark-circle" size={20} />
-              <View style={styles.holdCopy}>
-                <Text style={styles.holdTitle}>Dates held for 15 minutes</Text>
-                <Text style={styles.holdText}>
-                  Hold expires at {new Date(intentResult.result.expiresAt).toLocaleTimeString('en-NG', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    timeZone: 'Africa/Lagos',
-                  })} Lagos time. Payment still needs to be completed and verified.
-                </Text>
-              </View>
+        {submittedRequestId ? (
+          <PressableScale accessibilityRole="button" onPress={() => router.replace('/trips')}>
+            <View style={styles.ctaButton}>
+              <Text style={styles.ctaText}>View trips</Text>
             </View>
-            <RenterCheckoutReadiness
-              holdExpiresAt={intentResult.result.expiresAt}
-              intentId={intentResult.result.intentId}
-              onRestartHold={() => {
-                setIntentResult(null);
-                setErrorMessage(null);
-              }}
-              onViewTrips={() => router.replace('/trips')}
-            />
-          </>
+          </PressableScale>
         ) : (
           <PressableScale
             disabled={submitting}
             haptic
             onPress={async () => {
+              const contactPhone = normalizeNigerianPhone(phoneInput);
+              if (!contactPhone) {
+                setErrorMessage('Enter a valid Nigerian mobile number.');
+                return;
+              }
+              if (needsProfile && fullName.trim().length < 2) {
+                setErrorMessage('Add your name to continue.');
+                return;
+              }
+              if (needsProfile && streetAddress.trim().length < 5) {
+                setErrorMessage('Add your Lagos delivery address to continue.');
+                return;
+              }
+
               setSubmitting(true);
               setErrorMessage(null);
               try {
-                const intentData = {
-                  endDate: journey.endDate,
-                  startDate: journey.startDate,
+                if (needsProfile) {
+                  await saveProfile({
+                    fullName: fullName.trim() || auth.user?.displayName || 'MMG renter',
+                    phone: contactPhone,
+                    defaultDeliveryAddress: {
+                      areaLabel: serviceArea,
+                      streetAddress: streetAddress.trim(),
+                    },
+                    acceptedRenterTermsVersion: '2026-03-01',
+                    acceptedPrivacyNoticeVersion: '2026-03-01',
+                  });
+                }
+                const data = {
                   vehicleId: vehicle.id,
+                  startDate: journey.startDate,
+                  endDate: journey.endDate,
+                  contactPhone,
+                  serviceAreaLabel: serviceArea,
                 };
-                const result = await intentGateway.createIntent(
-                  intentData,
-                  submissionKey.current.forData(intentData),
+                const result = await requestGateway.createRequest(
+                  data,
+                  submissionKey.current.forData(data),
                 );
                 submissionKey.current.markSucceeded();
-                setIntentResult(result);
+                setSubmittedRequestId(result.result.requestId);
               } catch (error: unknown) {
-                const reason = bookingCommandErrorMessage(error);
-                setErrorMessage(`${reason} No hold was created and no charge was attempted.`);
+                setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
               } finally {
                 setSubmitting(false);
               }
@@ -236,7 +326,7 @@ export default function BookingReviewScreen({
           >
             <View style={[styles.ctaButton, submitting && styles.disabled]}>
               {submitting ? <ActivityIndicator color={colors.black} size="small" /> : null}
-              <Text style={styles.ctaText}>{submitting ? 'Creating hold…' : 'Create 15-minute hold'}</Text>
+              <Text style={styles.ctaText}>{submitting ? 'Sending request…' : 'Send request'}</Text>
             </View>
           </PressableScale>
         )}
@@ -264,6 +354,11 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  areaChip: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  areaChipSelected: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
+  areaChipText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 12 },
+  areaChipTextSelected: { color: colors.black },
+  areaWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
   ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
   ctaText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
@@ -275,6 +370,7 @@ const styles = StyleSheet.create({
   holdSummary: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md },
   holdText: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 3 },
   holdTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  input: { borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 15, minHeight: 48, paddingHorizontal: spacing.md },
   introText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
   journeyRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
   noteText: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.sm },

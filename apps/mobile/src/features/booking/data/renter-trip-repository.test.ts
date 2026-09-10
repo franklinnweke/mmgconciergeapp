@@ -5,6 +5,7 @@ import {
   createUnsubscribeBundle,
   decodeTrustedTripDocuments,
   mergeRenterTrips,
+  mergeRequestFirstTrips,
   normalizeFirestoreTimestamp,
   parseTrustedBooking,
   parseTrustedBookingIntent,
@@ -94,6 +95,8 @@ const validBooking = {
 describe('renter trip repository', () => {
   it('uses renter-scoped equality queries and client-side updatedAt ordering', () => {
     expect(renterTripReadQuery.collections).toEqual(['bookingIntents', 'bookings']);
+    expect(renterTripReadQuery.collections).not.toContain('rentalRequests');
+    expect(renterTripReadQuery.collections).not.toContain('rentalRequestContacts');
     expect(renterTripReadQuery.equalityFilter).toEqual({ field: 'renterId', operator: '==' });
     expect(renterTripReadQuery.serverOrderBy).toBeNull();
     expect(renterTripReadQuery.clientSort).toEqual({ field: 'updatedAt', direction: 'desc' });
@@ -167,6 +170,26 @@ describe('renter trip repository', () => {
       [trip({ id: 'legacy-two', source: 'legacy', vehicleId: 'vehicle-three', startDate: '2026-11-01', endDate: '2026-11-03', updatedAt: '2026-08-13T14:00:00.000Z' })],
     );
     expect(merged.map((item) => item.id)).toEqual(['legacy-two', 'intent-two']);
+  });
+
+  it('hides the matching intent and booking rows once a rental request is present', () => {
+    const merged = mergeRequestFirstTrips(
+      [
+        trip({
+          id: 'request-one',
+          source: 'request',
+          state: 'ready_for_payment',
+          intentId: 'intent-one',
+          bookingId: 'booking-one',
+          updatedAt: '2026-08-13T13:30:00.000Z',
+        }),
+      ],
+      [
+        trip({ id: 'intent-one', state: 'intent_created', updatedAt: '2026-08-13T13:00:00.000Z' }),
+        trip({ id: 'booking-one', state: 'confirmed', supersedesId: 'intent-one', updatedAt: '2026-08-13T13:40:00.000Z' }),
+      ],
+    );
+    expect(merged.map((item) => item.id)).toEqual(['request-one']);
   });
 
   it('uses preview trips only when no authoritative or leftover legacy records exist', () => {
