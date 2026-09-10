@@ -72,7 +72,14 @@ class FirestoreRenterTransaction implements RenterTransaction {
     const bookingsRef = this.firestore.collection('bookings');
     const q = bookingsRef
       .where('renterId', '==', renterId)
-      .where('state', 'in', ['paid_pending_owner', 'confirmed', 'in_progress', 'completion_pending']);
+      .where('state', 'in', [
+        'paid_pending_owner',
+        'confirmed',
+        'intervention_required',
+        'refund_pending',
+        'in_progress',
+        'completion_pending',
+      ]);
     const snap = await this.transaction.get(q);
     return !snap.empty;
   }
