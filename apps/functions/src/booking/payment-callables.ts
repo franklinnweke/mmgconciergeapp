@@ -1,5 +1,4 @@
 import { logger } from 'firebase-functions';
-import { defineSecret } from 'firebase-functions/params';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 
@@ -11,6 +10,7 @@ import { FirestorePaymentVerificationRepository } from './firestore-payment-veri
 import { FirestoreVerifiedPaymentValueRepository } from './firestore-verified-payment-value-repository.js';
 import { initializeBookingPayment as initializeBookingPaymentService } from './initialize-booking-payment-service.js';
 import { PaystackPaymentAdapter } from './paystack-payment-adapter.js';
+import { paystackSecret } from './paystack-secret.js';
 import {
   ingestPaystackWebhook,
   MAX_PAYSTACK_WEBHOOK_BYTES,
@@ -19,8 +19,6 @@ import {
   processAndDeliverPaymentEvent as processAndDeliverPaymentEventService,
   reconcileAndDeliverPayment as reconcileAndDeliverPaymentService,
 } from './payment-value-orchestration-service.js';
-
-const paystackSecret = defineSecret('PAYSTACK_SECRET_KEY');
 
 const httpsCodeByDomainCode = {
   UNAUTHENTICATED: 'unauthenticated',

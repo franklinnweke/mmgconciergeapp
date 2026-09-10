@@ -82,8 +82,8 @@ describe('PaystackPaymentAdapter.initializePayment', () => {
   });
 
   it('rejects missing or unrecognized server secret configuration', async () => {
+    process.env.PAYSTACK_SECRET_KEY = 'sk_test_ambient_secret_must_be_ignored';
     const noSecret = new PaystackPaymentAdapter({
-      secretKey: '',
       fetchFn: vi.fn() as unknown as typeof fetch,
     });
     const badSecret = new PaystackPaymentAdapter({
@@ -105,6 +105,7 @@ describe('PaystackPaymentAdapter.initializePayment', () => {
     await expect(badSecret.initializePayment(input)).rejects.toMatchObject({
       code: 'CONFIGURATION_UNAVAILABLE',
     });
+    delete process.env.PAYSTACK_SECRET_KEY;
   });
 
   it('rejects a live key before any network request when the runtime requires test mode', async () => {

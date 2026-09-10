@@ -1,5 +1,4 @@
 import { logger } from 'firebase-functions';
-import { defineSecret } from 'firebase-functions/params';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { initializeBookingPaymentCommandSchema } from '@mmg/contracts/payment';
 import {
@@ -16,6 +15,7 @@ import { FirestoreRentalRequestRepository } from './firestore-rental-request-rep
 import { initializeBookingPayment as initializeBookingPaymentService } from './initialize-booking-payment-service.js';
 import { FirestoreOwnerRentalRequestQuery } from './owner-rental-request-query.js';
 import { PaystackPaymentAdapter } from './paystack-payment-adapter.js';
+import { paystackSecret } from './paystack-secret.js';
 import { FirestoreRenterRentalRequestQuery } from './renter-rental-request-query.js';
 import { FirestoreRequestFirstPaymentProtection } from './request-first-payment-protection.js';
 import {
@@ -26,7 +26,6 @@ import {
   type RentalRequestDecisionActor,
 } from './rental-request-service.js';
 
-const paystackSecret = defineSecret('PAYSTACK_SECRET_KEY');
 const runtime = { region: 'africa-south1', invoker: 'public' as const, timeoutSeconds: 30, memory: '256MiB' as const };
 const httpsCode = {
   UNAUTHENTICATED: 'unauthenticated', FORBIDDEN: 'permission-denied', INVALID_ARGUMENT: 'invalid-argument', NOT_FOUND: 'not-found',
