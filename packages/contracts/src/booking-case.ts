@@ -7,7 +7,7 @@ import {
   schemaVersionSchema,
 } from '@mmg/contracts';
 
-export const bookingCaseTypeSchema = z.enum(['owner_rejection', 'paid_conflict']);
+export const bookingCaseTypeSchema = z.enum(['owner_rejection', 'paid_conflict', 'renter_cancellation']);
 export type BookingCaseType = z.infer<typeof bookingCaseTypeSchema>;
 
 export const bookingCaseStatusSchema = z.enum([
