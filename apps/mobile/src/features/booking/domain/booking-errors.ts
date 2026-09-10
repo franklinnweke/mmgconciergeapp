@@ -12,6 +12,9 @@ export function bookingCommandErrorMessage(error: unknown): string {
   if (code.includes('network') || code === 'unavailable') {
     return 'The booking service is unavailable. Check your connection and try again.';
   }
-  if (code === 'INVALID_ARGUMENT') return 'Check your dates and try again.';
-  return 'The booking service could not create a hold. No charge was attempted.';
+  if (code === 'INVALID_ARGUMENT') return 'Check your dates, phone number and Lagos area, then try again.';
+  if (code === 'PROFILE_INCOMPLETE') {
+    return 'Add your renter profile details before continuing. No payment was taken.';
+  }
+  return 'The request could not be sent. No dates were locked and no charge was attempted.';
 }

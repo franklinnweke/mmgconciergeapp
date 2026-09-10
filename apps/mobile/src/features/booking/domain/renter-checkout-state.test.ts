@@ -29,6 +29,15 @@ describe('resolveRenterCheckoutState', () => {
     }))).toBe('payment_received');
   });
 
+  it('shows request-first trusted delivery as a confirmed booking', () => {
+    expect(resolveRenterCheckoutState(reconciliation({
+      paymentState: 'succeeded',
+      providerStatus: 'success',
+      verification: 'verified_success',
+      valueDeliveryOutcome: 'confirmed',
+    }))).toBe('booking_confirmed');
+  });
+
   it('shows trusted late-payment collision as paid conflict', () => {
     expect(resolveRenterCheckoutState(reconciliation({
       paymentState: 'succeeded',
@@ -88,6 +97,7 @@ describe('checkoutStateIsResolved', () => {
 
   it('treats provider terminal and trusted value states as resolved', () => {
     expect(checkoutStateIsResolved('payment_received')).toBe(true);
+    expect(checkoutStateIsResolved('booking_confirmed')).toBe(true);
     expect(checkoutStateIsResolved('paid_conflict')).toBe(true);
     expect(checkoutStateIsResolved('abandoned')).toBe(true);
     expect(checkoutStateIsResolved('failed')).toBe(true);

@@ -197,7 +197,9 @@ The renter sees rental, service fee, included delivery, and total. The renter do
 
 No client may submit a trusted price, fee, total, commission, or earning. It may submit only IDs, dates, and a displayed quote identifier. The server recalculates before payment initialization.
 
-### 3.9 Payment-first booking
+### 3.9 Historical payment-first booking compatibility
+
+This section documents the historical pay-first flow retained only for compatibility with existing records. The current Build 30 request-first source of truth is `AGENTS.md`: approved requests are paid only after an authorized MMG staff member opens a payment window, and verified request-first payment secures a confirmed booking directly.
 
 1. The renter chooses a vehicle, dates, and delivery address.
 2. The server revalidates the vehicle, dates, profile, configuration, and price.
@@ -210,7 +212,7 @@ No client may submit a trusted price, fee, total, commission, or earning. It may
 9. The owner confirms or rejects with a required reason.
 10. Confirmation moves the booking to `confirmed`. Rejection releases the vehicle's date block and opens an admin intervention case.
 
-The renter-facing language after payment is **“Payment received — confirming your ride”**, not “Your ride is confirmed,” until the owner or admin confirms.
+For these historical pay-first records only, the renter-facing language after payment is **“Payment received — confirming your ride”**, not “Your ride is confirmed,” until the owner or admin confirms.
 
 An owner rejection never silently cancels a paid booking. Admin chooses one of these recorded outcomes:
 

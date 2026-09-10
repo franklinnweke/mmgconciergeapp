@@ -164,13 +164,28 @@ export function decodeTrustedTripDocuments(
   };
 }
 
+export function mergeRequestFirstTrips(
+  requests: readonly RenterTrip[],
+  authoritative: readonly RenterTrip[],
+  legacy: readonly RenterTrip[] = [],
+): RenterTrip[] {
+  const hiddenIds = new Set<string>();
+  for (const request of requests) {
+    if (request.intentId) hiddenIds.add(request.intentId);
+    if (request.bookingId) hiddenIds.add(request.bookingId);
+  }
+  const visibleAuthoritative = authoritative.filter((trip) => !hiddenIds.has(trip.id));
+  return mergeRenterTrips([...requests, ...visibleAuthoritative], legacy);
+}
+
 export function resolveVisibleRenterTrips(input: {
   authoritative: readonly RenterTrip[];
   legacy: readonly RenterTrip[];
   preview: readonly RenterTrip[];
   allowPreview: boolean;
+  requests?: readonly RenterTrip[];
 }): RenterTrip[] {
-  const merged = mergeRenterTrips(input.authoritative, input.legacy);
+  const merged = mergeRequestFirstTrips(input.requests ?? [], input.authoritative, input.legacy);
   if (merged.length) return merged;
   return input.allowPreview ? [...input.preview] : [];
 }

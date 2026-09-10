@@ -259,7 +259,7 @@ export default function VehicleDetailScreen({
                 </Text>
                 <Text style={styles.availabilityBody}>
                   {availability.status === 'available'
-                    ? 'A 15-minute hold is created only after you review the quote.'
+                    ? 'Sending a request does not lock these dates or take payment.'
                     : availability.status === 'unavailable'
                       ? 'Go back and choose different dates.'
                       : availability.status === 'error'
@@ -293,7 +293,7 @@ export default function VehicleDetailScreen({
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
             </View>
-            <Text style={styles.quoteNote}>Estimated total. Review your quote before payment.</Text>
+            <Text style={styles.quoteNote}>Estimated total. Request first — payment opens only after MMG contacts you.</Text>
           </View>
         </View>
       </ScrollView>
@@ -314,7 +314,7 @@ export default function VehicleDetailScreen({
           style={[styles.actionFlex, availability.status !== 'available' && styles.disabled]}
         >
           <View style={styles.primaryButton}>
-            <Text style={styles.primaryText}>{availability.status === 'available' ? 'Review quote' : 'Check dates'}</Text>
+            <Text style={styles.primaryText}>{availability.status === 'available' ? 'Request this car' : 'Check dates'}</Text>
           </View>
         </PressableScale>
       </View>

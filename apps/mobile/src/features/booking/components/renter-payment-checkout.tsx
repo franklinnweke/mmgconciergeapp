@@ -19,6 +19,7 @@ import {
   createPaymentCheckoutGateway,
   PaymentCheckoutSubmissionKeys,
 } from '../data/payment-checkout-gateway';
+import type { PaymentCheckoutMode } from '../data/payment-checkout-gateway-core';
 import {
   resolveRenterCheckoutState,
   type RenterCheckoutState,
@@ -29,6 +30,8 @@ type CheckoutUiState = 'ready' | 'opening' | RenterCheckoutState;
 type RenterPaymentCheckoutProps = {
   holdExpiresAt: string;
   intentId: string;
+  mode?: PaymentCheckoutMode;
+  onReleaseDates?: () => Promise<void>;
   onRestartHold: () => void;
   onViewTrips: () => void;
 };
@@ -48,6 +51,8 @@ function assertApprovedCheckoutUrl(value: string): void {
 export function RenterPaymentCheckout({
   holdExpiresAt,
   intentId,
+  mode = 'pay_first',
+  onReleaseDates,
   onRestartHold,
   onViewTrips,
 }: RenterPaymentCheckoutProps) {
@@ -56,6 +61,8 @@ export function RenterPaymentCheckout({
   const checkoutWasOpened = useRef(false);
   const [state, setState] = useState<CheckoutUiState>('ready');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [confirmingRelease, setConfirmingRelease] = useState(false);
+  const [releasingDates, setReleasingDates] = useState(false);
 
   const checkPayment = useCallback(async () => {
     setErrorMessage(null);
@@ -67,7 +74,11 @@ export function RenterPaymentCheckout({
       );
       const nextState = resolveRenterCheckoutState(reconciliation, { holdExpiresAt });
       setState(nextState);
-      if (nextState === 'payment_received' || nextState === 'paid_conflict') {
+      if (
+        nextState === 'payment_received' ||
+        nextState === 'booking_confirmed' ||
+        nextState === 'paid_conflict'
+      ) {
         keys.current.reset(intentId);
       }
     } catch (error) {
@@ -102,6 +113,7 @@ export function RenterPaymentCheckout({
       const initialized = await gateway.initializePayment(
         intentId,
         keys.current.forInitialization(intentId),
+        mode,
       );
       const authorizationUrl = initialized.result.authorizationUrl;
       assertApprovedCheckoutUrl(authorizationUrl);
@@ -130,7 +142,35 @@ export function RenterPaymentCheckout({
         ),
       );
     }
-  }, [checkPayment, gateway, holdExpiresAt, intentId]);
+  }, [checkPayment, gateway, holdExpiresAt, intentId, mode]);
+
+  const releaseDates = useCallback(async () => {
+    if (!onReleaseDates || releasingDates) return;
+    setErrorMessage(null);
+    setReleasingDates(true);
+    try {
+      await onReleaseDates();
+    } catch (error) {
+      setErrorMessage(
+        safeProviderError(
+          error,
+          'Dates could not be released. Payment may have started; refresh this request before trying again.',
+        ),
+      );
+      setReleasingDates(false);
+    }
+  }, [onReleaseDates, releasingDates]);
+
+  if (state === 'booking_confirmed') {
+    return (
+      <StatusCard icon="checkmark-circle" tone="success" title="Payment verified — booking secured">
+        <Text style={styles.bodyText}>
+          Your payment was verified and the chauffeur booking is confirmed.
+        </Text>
+        <ActionButton label="View trips" onPress={onViewTrips} />
+      </StatusCard>
+    );
+  }
 
   if (state === 'payment_received') {
     return (
@@ -156,11 +196,16 @@ export function RenterPaymentCheckout({
 
   if (state === 'expired_hold') {
     return (
-      <StatusCard icon="time-outline" tone="warning" title="Checkout hold expired">
+      <StatusCard icon="time-outline" tone="warning" title={mode === 'request_first' ? 'Payment window expired' : 'Checkout hold expired'}>
         <Text style={styles.bodyText}>
-          Create a new hold before attempting payment again. No ride has been confirmed.
+          {mode === 'request_first'
+            ? 'The 30-minute payment window ended. Dates were released and no charge was taken.'
+            : 'Create a new hold before attempting payment again. No ride has been confirmed.'}
         </Text>
-        <ActionButton label="Create a new hold" onPress={onRestartHold} />
+        <ActionButton
+          label={mode === 'request_first' ? 'View trips' : 'Create a new hold'}
+          onPress={mode === 'request_first' ? onViewTrips : onRestartHold}
+        />
       </StatusCard>
     );
   }
@@ -169,7 +214,7 @@ export function RenterPaymentCheckout({
     return (
       <StatusCard icon="close-circle-outline" tone="warning" title={state === 'abandoned' ? 'Payment not completed' : 'Payment failed'}>
         <Text style={styles.bodyText}>
-          The ride is not confirmed. You can try the Paystack checkout again while the hold is active.
+          The ride is not confirmed. You can try Paystack again while the payment window is still open.
         </Text>
         <ActionButton label="Try payment again" onPress={() => void openCheckout()} />
       </StatusCard>
@@ -203,9 +248,36 @@ export function RenterPaymentCheckout({
         <Text style={styles.panelTitle}>Pay securely with Paystack</Text>
       </View>
       <Text style={styles.bodyText}>
-        Your held total is server-authoritative. Returning from Paystack does not confirm payment until MMG verifies it.
+        {mode === 'request_first'
+          ? 'Complete payment within 30 minutes. Returning from Paystack does not confirm the booking until MMG verifies it.'
+          : 'Your held total is server-authoritative. Returning from Paystack does not confirm payment until MMG verifies it.'}
       </Text>
       <ActionButton label="Pay with Paystack" onPress={() => void openCheckout()} />
+      {mode === 'request_first' && onReleaseDates ? (
+        confirmingRelease ? (
+          <View style={styles.releaseConfirmation}>
+            <Text style={styles.releaseTitle}>Release these dates?</Text>
+            <Text style={styles.releaseBody}>
+              This closes the payment window and makes the dates available again. No payment has been taken.
+            </Text>
+            <View style={styles.releaseActions}>
+              <SecondaryActionButton
+                disabled={releasingDates}
+                label="Keep payment window"
+                onPress={() => setConfirmingRelease(false)}
+              />
+              <SecondaryActionButton
+                destructive
+                disabled={releasingDates}
+                label={releasingDates ? 'Releasing dates…' : 'Release dates'}
+                onPress={() => void releaseDates()}
+              />
+            </View>
+          </View>
+        ) : (
+          <SecondaryActionButton label="Release dates" onPress={() => setConfirmingRelease(true)} />
+        )
+      ) : null}
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
     </View>
   );
@@ -216,6 +288,33 @@ function ActionButton({ label, onPress }: { label: string; onPress: () => void }
     <PressableScale accessibilityRole="button" onPress={onPress}>
       <View style={styles.button}>
         <Text style={styles.buttonText}>{label}</Text>
+      </View>
+    </PressableScale>
+  );
+}
+
+function SecondaryActionButton({
+  destructive = false,
+  disabled = false,
+  label,
+  onPress,
+}: {
+  destructive?: boolean;
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={styles.secondaryActionWrapper}
+    >
+      <View style={[styles.secondaryButton, destructive && styles.secondaryButtonDestructive, disabled && styles.secondaryButtonDisabled]}>
+        <Text style={[styles.secondaryButtonText, destructive && styles.secondaryButtonTextDestructive]}>{label}</Text>
       </View>
     </PressableScale>
   );
@@ -292,5 +391,55 @@ const styles = StyleSheet.create({
     fontFamily: typography.display,
     fontSize: 18,
     textAlign: 'center',
+  },
+  releaseActions: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  releaseBody: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  releaseConfirmation: {
+    alignSelf: 'stretch',
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  releaseTitle: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+    marginBottom: spacing.xs,
+  },
+  secondaryActionWrapper: {
+    minHeight: 44,
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+  },
+  secondaryButtonDestructive: {
+    borderColor: 'rgba(209,133,120,.5)',
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.58,
+  },
+  secondaryButtonText: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 12,
+  },
+  secondaryButtonTextDestructive: {
+    color: colors.danger,
   },
 });
