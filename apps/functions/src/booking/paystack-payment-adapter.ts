@@ -59,7 +59,11 @@ export class PaystackPaymentAdapter implements PaymentGateway {
   private readonly requiredEnvironment?: PaymentEnvironment;
 
   constructor(options: PaystackPaymentAdapterOptions = {}) {
-    this.secretKey = options.secretKey ?? process.env.PAYSTACK_SECRET_KEY ?? '';
+    // Never fall back to an ambient environment variable. Firebase Functions
+    // secret bindings are explicit on the payment entrypoint options; an
+    // ambient fallback could accidentally make unrelated legacy functions
+    // capable of sending the Paystack credential to a provider.
+    this.secretKey = options.secretKey ?? '';
     this.baseUrl = (options.baseUrl ?? 'https://api.paystack.co').replace(/\/$/, '');
     this.fetchFn = options.fetchFn ?? globalThis.fetch;
     this.requiredEnvironment = options.requiredEnvironment;

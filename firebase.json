@@ -22,7 +22,8 @@
     "source": "apps/functions",
     "runtime": "nodejs22",
     "predeploy": [
-      "npm run functions:build"
+      "npm run functions:build",
+      "npm run firebase:secrets:audit"
     ]
   },
   "apphosting": {
