@@ -5,6 +5,7 @@ import {
   dateOnlySchema,
   idempotencyKeySchema,
   isoDateTimeSchema,
+  paidBookingStateSchema,
   schemaVersionSchema,
 } from '@mmg/contracts';
 
@@ -55,7 +56,8 @@ export type QuoteBookingCancellationCommand = z.infer<typeof quoteBookingCancell
 
 export const bookingCancellationQuoteSchema = z.object({
   bookingId: boundedIdSchema,
-  bookingState: z.enum(['paid_pending_owner', 'confirmed', 'intervention_required', 'in_progress']),
+  bookingState: paidBookingStateSchema,
+  bookingVersion: z.number().int().positive(),
   startDate: dateOnlySchema,
   amountPaidKobo: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   currency: z.literal('NGN'),
