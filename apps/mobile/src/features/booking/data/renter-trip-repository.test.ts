@@ -172,7 +172,7 @@ describe('renter trip repository', () => {
     expect(merged.map((item) => item.id)).toEqual(['legacy-two', 'intent-two']);
   });
 
-  it('hides the matching intent and booking rows once a rental request is present', () => {
+  it('keeps the request as truth before payment and hides its matching intent', () => {
     const merged = mergeRequestFirstTrips(
       [
         trip({
@@ -180,16 +180,33 @@ describe('renter trip repository', () => {
           source: 'request',
           state: 'ready_for_payment',
           intentId: 'intent-one',
+          updatedAt: '2026-08-13T13:30:00.000Z',
+        }),
+      ],
+      [trip({ id: 'intent-one', state: 'intent_created', updatedAt: '2026-08-13T13:00:00.000Z' })],
+    );
+    expect(merged.map((item) => item.id)).toEqual(['request-one']);
+  });
+
+  it('hands the journey to the authoritative booking after payment so refund states remain visible', () => {
+    const merged = mergeRequestFirstTrips(
+      [
+        trip({
+          id: 'request-one',
+          source: 'request',
+          state: 'confirmed',
+          intentId: 'intent-one',
           bookingId: 'booking-one',
           updatedAt: '2026-08-13T13:30:00.000Z',
         }),
       ],
       [
-        trip({ id: 'intent-one', state: 'intent_created', updatedAt: '2026-08-13T13:00:00.000Z' }),
-        trip({ id: 'booking-one', state: 'confirmed', supersedesId: 'intent-one', updatedAt: '2026-08-13T13:40:00.000Z' }),
+        trip({ id: 'intent-one', state: 'paid', updatedAt: '2026-08-13T13:00:00.000Z' }),
+        trip({ id: 'booking-one', state: 'refund_pending', supersedesId: 'intent-one', updatedAt: '2026-08-13T13:40:00.000Z' }),
       ],
     );
-    expect(merged.map((item) => item.id)).toEqual(['request-one']);
+    expect(merged.map((item) => item.id)).toEqual(['booking-one']);
+    expect(merged[0]?.state).toBe('refund_pending');
   });
 
   it('uses preview trips only when no authoritative or leftover legacy records exist', () => {
