@@ -32,11 +32,9 @@
     "firebase:deploy:auth": "cd firebase && npx -y firebase-tools@latest deploy --only auth",
     "firebase:deploy:firestore": "cd firebase && npx -y firebase-tools@latest deploy --only firestore",
     "firebase:paystack:secret:dev": "npx -y firebase-tools@latest functions:secrets:set PAYSTACK_SECRET_KEY --project mmg-concierge-dev",
-    "firebase:secrets:audit": "node tools/firebase-release-hardening.mjs audit --project mmg-concierge-dev",
-    "firebase:preflight:request-first-dev": "node tools/firebase-release-hardening.mjs preflight --project mmg-concierge-dev --remote",
-    "firebase:verify:request-first-dev": "node tools/firebase-release-hardening.mjs preflight --project mmg-concierge-dev --remote --postdeploy",
-    "firebase:deploy:request-first-dev": "node tools/firebase-release-hardening.mjs deploy --project mmg-concierge-dev --remote",
-    "firebase:deploy:booking-payment-dev": "npm run firebase:deploy:request-first-dev"
+    "firebase:secrets:audit": "node tools/firebase-secrets-audit.mjs",
+    "firebase:deploy:request-first-firestore": "npx -y firebase-tools@latest deploy --project mmg-concierge-dev --only firestore:rules,firestore:indexes --non-interactive",
+    "firebase:deploy:request-first-functions": "npx -y firebase-tools@latest deploy --project mmg-concierge-dev --only functions:createRentalRequest,functions:approveRentalRequest,functions:declineRentalRequest,functions:releaseRentalRequestPaymentHold,functions:initializeRentalRequestPayment,functions:listRenterRentalRequests,functions:listOwnerRentalRequests,functions:expireRentalRequestPaymentWindows,functions:initializeBookingPayment,functions:paystackWebhook,functions:processPaystackPaymentEvent,functions:reconcilePayment,functions:requestAccountDeletion --non-interactive"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.1",
