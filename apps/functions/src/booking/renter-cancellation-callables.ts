@@ -1,14 +1,15 @@
+import { quoteBookingCancellationCommandSchema } from '@mmg/contracts/cancellation';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { isProductionAppCheck } from '../app-check-env.js';
+import { FirestoreBookingCancellationQuoteQuery } from './booking-cancellation-quote-query.js';
 import { requireVerifiedRenter } from './callable-auth.js';
 import { BookingCommandError } from './errors.js';
 import { FirestoreRenterCancellationRepository } from './firestore-renter-cancellation-repository.js';
 import {
   cancelPaidBooking as cancelPaidBookingService,
   cancelRentalRequest as cancelRentalRequestService,
-  quoteBookingCancellation as quoteBookingCancellationService,
 } from './renter-cancellation-service.js';
 
 const runtime = {
@@ -60,9 +61,15 @@ export const cancelRentalRequest = onCall(runtime, async (request) => {
 export const quoteBookingCancellation = onCall(runtime, async (request) => {
   try {
     const renterId = requireVerifiedRenter(request.auth);
-    return await quoteBookingCancellationService(request.data, renterId, {
-      repository: new FirestoreRenterCancellationRepository(),
-    });
+    const parsed = quoteBookingCancellationCommandSchema.safeParse(request.data);
+    if (!parsed.success) {
+      throw new BookingCommandError('INVALID_ARGUMENT', 'Cancellation quote request is invalid.');
+    }
+    return await new FirestoreBookingCancellationQuoteQuery().quote(
+      parsed.data.data.bookingId,
+      renterId,
+      new Date(),
+    );
   } catch (error) {
     return rethrow(error, 'renter_cancellation.quote');
   }
