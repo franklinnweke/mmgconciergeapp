@@ -6,7 +6,7 @@ import { getAdminFirestore } from '../../auth/server/firebase-admin';
 
 export type StaffInterventionCase = {
   caseId: string;
-  caseType: 'paid_conflict' | 'owner_rejection';
+  caseType: 'paid_conflict' | 'owner_rejection' | 'renter_cancellation';
   caseStatus: string;
   priority: string | null;
   bookingId: string | null;
@@ -80,9 +80,12 @@ function relatedJourney(data: DocumentData) {
   return { displayName, areaLabel, startDate, endDate, renterTotalKobo };
 }
 
-function interventionReason(caseType: 'paid_conflict' | 'owner_rejection', data: DocumentData): string {
+function interventionReason(caseType: StaffInterventionCase['caseType'], data: DocumentData): string {
   if (caseType === 'owner_rejection') {
     return recordString(data, 'ownerReason') || 'Owner declined this paid booking.';
+  }
+  if (caseType === 'renter_cancellation') {
+    return 'Renter cancelled after payment. Refund amount requires manual policy review.';
   }
   const code = recordString(data, 'reasonCode');
   return code ? code.replaceAll('_', ' ') : 'Paid booking dates became unavailable.';
@@ -107,7 +110,7 @@ export async function loadDevelopmentInterventionCases(): Promise<StaffIntervent
   for (const document of snapshot.docs) {
     const data = document.data();
     const caseType = recordString(data, 'type');
-    if (caseType !== 'paid_conflict' && caseType !== 'owner_rejection') continue;
+    if (caseType !== 'paid_conflict' && caseType !== 'owner_rejection' && caseType !== 'renter_cancellation') continue;
 
     const renterId = recordString(data, 'renterId');
     const ownerId = recordString(data, 'ownerId');
@@ -123,9 +126,9 @@ export async function loadDevelopmentInterventionCases(): Promise<StaffIntervent
       continue;
     }
 
-    const relatedRef = caseType === 'owner_rejection'
-      ? bookingId ? firestore.doc(`bookings/${bookingId}`) : null
-      : intentId ? firestore.doc(`bookingIntents/${intentId}`) : null;
+    const relatedRef = caseType === 'paid_conflict'
+      ? intentId ? firestore.doc(`bookingIntents/${intentId}`) : null
+      : bookingId ? firestore.doc(`bookings/${bookingId}`) : null;
     if (!relatedRef) {
       skippedInvalidCount += 1;
       continue;
