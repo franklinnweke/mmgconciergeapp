@@ -18,16 +18,25 @@ git rev-parse HEAD origin/main
 npm ci
 npm run firebase:preflight:request-first-dev
 npm run firebase:deploy:request-first-dev
-npm run firebase:preflight:request-first-dev
+npm run firebase:verify:request-first-dev
 ```
 
 The first preflight is read-only and checks the exact source revision, checked-in
 Firebase topology, Functions build boundary, secret-binding audit, Phone Auth
 and NG SMS access, Firestore edition/location, required APIs and billing,
-Secret Manager metadata, additive index safety, and the canonical scheduler.
-The second preflight is the same read-only verification after deployment and is
-the evidence that the canonical scheduler and runtime secret metadata are
-healthy. Neither preflight reads a secret payload.
+Secret Manager metadata/version state, additive index safety, and reports (but
+does not require) the not-yet-deployed canonical scheduler. The deployment then
+uses two Firebase commands: Rules/indexes first, a bounded poll until the three
+`rentalRequests` indexes are `READY`, and targeted Functions second. The second
+preflight is the required post-deployment verification of the canonical
+scheduler and runtime secret metadata. Neither preflight reads a secret payload.
+
+Remote checks use Google REST with Application Default Credentials through the
+installed `google-auth-library`; `gcloud` is not required. If no authenticated
+ADC is available, the helper fails early with a credential prerequisite instead
+of attempting a partial deployment. The Firestore index read still uses the
+Firebase CLI's JSON metadata command; its output is normalized and never
+printed.
 
 The deployment command runs exactly this Firebase target set:
 
@@ -70,6 +79,11 @@ Functions deployment. The remote preflight checks Secret Manager metadata and
 inspects deployed Function configuration for a plain `PAYSTACK_SECRET_KEY`
 environment variable or an unintended secret binding. It uses metadata only,
 and never prints `firebase functions:list --json` or any secret value.
+Known unrelated legacy Functions with a plain Paystack environment variable are
+reported as warnings; they are not rotated, deleted, or redeployed by this
+runbook. Targeted Functions remain hard-fail invariants, and postflight requires
+exactly the five payment bindings plus no Paystack binding on targeted
+non-payment Functions.
 
 ## Scheduler and legacy inspection
 
@@ -83,6 +97,11 @@ in addition to the canonical schedule. Inspect it without mutation if needed:
 ```bash
 npx -y firebase-tools@latest functions:list --project mmg-concierge-dev \
   | rg 'emitOwnerResponseSlaAlerts|expireRentalRequestPaymentWindows'
+```
+
+If Google Cloud CLI is available, this adds non-destructive metadata detail:
+
+```bash
 gcloud functions describe emitOwnerResponseSlaAlerts --gen2 \
   --region=africa-south1 --project=mmg-concierge-dev \
   --format='table(name,state,updateTime)'

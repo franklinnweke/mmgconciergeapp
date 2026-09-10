@@ -34,7 +34,9 @@
     "firebase:paystack:secret:dev": "npx -y firebase-tools@latest functions:secrets:set PAYSTACK_SECRET_KEY --project mmg-concierge-dev",
     "firebase:secrets:audit": "node tools/firebase-release-hardening.mjs audit --project mmg-concierge-dev",
     "firebase:preflight:request-first-dev": "node tools/firebase-release-hardening.mjs preflight --project mmg-concierge-dev --remote",
-    "firebase:deploy:request-first-dev": "node tools/firebase-release-hardening.mjs deploy --project mmg-concierge-dev --remote"
+    "firebase:verify:request-first-dev": "node tools/firebase-release-hardening.mjs preflight --project mmg-concierge-dev --remote --postdeploy",
+    "firebase:deploy:request-first-dev": "node tools/firebase-release-hardening.mjs deploy --project mmg-concierge-dev --remote",
+    "firebase:deploy:booking-payment-dev": "npm run firebase:deploy:request-first-dev"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.1",
