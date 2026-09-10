@@ -33,6 +33,7 @@ const requestEnvelopeSchema = z.object({
   intentId: z.string().min(1).max(128).optional(),
   bookingId: z.string().min(1).max(128).optional(),
   holdExpiresAt: z.instanceof(Timestamp).optional(),
+  cancellationRequestedAt: z.instanceof(Timestamp).optional(),
   createdAt: z.instanceof(Timestamp),
   updatedAt: z.instanceof(Timestamp),
 }).passthrough();
@@ -59,6 +60,7 @@ export type AdminRentalRequestRecord = {
   intentId?: string;
   bookingId?: string;
   holdExpiresAt?: string;
+  cancellationRequestedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -102,7 +104,10 @@ export async function loadDevelopmentRentalRequests(): Promise<AdminRentalReques
 
     const data = envelope.data;
     const serviceArea = rentalRequestServiceAreaSchema.safeParse(data.serviceAreaLabel);
-    const state = rentalRequestStateSchema.safeParse(data.state);
+    const effectiveState = data.cancellationRequestedAt && (data.state === 'ready_for_payment' || data.state === 'confirmed')
+      ? 'cancellation_requested'
+      : data.state;
+    const state = rentalRequestStateSchema.safeParse(effectiveState);
     const estimatedPrice = priceSnapshotSchema.safeParse(data.estimatedPriceSnapshot);
     const authoritativePrice = data.authoritativePriceSnapshot === undefined
       ? null
@@ -145,6 +150,7 @@ export async function loadDevelopmentRentalRequests(): Promise<AdminRentalReques
       ...(data.intentId ? { intentId: data.intentId } : {}),
       ...(data.bookingId ? { bookingId: data.bookingId } : {}),
       ...(data.holdExpiresAt ? { holdExpiresAt: data.holdExpiresAt.toDate().toISOString() } : {}),
+      ...(data.cancellationRequestedAt ? { cancellationRequestedAt: data.cancellationRequestedAt.toDate().toISOString() } : {}),
       createdAt: data.createdAt.toDate().toISOString(),
       updatedAt: data.updatedAt.toDate().toISOString(),
     });
