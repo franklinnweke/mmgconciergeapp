@@ -252,6 +252,18 @@ Consolidation and merge sequence:
 - Validated tree: `7b2dfc06d01d9ffee9a7a97ec1315faa2d05150c`.
 - Post-merge CI #77 (`34425965734`) passed green across all jobs.
 
+Validated Build 31 TestFlight source checkpoint merged to `main`:
+
+`44b677f35c849a035811ed48ed84dbaf84539467`
+
+Build 31 was created from the exact checkpoint above:
+
+- build number: `31`
+- EAS build ID: `da2ca529-9e27-4783-a920-7f9705426246`
+- submission ID: `1640bfe8-f7c4-47ff-b6be-1e42924ad799`
+- development Firebase config selected (`mmg-concierge-dev`)
+- resolution included: PR #43 (`fix(contracts): use package import in rental-request for Metro resolver`)
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -259,11 +271,11 @@ Current state:
 - Admin concierge controls: merged to `main`
 - Main CI: green
 - Production `mmg-concierge`: untouched
-- Firebase development deployment (`mmg-concierge-dev`): pending
-- EAS/TestFlight Build 30: not created yet
-- Android native validation: explicitly deferred for this iOS-first Build 30 path
+- Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes, 13 Functions, and payment window scheduler active)
+- EAS/TestFlight Build 31: created from `44b677f` and submitted to Apple App Store Connect for TestFlight processing
+- Android native validation: explicitly deferred for this iOS-first Build 30/31 path
 
-Do not call Build 30 deployed or release-ready until the required development Functions/Rules/indexes are deployed to `mmg-concierge-dev`, Admin is deployed by the VPS/Admin agent, and end-to-end human acceptance has been completed.
+Do not call the release complete until Admin is deployed by the VPS/Admin agent and end-to-end human acceptance has been completed on the physical device.
 
 Current auth/UI expectations:
 
