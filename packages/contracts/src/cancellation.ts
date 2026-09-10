@@ -57,7 +57,10 @@ export type QuoteBookingCancellationCommand = z.infer<typeof quoteBookingCancell
 export const bookingCancellationQuoteSchema = z.object({
   bookingId: boundedIdSchema,
   bookingState: paidBookingStateSchema,
-  bookingVersion: z.number().int().positive(),
+  // Live quote boundaries always return this authoritative value. Optionality
+  // keeps older repository-level quote helpers parseable while callers fail
+  // closed if a version is unexpectedly absent.
+  bookingVersion: z.number().int().positive().optional(),
   startDate: dateOnlySchema,
   amountPaidKobo: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   currency: z.literal('NGN'),
