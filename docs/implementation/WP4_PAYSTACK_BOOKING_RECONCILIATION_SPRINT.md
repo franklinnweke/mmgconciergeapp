@@ -3,7 +3,7 @@
 **Branch:** `codex/wp4-paystack-booking-reconciliation`  
 **Base:** `main` at `87ad89e`  
 **Date:** 2026-08-31  
-**Status:** Active sprint  
+**Status:** Historical pay-first compatibility reference; superseded for new Build 30 request-first work by `AGENTS.md`.
 **Donor branch:** `codex/wp4-booking-operations` at `7c698db` is reference-only and must not be merged or cherry-picked wholesale.
 
 ## 1. Sprint objective
@@ -25,7 +25,7 @@ The sprint does **not** make production Paystack live. Development integration t
 9. Before transitioning a payment to success, independently verify reference, transaction status, currency and exact amount with Paystack.
 10. Payment processing and booking creation are idempotent. Duplicate webhook/reconcile events must not create duplicate bookings, blocks, notifications or ledger effects.
 11. A verified payment becomes `paid_pending_owner`, not `confirmed`.
-12. Renter-facing copy after verified payment is “Payment received — confirming your ride”.
+12. For historical pay-first records, renter-facing copy after verified payment is “Payment received — confirming your ride”. Request-first direct confirmation uses confirmed-booking copy.
 13. Owner rejection requires a reason, releases the vehicle block and opens `intervention_required`; it never silently cancels a paid booking.
 14. There is no automatic owner-rejection timeout. SLA timers alert operations only.
 15. If payment verifies after the hold expired and the dates have been taken, record `paid_conflict`; never double-book.

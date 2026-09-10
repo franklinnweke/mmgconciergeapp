@@ -31,6 +31,7 @@ type RenterPaymentCheckoutProps = {
   holdExpiresAt: string;
   intentId: string;
   mode?: PaymentCheckoutMode;
+  onReleaseDates?: () => Promise<void>;
   onRestartHold: () => void;
   onViewTrips: () => void;
 };
@@ -51,6 +52,7 @@ export function RenterPaymentCheckout({
   holdExpiresAt,
   intentId,
   mode = 'pay_first',
+  onReleaseDates,
   onRestartHold,
   onViewTrips,
 }: RenterPaymentCheckoutProps) {
@@ -59,6 +61,8 @@ export function RenterPaymentCheckout({
   const checkoutWasOpened = useRef(false);
   const [state, setState] = useState<CheckoutUiState>('ready');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [confirmingRelease, setConfirmingRelease] = useState(false);
+  const [releasingDates, setReleasingDates] = useState(false);
 
   const checkPayment = useCallback(async () => {
     setErrorMessage(null);
@@ -139,6 +143,23 @@ export function RenterPaymentCheckout({
       );
     }
   }, [checkPayment, gateway, holdExpiresAt, intentId, mode]);
+
+  const releaseDates = useCallback(async () => {
+    if (!onReleaseDates || releasingDates) return;
+    setErrorMessage(null);
+    setReleasingDates(true);
+    try {
+      await onReleaseDates();
+    } catch (error) {
+      setErrorMessage(
+        safeProviderError(
+          error,
+          'Dates could not be released. Payment may have started; refresh this request before trying again.',
+        ),
+      );
+      setReleasingDates(false);
+    }
+  }, [onReleaseDates, releasingDates]);
 
   if (state === 'booking_confirmed') {
     return (
@@ -232,6 +253,31 @@ export function RenterPaymentCheckout({
           : 'Your held total is server-authoritative. Returning from Paystack does not confirm payment until MMG verifies it.'}
       </Text>
       <ActionButton label="Pay with Paystack" onPress={() => void openCheckout()} />
+      {mode === 'request_first' && onReleaseDates ? (
+        confirmingRelease ? (
+          <View style={styles.releaseConfirmation}>
+            <Text style={styles.releaseTitle}>Release these dates?</Text>
+            <Text style={styles.releaseBody}>
+              This closes the payment window and makes the dates available again. No payment has been taken.
+            </Text>
+            <View style={styles.releaseActions}>
+              <SecondaryActionButton
+                disabled={releasingDates}
+                label="Keep payment window"
+                onPress={() => setConfirmingRelease(false)}
+              />
+              <SecondaryActionButton
+                destructive
+                disabled={releasingDates}
+                label={releasingDates ? 'Releasing dates…' : 'Release dates'}
+                onPress={() => void releaseDates()}
+              />
+            </View>
+          </View>
+        ) : (
+          <SecondaryActionButton label="Release dates" onPress={() => setConfirmingRelease(true)} />
+        )
+      ) : null}
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
     </View>
   );
@@ -242,6 +288,33 @@ function ActionButton({ label, onPress }: { label: string; onPress: () => void }
     <PressableScale accessibilityRole="button" onPress={onPress}>
       <View style={styles.button}>
         <Text style={styles.buttonText}>{label}</Text>
+      </View>
+    </PressableScale>
+  );
+}
+
+function SecondaryActionButton({
+  destructive = false,
+  disabled = false,
+  label,
+  onPress,
+}: {
+  destructive?: boolean;
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={styles.secondaryActionWrapper}
+    >
+      <View style={[styles.secondaryButton, destructive && styles.secondaryButtonDestructive, disabled && styles.secondaryButtonDisabled]}>
+        <Text style={[styles.secondaryButtonText, destructive && styles.secondaryButtonTextDestructive]}>{label}</Text>
       </View>
     </PressableScale>
   );
@@ -318,5 +391,55 @@ const styles = StyleSheet.create({
     fontFamily: typography.display,
     fontSize: 18,
     textAlign: 'center',
+  },
+  releaseActions: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  releaseBody: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  releaseConfirmation: {
+    alignSelf: 'stretch',
+    borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  releaseTitle: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 13,
+    marginBottom: spacing.xs,
+  },
+  secondaryActionWrapper: {
+    minHeight: 44,
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+  },
+  secondaryButtonDestructive: {
+    borderColor: 'rgba(209,133,120,.5)',
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.58,
+  },
+  secondaryButtonText: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: 12,
+  },
+  secondaryButtonTextDestructive: {
+    color: colors.danger,
   },
 });

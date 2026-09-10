@@ -5,6 +5,7 @@ import type {
   DeclineRentalRequestResult,
   ListOwnerRentalRequestsResult,
   ListRenterRentalRequestsResult,
+  ReleaseRentalRequestPaymentHoldResult,
 } from '@mmg/contracts/rental-request';
 
 import type { RentalRequestGateway } from './rental-request-gateway-core';
@@ -51,6 +52,10 @@ export class WebRentalRequestGateway implements RentalRequestGateway {
     _reason?: string,
   ): Promise<DeclineRentalRequestResult> {
     this.unavailable('owner decline');
+  }
+
+  async releasePaymentHold(_requestId: string): Promise<ReleaseRentalRequestPaymentHoldResult> {
+    this.unavailable('payment-window release');
   }
 }
 
