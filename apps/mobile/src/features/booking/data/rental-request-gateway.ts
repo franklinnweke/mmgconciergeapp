@@ -1,4 +1,9 @@
 import {
+  cancelRentalRequestCommandSchema,
+  cancelRentalRequestResultSchema,
+  type CancelRentalRequestResult,
+} from '@mmg/contracts/cancellation';
+import {
   approveRentalRequestCommandSchema,
   approveRentalRequestResultSchema,
   createRentalRequestCommandSchema,
@@ -30,6 +35,10 @@ export type { RentalRequestGateway } from './rental-request-gateway-core';
 
 function command(idempotencyKey: string, data: Record<string, unknown>) {
   return { schemaVersion: 1, idempotencyKey, data };
+}
+
+function cancellationKey(requestId: string): string {
+  return `cancel_rental_request_${requestId.replace(/[^A-Za-z0-9_-]/g, '_')}`.slice(0, 120);
 }
 
 export class NativeRentalRequestGateway implements RentalRequestGateway {
@@ -98,6 +107,15 @@ export class NativeRentalRequestGateway implements RentalRequestGateway {
     const callable = httpsCallable(this.functions, 'declineRentalRequest');
     const response = await callable(parsed);
     return parseCallableResult(declineRentalRequestResultSchema, response.data, 'declineRentalRequest');
+  }
+
+  async cancelRequest(requestId: string, expectedVersion: number): Promise<CancelRentalRequestResult> {
+    const parsed = cancelRentalRequestCommandSchema.parse(
+      command(cancellationKey(requestId), { requestId, expectedVersion }),
+    );
+    const callable = httpsCallable(this.functions, 'cancelRentalRequest');
+    const response = await callable(parsed);
+    return parseCallableResult(cancelRentalRequestResultSchema, response.data, 'cancelRentalRequest');
   }
 
   async releasePaymentHold(requestId: string): Promise<ReleaseRentalRequestPaymentHoldResult> {
