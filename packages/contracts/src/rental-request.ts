@@ -9,7 +9,7 @@ import {
   priceSnapshotSchema,
   renterVehicleSnapshotSchema,
   schemaVersionSchema,
-} from './index.js';
+} from '@mmg/contracts';
 
 export const RENTAL_REQUEST_STATES = [
   'requested',
