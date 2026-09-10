@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./booking-case": "./src/booking-case.ts",
+    "./cancellation": "./src/cancellation.ts",
     "./discovery": "./src/discovery.ts",
     "./payment": "./src/payment.ts",
     "./rental-request": "./src/rental-request.ts"
