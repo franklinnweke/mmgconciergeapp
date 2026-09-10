@@ -5,6 +5,7 @@ import type {
   DeclineRentalRequestResult,
   ListOwnerRentalRequestsResult,
   ListRenterRentalRequestsResult,
+  ReleaseRentalRequestPaymentHoldResult,
 } from '@mmg/contracts/rental-request';
 
 export interface RentalRequestGateway {
@@ -25,6 +26,8 @@ export interface RentalRequestGateway {
     idempotencyKey: string,
     reason?: string,
   ): Promise<DeclineRentalRequestResult>;
+  /** Releases an unopened request-first payment window. The server rejects payment-in-flight windows. */
+  releasePaymentHold(requestId: string): Promise<ReleaseRentalRequestPaymentHoldResult>;
 }
 
 type IdempotencyKeyFactory = () => string;

@@ -9,12 +9,15 @@ import {
   listOwnerRentalRequestsResultSchema,
   listRenterRentalRequestsCommandSchema,
   listRenterRentalRequestsResultSchema,
+  releaseRentalRequestPaymentHoldCommandSchema,
+  releaseRentalRequestPaymentHoldResultSchema,
   type ApproveRentalRequestResult,
   type CreateRentalRequestData,
   type CreateRentalRequestResult,
   type DeclineRentalRequestResult,
   type ListOwnerRentalRequestsResult,
   type ListRenterRentalRequestsResult,
+  type ReleaseRentalRequestPaymentHoldResult,
 } from '@mmg/contracts/rental-request';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 
@@ -95,6 +98,19 @@ export class NativeRentalRequestGateway implements RentalRequestGateway {
     const callable = httpsCallable(this.functions, 'declineRentalRequest');
     const response = await callable(parsed);
     return parseCallableResult(declineRentalRequestResultSchema, response.data, 'declineRentalRequest');
+  }
+
+  async releasePaymentHold(requestId: string): Promise<ReleaseRentalRequestPaymentHoldResult> {
+    const parsed = releaseRentalRequestPaymentHoldCommandSchema.parse(
+      command(`release_rental_request_${requestId.replace(/[^A-Za-z0-9_-]/g, '_')}`, { requestId }),
+    );
+    const callable = httpsCallable(this.functions, 'releaseRentalRequestPaymentHold');
+    const response = await callable(parsed);
+    return parseCallableResult(
+      releaseRentalRequestPaymentHoldResultSchema,
+      response.data,
+      'releaseRentalRequestPaymentHold',
+    );
   }
 }
 

@@ -17,7 +17,6 @@ const {
     mockHttpsCallable: vi.fn((_functions: unknown, _name: string) => callable),
   };
 });
-
 vi.mock('@react-native-firebase/functions', () => ({
   getFunctions: mockGetFunctions,
   httpsCallable: mockHttpsCallable,
@@ -144,10 +143,32 @@ describe('NativeRentalRequestGateway', () => {
     expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'declineRentalRequest');
   });
 
+  it('releases an unopened payment window through the renter-only callable with a stable idempotency key', async () => {
+    mockCallable.mockResolvedValue({
+      data: {
+        requestId: 'request-one',
+        result: {
+          requestId: 'request-one',
+          state: 'payment_window_expired',
+          version: 4,
+          releasedAt: '2026-09-09T12:03:00.000Z',
+        },
+      },
+    });
+
+    const result = await new NativeRentalRequestGateway().releasePaymentHold('request-one');
+    expect(mockHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'releaseRentalRequestPaymentHold');
+    expect(mockCallable).toHaveBeenCalledWith({
+      schemaVersion: 1,
+      idempotencyKey: 'release_rental_request_request-one',
+      data: { requestId: 'request-one' },
+    });
+    expect(result.result.state).toBe('payment_window_expired');
+  });
+
   it('rejects a malformed create response instead of claiming success', async () => {
     mockCallable.mockResolvedValue({ data: { requestId: 'request-one' } });
     await expect(new NativeRentalRequestGateway().createRequest(createData, 'create-key-000001'))
       .rejects.toBeInstanceOf(CallableContractError);
   });
 });
-

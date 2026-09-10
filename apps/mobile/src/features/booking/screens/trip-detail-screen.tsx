@@ -4,7 +4,7 @@ import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { Animated, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,6 +22,10 @@ import {
   unavailableRenterTripActionGateway,
 } from '../data/renter-trip-action-gateway';
 import {
+  createRentalRequestGateway,
+  type RentalRequestGateway,
+} from '../data/rental-request-gateway';
+import {
   initialRenterTripActionSession,
   reduceRenterTripActionSession,
   tripDetailMode,
@@ -36,6 +40,7 @@ import {
 
 type TripDetailScreenProps = {
   actionGateway?: RenterTripActionGateway;
+  rentalRequestGateway?: RentalRequestGateway;
   trip?: RenterTrip | null;
   tripId: string;
 };
@@ -57,6 +62,7 @@ function formatDate(value: string) {
 
 export default function TripDetailScreen({
   actionGateway = unavailableRenterTripActionGateway,
+  rentalRequestGateway,
   trip: tripOverride,
   tripId,
 }: TripDetailScreenProps) {
@@ -66,6 +72,10 @@ export default function TripDetailScreen({
   const { initializing, refreshRentalRequests, syncError, syncState, trips } = useBookings();
   const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
   const [session, dispatch] = useReducer(reduceRenterTripActionSession, initialRenterTripActionSession);
+  const requestGateway = useMemo(
+    () => rentalRequestGateway ?? createRentalRequestGateway(),
+    [rentalRequestGateway],
+  );
   const trip = tripOverride !== undefined ? tripOverride : trips.find((candidate) => candidate.id === tripId) ?? null;
   const vehicle = trip?.vehicleSnapshot ?? null;
   const vehicleImage = resolveVehicleImageSource(vehicle);
@@ -289,6 +299,11 @@ export default function TripDetailScreen({
                 holdExpiresAt={trip.holdExpiresAt}
                 intentId={trip.intentId}
                 mode="request_first"
+                onReleaseDates={async () => {
+                  await requestGateway.releasePaymentHold(trip.id);
+                  await refreshRentalRequests();
+                  router.replace('/(renter)/trips');
+                }}
                 onRestartHold={() => { void refreshRentalRequests(); }}
                 onViewTrips={() => {
                   void refreshRentalRequests();
