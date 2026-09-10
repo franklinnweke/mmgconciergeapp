@@ -19,6 +19,8 @@ export function clientRentalRequestProjection(documentId: string, data: Record<s
     ...(typeof data.intentId === 'string' ? { intentId: data.intentId } : {}),
     ...(timestampIso(data.holdExpiresAt) ? { holdExpiresAt: timestampIso(data.holdExpiresAt) } : {}),
     ...(typeof data.bookingId === 'string' ? { bookingId: data.bookingId } : {}),
+    ...(timestampIso(data.cancellationRequestedAt) ? { cancellationRequestedAt: timestampIso(data.cancellationRequestedAt) } : {}),
+    ...(timestampIso(data.cancelledAt) ? { cancelledAt: timestampIso(data.cancelledAt) } : {}),
     createdAt: timestampIso(data.createdAt),
     updatedAt: timestampIso(data.updatedAt),
   };
