@@ -264,16 +264,25 @@ Build 31 was created from the exact checkpoint above:
 - development Firebase config selected (`mmg-concierge-dev`)
 - resolution included: PR #43 (`fix(contracts): use package import in rental-request for Metro resolver`)
 
+Validated renter cancellation lifecycle source checkpoint merged to `main`:
+
+`4ee5113b0232706ea0afd31c15cbdfe13b52075b`
+
+Merge sequence:
+- PR #45 (`feat(booking): add renter cancellation lifecycle`) merged into `main`.
+- Post-merge CI #109 (`34537683318`) passed green across all jobs (Firebase Rules, Quality, Functions Emulator, Gate).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
+- Renter cancellation lifecycle (unpaid, payment in-flight, future paid booking, scheduled resolver, zero invented economics): merged to `main`
 - Mobile renter/owner integration: merged to `main`
-- Admin concierge controls: merged to `main`
+- Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
 - Production `mmg-concierge`: untouched
-- Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes, 13 Functions, and payment window scheduler active)
+- Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes, all 17 approved Functions and both schedulers active)
 - EAS/TestFlight Build 31: created from `44b677f` and submitted to Apple App Store Connect for TestFlight processing
-- Android native validation: explicitly deferred for this iOS-first Build 30/31 path
+- Android native validation: in progress on Pixel 7 API 35
 
 Do not call the release complete until Admin is deployed by the VPS/Admin agent and end-to-end human acceptance has been completed on the physical device.
 
