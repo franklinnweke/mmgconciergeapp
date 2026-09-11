@@ -1,4 +1,4 @@
-import type { BookingRequest, CreateBookingRequestInput } from '@mmg/contracts';
+import type { BookingRequest, CreateBookingRequestInput, VehicleSummary } from '@mmg/contracts';
 import {
   createContext,
   PropsWithChildren,
@@ -10,6 +10,7 @@ import {
 import { AppState } from 'react-native';
 
 import { useAuth } from '@/core/auth/auth-context';
+import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 
 import {
   bookingRemoteEnabled,
@@ -26,6 +27,7 @@ import {
 } from './data/local-booking-request-store';
 import {
   createUnsubscribeBundle,
+  recoverRenterTripVehicle,
   resolveVisibleRenterTrips,
   scopeTripsToActiveUser,
 } from './data/renter-trip-repository';
@@ -49,11 +51,13 @@ const BookingContext = createContext<BookingContextValue | null>(null);
 
 export function BookingProvider({ children }: PropsWithChildren) {
   const { user } = useAuth();
+  const discoveryGateway = useMemo(() => createDiscoveryGateway(), []);
   const [storedRequests, setStoredRequests] = useState<BookingRequest[]>([]);
   const [trustedTrips, setTrustedTrips] = useState<RenterTrip[]>([]);
   const [trustedTripsUserId, setTrustedTripsUserId] = useState<string | null>(null);
   const [rentalRequestTrips, setRentalRequestTrips] = useState<RenterTrip[]>([]);
   const [rentalRequestUserId, setRentalRequestUserId] = useState<string | null>(null);
+  const [resolvedTripVehicles, setResolvedTripVehicles] = useState<Record<string, VehicleSummary | null>>({});
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<BookingSyncState>(
@@ -70,6 +74,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
       setTrustedTripsUserId(null);
       setRentalRequestTrips([]);
       setRentalRequestUserId(null);
+      setResolvedTripVehicles({});
       setLoadedUserId(null);
       setSyncError(null);
       if (!user) {
@@ -179,7 +184,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
     [loadedUserId, storedRequests, user],
   );
   const initializing = Boolean(user && loadedUserId !== user.uid);
-  const trips = useMemo(
+  const baseTrips = useMemo(
     () => resolveVisibleRenterTrips({
       authoritative: scopeTripsToActiveUser(user?.uid, trustedTripsUserId, trustedTrips),
       legacy: requests.map(mapLegacyBookingRequest),
@@ -188,6 +193,47 @@ export function BookingProvider({ children }: PropsWithChildren) {
       requests: scopeTripsToActiveUser(user?.uid, rentalRequestUserId, rentalRequestTrips),
     }),
     [rentalRequestTrips, rentalRequestUserId, requests, trustedTrips, trustedTripsUserId, user],
+  );
+  const unresolvedVehicleIds = useMemo(
+    () => [...new Set(
+      baseTrips
+        .filter((trip) => !trip.vehicleSnapshot.imageUrl && !(trip.vehicleId in resolvedTripVehicles))
+        .map((trip) => trip.vehicleId),
+    )].sort(),
+    [baseTrips, resolvedTripVehicles],
+  );
+
+  useEffect(() => {
+    if (!user || !unresolvedVehicleIds.length) return undefined;
+    let active = true;
+
+    void Promise.all(
+      unresolvedVehicleIds.map(async (vehicleId) => {
+        try {
+          return [vehicleId, await discoveryGateway.getVehicleById(vehicleId)] as const;
+        } catch {
+          return [vehicleId, null] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (!active) return;
+      setResolvedTripVehicles((current) => ({
+        ...current,
+        ...Object.fromEntries(entries),
+      }));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [discoveryGateway, unresolvedVehicleIds, user]);
+
+  const trips = useMemo(
+    () => baseTrips.map((trip) => recoverRenterTripVehicle(
+      trip,
+      resolvedTripVehicles[trip.vehicleId],
+    )),
+    [baseTrips, resolvedTripVehicles],
   );
 
   const value = useMemo<BookingContextValue>(
