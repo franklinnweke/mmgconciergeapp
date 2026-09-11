@@ -9,6 +9,7 @@ import {
   normalizeFirestoreTimestamp,
   parseTrustedBooking,
   parseTrustedBookingIntent,
+  recoverRenterTripVehicle,
   resolveVisibleRenterTrips,
   renterTripReadQuery,
   scopeTripsToActiveUser,
@@ -123,6 +124,47 @@ describe('renter trip repository', () => {
       displayName: 'Booked vehicle',
       areaLabel: 'Lagos',
     });
+  });
+
+  it('recovers the real published vehicle image for historical trip snapshots', () => {
+    const historical = trip({
+      vehicleSnapshot: {
+        displayName: 'Booked vehicle',
+        areaLabel: 'Lagos',
+        categoryLabel: 'Executive SUV',
+        imageKey: 'hero-suv',
+      },
+    });
+    const liveVehicle = {
+      id: 'vehicle-one',
+      displayName: '2023 Toyota Land Cruiser Prado 150 VX',
+      category: 'executive_suv' as const,
+      areaLabel: 'Victoria Island',
+      seats: 7,
+      dailyRateKobo: 38_500_000,
+      distanceKm: 0,
+      chauffeurPolicy: 'included' as const,
+      deliveryPolicy: 'included' as const,
+      imageUrl: 'https://media.example/public/vehicles/vehicle-one/approved/front/card',
+    };
+
+    const recovered = recoverRenterTripVehicle(historical, liveVehicle);
+    expect(recovered.vehicleSnapshot).toEqual({
+      displayName: '2023 Toyota Land Cruiser Prado 150 VX',
+      areaLabel: 'Victoria Island',
+      categoryLabel: 'Executive SUV',
+      imageUrl: 'https://media.example/public/vehicles/vehicle-one/approved/front/card',
+    });
+
+    const immutableSnapshot = trip({
+      vehicleSnapshot: {
+        displayName: 'Original booked Prado',
+        areaLabel: 'Ikoyi',
+        categoryLabel: 'Executive SUV',
+        imageUrl: 'https://media.example/original-booking-image',
+      },
+    });
+    expect(recoverRenterTripVehicle(immutableSnapshot, liveVehicle)).toBe(immutableSnapshot);
   });
 
   it('skips invalid documents without exposing raw payloads', () => {
