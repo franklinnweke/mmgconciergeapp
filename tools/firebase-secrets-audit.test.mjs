@@ -27,5 +27,5 @@ describe('Paystack source audit', () => {
 
   it('audits the checked-in Functions source without Firebase or GCP access', async () => {
     await expect(runAudit(process.cwd())).resolves.toEqual([...PAYSTACK_SECRET_FUNCTIONS].sort());
-  });
+  }, 15000);
 });

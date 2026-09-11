@@ -45,9 +45,14 @@ jobs:
 
       - name: Build admin application
         env:
+          MMG_FIREBASE_ENV: development
+          NEXT_PUBLIC_MMG_FIREBASE_ENV: development
           FIREBASE_PROJECT_ID: mmg-concierge-dev
+          FIREBASE_STORAGE_BUCKET: mmg-concierge-dev.firebasestorage.app
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: mmg-concierge-dev
           NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: mmg-concierge-dev.firebasestorage.app
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyBV6ra5G3S0Nej-KG8CJbGRor6l_AzhMFs
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: mmg-concierge-dev.firebaseapp.com
         run: npm run admin:build
 
   firebase-rules:

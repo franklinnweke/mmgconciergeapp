@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Timestamp, type DocumentData } from 'firebase-admin/firestore';
 
-import { getAdminFirestore } from '../../auth/server/firebase-admin';
+import { getAdminFirestore, getAdminServerConfig } from '../../auth/server/firebase-admin';
 
 export type StaffInterventionCase = {
   caseId: string;
@@ -31,7 +31,11 @@ export type StaffInterventionSnapshot = {
 };
 
 function configuredProjectId(): string | null {
-  return process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || null;
+  try {
+    return getAdminServerConfig().projectId;
+  } catch {
+    return null;
+  }
 }
 
 export function maskOperationalReference(value: string): string {

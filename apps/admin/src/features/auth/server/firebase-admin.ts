@@ -5,13 +5,18 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
+import { getAdminServerConfig, type AdminServerConfig } from './firebase-admin-config';
+
+export { getAdminServerConfig, type AdminServerConfig };
+
 export function getAdminApp() {
   if (getApps().length > 0) {
     return getApp();
   }
+  const config = getAdminServerConfig();
   return initializeApp({
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'mmg-concierge',
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'mmg-concierge.firebasestorage.app',
+    projectId: config.projectId,
+    storageBucket: config.storageBucket,
   });
 }
 

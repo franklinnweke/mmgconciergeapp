@@ -1,17 +1,15 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, inMemoryPersistence, setPersistence } from 'firebase/auth';
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'mock-api-key',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'mmg-concierge.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'mmg-concierge',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'mmg-concierge.firebasestorage.app',
-};
+import { getClientFirebaseConfig, type ClientFirebaseConfig } from './firebase-client-config';
+
+export { getClientFirebaseConfig, type ClientFirebaseConfig };
 
 export function getClientApp() {
   if (getApps().length > 0) {
     return getApp();
   }
+  const firebaseConfig = getClientFirebaseConfig();
   return initializeApp(firebaseConfig);
 }
 
