@@ -3,6 +3,7 @@ import {
   renterVisibleBookingSchema,
   type RenterVisibleBooking,
   type RenterVisibleBookingIntent,
+  type VehicleSummary,
 } from '@mmg/contracts';
 
 import {
@@ -71,6 +72,44 @@ export function normalizeFirestoreTimestamp(value: unknown): string | undefined 
   if (secondsValue === undefined) return undefined;
   const date = new Date(secondsValue * 1000);
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function liveVehicleImageUrl(vehicle: VehicleSummary): string | undefined {
+  return vehicle.imageUrl ?? vehicle.primaryImageUrl ?? vehicle.imageUrls?.[0];
+}
+
+function isGenericSnapshotName(value: string): boolean {
+  return value === 'Booked vehicle' || value === 'Requested vehicle';
+}
+
+/**
+ * Recovers old trip records that predate canonical booking image snapshots.
+ * A persisted snapshot URL always wins. Otherwise the current renter-visible
+ * discovery projection supplies the vehicle's real published image instead of
+ * a generic fixture image key.
+ */
+export function recoverRenterTripVehicle(
+  trip: RenterTrip,
+  vehicle: VehicleSummary | null | undefined,
+): RenterTrip {
+  if (trip.vehicleSnapshot.imageUrl || !vehicle) return trip;
+
+  const imageUrl = liveVehicleImageUrl(vehicle);
+  if (!imageUrl) return trip;
+
+  return {
+    ...trip,
+    vehicleSnapshot: {
+      displayName: isGenericSnapshotName(trip.vehicleSnapshot.displayName)
+        ? vehicle.displayName
+        : trip.vehicleSnapshot.displayName,
+      areaLabel: trip.vehicleSnapshot.areaLabel === 'Lagos'
+        ? vehicle.areaLabel
+        : trip.vehicleSnapshot.areaLabel,
+      categoryLabel: trip.vehicleSnapshot.categoryLabel,
+      imageUrl,
+    },
+  };
 }
 
 function normalizeTrustedRecord(id: string, data: Record<string, unknown>) {
