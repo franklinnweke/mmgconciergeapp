@@ -272,10 +272,19 @@ Merge sequence:
 - PR #45 (`feat(booking): add renter cancellation lifecycle`) merged into `main`.
 - Post-merge CI #109 (`34537683318`) passed green across all jobs (Firebase Rules, Quality, Functions Emulator, Gate).
 
+Validated Admin fail-closed environment source checkpoint merged to `main`:
+
+`bfc136778f309a4eb4ea6bfb07353f86e9273c50`
+
+Merge sequence:
+- PR #46 (`fix(admin): fail closed on missing or invalid Firebase environment configuration`) merged into `main`.
+- Post-merge CI #114 (`34659825955`) passed green across all jobs (Firebase Rules, Quality, Functions Emulator, Gate).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
 - Renter cancellation lifecycle (unpaid, payment in-flight, future paid booking, scheduled resolver, zero invented economics): merged to `main`
+- Admin fail-closed Firebase environment configuration: merged to `main`
 - Mobile renter/owner integration: merged to `main`
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
