@@ -322,11 +322,19 @@ Merge sequence:
 
 Validated trip and request state simplification source checkpoint merged to `main`:
 
-`0c9bfe567b447470f1a9a83685cbb1fa036a18cb`
+`0c9bfe573e4b09e499758cb16437a0193cf94241`
 
 Merge sequence:
 - PR #53 (`feat(mobile): simplify trip and request state presentation (WP3)`) merged into `main`.
 - Post-merge CI (`34679177915`) passed green across all jobs (Firebase Rules in 1m28s, Functions Emulator in 1m38s, Quality in 2m52s, Gate in 4s).
+
+Validated renter correctness and WP3 refinements source checkpoint merged to `main`:
+
+`0cc82a069e060e77c2be4945f28d8062772fa3ee`
+
+Merge sequence:
+- PR #54 (`fix(renter): resolve deletion transaction ordering, service envelope, hydration race, and trip presentation`) merged into `main`.
+- Post-merge CI (`34691109986`) passed green across all jobs (Firebase Rules in 1m27s, Functions Emulator in 2m10s, Quality in 2m32s, Gate in 3s).
 
 Current state:
 - Request-first architecture: merged to `main`
@@ -339,6 +347,7 @@ Current state:
 - Pickup correctness, privacy deletion, and service boundary enforcement: merged to `main`
 - Renter commercial journey subtraction (WP2: Home, Browse, Vehicle Detail, Booking Review): merged to `main`
 - Trip and request state simplification (WP3: human vocabulary, Trips list, Trip Detail subtractions, real actions only): merged to `main`
+- Renter correctness & privacy transaction ordering (WP3 refinements: upfront reads, targeted idempotency, envelope unification, hydration race, no name gating, truthful terminal states): merged to `main`
 - Mobile renter/owner integration: merged to `main`
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
