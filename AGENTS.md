@@ -280,11 +280,20 @@ Merge sequence:
 - PR #46 (`fix(admin): fail closed on missing or invalid Firebase environment configuration`) merged into `main`.
 - Post-merge CI #114 (`34659825955`) passed green across all jobs (Firebase Rules, Quality, Functions Emulator, Gate).
 
+Validated exact pickup location model and journey context source checkpoint merged to `main`:
+
+`ad041aaa832d4d01e1a63de14335f402bdab2b75`
+
+Merge sequence:
+- PR #48 (`feat(mobile): implement exact pickup location and unified journey context (WP1A)`) merged into `main`.
+- Post-merge CI (`34670726743`) passed green across all jobs (Firebase Rules, Quality, Functions Emulator, Gate).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
 - Renter cancellation lifecycle (unpaid, payment in-flight, future paid booking, scheduled resolver, zero invented economics): merged to `main`
 - Admin fail-closed Firebase environment configuration: merged to `main`
+- Mobile exact pickup location model & unified journey context (WP1A): merged to `main`
 - Mobile renter/owner integration: merged to `main`
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
