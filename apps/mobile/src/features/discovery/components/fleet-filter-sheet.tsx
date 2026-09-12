@@ -14,25 +14,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 
-import {
-  areaFilters,
-  fleetCategories,
-  journeyOptions,
-  pickupDestinations,
-  type JourneyOption,
-} from '../data/lagos-destinations';
-
-const pickupChoices = [
-  ...areaFilters,
-  ...pickupDestinations
-    .map((destination) => destination.area)
-    .filter((area) => !areaFilters.includes(area as (typeof areaFilters)[number])),
-];
+import { fleetCategories } from '../data/lagos-destinations';
 
 export type FleetFilterState = {
-  area: string;
   category: VehicleCategory | undefined;
-  journey: JourneyOption;
 };
 
 type FleetFilterSheetProps = {
@@ -51,28 +36,19 @@ export function FleetFilterSheet({
   visible,
 }: FleetFilterSheetProps) {
   const insets = useSafeAreaInsets();
-  const [selectedArea, setSelectedArea] = useState(currentFilters.area);
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory | undefined>(
     currentFilters.category,
   );
-  const [selectedJourney, setSelectedJourney] = useState<JourneyOption>(currentFilters.journey);
 
-  const activeFiltersCount =
-    (selectedArea !== 'All Lagos' ? 1 : 0) +
-    (selectedCategory !== undefined ? 1 : 0) +
-    (selectedJourney.label !== journeyOptions[0].label ? 1 : 0);
+  const activeFiltersCount = selectedCategory !== undefined ? 1 : 0;
 
   const handleReset = () => {
-    setSelectedArea('All Lagos');
     setSelectedCategory(undefined);
-    setSelectedJourney(journeyOptions[0]);
   };
 
   const handleApply = () => {
     onApply({
-      area: selectedArea,
       category: selectedCategory,
-      journey: selectedJourney,
     });
     onClose();
   };
@@ -145,6 +121,7 @@ export function FleetFilterSheet({
                   </View>
                 </PressableScale>
                 {fleetCategories.map((cat) => {
+                  if (cat.value === undefined) return null;
                   const isSelected = selectedCategory === cat.value;
                   return (
                     <PressableScale
@@ -162,61 +139,6 @@ export function FleetFilterSheet({
                         />
                         <Text style={[styles.choiceText, isSelected && styles.choiceTextActive]}>
                           {cat.label}
-                        </Text>
-                      </View>
-                    </PressableScale>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Section 2: Lagos Pickup Area */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>LAGOS PICKUP AREA</Text>
-              <View style={styles.chipWrap}>
-                {pickupChoices.map((loc) => {
-                  const isSelected = selectedArea === loc;
-                  return (
-                    <PressableScale
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                      key={loc}
-                      onPress={() => setSelectedArea(loc)}
-                    >
-                      <View style={[styles.chip, isSelected && styles.chipActive]}>
-                        {isSelected ? <View style={styles.chipDot} /> : null}
-                        <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                          {loc}
-                        </Text>
-                      </View>
-                    </PressableScale>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Section 3: Journey Timing */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>JOURNEY TIMING</Text>
-              <View style={styles.journeyRow}>
-                {journeyOptions.map((opt) => {
-                  const isSelected = selectedJourney.label === opt.label;
-                  return (
-                    <PressableScale
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                      key={opt.label}
-                      onPress={() => setSelectedJourney(opt)}
-                      style={styles.journeyFlex}
-                    >
-                      <View style={[styles.journeyButton, isSelected && styles.journeyButtonActive]}>
-                        <Text
-                          style={[
-                            styles.journeyButtonText,
-                            isSelected && styles.journeyButtonTextActive,
-                          ]}
-                        >
-                          {opt.label}
                         </Text>
                       </View>
                     </PressableScale>
@@ -247,7 +169,7 @@ export function FleetFilterSheet({
               <View style={styles.applyButton}>
                 <Text style={styles.applyText}>
                   {totalResultsCount !== undefined
-                    ? `Show ${totalResultsCount} ${totalResultsCount === 1 ? 'vehicle' : 'vehicles'}`
+                    ? `Show ${totalResultsCount} ${totalResultsCount === 1 ? 'car' : 'cars'}`
                     : 'Apply filters'}
                 </Text>
                 <Ionicons color={colors.black} name="arrow-forward" size={17} />
@@ -282,40 +204,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.72)',
     flex: 1,
     justifyContent: 'flex-end',
-  },
-  chip: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
-  chipActive: {
-    backgroundColor: colors.ivory,
-    borderColor: colors.ivory,
-  },
-  chipDot: {
-    backgroundColor: colors.black,
-    borderRadius: 3,
-    height: 6,
-    width: 6,
-  },
-  chipText: {
-    color: colors.silver,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
-  },
-  chipTextActive: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-  },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
   },
   choicePill: {
     alignItems: 'center',
@@ -391,36 +279,6 @@ const styles = StyleSheet.create({
   },
   headerTitleRow: {
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  journeyButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.sm,
-  },
-  journeyButtonActive: {
-    backgroundColor: colors.ivory,
-    borderColor: colors.ivory,
-  },
-  journeyButtonText: {
-    color: colors.silver,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
-  },
-  journeyButtonTextActive: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-  },
-  journeyFlex: {
-    flex: 1,
-  },
-  journeyRow: {
     flexDirection: 'row',
     gap: spacing.xs,
   },

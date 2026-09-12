@@ -25,27 +25,16 @@ import {
   type FleetFilterState,
 } from '../components/fleet-filter-sheet';
 import {
-  areaFilters,
+  addDaysToDateOnly,
   firstRouteParam,
-  journeyDates,
   parseFleetCategory,
-  parseJourneyLabel,
-  pickupDestinations,
-  vehicleAreaForPickup,
-  type JourneyOption,
+  todayLagosDateOnly,
 } from '../data/lagos-destinations';
 import {
   parsePickupLocation,
   serializePickupLocation,
 } from '../domain/pickup-location';
 import { useVehicleSearch } from '../hooks/use-vehicle-search';
-
-const pickupChoices = [
-  ...areaFilters,
-  ...pickupDestinations
-    .map((destination) => destination.area)
-    .filter((area) => !areaFilters.includes(area as (typeof areaFilters)[number])),
-];
 
 export default function BrowseFleetScreen() {
   const router = useRouter();
@@ -54,7 +43,6 @@ export default function BrowseFleetScreen() {
     pickup?: string | string[];
     area?: string | string[];
     category?: string | string[];
-    journey?: string | string[];
     startDate?: string | string[];
     endDate?: string | string[];
   }>();
@@ -63,19 +51,6 @@ export default function BrowseFleetScreen() {
     () => parsePickupLocation(firstRouteParam(params.pickup) ?? firstRouteParam(params.area)),
     [params.pickup, params.area],
   );
-
-  const routeArea = firstRouteParam(params.area) ?? pickup.serviceAreaLabel;
-  const resolvedRouteArea =
-    routeArea && pickupChoices.includes(routeArea) ? routeArea : 'All Lagos';
-
-  const [areaSelection, setAreaSelection] = useState<{
-    routeValue?: string;
-    value: string;
-  } | null>(null);
-  const area =
-    areaSelection && areaSelection.routeValue === routeArea
-      ? areaSelection.value
-      : resolvedRouteArea;
 
   const routeCategory = parseFleetCategory(firstRouteParam(params.category));
   const [categorySelection, setCategorySelection] = useState<{
@@ -87,16 +62,6 @@ export default function BrowseFleetScreen() {
       ? categorySelection.value
       : routeCategory;
 
-  const routeJourney = firstRouteParam(params.journey);
-  const [journeySelection, setJourneySelection] = useState<{
-    routeValue?: string;
-    value: JourneyOption;
-  } | null>(null);
-  const journey =
-    journeySelection && journeySelection.routeValue === routeJourney
-      ? journeySelection.value
-      : parseJourneyLabel(routeJourney);
-
   const routeStartDate = firstRouteParam(params.startDate);
   const routeEndDate = firstRouteParam(params.endDate);
 
@@ -107,8 +72,12 @@ export default function BrowseFleetScreen() {
         endDate: routeEndDate,
       };
     }
-    return journeyDates(journey);
-  }, [journey, routeStartDate, routeEndDate]);
+    const today = todayLagosDateOnly();
+    return {
+      startDate: addDaysToDateOnly(today, 1),
+      endDate: addDaysToDateOnly(today, 2),
+    };
+  }, [routeStartDate, routeEndDate]);
 
   const [query, setQuery] = useState('');
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
@@ -116,7 +85,6 @@ export default function BrowseFleetScreen() {
   const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
 
   const { error, isLoading, vehicles } = useVehicleSearch({
-    areaLabel: vehicleAreaForPickup(area),
     category,
     query,
   });
@@ -133,24 +101,16 @@ export default function BrowseFleetScreen() {
     }).start();
   }, [entrance, reduceMotion]);
 
-  const activeFiltersCount =
-    (area !== 'All Lagos' ? 1 : 0) +
-    (category !== undefined ? 1 : 0) +
-    (journey.label !== 'Tomorrow' && journey.label !== 'Today' ? 1 : 0);
-
-  const hasAnyFilterOrSearch =
-    area !== 'All Lagos' || category !== undefined || query.trim().length > 0;
+  const activeFiltersCount = category !== undefined ? 1 : 0;
+  const hasAnyFilterOrSearch = category !== undefined || query.trim().length > 0;
 
   const clearAllFilters = () => {
-    setAreaSelection({ routeValue: routeArea, value: 'All Lagos' });
     setCategorySelection({ routeValue: routeCategory, value: undefined });
     setQuery('');
   };
 
   const handleApplyFilters = (newFilters: FleetFilterState) => {
-    setAreaSelection({ routeValue: routeArea, value: newFilters.area });
     setCategorySelection({ routeValue: routeCategory, value: newFilters.category });
-    setJourneySelection({ routeValue: routeJourney, value: newFilters.journey });
   };
 
   return (
@@ -179,10 +139,10 @@ export default function BrowseFleetScreen() {
           <View style={styles.searchBox}>
             <Ionicons color={colors.goldStrong} name="search-outline" size={18} />
             <TextInput
-              accessibilityLabel="Search vehicles or Lagos areas"
+              accessibilityLabel="Search vehicles"
               autoCapitalize="words"
               onChangeText={setQuery}
-              placeholder="Search Prado, sedan, or area..."
+              placeholder="Search Prado, sedan, or model..."
               placeholderTextColor="rgba(180,174,164,0.68)"
               returnKeyType="search"
               style={styles.searchInput}
@@ -236,19 +196,6 @@ export default function BrowseFleetScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
           >
-            {area !== 'All Lagos' ? (
-              <PressableScale
-                accessibilityLabel={`Remove area filter ${area}`}
-                accessibilityRole="button"
-                onPress={() => setAreaSelection({ routeValue: routeArea, value: 'All Lagos' })}
-              >
-                <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>{area}</Text>
-                  <Ionicons color={colors.goldStrong} name="close" size={14} />
-                </View>
-              </PressableScale>
-            ) : null}
-
             {category !== undefined ? (
               <PressableScale
                 accessibilityLabel="Remove class filter"
@@ -290,8 +237,8 @@ export default function BrowseFleetScreen() {
         <View style={styles.resultsHeader}>
           <Text style={styles.resultsTitle}>
             {isLoading
-              ? 'Finding available fleet…'
-              : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle available' : 'vehicles available'}`}
+              ? 'Finding cars…'
+              : `${vehicles.length} ${vehicles.length === 1 ? 'car' : 'cars'}`}
           </Text>
         </View>
 
@@ -330,7 +277,7 @@ export default function BrowseFleetScreen() {
               </View>
               <Text style={styles.emptyTitle}>No exact match</Text>
               <Text style={styles.emptyBody}>
-                Widen your area or vehicle class filters to see all available Prado and executive options.
+                Clear your filters or search to see all Prado and executive options.
               </Text>
               <PressableScale accessibilityRole="button" onPress={clearAllFilters}>
                 <View style={styles.emptyAction}>
@@ -344,9 +291,7 @@ export default function BrowseFleetScreen() {
 
       <FleetFilterSheet
         currentFilters={{
-          area,
           category,
-          journey,
         }}
         onApply={handleApplyFilters}
         onClose={() => setFilterSheetVisible(false)}
@@ -380,32 +325,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.xs,
   },
-  assurance: {
-    alignItems: 'flex-start',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: layout.sectionGap,
-    padding: spacing.lg,
-  },
-  assuranceBody: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  assuranceCopy: {
-    flex: 1,
-  },
-  assuranceTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-  },
   clearAllText: {
     color: colors.goldStrong,
     fontFamily: typography.bodySemiBold,
@@ -421,22 +340,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingBottom: 120,
     paddingHorizontal: layout.screenGutter,
-  },
-  datePill: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  datePillText: {
-    color: colors.silver,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 0.4,
   },
   emptyAction: {
     alignItems: 'center',
@@ -486,11 +389,21 @@ const styles = StyleSheet.create({
     fontFamily: typography.display,
     fontSize: fontSizes.xl,
   },
-  eyebrow: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1.3,
+  errorBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(209,133,120,0.12)',
+    borderColor: colors.danger,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  errorText: {
+    color: colors.danger,
+    flex: 1,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.sm,
   },
   filterBadge: {
     alignItems: 'center',
@@ -529,17 +442,6 @@ const styles = StyleSheet.create({
   },
   filterButtonTextActive: {
     color: colors.black,
-  },
-  liveDot: {
-    backgroundColor: colors.success,
-    borderRadius: radii.pill,
-    height: 6,
-    width: 6,
-  },
-  loadingCard: {
-    backgroundColor: colors.graphite,
-    borderRadius: radii.lg,
-    height: 320,
   },
   resultsHeader: {
     alignItems: 'center',
@@ -585,40 +487,11 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.base,
   },
-  sortIndicator: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 4,
-  },
-  sortText: {
-    color: colors.gold,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
   title: {
     color: colors.ivory,
     fontFamily: typography.display,
     fontSize: fontSizes.display,
     letterSpacing: -0.6,
     marginTop: 4,
-  },
-  titleBlock: {
-    marginTop: spacing.xs,
-  },
-  errorBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(209,133,120,0.12)',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
   },
 });

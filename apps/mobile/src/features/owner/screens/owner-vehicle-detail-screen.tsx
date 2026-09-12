@@ -191,27 +191,27 @@ export function OwnerVehicleDetailScreen() {
           <View style={styles.grid}>
             <View style={styles.gridItem}>
               <Text style={styles.itemLabel}>Make & Model</Text>
-              <Text style={styles.itemVal}>{vehicle.make ?? 'Unknown'} {vehicle.model ?? ''}</Text>
+              <Text style={styles.itemVal}>{vehicle.make || vehicle.model ? `${vehicle.make ?? ''} ${vehicle.model ?? ''}`.trim() : 'Not set'}</Text>
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.itemLabel}>Year</Text>
-              <Text style={styles.itemVal}>{vehicle.year ?? 'N/A'}</Text>
+              <Text style={styles.itemVal}>{vehicle.year ? String(vehicle.year) : 'Not set'}</Text>
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.itemLabel}>Category</Text>
-              <Text style={styles.itemVal}>{vehicle.category === 'executive_suv' ? 'Executive SUV' : 'Executive Saloon'}</Text>
+              <Text style={styles.itemVal}>{vehicle.category === 'executive_suv' ? 'Executive SUV' : vehicle.category === 'executive_sedan' ? 'Executive Saloon' : 'Not set'}</Text>
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.itemLabel}>Seats</Text>
-              <Text style={styles.itemVal}>{vehicle.seats ?? 4} Passengers</Text>
+              <Text style={styles.itemVal}>{vehicle.seats ? `${vehicle.seats} Passengers` : 'Not set'}</Text>
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.itemLabel}>Transmission</Text>
-              <Text style={styles.itemVal}>{vehicle.transmission?.toUpperCase() ?? 'AUTOMATIC'}</Text>
+              <Text style={styles.itemVal}>{vehicle.transmission ? vehicle.transmission.toUpperCase() : 'Not set'}</Text>
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.itemLabel}>Base Area</Text>
-              <Text style={styles.itemVal}>{vehicle.areaLabel ?? 'Lagos'}</Text>
+              <Text style={styles.itemVal}>{vehicle.areaLabel ?? 'Not set'}</Text>
             </View>
           </View>
         </View>
@@ -221,7 +221,9 @@ export function OwnerVehicleDetailScreen() {
           <Text style={styles.sectionHeader}>FINANCIAL TERMS</Text>
           <View style={styles.rateRow}>
             <Text style={styles.rateLabel}>Owner daily rate</Text>
-            <Text style={styles.rateValue}>{formatNairaFromKobo(vehicle.ownerDailyRateKobo ?? 0)}</Text>
+            <Text style={styles.rateValue}>
+              {vehicle.ownerDailyRateKobo ? formatNairaFromKobo(vehicle.ownerDailyRateKobo) : 'Not set'}
+            </Text>
           </View>
           <Text style={styles.policyNotice}>
             Final renter totals and owner earnings are calculated by MMG from the active pricing configuration. Chauffeured service and delivery are included.
