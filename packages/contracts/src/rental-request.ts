@@ -33,12 +33,23 @@ export const rentalRequestContactPhoneSchema = z
 
 export const rentalRequestServiceAreaSchema = z.enum(LAGOS_AREA_LABELS);
 
+export const pickupLocationSnapshotSchema = z.object({
+  displayName: z.string().trim().min(1).max(200),
+  formattedAddress: z.string().trim().min(1).max(300),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  placeId: z.string().trim().min(1).max(200).optional(),
+  serviceAreaLabel: rentalRequestServiceAreaSchema,
+}).strict();
+export type PickupLocationSnapshot = z.infer<typeof pickupLocationSnapshotSchema>;
+
 export const createRentalRequestDataSchema = z.object({
   vehicleId: boundedIdSchema,
   startDate: dateOnlySchema,
   endDate: dateOnlySchema,
   contactPhone: rentalRequestContactPhoneSchema,
   serviceAreaLabel: rentalRequestServiceAreaSchema,
+  pickupLocation: pickupLocationSnapshotSchema.optional(),
 }).strict();
 export type CreateRentalRequestData = z.infer<typeof createRentalRequestDataSchema>;
 
@@ -96,7 +107,10 @@ export const ownerVisibleRentalRequestSchema = z
 export type OwnerVisibleRentalRequest = z.infer<typeof ownerVisibleRentalRequestSchema>;
 
 export const renterVisibleRentalRequestSchema = z
-  .object(clientProjectionShape)
+  .object({
+    ...clientProjectionShape,
+    pickupLocation: pickupLocationSnapshotSchema.optional(),
+  })
   .strict()
   .superRefine(addProjectionRules);
 export type RenterVisibleRentalRequest = z.infer<typeof renterVisibleRentalRequestSchema>;
@@ -133,6 +147,7 @@ export const createRentalRequestResultSchema = z.object({
     vehicleSnapshot: renterVehicleSnapshotSchema,
     version: z.literal(1),
     createdAt: isoDateTimeSchema,
+    pickupLocation: pickupLocationSnapshotSchema.optional(),
   }).strict(),
 }).strict();
 export type CreateRentalRequestResult = z.infer<typeof createRentalRequestResultSchema>;

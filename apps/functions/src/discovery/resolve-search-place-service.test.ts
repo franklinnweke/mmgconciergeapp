@@ -19,12 +19,33 @@ describe('resolveSearchPlaceService', () => {
 
   it('resolves MMA Airport', () => {
     const result = resolveSearchPlaceService({ query: 'MMA Airport' });
-    expect(result.areaLabel).toBe('Ikeja GRA');
+    expect(result.areaLabel).toBe('Ikeja');
     expect(result.displayName).toContain('Airport');
+    expect(result.withinLagos).toBe(true);
+  });
+
+  it('resolves Wheatbaker landmark with exact coordinates', () => {
+    const result = resolveSearchPlaceService({ query: 'Wheatbaker' });
+    expect(result.areaLabel).toBe('Ikoyi');
+    expect(result.displayName).toContain('Wheatbaker');
+    expect(result.withinLagos).toBe(true);
+    expect(result.approxLatitude).toBeCloseTo(6.4485, 2);
+  });
+
+  it('resolves ExecuJet Private Terminal', () => {
+    const result = resolveSearchPlaceService({ query: 'ExecuJet' });
+    expect(result.areaLabel).toBe('Ikeja');
+    expect(result.displayName).toContain('ExecuJet');
     expect(result.withinLagos).toBe(true);
   });
 
   it('rejects empty query string', () => {
     expect(() => resolveSearchPlaceService({ query: '   ' })).toThrow();
+  });
+
+  it('fails closed and throws NOT_FOUND for unknown locations without synthesizing fake address', () => {
+    expect(() => resolveSearchPlaceService({ query: 'unknown non-existent location xyz 12345' })).toThrow(
+      'Could not resolve a Lagos location for this search query.',
+    );
   });
 });

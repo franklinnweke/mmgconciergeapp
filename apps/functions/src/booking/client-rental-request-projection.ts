@@ -4,7 +4,11 @@ function timestampIso(value: unknown): string | undefined {
   return value instanceof Timestamp ? value.toDate().toISOString() : undefined;
 }
 
-export function clientRentalRequestProjection(documentId: string, data: Record<string, unknown>) {
+export function clientRentalRequestProjection(
+  documentId: string,
+  data: Record<string, unknown>,
+  options?: { audience?: 'renter' | 'owner' },
+) {
   const cancellationRequestedAt = timestampIso(data.cancellationRequestedAt);
   const state = cancellationRequestedAt && (data.state === 'ready_for_payment' || data.state === 'confirmed')
     ? 'cancellation_requested'
@@ -28,5 +32,6 @@ export function clientRentalRequestProjection(documentId: string, data: Record<s
     ...(timestampIso(data.cancelledAt) ? { cancelledAt: timestampIso(data.cancelledAt) } : {}),
     createdAt: timestampIso(data.createdAt),
     updatedAt: timestampIso(data.updatedAt),
+    ...(options?.audience === 'renter' && data.pickupLocation ? { pickupLocation: data.pickupLocation } : {}),
   };
 }

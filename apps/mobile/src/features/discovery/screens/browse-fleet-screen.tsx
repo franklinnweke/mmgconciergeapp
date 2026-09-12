@@ -262,7 +262,7 @@ export default function BrowseFleetScreen() {
                     pathname: '/vehicle/[vehicleId]',
                     params: {
                       ...selectedJourneyDates,
-                      pickup: serializePickupLocation(pickup),
+                      ...(pickup ? { pickup: serializePickupLocation(pickup) } : {}),
                       vehicleId: vehicle.id,
                     },
                   })

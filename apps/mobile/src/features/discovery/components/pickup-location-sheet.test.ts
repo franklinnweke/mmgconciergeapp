@@ -2,7 +2,24 @@ import { describe, expect, it, vi } from 'vitest';
 import { CURATED_PICKUP_LOCATIONS, DEFAULT_PICKUP_LOCATION } from '../domain/pickup-location';
 import { PickupLocationSheet } from './pickup-location-sheet';
 
+(globalThis as any).__DEV__ = true;
+
+vi.mock('@react-native-firebase/functions', () => ({
+  getFunctions: vi.fn(),
+  httpsCallable: vi.fn(),
+}));
+
+vi.mock('expo-location', () => ({
+  Accuracy: { Balanced: 2 },
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
+  getForegroundPermissionsAsync: vi.fn(),
+  requestForegroundPermissionsAsync: vi.fn(),
+  getCurrentPositionAsync: vi.fn(),
+  reverseGeocodeAsync: vi.fn(),
+}));
+
 vi.mock('react-native', () => ({
+  ActivityIndicator: 'ActivityIndicator',
   KeyboardAvoidingView: 'KeyboardAvoidingView',
   Modal: 'Modal',
   Platform: { OS: 'ios' },

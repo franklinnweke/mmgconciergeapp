@@ -93,4 +93,35 @@ export const previewDiscoveryGateway: DiscoveryGateway = {
   async getVehicleById(vehicleId) {
     return getPreviewVehicleById(vehicleId);
   },
+  async resolveSearchPlace(query: string) {
+    const q = query.trim().toLowerCase();
+    if (q.includes('ikoyi') || q.includes('wheatbaker')) {
+      return {
+        placeId: 'preview-ikoyi',
+        areaLabel: 'Ikoyi',
+        displayName: 'The Wheatbaker, Ikoyi, Lagos',
+        approxLatitude: 6.4485,
+        approxLongitude: 3.4385,
+        withinLagos: true,
+      };
+    }
+    if (q.includes('airport') || q.includes('mma') || q.includes('execujet')) {
+      return {
+        placeId: 'preview-airport',
+        areaLabel: 'Ikeja',
+        displayName: 'Murtala Muhammed Airport, Ikeja, Lagos',
+        approxLatitude: 6.5774,
+        approxLongitude: 3.3212,
+        withinLagos: true,
+      };
+    }
+    return {
+      placeId: 'preview-vi',
+      areaLabel: 'Victoria Island',
+      displayName: 'Eko Hotel & Suites, Victoria Island, Lagos',
+      approxLatitude: 6.4269,
+      approxLongitude: 3.4285,
+      withinLagos: true,
+    };
+  },
 };

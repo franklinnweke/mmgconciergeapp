@@ -51,6 +51,21 @@ export const getVehicleDetailsResultSchema = z.object({
 }).strict();
 export type GetVehicleDetailsResult = z.infer<typeof getVehicleDetailsResultSchema>;
 
+export const resolveSearchPlaceDataSchema = z.object({
+  query: z.string().trim().min(1).max(200),
+}).strict();
+export type ResolveSearchPlaceData = z.infer<typeof resolveSearchPlaceDataSchema>;
+
+export const resolveSearchPlaceResultSchema = z.object({
+  placeId: z.string().min(1).max(200),
+  areaLabel: z.string().min(1).max(120),
+  displayName: z.string().min(1).max(200),
+  approxLatitude: z.number().min(-90).max(90),
+  approxLongitude: z.number().min(-180).max(180),
+  withinLagos: z.boolean(),
+}).strict();
+export type ResolveSearchPlaceResult = z.infer<typeof resolveSearchPlaceResultSchema>;
+
 export function discoveryVehicleToSummary(
   vehicle: DiscoveryVehicle,
   distanceKm = 0,
