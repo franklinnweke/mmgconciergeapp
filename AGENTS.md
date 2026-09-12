@@ -320,6 +320,14 @@ Merge sequence:
 - PR #52 (`feat(mobile): implement renter commercial journey subtraction (WP2)`) merged into `main`.
 - Post-merge CI (`34678508166`) passed green across all jobs (Firebase Rules in 1m31s, Functions Emulator in 1m22s, Quality in 3m17s, Gate in 4s).
 
+Validated trip and request state simplification source checkpoint merged to `main`:
+
+`0c9bfe567b447470f1a9a83685cbb1fa036a18cb`
+
+Merge sequence:
+- PR #53 (`feat(mobile): simplify trip and request state presentation (WP3)`) merged into `main`.
+- Post-merge CI (`34679177915`) passed green across all jobs (Firebase Rules in 1m28s, Functions Emulator in 1m38s, Quality in 2m52s, Gate in 4s).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -330,6 +338,7 @@ Current state:
 - Mobile coordinate-first pickup location model (WP1A.1): merged to `main`
 - Pickup correctness, privacy deletion, and service boundary enforcement: merged to `main`
 - Renter commercial journey subtraction (WP2: Home, Browse, Vehicle Detail, Booking Review): merged to `main`
+- Trip and request state simplification (WP3: human vocabulary, Trips list, Trip Detail subtractions, real actions only): merged to `main`
 - Mobile renter/owner integration: merged to `main`
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
