@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CURATED_PICKUP_LOCATIONS, DEFAULT_PICKUP_LOCATION } from '../domain/pickup-location';
+import { CURATED_PICKUP_LOCATIONS } from '../domain/pickup-location';
 import { PickupLocationSheet } from './pickup-location-sheet';
 
 (globalThis as any).__DEV__ = true;
@@ -61,9 +61,15 @@ describe('PickupLocationSheet', () => {
     expect(vi).toBeDefined();
   });
 
-  it('has default pickup location set to a valid Lagos location', () => {
-    expect(DEFAULT_PICKUP_LOCATION).toBeDefined();
-    expect(DEFAULT_PICKUP_LOCATION.displayName).toBe('Eko Hotel & Suites');
-    expect(DEFAULT_PICKUP_LOCATION.serviceAreaLabel).toBe('Victoria Island');
+  it('ensures all curated locations have valid coordinate-first properties', () => {
+    for (const loc of CURATED_PICKUP_LOCATIONS) {
+      expect(loc.latitude).toBeGreaterThan(6.3);
+      expect(loc.latitude).toBeLessThan(6.75);
+      expect(loc.longitude).toBeGreaterThan(2.7);
+      expect(loc.longitude).toBeLessThan(4.3);
+      expect(loc.source).toBe('suggested');
+      expect(loc.displayName.length).toBeGreaterThan(0);
+      expect(loc.formattedAddress.length).toBeGreaterThan(0);
+    }
   });
 });

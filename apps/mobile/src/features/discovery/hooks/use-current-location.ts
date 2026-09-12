@@ -60,7 +60,13 @@ export function useCurrentLocation() {
       }
 
       // 4. Derive canonical service area from nearest Lagos centroid
-      const serviceAreaLabel = deriveLagosAreaLabel({ lat: latitude, lng: longitude }) ?? 'Victoria Island';
+      const serviceAreaLabel = deriveLagosAreaLabel({ lat: latitude, lng: longitude });
+      if (!serviceAreaLabel) {
+        const msg = 'MMG could not resolve a serviceable Lagos area for this location.';
+        setStatus('outside_lagos');
+        setErrorMessage(msg);
+        return { success: false, reason: 'outside_lagos', message: msg };
+      }
 
       // 5. Reverse geocode to resolve human-readable address
       let displayName = 'Current Location';

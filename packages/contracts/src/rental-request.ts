@@ -33,11 +33,33 @@ export const rentalRequestContactPhoneSchema = z
 
 export const rentalRequestServiceAreaSchema = z.enum(LAGOS_AREA_LABELS);
 
+/**
+ * Approximate rectangular operational service envelope for Lagos metropolitan rentals.
+ * Note: This bounding box is an approximate service envelope for operational feasibility,
+ * not an exact administrative polygon of Lagos State.
+ */
+export const LAGOS_SERVICE_ENVELOPE = {
+  minLatitude: 6.30,
+  maxLatitude: 6.75,
+  minLongitude: 2.70,
+  maxLongitude: 4.30,
+} as const;
+
+export const pickupLatitudeSchema = z
+  .number()
+  .min(LAGOS_SERVICE_ENVELOPE.minLatitude, 'Pickup latitude is outside the Lagos service envelope.')
+  .max(LAGOS_SERVICE_ENVELOPE.maxLatitude, 'Pickup latitude is outside the Lagos service envelope.');
+
+export const pickupLongitudeSchema = z
+  .number()
+  .min(LAGOS_SERVICE_ENVELOPE.minLongitude, 'Pickup longitude is outside the Lagos service envelope.')
+  .max(LAGOS_SERVICE_ENVELOPE.maxLongitude, 'Pickup longitude is outside the Lagos service envelope.');
+
 export const pickupLocationSnapshotSchema = z.object({
   displayName: z.string().trim().min(1).max(200),
   formattedAddress: z.string().trim().min(1).max(300),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+  latitude: pickupLatitudeSchema,
+  longitude: pickupLongitudeSchema,
   placeId: z.string().trim().min(1).max(200).optional(),
   serviceAreaLabel: rentalRequestServiceAreaSchema,
 }).strict();
@@ -50,7 +72,15 @@ export const createRentalRequestDataSchema = z.object({
   contactPhone: rentalRequestContactPhoneSchema,
   serviceAreaLabel: rentalRequestServiceAreaSchema,
   pickupLocation: pickupLocationSnapshotSchema.optional(),
-}).strict();
+}).strict().superRefine((data, ctx) => {
+  if (data.pickupLocation && data.pickupLocation.serviceAreaLabel !== data.serviceAreaLabel) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Pickup location service area must match rental request service area.',
+      path: ['pickupLocation', 'serviceAreaLabel'],
+    });
+  }
+});
 export type CreateRentalRequestData = z.infer<typeof createRentalRequestDataSchema>;
 
 export const createRentalRequestCommandSchema = z.object({

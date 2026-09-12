@@ -244,7 +244,9 @@ export default function BookingReviewScreen({
                 <View style={styles.warningRow}>
                   <Ionicons color={colors.danger} name="alert-circle" size={16} />
                   <Text style={styles.warningText}>
-                    MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.
+                    {pickupLocation
+                      ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
+                      : 'Choose a Lagos delivery landmark or use your current location to request this car.'}
                   </Text>
                 </View>
               ) : null}
@@ -285,7 +287,11 @@ export default function BookingReviewScreen({
             haptic
             onPress={async () => {
               if (!pickupLocation || !isServiceable) {
-                setErrorMessage('MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.');
+                setErrorMessage(
+                  pickupLocation
+                    ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
+                    : 'Choose a Lagos delivery landmark or use your current location to request this car.',
+                );
                 return;
               }
               const contactPhone = normalizeNigerianPhone(phoneInput);

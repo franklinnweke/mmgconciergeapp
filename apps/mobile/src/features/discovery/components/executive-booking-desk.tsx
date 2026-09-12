@@ -12,14 +12,13 @@ import {
   todayLagosDateOnly,
 } from '../data/lagos-destinations';
 import {
-  DEFAULT_PICKUP_LOCATION,
   parsePickupLocation,
   type PickupLocation,
 } from '../domain/pickup-location';
 
 export type JourneyPlan = {
-  area: string;
-  pickup: PickupLocation;
+  area: string | null;
+  pickup: PickupLocation | null;
   startDate: string;
   endDate: string;
   durationDays: number;
@@ -28,7 +27,7 @@ export type JourneyPlan = {
 
 export type ExecutiveBookingDeskProps = {
   areaLabel?: string;
-  pickup?: PickupLocation;
+  pickup?: PickupLocation | null;
   onPlanChange?(plan: JourneyPlan): void;
   onPressArea(): void;
   onExploreFleet(plan: JourneyPlan): void;
@@ -69,7 +68,7 @@ export function ExecutiveBookingDesk({
   onPressArea,
   onExploreFleet,
 }: ExecutiveBookingDeskProps) {
-  const pickup = propPickup ?? (areaLabel ? parsePickupLocation(areaLabel) : null) ?? DEFAULT_PICKUP_LOCATION;
+  const pickup = propPickup ?? (areaLabel ? parsePickupLocation(areaLabel) : null);
   const insets = useSafeAreaInsets();
   const [startOffset, setStartOffset] = useState(0);
   const [durationDays, setDurationDays] = useState(3);
@@ -91,7 +90,7 @@ export function ExecutiveBookingDesk({
   const journeyLabel = startOffset === 0 ? 'Today' : startOffset === 1 ? 'Tomorrow' : formattedStart;
 
   const plan = useMemo<JourneyPlan>(() => ({
-    area: pickup.serviceAreaLabel,
+    area: pickup?.serviceAreaLabel ?? null,
     pickup,
     startDate,
     endDate,
@@ -107,7 +106,11 @@ export function ExecutiveBookingDesk({
     <View style={styles.container}>
       <View style={styles.summaryShell}>
         <PressableScale
-          accessibilityLabel={`Pickup location, ${pickup.displayName}, ${pickup.formattedAddress}. Change pickup location`}
+          accessibilityLabel={
+            pickup
+              ? `Pickup location, ${pickup.displayName}, ${pickup.formattedAddress}. Change pickup location`
+              : 'Select pickup location'
+          }
           accessibilityRole="button"
           onPress={onPressArea}
         >
@@ -117,10 +120,14 @@ export function ExecutiveBookingDesk({
             </View>
             <View style={styles.summaryCopy}>
               <Text style={styles.summaryLabel}>Pickup</Text>
-              <Text numberOfLines={1} style={styles.summaryValue}>{pickup.displayName}</Text>
-              <Text numberOfLines={1} style={styles.summaryMeta}>{pickup.formattedAddress}</Text>
+              <Text numberOfLines={1} style={styles.summaryValue}>
+                {pickup ? pickup.displayName : 'Where should we bring the car?'}
+              </Text>
+              <Text numberOfLines={1} style={styles.summaryMeta}>
+                {pickup ? pickup.formattedAddress : 'Select delivery landmark or use current location'}
+              </Text>
             </View>
-            <Text style={styles.editText}>Edit</Text>
+            <Text style={styles.editText}>{pickup ? 'Edit' : 'Select'}</Text>
           </View>
         </PressableScale>
 

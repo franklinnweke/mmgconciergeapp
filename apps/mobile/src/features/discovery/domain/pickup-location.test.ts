@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CURATED_PICKUP_LOCATIONS,
-  DEFAULT_PICKUP_LOCATION,
   deriveLagosAreaLabel,
   isPickupLocationServiceable,
   parsePickupLocation,
@@ -12,13 +11,6 @@ import {
 } from './pickup-location';
 
 describe('PickupLocation domain model', () => {
-  it('defines a valid default pickup location in Victoria Island', () => {
-    expect(isPickupLocationServiceable(DEFAULT_PICKUP_LOCATION)).toBe(true);
-    expect(DEFAULT_PICKUP_LOCATION.serviceAreaLabel).toBe('Victoria Island');
-    expect(DEFAULT_PICKUP_LOCATION.latitude).toBeGreaterThan(6.4);
-    expect(DEFAULT_PICKUP_LOCATION.longitude).toBeGreaterThan(3.4);
-  });
-
   it('has valid curated locations that resolve to canonical LagosAreaLabels', () => {
     expect(CURATED_PICKUP_LOCATIONS.length).toBeGreaterThanOrEqual(5);
 

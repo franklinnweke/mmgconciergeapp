@@ -26,6 +26,8 @@ export interface RenterTransaction {
   hasActiveBookings(renterId: string): Promise<boolean>;
   hasActiveRentalRequests(renterId: string): Promise<boolean>;
   deleteRentalRequestContacts(renterId: string): Promise<number>;
+  redactRentalRequestLocations(renterId: string): Promise<number>;
+  deleteRenterIdempotencyKeys(renterId: string): Promise<number>;
   getIdempotency(documentId: string): Promise<StoredRenterIdempotency | null>;
   saveIdempotency(documentId: string, record: StoredRenterIdempotency, createdAt: Date): void;
   createAuditEvent(event: RenterAuditEvent): void;

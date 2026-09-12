@@ -48,11 +48,13 @@ export function usePlaceSearch(query: string) {
         const place = await gateway.resolveSearchPlace(trimmed);
         if (!isMounted) return;
 
-        const serviceArea: LagosAreaLabel =
-          (isValidServiceArea(place.areaLabel)
-            ? place.areaLabel
-            : deriveLagosAreaLabel({ lat: place.approxLatitude, lng: place.approxLongitude })) ??
-          'Victoria Island';
+        const serviceArea: LagosAreaLabel | null = isValidServiceArea(place.areaLabel)
+          ? place.areaLabel
+          : deriveLagosAreaLabel({ lat: place.approxLatitude, lng: place.approxLongitude });
+
+        if (!serviceArea) {
+          throw new Error('Landmark location is outside the Lagos service area.');
+        }
 
         const remoteLocation: PickupLocation = {
           source: 'place_search',

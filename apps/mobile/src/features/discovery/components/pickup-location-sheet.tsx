@@ -166,15 +166,15 @@ export function PickupLocationSheet({
               <Ionicons color={colors.muted} name="chevron-forward" size={16} />
             </PressableScale>
 
-            {/* Choice 2: Search for an address or place */}
+            {/* Choice 2: Search Lagos landmarks */}
             <View style={styles.searchContainer}>
               <Ionicons color={colors.muted} name="search-outline" size={18} style={styles.searchIcon} />
               <TextInput
-                accessibilityLabel="Search address, hotel, or landmark"
+                accessibilityLabel="Search Lagos landmark"
                 autoCorrect={false}
                 clearButtonMode="while-editing"
                 onChangeText={setQuery}
-                placeholder="Search address, hotel, or landmark..."
+                placeholder="Search Lagos landmark (e.g. Eko Hotel, MMA Airport)..."
                 placeholderTextColor={colors.muted}
                 style={styles.searchInput}
                 value={query}
@@ -191,7 +191,7 @@ export function PickupLocationSheet({
             {/* Section Header */}
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionHeaderTitle}>
-                {query.trim().length > 0 ? 'Search Results' : 'Suggested Lagos Locations'}
+                {query.trim().length > 0 ? 'Matching Landmarks' : 'Suggested Lagos Landmarks'}
               </Text>
             </View>
 
@@ -204,7 +204,7 @@ export function PickupLocationSheet({
               {searchResults.length === 0 ? (
                 <View style={styles.emptyResultsBox}>
                   <Ionicons color={colors.muted} name="location-outline" size={24} />
-                  <Text style={styles.emptyResultsText}>No Lagos locations match this search.</Text>
+                  <Text style={styles.emptyResultsText}>No Lagos landmarks match this search.</Text>
                 </View>
               ) : (
                 searchResults.map((item) => {

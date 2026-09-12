@@ -1,5 +1,6 @@
 import type { RenterProfileRecord } from '@mmg/contracts';
 import {
+  FieldValue,
   getFirestore,
   Timestamp,
   type Firestore,
@@ -101,6 +102,32 @@ class FirestoreRenterTransaction implements RenterTransaction {
       this.transaction.delete(document.ref);
     }
     return contacts.size;
+  }
+
+  async redactRentalRequestLocations(renterId: string): Promise<number> {
+    const requestsRef = this.firestore.collection('rentalRequests');
+    const snap = await this.transaction.get(requestsRef.where('renterId', '==', renterId));
+    let count = 0;
+    for (const document of snap.docs) {
+      const data = document.data();
+      if (data?.pickupLocation) {
+        this.transaction.update(document.ref, {
+          pickupLocation: FieldValue.delete(),
+          updatedAt: Timestamp.fromDate(new Date()),
+        });
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async deleteRenterIdempotencyKeys(renterId: string): Promise<number> {
+    const idempotencyRef = this.firestore.collection('idempotencyKeys');
+    const snap = await this.transaction.get(idempotencyRef.where('actorId', '==', renterId));
+    for (const document of snap.docs) {
+      this.transaction.delete(document.ref);
+    }
+    return snap.size;
   }
 
   async getIdempotency(documentId: string): Promise<StoredRenterIdempotency | null> {
