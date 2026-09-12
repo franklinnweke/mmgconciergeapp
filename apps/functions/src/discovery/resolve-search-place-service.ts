@@ -16,6 +16,36 @@ export type ResolvedSearchPlace = {
 };
 
 const KNOWN_LAGOS_PLACES: Record<string, { areaLabel: string; lat: number; lng: number; displayName: string }> = {
+  'eko hotel': {
+    areaLabel: 'Victoria Island',
+    displayName: 'Eko Hotel & Suites, Victoria Island, Lagos',
+    lat: 6.4269,
+    lng: 3.4285,
+  },
+  wheatbaker: {
+    areaLabel: 'Ikoyi',
+    displayName: 'The Wheatbaker, Ikoyi, Lagos',
+    lat: 6.4485,
+    lng: 3.4385,
+  },
+  'the wheatbaker': {
+    areaLabel: 'Ikoyi',
+    displayName: 'The Wheatbaker, Ikoyi, Lagos',
+    lat: 6.4485,
+    lng: 3.4385,
+  },
+  'civic centre': {
+    areaLabel: 'Victoria Island',
+    displayName: 'The Civic Centre, Victoria Island, Lagos',
+    lat: 6.438,
+    lng: 3.427,
+  },
+  'the civic centre': {
+    areaLabel: 'Victoria Island',
+    displayName: 'The Civic Centre, Victoria Island, Lagos',
+    lat: 6.438,
+    lng: 3.427,
+  },
   ikoyi: {
     areaLabel: 'Ikoyi',
     displayName: 'Ikoyi, Lagos',
@@ -35,14 +65,26 @@ const KNOWN_LAGOS_PLACES: Record<string, { areaLabel: string; lat: number; lng: 
     lng: 3.4219,
   },
   lekki: {
+    areaLabel: 'Lekki',
+    displayName: 'Lekki, Lagos',
+    lat: 6.4698,
+    lng: 3.5852,
+  },
+  'lekki phase 1': {
     areaLabel: 'Lekki Phase 1',
     displayName: 'Lekki Phase 1, Lagos',
     lat: 6.4474,
     lng: 3.4738,
   },
-  'lekki phase 1': {
+  'admiralty way': {
     areaLabel: 'Lekki Phase 1',
-    displayName: 'Lekki Phase 1, Lagos',
+    displayName: 'Admiralty Way, Lekki Phase 1, Lagos',
+    lat: 6.4474,
+    lng: 3.4738,
+  },
+  admiralty: {
+    areaLabel: 'Lekki Phase 1',
+    displayName: 'Admiralty Way, Lekki Phase 1, Lagos',
     lat: 6.4474,
     lng: 3.4738,
   },
@@ -52,35 +94,89 @@ const KNOWN_LAGOS_PLACES: Record<string, { areaLabel: string; lat: number; lng: 
     lat: 6.4632,
     lng: 3.4477,
   },
+  oniru: {
+    areaLabel: 'Oniru',
+    displayName: 'Oniru, Victoria Island, Lagos',
+    lat: 6.4342,
+    lng: 3.4435,
+  },
+  landmark: {
+    areaLabel: 'Oniru',
+    displayName: 'Landmark Centre, Oniru, Lagos',
+    lat: 6.4248,
+    lng: 3.4449,
+  },
   'eko atlantic': {
-    areaLabel: 'Eko Atlantic',
+    areaLabel: 'Victoria Island',
     displayName: 'Eko Atlantic City, Lagos',
     lat: 6.4167,
     lng: 3.4083,
   },
+  'eko pearl': {
+    areaLabel: 'Victoria Island',
+    displayName: 'Eko Pearl Towers, Eko Atlantic, Lagos',
+    lat: 6.4167,
+    lng: 3.4083,
+  },
   ikeja: {
-    areaLabel: 'Ikeja GRA',
+    areaLabel: 'Ikeja',
     displayName: 'Ikeja GRA, Lagos',
     lat: 6.5944,
     lng: 3.3542,
   },
   'ikeja gra': {
-    areaLabel: 'Ikeja GRA',
+    areaLabel: 'Ikeja',
     displayName: 'Ikeja GRA, Lagos',
     lat: 6.5944,
     lng: 3.3542,
   },
+  'isaac john': {
+    areaLabel: 'Ikeja',
+    displayName: 'Isaac John St, Ikeja GRA, Lagos',
+    lat: 6.5944,
+    lng: 3.3542,
+  },
   'mma airport': {
-    areaLabel: 'Ikeja GRA',
+    areaLabel: 'Ikeja',
     displayName: 'Murtala Muhammed International Airport (MMA)',
     lat: 6.5774,
     lng: 3.3212,
   },
+  mmia: {
+    areaLabel: 'Ikeja',
+    displayName: 'Murtala Muhammed International Airport (MMIA)',
+    lat: 6.5774,
+    lng: 3.3212,
+  },
   airport: {
-    areaLabel: 'Ikeja GRA',
+    areaLabel: 'Ikeja',
     displayName: 'Murtala Muhammed International Airport (MMA)',
     lat: 6.5774,
     lng: 3.3212,
+  },
+  execujet: {
+    areaLabel: 'Ikeja',
+    displayName: 'ExecuJet Private Terminal, Ikeja, Lagos',
+    lat: 6.582,
+    lng: 3.325,
+  },
+  maryland: {
+    areaLabel: 'Maryland',
+    displayName: 'Maryland, Lagos',
+    lat: 6.5721,
+    lng: 3.3667,
+  },
+  'maryland mall': {
+    areaLabel: 'Maryland',
+    displayName: 'Maryland Mall, Maryland, Lagos',
+    lat: 6.5721,
+    lng: 3.3667,
+  },
+  ajah: {
+    areaLabel: 'Ajah',
+    displayName: 'Ajah, Lagos',
+    lat: 6.4674,
+    lng: 3.5684,
   },
   surulere: {
     areaLabel: 'Surulere',
@@ -100,6 +196,12 @@ const KNOWN_LAGOS_PLACES: Record<string, { areaLabel: string; lat: number; lng: 
     lat: 6.4549,
     lng: 3.3886,
   },
+  marina: {
+    areaLabel: 'Lagos Island',
+    displayName: 'Marina, Lagos Island, Lagos',
+    lat: 6.4549,
+    lng: 3.3886,
+  },
 };
 
 export function resolveSearchPlaceService(input: ResolveSearchPlaceInput): ResolvedSearchPlace {
@@ -108,7 +210,7 @@ export function resolveSearchPlaceService(input: ResolveSearchPlaceInput): Resol
     throw new CommandError('INVALID_ARGUMENT', 'Search query cannot be empty.');
   }
 
-  // 1. Exact or prefix match in known Lagos landmarks
+  // Exact or substring match in known Lagos landmarks
   for (const [key, place] of Object.entries(KNOWN_LAGOS_PLACES)) {
     if (q.includes(key) || key.includes(q)) {
       return {
@@ -122,13 +224,6 @@ export function resolveSearchPlaceService(input: ResolveSearchPlaceInput): Resol
     }
   }
 
-  // 2. Default to central Lagos corridor (Ikoyi / VI) if recognized as a Lagos address query
-  return {
-    placeId: `place-lagos-general`,
-    areaLabel: 'Victoria Island',
-    displayName: `${input.query.trim()}, Lagos`,
-    approxLatitude: 6.4281,
-    approxLongitude: 3.4219,
-    withinLagos: true,
-  };
+  // Fail closed: Never synthesize a fake address or default to Victoria Island
+  throw new CommandError('NOT_FOUND', 'Could not resolve a Lagos location for this search query.');
 }

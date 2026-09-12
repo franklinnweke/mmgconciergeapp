@@ -172,15 +172,18 @@ export class FirestoreRentalRequestRepository implements RentalRequestRepository
         requestId: input.requestId, state: 'requested', startDate: input.data.startDate, endDate: input.data.endDate,
         serviceAreaLabel: input.data.serviceAreaLabel, estimatedPriceSnapshot, vehicleSnapshot: vehicle.vehicleSnapshot,
         version: 1, createdAt: input.now.toISOString(),
+        ...(input.data.pickupLocation ? { pickupLocation: input.data.pickupLocation } : {}),
       }});
       transaction.create(this.firestore.doc(`rentalRequests/${input.requestId}`), {
         requestId: input.requestId, renterId: input.renterId, ownerId: vehicle.ownerId, vehicleId: vehicle.id,
         startDate: input.data.startDate, endDate: input.data.endDate, serviceAreaLabel: input.data.serviceAreaLabel,
         state: 'requested', version: 1, estimatedPriceSnapshot, vehicleSnapshot: vehicle.vehicleSnapshot,
+        ...(input.data.pickupLocation ? { pickupLocation: input.data.pickupLocation } : {}),
         createdAt: Timestamp.fromDate(input.now), updatedAt: Timestamp.fromDate(input.now),
       });
       transaction.create(this.firestore.doc(`rentalRequestContacts/${input.requestId}`), {
         requestId: input.requestId, renterId: input.renterId, contactPhone: input.data.contactPhone,
+        ...(input.data.pickupLocation ? { pickupLocation: input.data.pickupLocation } : {}),
         createdAt: Timestamp.fromDate(input.now), updatedAt: Timestamp.fromDate(input.now),
       });
       transaction.create(this.firestore.collection('auditEvents').doc(), {

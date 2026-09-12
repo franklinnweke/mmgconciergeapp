@@ -17,8 +17,12 @@ import { useRenterProfile } from '@/features/account/hooks/use-renter-profile';
 import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 import { formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import { resolveRentalJourney } from '@/features/discovery/data/rental-journey';
-import { parsePickupLocation } from '@/features/discovery/domain/pickup-location';
+import {
+  isPickupLocationServiceable,
+  parsePickupLocation,
+} from '@/features/discovery/domain/pickup-location';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import type { CreateRentalRequestData } from '@mmg/contracts/rental-request';
 
 import {
   createRentalRequestGateway,
@@ -55,6 +59,10 @@ export default function BookingReviewScreen({
   const submissionKey = useRef(new RentalRequestSubmissionKey());
   const journey = useMemo(() => resolveRentalJourney(startDate, endDate), [endDate, startDate]);
   const pickupLocation = useMemo(() => parsePickupLocation(pickup), [pickup]);
+  const isServiceable = useMemo(
+    () => (pickupLocation ? isPickupLocationServiceable(pickupLocation) : false),
+    [pickupLocation],
+  );
 
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
@@ -67,12 +75,12 @@ export default function BookingReviewScreen({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const serviceArea: LagosAreaLabel = useMemo(() => {
-    if (pickup) {
+    if (pickupLocation) {
       return pickupLocation.serviceAreaLabel;
     }
     const fromVehicle = resolveServiceAreaLabel(vehicle?.areaLabel);
-    return fromVehicle ?? pickupLocation.serviceAreaLabel;
-  }, [pickup, pickupLocation.serviceAreaLabel, vehicle?.areaLabel]);
+    return fromVehicle ?? 'Victoria Island';
+  }, [pickupLocation, vehicle?.areaLabel]);
 
   const retryFetch = useCallback(() => {
     setFetchError(null);
@@ -227,11 +235,19 @@ export default function BookingReviewScreen({
                   <Ionicons color={colors.goldStrong} name="location-outline" size={20} />
                 </View>
                 <View style={styles.deliveryCopy}>
-                  <Text style={styles.deliveryTitle}>{pickupLocation.displayName}</Text>
-                  <Text style={styles.deliveryAddress}>{pickupLocation.formattedAddress}</Text>
+                  <Text style={styles.deliveryTitle}>{pickupLocation?.displayName ?? 'Lagos Pickup Location'}</Text>
+                  <Text style={styles.deliveryAddress}>{pickupLocation?.formattedAddress ?? 'Lagos, Nigeria'}</Text>
                   <Text style={styles.deliveryZone}>MMG Service Zone: {serviceArea}</Text>
                 </View>
               </View>
+              {!isServiceable ? (
+                <View style={styles.warningRow}>
+                  <Ionicons color={colors.danger} name="alert-circle" size={16} />
+                  <Text style={styles.warningText}>
+                    MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
             {needsProfile ? (
@@ -265,9 +281,13 @@ export default function BookingReviewScreen({
           </PressableScale>
         ) : (
           <PressableScale
-            disabled={submitting}
+            disabled={submitting || !isServiceable}
             haptic
             onPress={async () => {
+              if (!pickupLocation || !isServiceable) {
+                setErrorMessage('MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.');
+                return;
+              }
               const contactPhone = normalizeNigerianPhone(phoneInput);
               if (!contactPhone) {
                 setErrorMessage('Enter a valid Nigerian mobile number.');
@@ -297,12 +317,20 @@ export default function BookingReviewScreen({
                     // Profile enrichment failure does not block soft request submission
                   }
                 }
-                const data = {
+                const data: CreateRentalRequestData = {
                   vehicleId: vehicle.id,
                   startDate: journey.startDate,
                   endDate: journey.endDate,
                   contactPhone,
                   serviceAreaLabel: serviceArea,
+                  pickupLocation: {
+                    displayName: pickupLocation.displayName,
+                    formattedAddress: pickupLocation.formattedAddress,
+                    latitude: pickupLocation.latitude,
+                    longitude: pickupLocation.longitude,
+                    ...(pickupLocation.placeId ? { placeId: pickupLocation.placeId } : {}),
+                    serviceAreaLabel: pickupLocation.serviceAreaLabel,
+                  },
                 };
                 const result = await requestGateway.createRequest(
                   data,
@@ -318,7 +346,7 @@ export default function BookingReviewScreen({
               }
             }}
           >
-            <View style={[styles.ctaButton, submitting && styles.disabled]}>
+            <View style={[styles.ctaButton, (submitting || !isServiceable) && styles.disabled]}>
               {submitting ? <ActivityIndicator color={colors.black} size="small" /> : null}
               <Text style={styles.ctaText}>{submitting ? 'Sending request…' : 'Send request'}</Text>
             </View>
@@ -416,4 +444,6 @@ const styles = StyleSheet.create({
   vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
   vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
   vehicleRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.lg },
+  warningRow: { alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: colors.danger, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs, padding: spacing.md },
+  warningText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },
 });

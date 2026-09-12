@@ -69,7 +69,7 @@ export function ExecutiveBookingDesk({
   onPressArea,
   onExploreFleet,
 }: ExecutiveBookingDeskProps) {
-  const pickup = propPickup ?? (areaLabel ? parsePickupLocation(areaLabel) : DEFAULT_PICKUP_LOCATION);
+  const pickup = propPickup ?? (areaLabel ? parsePickupLocation(areaLabel) : null) ?? DEFAULT_PICKUP_LOCATION;
   const insets = useSafeAreaInsets();
   const [startOffset, setStartOffset] = useState(0);
   const [durationDays, setDurationDays] = useState(3);

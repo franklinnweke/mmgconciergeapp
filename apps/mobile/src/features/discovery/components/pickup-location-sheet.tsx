@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,13 +18,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import {
   isPickupLocationServiceable,
-  searchPickupLocations,
   type PickupLocation,
 } from '../domain/pickup-location';
+import { useCurrentLocation } from '../hooks/use-current-location';
+import { usePlaceSearch } from '../hooks/use-place-search';
 
 export type PickupLocationSheetProps = {
   visible: boolean;
-  selectedLocation: PickupLocation;
+  selectedLocation?: PickupLocation | null;
   onSelectLocation(location: PickupLocation): void;
   onClose(): void;
 };
@@ -53,22 +55,29 @@ export function PickupLocationSheet({
 }: PickupLocationSheetProps) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
-
-  const searchResults = useMemo(() => {
-    return searchPickupLocations(query);
-  }, [query]);
+  const { results: searchResults, isLoading: searching, error: searchError } = usePlaceSearch(query);
+  const { requestCurrentLocation, status: currentLocStatus, errorMessage: currentLocError, reset: resetCurrentLoc } = useCurrentLocation();
 
   const handleSelect = (loc: PickupLocation) => {
     onSelectLocation(loc);
-    onClose();
+    handleDismiss();
   };
 
   const handleDismiss = () => {
     setQuery('');
+    resetCurrentLoc();
     onClose();
   };
 
+  const handleCurrentLocationPress = async () => {
+    const result = await requestCurrentLocation();
+    if (result.success) {
+      handleSelect(result.location);
+    }
+  };
+
   const isSelected = (loc: PickupLocation) => {
+    if (!selectedLocation) return false;
     if (selectedLocation.placeId && loc.placeId) {
       return selectedLocation.placeId === loc.placeId;
     }
@@ -77,6 +86,8 @@ export function PickupLocationSheet({
       selectedLocation.formattedAddress.toLowerCase() === loc.formattedAddress.toLowerCase()
     );
   };
+
+  const bannerError = currentLocError || searchError;
 
   return (
     <Modal
@@ -121,7 +132,41 @@ export function PickupLocationSheet({
               </Pressable>
             </View>
 
-            {/* Search Input */}
+            {/* Error Banner */}
+            {bannerError ? (
+              <View style={styles.errorBox}>
+                <Ionicons color={colors.danger} name="alert-circle" size={16} />
+                <Text style={styles.errorText}>{bannerError}</Text>
+              </View>
+            ) : null}
+
+            {/* Choice 1: Use my current location */}
+            <PressableScale
+              accessibilityLabel="Use my current location"
+              accessibilityRole="button"
+              disabled={currentLocStatus === 'requesting'}
+              onPress={handleCurrentLocationPress}
+              style={styles.currentLocationRow}
+            >
+              <View style={styles.currentLocationIconBox}>
+                {currentLocStatus === 'requesting' ? (
+                  <ActivityIndicator color={colors.goldStrong} size="small" />
+                ) : (
+                  <Ionicons color={colors.goldStrong} name="navigate-circle-outline" size={22} />
+                )}
+              </View>
+              <View style={styles.currentLocationCopy}>
+                <Text style={styles.currentLocationTitle}>Use my current location</Text>
+                <Text style={styles.currentLocationSub}>
+                  {currentLocStatus === 'requesting'
+                    ? 'Detecting your Lagos location…'
+                    : 'We will bring the vehicle directly to you in Lagos'}
+                </Text>
+              </View>
+              <Ionicons color={colors.muted} name="chevron-forward" size={16} />
+            </PressableScale>
+
+            {/* Choice 2: Search for an address or place */}
             <View style={styles.searchContainer}>
               <Ionicons color={colors.muted} name="search-outline" size={18} style={styles.searchIcon} />
               <TextInput
@@ -134,53 +179,74 @@ export function PickupLocationSheet({
                 style={styles.searchInput}
                 value={query}
               />
+              {searching ? (
+                <ActivityIndicator color={colors.goldStrong} size="small" style={{ marginLeft: spacing.xs }} />
+              ) : query ? (
+                <Pressable onPress={() => setQuery('')} style={{ padding: 4 }}>
+                  <Ionicons color={colors.muted} name="close-circle" size={16} />
+                </Pressable>
+              ) : null}
             </View>
 
-            {/* List */}
+            {/* Section Header */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeaderTitle}>
+                {query.trim().length > 0 ? 'Search Results' : 'Suggested Lagos Locations'}
+              </Text>
+            </View>
+
+            {/* Choice 3: Suggested / Search Results List */}
             <ScrollView
               contentContainerStyle={styles.list}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {searchResults.map((item) => {
-                const active = isSelected(item);
-                const serviceable = isPickupLocationServiceable(item);
-                const icon = getIconForLocation(item);
+              {searchResults.length === 0 ? (
+                <View style={styles.emptyResultsBox}>
+                  <Ionicons color={colors.muted} name="location-outline" size={24} />
+                  <Text style={styles.emptyResultsText}>No Lagos locations match this search.</Text>
+                </View>
+              ) : (
+                searchResults.map((item) => {
+                  const active = isSelected(item);
+                  const serviceable = isPickupLocationServiceable(item);
+                  const icon = getIconForLocation(item);
 
-                return (
-                  <PressableScale
-                    accessibilityHint={serviceable ? 'Selects this delivery location' : 'Location is outside Lagos service area'}
-                    accessibilityLabel={`${item.displayName}, ${item.formattedAddress}${active ? ', selected' : ''}`}
-                    accessibilityRole="button"
-                    key={item.placeId ?? item.formattedAddress}
-                    onPress={() => handleSelect(item)}
-                    style={[styles.itemRow, active && styles.itemRowActive]}
-                  >
-                    <View style={[styles.itemIcon, active && styles.itemIconActive]}>
-                      <Ionicons
-                        color={active ? colors.canvas : colors.goldStrong}
-                        name={icon}
-                        size={18}
-                      />
-                    </View>
+                  return (
+                    <PressableScale
+                      accessibilityHint={serviceable ? 'Selects this delivery location' : 'Location is outside Lagos service area'}
+                      accessibilityLabel={`${item.displayName}, ${item.formattedAddress}${active ? ', selected' : ''}`}
+                      accessibilityRole="button"
+                      key={item.placeId ?? item.formattedAddress}
+                      onPress={() => handleSelect(item)}
+                      style={[styles.itemRow, active && styles.itemRowActive]}
+                    >
+                      <View style={[styles.itemIcon, active && styles.itemIconActive]}>
+                        <Ionicons
+                          color={active ? colors.canvas : colors.goldStrong}
+                          name={icon}
+                          size={18}
+                        />
+                      </View>
 
-                    <View style={styles.itemCopy}>
-                      <Text numberOfLines={1} style={[styles.itemName, active && styles.itemNameActive]}>
-                        {item.displayName}
-                      </Text>
-                      <Text numberOfLines={1} style={styles.itemSub}>
-                        {item.formattedAddress}
-                      </Text>
-                    </View>
+                      <View style={styles.itemCopy}>
+                        <Text numberOfLines={1} style={[styles.itemName, active && styles.itemNameActive]}>
+                          {item.displayName}
+                        </Text>
+                        <Text numberOfLines={1} style={styles.itemSub}>
+                          {item.formattedAddress}
+                        </Text>
+                      </View>
 
-                    {active ? (
-                      <Ionicons color={colors.goldStrong} name="checkmark-circle" size={20} />
-                    ) : (
-                      <Ionicons color={colors.muted} name="chevron-forward" size={16} />
-                    )}
-                  </PressableScale>
-                );
-              })}
+                      {active ? (
+                        <Ionicons color={colors.goldStrong} name="checkmark-circle" size={20} />
+                      ) : (
+                        <Ionicons color={colors.muted} name="chevron-forward" size={16} />
+                      )}
+                    </PressableScale>
+                  );
+                })
+              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -199,6 +265,69 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     width: 32,
+  },
+  currentLocationCopy: {
+    flex: 1,
+  },
+  currentLocationIconBox: {
+    alignItems: 'center',
+    backgroundColor: colors.graphiteRaised,
+    borderRadius: radii.pill,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  currentLocationRow: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.lineStrong,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+    minHeight: 56,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  currentLocationSub: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
+    marginTop: 2,
+  },
+  currentLocationTitle: {
+    color: colors.ivory,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.sm,
+  },
+  emptyResultsBox: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+  },
+  emptyResultsText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
+  },
+  errorBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: colors.danger,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  errorText: {
+    color: colors.danger,
+    flex: 1,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.xs,
   },
   handle: {
     alignSelf: 'center',
@@ -251,7 +380,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.md,
-    minHeight: 58,
+    minHeight: 54,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
@@ -270,7 +399,7 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: spacing.xs,
-    maxHeight: 380,
+    maxHeight: 340,
     paddingBottom: spacing.sm,
   },
   overlay: {
@@ -285,7 +414,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     paddingHorizontal: spacing.md,
   },
   searchIcon: {
@@ -298,13 +427,24 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     height: 44,
   },
+  sectionHeaderRow: {
+    marginBottom: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  sectionHeaderTitle: {
+    color: colors.muted,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   sheet: {
     backgroundColor: colors.canvas,
     borderTopColor: colors.lineStrong,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     borderTopWidth: 1,
-    maxHeight: '85%',
+    maxHeight: '90%',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },

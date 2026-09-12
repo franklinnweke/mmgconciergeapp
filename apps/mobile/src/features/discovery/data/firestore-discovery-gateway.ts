@@ -2,8 +2,11 @@ import { DiscoveryGateway, type VehicleSearchCriteria, type VehicleSummary } fro
 import {
   discoveryVehicleToSummary,
   getVehicleDetailsResultSchema,
+  resolveSearchPlaceDataSchema,
+  resolveSearchPlaceResultSchema,
   searchVehiclesDataSchema,
   searchVehiclesResultSchema,
+  type ResolveSearchPlaceResult,
 } from '@mmg/contracts/discovery';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 
@@ -65,6 +68,17 @@ export class NativeFirestoreDiscoveryGateway implements DiscoveryGateway {
     return result.vehicle
       ? discoveryVehicleToSummary(result.vehicle, result.vehicle.distanceKm)
       : null;
+  }
+
+  async resolveSearchPlace(query: string): Promise<ResolveSearchPlaceResult> {
+    const data = resolveSearchPlaceDataSchema.parse({ query });
+    const callable = httpsCallable(this.functions, 'resolveSearchPlace');
+    const response = await callable(data);
+    return parseCallableResult(
+      resolveSearchPlaceResultSchema,
+      response.data,
+      'resolveSearchPlace',
+    );
   }
 }
 

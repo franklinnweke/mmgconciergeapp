@@ -2,8 +2,11 @@ import { DiscoveryGateway, type VehicleSearchCriteria, type VehicleSummary } fro
 import {
   discoveryVehicleToSummary,
   getVehicleDetailsResultSchema,
+  resolveSearchPlaceDataSchema,
+  resolveSearchPlaceResultSchema,
   searchVehiclesDataSchema,
   searchVehiclesResultSchema,
+  type ResolveSearchPlaceResult,
 } from '@mmg/contracts/discovery';
 import { getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 
@@ -53,6 +56,16 @@ export class WebFirestoreDiscoveryGateway implements DiscoveryGateway {
     return result.vehicle
       ? discoveryVehicleToSummary(result.vehicle, result.vehicle.distanceKm)
       : null;
+  }
+
+  async resolveSearchPlace(query: string): Promise<ResolveSearchPlaceResult> {
+    const data = resolveSearchPlaceDataSchema.parse({ query });
+    const response = await httpsCallable(this.functions, 'resolveSearchPlace')(data);
+    return parseCallableResult(
+      resolveSearchPlaceResultSchema,
+      response.data,
+      'resolveSearchPlace',
+    );
   }
 }
 

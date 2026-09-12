@@ -1,13 +1,31 @@
-import { isWithinLagosBBox } from '@mmg/domain';
+import { haversineDistanceKm, isWithinLagosBBox } from '@mmg/domain';
 import { LAGOS_AREA_LABELS, type LagosAreaLabel } from '@mmg/contracts';
 
+export type PickupLocationSource = 'current_location' | 'place_search' | 'suggested' | 'saved';
+
 export type PickupLocation = {
+  source: PickupLocationSource;
   displayName: string;
   formattedAddress: string;
-  serviceAreaLabel: LagosAreaLabel;
+  latitude: number;
+  longitude: number;
   placeId?: string;
-  latitude?: number;
-  longitude?: number;
+  serviceAreaLabel: LagosAreaLabel;
+};
+
+export const LAGOS_AREA_CENTROIDS: Record<LagosAreaLabel, { lat: number; lng: number }> = {
+  Ikoyi: { lat: 6.4531, lng: 3.4334 },
+  'Victoria Island': { lat: 6.4281, lng: 3.4219 },
+  'Banana Island': { lat: 6.4632, lng: 3.4477 },
+  'Lekki Phase 1': { lat: 6.4474, lng: 3.4738 },
+  Lekki: { lat: 6.4698, lng: 3.5852 },
+  Oniru: { lat: 6.4342, lng: 3.4435 },
+  Ikeja: { lat: 6.5944, lng: 3.3542 },
+  Maryland: { lat: 6.5721, lng: 3.3667 },
+  Ajah: { lat: 6.4674, lng: 3.5684 },
+  Yaba: { lat: 6.5095, lng: 3.3792 },
+  Surulere: { lat: 6.4975, lng: 3.3567 },
+  'Lagos Island': { lat: 6.4549, lng: 3.3886 },
 };
 
 export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
@@ -18,6 +36,7 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
     serviceAreaLabel: 'Ikeja',
     latitude: 6.5774,
     longitude: 3.3212,
+    source: 'suggested',
   },
   {
     placeId: 'loc-mma-execujet',
@@ -26,6 +45,7 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
     serviceAreaLabel: 'Ikeja',
     latitude: 6.582,
     longitude: 3.325,
+    source: 'suggested',
   },
   {
     placeId: 'loc-eko-hotel',
@@ -34,6 +54,7 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
     serviceAreaLabel: 'Victoria Island',
     latitude: 6.4269,
     longitude: 3.4285,
+    source: 'suggested',
   },
   {
     placeId: 'loc-wheatbaker',
@@ -42,6 +63,7 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
     serviceAreaLabel: 'Ikoyi',
     latitude: 6.4485,
     longitude: 3.4385,
+    source: 'suggested',
   },
   {
     placeId: 'loc-banana-island',
@@ -50,6 +72,7 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
     serviceAreaLabel: 'Banana Island',
     latitude: 6.4632,
     longitude: 3.4477,
+    source: 'suggested',
   },
   {
     placeId: 'loc-civic-centre',
@@ -58,6 +81,7 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
     serviceAreaLabel: 'Victoria Island',
     latitude: 6.438,
     longitude: 3.427,
+    source: 'suggested',
   },
   {
     placeId: 'loc-lekki-admiralty',
@@ -66,6 +90,7 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
     serviceAreaLabel: 'Lekki Phase 1',
     latitude: 6.4474,
     longitude: 3.4738,
+    source: 'suggested',
   },
   {
     placeId: 'loc-ikeja-gra',
@@ -74,6 +99,7 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
     serviceAreaLabel: 'Ikeja',
     latitude: 6.5944,
     longitude: 3.3542,
+    source: 'suggested',
   },
 ] as const;
 
@@ -84,21 +110,44 @@ function isValidServiceArea(label: unknown): label is LagosAreaLabel {
 }
 
 /**
- * Maps arbitrary query text or address strings into a canonical LagosAreaLabel.
+ * Derives a canonical LagosAreaLabel from either coordinates or text input.
+ * Returns null if the location cannot be truthfully mapped inside Lagos.
  */
-export function deriveLagosAreaLabel(text: string): LagosAreaLabel {
-  const lower = text.toLowerCase().trim();
+export function deriveLagosAreaLabel(
+  input: string | { lat: number; lng: number },
+): LagosAreaLabel | null {
+  if (typeof input === 'object' && input !== null) {
+    if (!isWithinLagosBBox(input.lat, input.lng)) {
+      return null;
+    }
+    let closestArea: LagosAreaLabel = 'Victoria Island';
+    let minDistance = Number.POSITIVE_INFINITY;
+    for (const [area, centroid] of Object.entries(LAGOS_AREA_CENTROIDS) as [LagosAreaLabel, { lat: number; lng: number }][]) {
+      const dist = haversineDistanceKm(input.lat, input.lng, centroid.lat, centroid.lng);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestArea = area;
+      }
+    }
+    return closestArea;
+  }
 
+  const lower = String(input).toLowerCase().trim();
   if (lower.includes('airport') || lower.includes('mma') || lower.includes('execujet')) {
     return 'Ikeja';
   }
   if (lower.includes('banana island')) {
     return 'Banana Island';
   }
-  if (lower.includes('ikoyi')) {
+  if (lower.includes('ikoyi') || lower.includes('wheatbaker')) {
     return 'Ikoyi';
   }
-  if (lower.includes('eko atlantic') || lower.includes('victoria island') || lower.includes(' vi') || lower.startsWith('vi')) {
+  if (
+    lower.includes('eko atlantic') ||
+    lower.includes('victoria island') ||
+    lower.includes('eko hotel') ||
+    /\bvi\b/.test(lower)
+  ) {
     return 'Victoria Island';
   }
   if (lower.includes('lekki phase 1') || lower.includes('admiralty')) {
@@ -107,7 +156,7 @@ export function deriveLagosAreaLabel(text: string): LagosAreaLabel {
   if (lower.includes('lekki')) {
     return 'Lekki';
   }
-  if (lower.includes('oniru')) {
+  if (lower.includes('oniru') || lower.includes('landmark')) {
     return 'Oniru';
   }
   if (lower.includes('ikeja')) {
@@ -129,11 +178,13 @@ export function deriveLagosAreaLabel(text: string): LagosAreaLabel {
     return 'Lagos Island';
   }
 
-  return 'Victoria Island';
+  // Fails closed: Never assume Victoria Island
+  return null;
 }
 
 /**
- * Searches curated landmarks or creates a synthesized Lagos delivery location.
+ * Searches curated landmarks.
+ * Fails closed without synthesizing fake address records.
  */
 export function searchPickupLocations(query: string): PickupLocation[] {
   const q = query.trim().toLowerCase();
@@ -141,37 +192,22 @@ export function searchPickupLocations(query: string): PickupLocation[] {
     return [...CURATED_PICKUP_LOCATIONS];
   }
 
-  // 1. Direct matches in curated landmarks
-  const matched = CURATED_PICKUP_LOCATIONS.filter(
+  return CURATED_PICKUP_LOCATIONS.filter(
     (loc) =>
       loc.displayName.toLowerCase().includes(q) ||
       loc.formattedAddress.toLowerCase().includes(q) ||
       loc.serviceAreaLabel.toLowerCase().includes(q),
   );
-
-  if (matched.length > 0) {
-    return matched;
-  }
-
-  // 2. Synthesize a custom address if the user typed an address
-  const derivedArea = deriveLagosAreaLabel(q);
-  const synthesized: PickupLocation = {
-    displayName: query.trim(),
-    formattedAddress: `${query.trim()}, Lagos`,
-    serviceAreaLabel: derivedArea,
-  };
-
-  return [synthesized];
 }
 
 /**
- * Validates whether a pickup location is serviceable (inside Lagos).
+ * Validates whether a pickup location is serviceable (strictly inside Lagos bounding box).
  */
 export function isPickupLocationServiceable(location: PickupLocation): boolean {
-  if (location.latitude != null && location.longitude != null) {
-    return isWithinLagosBBox(location.latitude, location.longitude);
+  if (typeof location?.latitude !== 'number' || typeof location?.longitude !== 'number') {
+    return false;
   }
-  return isValidServiceArea(location.serviceAreaLabel);
+  return isWithinLagosBBox(location.latitude, location.longitude);
 }
 
 /**
@@ -179,21 +215,23 @@ export function isPickupLocationServiceable(location: PickupLocation): boolean {
  */
 export function serializePickupLocation(pickup: PickupLocation): string {
   return JSON.stringify({
+    src: pickup.source,
     d: pickup.displayName,
     f: pickup.formattedAddress,
     s: pickup.serviceAreaLabel,
+    lat: pickup.latitude,
+    lng: pickup.longitude,
     ...(pickup.placeId ? { p: pickup.placeId } : {}),
-    ...(pickup.latitude != null ? { lat: pickup.latitude } : {}),
-    ...(pickup.longitude != null ? { lng: pickup.longitude } : {}),
   });
 }
 
 /**
  * Parses PickupLocation from URL route parameters or fallback strings.
+ * Fails closed and returns null on missing, invalid, or out-of-Lagos input.
  */
-export function parsePickupLocation(value?: string | string[] | null): PickupLocation {
+export function parsePickupLocation(value?: string | string[] | null): PickupLocation | null {
   const input = Array.isArray(value) ? value[0] : value;
-  if (!input) return DEFAULT_PICKUP_LOCATION;
+  if (!input) return null;
 
   try {
     const raw = JSON.parse(input);
@@ -201,20 +239,31 @@ export function parsePickupLocation(value?: string | string[] | null): PickupLoc
       const displayName = raw.d ?? raw.displayName;
       const formattedAddress = raw.f ?? raw.formattedAddress;
       const serviceAreaLabel = raw.s ?? raw.serviceAreaLabel;
+      const latitude = typeof raw.lat === 'number' ? raw.lat : raw.latitude;
+      const longitude = typeof raw.lng === 'number' ? raw.lng : raw.longitude;
+      const source: PickupLocationSource = raw.src ?? raw.source ?? 'place_search';
 
-      if (displayName && formattedAddress && isValidServiceArea(serviceAreaLabel)) {
+      if (
+        displayName &&
+        formattedAddress &&
+        typeof latitude === 'number' &&
+        typeof longitude === 'number' &&
+        isWithinLagosBBox(latitude, longitude) &&
+        isValidServiceArea(serviceAreaLabel)
+      ) {
         return {
+          source,
           displayName: String(displayName),
           formattedAddress: String(formattedAddress),
           serviceAreaLabel,
+          latitude,
+          longitude,
           placeId: raw.p ?? raw.placeId,
-          latitude: typeof raw.lat === 'number' ? raw.lat : raw.latitude,
-          longitude: typeof raw.lng === 'number' ? raw.lng : raw.longitude,
         };
       }
     }
   } catch {
-    // Not JSON, continue to string matchers
+    // Not JSON, check curated landmarks
   }
 
   // Check against curated locations
@@ -226,11 +275,6 @@ export function parsePickupLocation(value?: string | string[] | null): PickupLoc
   );
   if (curated) return curated;
 
-  // Fallback string resolution (e.g. "Victoria Island, Lagos" or "Ikoyi")
-  const areaLabel = deriveLagosAreaLabel(input);
-  return {
-    displayName: input.replace(/,\s*Lagos$/i, '').trim(),
-    formattedAddress: input.toLowerCase().includes('lagos') ? input.trim() : `${input.trim()}, Lagos`,
-    serviceAreaLabel: areaLabel,
-  };
+  // Fail closed
+  return null;
 }

@@ -247,7 +247,7 @@ export default function VehicleDetailScreen({
             <View style={styles.deliveryBadge}>
               <Ionicons color={colors.goldStrong} name="location-outline" size={15} />
               <Text numberOfLines={1} style={styles.deliveryBadgeText}>
-                Delivery to {pickupLocation.displayName}
+                Delivery to {pickupLocation?.displayName ?? 'Lagos'}
               </Text>
             </View>
 
@@ -325,7 +325,7 @@ export default function VehicleDetailScreen({
             pathname: '/booking/review',
             params: {
               endDate: journey.endDate, startDate: journey.startDate,
-              pickup: serializePickupLocation(pickupLocation),
+              ...(pickupLocation ? { pickup: serializePickupLocation(pickupLocation) } : {}),
               vehicleId: vehicle.id,
             },
           })}

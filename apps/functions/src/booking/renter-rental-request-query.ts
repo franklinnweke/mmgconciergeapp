@@ -20,7 +20,7 @@ export class FirestoreRenterRentalRequestQuery {
 
     const requests = snapshot.docs.map((document) => {
       const parsed = renterVisibleRentalRequestSchema.safeParse(
-        clientRentalRequestProjection(document.id, document.data()),
+        clientRentalRequestProjection(document.id, document.data(), { audience: 'renter' }),
       );
       if (!parsed.success) {
         throw new BookingCommandError('FAILED_PRECONDITION', 'A rental request cannot be displayed safely.');

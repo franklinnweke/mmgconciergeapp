@@ -65,6 +65,14 @@ export interface DiscoveryGateway {
   getFeaturedVehicles(): Promise<readonly VehicleSummary[]>;
   searchVehicles(criteria: VehicleSearchCriteria): Promise<readonly VehicleSummary[]>;
   getVehicleById(vehicleId: string): Promise<VehicleSummary | null>;
+  resolveSearchPlace?(query: string): Promise<{
+    placeId: string;
+    areaLabel: string;
+    displayName: string;
+    approxLatitude: number;
+    approxLongitude: number;
+    withinLagos: boolean;
+  }>;
 }
 
 export const schemaVersionSchema = z.literal(1);
