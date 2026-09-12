@@ -296,6 +296,14 @@ Merge sequence:
 - PR #49 (`feat(mobile): remove misleading UI behavior, fake data, and dead actions (WP1B)`) merged into `main`.
 - Post-merge CI (`34671191503`) passed green across all jobs (Firebase Rules, Quality, Functions Emulator, Gate).
 
+Validated coordinate-first pickup location model source checkpoint merged to `main`:
+
+`03daa27c51dc27005d409ce2757bdf8ff6a738f6`
+
+Merge sequence:
+- PR #50 (`feat(discovery): implement coordinate-first pickup location model (WP1A.1)`) merged into `main`.
+- Post-merge CI (`34672463224`) passed green across all jobs (Firebase Rules, Quality, Functions Emulator, Gate).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -303,6 +311,7 @@ Current state:
 - Admin fail-closed Firebase environment configuration: merged to `main`
 - Mobile exact pickup location model & unified journey context (WP1A): merged to `main`
 - Mobile truthfulness & fake data/dead action subtraction (WP1B): merged to `main`
+- Mobile coordinate-first pickup location model (WP1A.1): merged to `main`
 - Mobile renter/owner integration: merged to `main`
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
