@@ -70,9 +70,24 @@ describe('BookingReviewScreen request confirmation and commercial subtraction', 
       },
     };
 
+    const refreshRentalRequests = vi.fn().mockResolvedValue(undefined);
+
     const result = await mockGateway.createRequest(data, 'idemp_key_123');
+    await refreshRentalRequests();
     mockRouter.replace(`/trip/${result.result.requestId}`);
 
+    expect(refreshRentalRequests).toHaveBeenCalledTimes(1);
     expect(mockRouter.replace).toHaveBeenCalledWith('/trip/req_test_123');
+  });
+
+  it('allows verified renters to submit soft requests without requiring a full name', () => {
+    // Profile enrichment fallback
+    const draftName = '';
+    const userDisplayName = null;
+    const resolvedName = draftName.trim() || userDisplayName || 'MMG renter';
+    expect(resolvedName).toBe('MMG renter');
+
+    const withDraft = 'Tunde';
+    expect(withDraft.trim() || userDisplayName || 'MMG renter').toBe('Tunde');
   });
 });

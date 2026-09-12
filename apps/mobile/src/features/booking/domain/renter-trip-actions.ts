@@ -1,6 +1,6 @@
 import { RenterTripActionUnavailableError } from '../data/renter-trip-action-gateway';
 import type { RenterTrip, RenterTripAction } from './renter-trip';
-import { permittedRenterActions } from './renter-trip';
+import { isTerminalState, permittedRenterActions } from './renter-trip';
 
 export type TripDetailMode = 'initializing' | 'missing' | 'preview' | 'offline' | 'ready';
 
@@ -103,6 +103,6 @@ export function tripDetailPresentation(trip: RenterTrip) {
   return {
     actions,
     ...splitRenterTripActions(actions),
-    isTerminal: actions.length === 0,
+    isTerminal: isTerminalState(trip.state),
   };
 }

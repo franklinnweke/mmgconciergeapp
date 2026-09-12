@@ -26,6 +26,7 @@ import {
   isCurrentTerms,
   isTerminalOwnerVerification,
   isWithinLagosBBox,
+  LAGOS_SERVICE_BBOX,
   maskEmail,
   maskNigerianPlate,
   maskPhoneE164,
@@ -563,6 +564,16 @@ describe('Lagos geo calculations and discovery ranking', () => {
     // Inside Lagos
     expect(isWithinLagosBBox(6.4531, 3.4334)).toBe(true); // Ikoyi
     expect(isWithinLagosBBox(6.6018, 3.3515)).toBe(true); // Ikeja
+
+    // Envelope corners
+    expect(isWithinLagosBBox(LAGOS_SERVICE_BBOX.minLatitude, LAGOS_SERVICE_BBOX.minLongitude)).toBe(true);
+    expect(isWithinLagosBBox(LAGOS_SERVICE_BBOX.maxLatitude, LAGOS_SERVICE_BBOX.maxLongitude)).toBe(true);
+
+    // Just outside envelope
+    expect(isWithinLagosBBox(LAGOS_SERVICE_BBOX.minLatitude - 0.01, 3.40)).toBe(false);
+    expect(isWithinLagosBBox(LAGOS_SERVICE_BBOX.maxLatitude + 0.01, 3.40)).toBe(false);
+    expect(isWithinLagosBBox(6.45, LAGOS_SERVICE_BBOX.minLongitude - 0.01)).toBe(false);
+    expect(isWithinLagosBBox(6.45, LAGOS_SERVICE_BBOX.maxLongitude + 0.01)).toBe(false);
 
     // Outside Lagos
     expect(isWithinLagosBBox(9.0765, 7.3986)).toBe(false); // Abuja

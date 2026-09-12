@@ -20,14 +20,18 @@ export type RenterAuditEvent = {
   details?: Record<string, unknown>;
 };
 
+export type RenterPrivacyPurgeSummary = {
+  deletedRentalRequestContactCount: number;
+  redactedRentalRequestLocationCount: number;
+  deletedIdempotencyKeyCount: number;
+};
+
 export interface RenterTransaction {
   getRenterProfile(renterId: string): Promise<RenterProfileRecord | null>;
   setRenterProfile(renterId: string, record: RenterProfileRecord, now: Date): void;
   hasActiveBookings(renterId: string): Promise<boolean>;
   hasActiveRentalRequests(renterId: string): Promise<boolean>;
-  deleteRentalRequestContacts(renterId: string): Promise<number>;
-  redactRentalRequestLocations(renterId: string): Promise<number>;
-  deleteRenterIdempotencyKeys(renterId: string): Promise<number>;
+  purgeRenterPrivacyData(renterId: string): Promise<RenterPrivacyPurgeSummary>;
   getIdempotency(documentId: string): Promise<StoredRenterIdempotency | null>;
   saveIdempotency(documentId: string, record: StoredRenterIdempotency, createdAt: Date): void;
   createAuditEvent(event: RenterAuditEvent): void;

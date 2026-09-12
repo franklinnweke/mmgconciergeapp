@@ -103,6 +103,9 @@ describe('renter trip state presentation', () => {
     expect(renterTripTimeline('requested').some((step) => /not locked/i.test(step.detail))).toBe(true);
     expect(renterTripTimeline('cancellation_requested').find((step) => step.id === 'resolution')?.status).toBe('current');
     expect(renterTripTimeline('confirmed').find((step) => step.id === 'owner')?.status).toBe('complete');
+    expect(renterTripTimeline('confirmed').find((step) => step.id === 'owner')?.label).toBe('Reservation confirmed');
+    expect(renterTripTimeline('checkout_pending').find((step) => step.id === 'owner')?.label).toBe('Reservation confirmation');
+    expect(tripStateCopy('intent_created').label).toBe('Dates held');
     expect(renterTripTimeline('in_progress').find((step) => step.id === 'journey')?.status).toBe('current');
     expect(renterTripTimeline('completed').find((step) => step.id === 'journey')?.status).toBe('complete');
     expect(renterTripTimeline('refunded').find((step) => step.id === 'resolution')?.status).toBe('complete');

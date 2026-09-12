@@ -8,7 +8,7 @@ import {
   tripDetailMode,
   tripDetailPresentation,
 } from '../domain/renter-trip-actions';
-import { permittedRenterActions, renterTripTimeline, tripStateCopy } from '../domain/renter-trip';
+import { isTerminalState, permittedRenterActions, renterTripTimeline, tripStateCopy } from '../domain/renter-trip';
 
 function preview(id: string) {
   const trip = previewRenterTrips.find((item) => item.id === id);
@@ -90,6 +90,23 @@ describe('trip detail screen flows', () => {
       return false;
     });
     expect(connectedActions).toEqual([]);
+    expect(presentation.isTerminal).toBe(false);
+  });
+
+  it('identifies terminal vs non-terminal intervention states accurately', () => {
+    expect(isTerminalState('completed')).toBe(true);
+    expect(isTerminalState('cancelled')).toBe(true);
+    expect(isTerminalState('cancelled_by_renter')).toBe(true);
+    expect(isTerminalState('refunded')).toBe(true);
+    expect(isTerminalState('declined')).toBe(true);
+    expect(isTerminalState('payment_window_expired')).toBe(true);
+
+    // Intervention and in-flight states are NOT terminal even without client actions
+    expect(isTerminalState('needs_attention')).toBe(false);
+    expect(isTerminalState('intervention_required')).toBe(false);
+    expect(isTerminalState('paid_conflict')).toBe(false);
+    expect(isTerminalState('cancellation_requested')).toBe(false);
+    expect(isTerminalState('in_progress')).toBe(false);
   });
 
   it('maps request-first states to human sentence-case copy without internal jargon', () => {

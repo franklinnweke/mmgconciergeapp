@@ -5,7 +5,7 @@ import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,6 +36,7 @@ import {
   tripDetailPresentation,
 } from '../domain/renter-trip-actions';
 import {
+  isTerminalState,
   renterTripTimeline,
   tripStateCopy,
   type RenterTrip,
@@ -88,6 +89,13 @@ export default function TripDetailScreen({
     [cancellationGateway],
   );
   const trip = tripOverride !== undefined ? tripOverride : trips.find((candidate) => candidate.id === tripId) ?? null;
+
+  useEffect(() => {
+    if (tripOverride === undefined && !trip && tripId && !initializing) {
+      void refreshRentalRequests();
+    }
+  }, [initializing, refreshRentalRequests, trip, tripId, tripOverride]);
+
   const vehicle = trip?.vehicleSnapshot ?? null;
   const vehicleImage = resolveVehicleImageSource(vehicle);
   const mode = tripDetailMode({
@@ -210,7 +218,7 @@ export default function TripDetailScreen({
     return {
       actions: connectedActions,
       ...splitRenterTripActions(connectedActions),
-      isTerminal: connectedActions.length === 0,
+      isTerminal: isTerminalState(trip.state),
     };
   })();
   const timeline = renterTripTimeline(trip.state);
@@ -433,6 +441,29 @@ export default function TripDetailScreen({
               <View style={styles.terminalNote}>
                 <Ionicons color={colors.muted} name="checkmark-circle-outline" size={18} />
                 <Text style={styles.terminalText}>No journey action is required in this state.</Text>
+              </View>
+            ) : null}
+
+            {!renderedActions.isTerminal && renderedActions.actions.length === 0 ? (
+              <View style={styles.terminalNote}>
+                <Ionicons
+                  color={colors.goldStrong}
+                  name={
+                    trip.state === 'needs_attention' ||
+                    trip.state === 'intervention_required' ||
+                    trip.state === 'paid_conflict'
+                      ? 'information-circle-outline'
+                      : 'hourglass-outline'
+                  }
+                  size={18}
+                />
+                <Text style={styles.terminalText}>
+                  {trip.state === 'needs_attention' ||
+                  trip.state === 'intervention_required' ||
+                  trip.state === 'paid_conflict'
+                    ? 'MMG Concierge is resolving this booking. Our team will reach out directly.'
+                    : copy.body}
+                </Text>
               </View>
             ) : null}
           </View>
