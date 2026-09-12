@@ -77,4 +77,18 @@ describe('trip detail screen flows', () => {
     expect(tripDetailMode({ initializing: false, trip: null, syncState: 'synced' })).toBe('missing');
     expect(previewRenterTrips.some((trip) => trip.id === 'does-not-exist')).toBe(false);
   });
+
+  it('filters out unavailable support action on normal trips when no support gateway is available', () => {
+    const trip = preview('preview-intervention');
+    expect(tripDetailMode({ initializing: false, trip, syncState: 'synced' })).toBe('preview');
+    const liveTrip = { ...trip, source: 'request' as const };
+    const presentation = tripDetailPresentation(liveTrip);
+    const connectedActions = presentation.actions.filter((action) => {
+      if (action === 'cancellation') {
+        return liveTrip.source === 'request' || liveTrip.source === 'trusted';
+      }
+      return false;
+    });
+    expect(connectedActions).toEqual([]);
+  });
 });

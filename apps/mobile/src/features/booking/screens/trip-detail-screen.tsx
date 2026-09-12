@@ -34,6 +34,7 @@ import {
 import {
   initialRenterTripActionSession,
   reduceRenterTripActionSession,
+  splitRenterTripActions,
   tripDetailMode,
   tripDetailPresentation,
 } from '../domain/renter-trip-actions';
@@ -204,6 +205,22 @@ export default function TripDetailScreen({
 
   const copy = tripStateCopy(trip.state);
   const presentation = tripDetailPresentation(trip);
+  const renderedActions = (() => {
+    if (mode === 'preview' || actionGateway !== unavailableRenterTripActionGateway) {
+      return presentation;
+    }
+    const connectedActions = presentation.actions.filter((action) => {
+      if (action === 'cancellation') {
+        return trip.source === 'request' || trip.source === 'trusted';
+      }
+      return false;
+    });
+    return {
+      actions: connectedActions,
+      ...splitRenterTripActions(connectedActions),
+      isTerminal: connectedActions.length === 0,
+    };
+  })();
   const timeline = renterTripTimeline(trip.state);
   const busy = session.pendingAction !== null || quoteLoading;
   const requestFirstPayment = trip.source === 'request'
@@ -414,18 +431,18 @@ export default function TripDetailScreen({
               </>
             ) : null}
 
-            {!requestFirstPayment && !session.confirmingCancellation && presentation.primary ? (
+            {!requestFirstPayment && !session.confirmingCancellation && renderedActions.primary ? (
               <View style={styles.actions}>
                 <ActionButton
                   disabled={busy}
-                  icon={actionCopy[presentation.primary].icon}
-                  label={presentation.primary === 'cancellation' && quoteLoading ? 'CHECKING…' : actionCopy[presentation.primary].label}
-                  loading={session.pendingAction === presentation.primary}
-                  onPress={() => presentation.primary === 'cancellation'
+                  icon={actionCopy[renderedActions.primary].icon}
+                  label={renderedActions.primary === 'cancellation' && quoteLoading ? 'CHECKING…' : actionCopy[renderedActions.primary].label}
+                  loading={session.pendingAction === renderedActions.primary}
+                  onPress={() => renderedActions.primary === 'cancellation'
                     ? void beginCancellation()
-                    : void perform(presentation.primary!)}
+                    : void perform(renderedActions.primary!)}
                 />
-                {presentation.secondary.map((action) => (
+                {renderedActions.secondary.map((action) => (
                   <ActionButton
                     key={action}
                     disabled={busy}
@@ -441,7 +458,7 @@ export default function TripDetailScreen({
               </View>
             ) : null}
 
-            {presentation.isTerminal ? (
+            {renderedActions.isTerminal ? (
               <View style={styles.terminalNote}>
                 <Ionicons color={colors.muted} name="checkmark-circle-outline" size={18} />
                 <Text style={styles.terminalText}>No journey action is required in this state.</Text>

@@ -4,11 +4,9 @@ import { OwnerVisibleVehicle, VehicleModerationStatus } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   StyleSheet,
   Switch,
   Text,
@@ -28,7 +26,7 @@ function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) 
         return {
           label: 'APPROVED & LIVE',
           color: colors.success ?? '#10B981',
-          bgColor: 'rgba(16, 185, 129, 0.12)',
+          bgColor: 'rgba(160, 185, 129, 0.12)',
           borderColor: 'rgba(16, 185, 129, 0.3)',
           icon: 'checkmark-circle' as const,
         };
@@ -78,24 +76,16 @@ function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) 
 export function OwnerFleetScreen() {
   const router = useRouter();
   const { actionInProgress, loading, syncError, toggleVisibility, vehicles } = useOwnerFleet();
-  const [refreshing, setRefreshing] = useState(false);
 
   const handleAddVehicle = () => {
     router.push('/(owner)/add-vehicle' as any);
   };
 
   const handlePressVehicle = (vehicle: OwnerVisibleVehicle) => {
-    if (vehicle.moderationStatus === 'draft' || vehicle.moderationStatus === 'rejected') {
-      router.push({
-        pathname: '/(owner)/add-vehicle' as any,
-        params: { vehicleId: vehicle.vehicleId },
-      });
-    } else {
-      router.push({
-        pathname: '/(owner)/fleet/[id]' as any,
-        params: { id: vehicle.vehicleId },
-      });
-    }
+    router.push({
+      pathname: '/(owner)/fleet/[id]' as any,
+      params: { id: vehicle.vehicleId },
+    });
   };
 
   return (
@@ -149,16 +139,6 @@ export function OwnerFleetScreen() {
               </PressableScale>
             </View>
           }
-          refreshControl={
-            <RefreshControl
-              onRefresh={() => {
-                setRefreshing(true);
-                setTimeout(() => setRefreshing(false), 800);
-              }}
-              refreshing={refreshing}
-              tintColor={colors.gold}
-            />
-          }
           renderItem={({ item }) => {
             const badge = statusBadgeConfig(item.moderationStatus, item.visibility);
             const isToggling = actionInProgress === item.vehicleId;
@@ -210,16 +190,26 @@ export function OwnerFleetScreen() {
                   <View style={styles.metaRow}>
                     <Ionicons color={colors.gold} name="location-outline" size={13} />
                     <Text style={styles.metaText}>{item.areaLabel ?? 'Lagos'}</Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Ionicons color={colors.gold} name="people-outline" size={13} />
-                    <Text style={styles.metaText}>{item.seats ?? 4} seats</Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Text style={styles.metaText}>{item.year ?? 2024}</Text>
+                    {item.seats ? (
+                      <>
+                        <Text style={styles.metaDot}>·</Text>
+                        <Ionicons color={colors.gold} name="people-outline" size={13} />
+                        <Text style={styles.metaText}>{item.seats} seats</Text>
+                      </>
+                    ) : null}
+                    {item.year ? (
+                      <>
+                        <Text style={styles.metaDot}>·</Text>
+                        <Text style={styles.metaText}>{item.year}</Text>
+                      </>
+                    ) : null}
                   </View>
 
                   <View style={styles.priceRow}>
                     <Text style={styles.priceLabel}>DAILY RATE</Text>
-                    <Text style={styles.priceValue}>{formatNairaFromKobo(item.ownerDailyRateKobo ?? 0)}</Text>
+                    <Text style={styles.priceValue}>
+                      {item.ownerDailyRateKobo ? formatNairaFromKobo(item.ownerDailyRateKobo) : 'Not set'}
+                    </Text>
                   </View>
 
                   {item.moderationStatus === 'rejected' && item.lastDecisionReason ? (
