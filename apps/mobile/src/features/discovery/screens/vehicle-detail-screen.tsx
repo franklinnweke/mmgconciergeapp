@@ -217,7 +217,7 @@ export default function VehicleDetailScreen({
         <View style={styles.body}>
           <View style={styles.identityBlock}>
             <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
-            <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · {vehicle.distanceKm.toFixed(1)} km away</Text>
+            <Text style={styles.vehicleMeta}>{vehicle.areaLabel}</Text>
             <View style={styles.rateLine}>
               <Text style={styles.rate}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
               <Text style={styles.rateUnit}> / day</Text>
@@ -226,8 +226,8 @@ export default function VehicleDetailScreen({
 
           <View style={styles.factRow}>
             <Fact icon="people-outline" label={`${vehicle.seats} passengers`} />
-            <Fact icon="briefcase-outline" label="3 large bags" />
             <Fact icon="person-outline" label="Chauffeur included" />
+            <Fact icon="car-outline" label="Delivery included" />
           </View>
 
           <View style={styles.section}>
@@ -290,15 +290,6 @@ export default function VehicleDetailScreen({
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vehicle details</Text>
-            <DetailRow label="Chauffeur" value="Included" />
-            <DetailRow label="Capacity" value={`${vehicle.seats} passengers`} />
-            <DetailRow label="Luggage" value="3 large bags" />
-            <DetailRow label="Transmission" value="Automatic" />
-            <DetailRow label="Climate" value="Dual A/C" />
-          </View>
-
-          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Estimated total</Text>
             <QuoteRow label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${journey.durationDays} ${journey.durationDays === 1 ? 'day' : 'days'}`} value={formatNairaFromKobo(quote.rentalKobo)} />
             <QuoteRow label="Service and protection" value={formatNairaFromKobo(quote.serviceFeeKobo)} />
@@ -307,7 +298,6 @@ export default function VehicleDetailScreen({
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
             </View>
-            <Text style={styles.quoteNote}>Estimated total. Request first — payment opens only after MMG contacts you.</Text>
           </View>
         </View>
       </ScrollView>
@@ -349,15 +339,6 @@ function Fact({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: st
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
-  );
-}
-
 function QuoteRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.quoteRow}>
@@ -395,9 +376,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.xs,
   },
-  detailLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm },
-  detailRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 46 },
-  detailValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
   disabled: { opacity: 0.45 },
   fact: { alignItems: 'center', flex: 1, gap: 5 },
   factRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.md },
@@ -412,7 +390,6 @@ const styles = StyleSheet.create({
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: layout.primaryButtonHeight, paddingHorizontal: spacing.lg },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
   quoteLabel: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: fontSizes.sm },
-  quoteNote: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, lineHeight: 18, marginTop: spacing.sm },
   quoteRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: 5 },
   quoteValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm, textAlign: 'right' },
   rate: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 24 },

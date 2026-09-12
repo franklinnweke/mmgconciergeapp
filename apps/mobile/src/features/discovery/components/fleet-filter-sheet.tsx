@@ -40,8 +40,6 @@ export function FleetFilterSheet({
     currentFilters.category,
   );
 
-  const activeFiltersCount = selectedCategory !== undefined ? 1 : 0;
-
   const handleReset = () => {
     setSelectedCategory(undefined);
   };
@@ -70,14 +68,7 @@ export function FleetFilterSheet({
 
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.headerTitleRow}>
-              <Text style={styles.title}>Filters</Text>
-              {activeFiltersCount > 0 ? (
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{activeFiltersCount}</Text>
-                </View>
-              ) : null}
-            </View>
+            <Text style={styles.title}>Filters</Text>
             <PressableScale accessibilityLabel="Close filters" accessibilityRole="button" onPress={onClose}>
               <View style={styles.closeButton}>
                 <Ionicons color={colors.ivory} name="close" size={20} />
@@ -89,9 +80,9 @@ export function FleetFilterSheet({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Section 1: Vehicle Class */}
+            {/* Section: Vehicle type */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>VEHICLE CLASS</Text>
+              <Text style={styles.sectionTitle}>Vehicle type</Text>
               <View style={styles.optionsGrid}>
                 <PressableScale
                   accessibilityRole="button"
@@ -116,7 +107,7 @@ export function FleetFilterSheet({
                         selectedCategory === undefined && styles.choiceTextActive,
                       ]}
                     >
-                      All Classes (Prado & Sedans)
+                      All cars
                     </Text>
                   </View>
                 </PressableScale>
@@ -237,20 +228,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 44,
   },
-  countBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    height: 22,
-    justifyContent: 'center',
-    minWidth: 22,
-    paddingHorizontal: 6,
-  },
-  countBadgeText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-  },
   footer: {
     alignItems: 'center',
     borderTopColor: colors.line,
@@ -276,11 +253,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: layout.screenGutter,
     paddingVertical: spacing.sm,
-  },
-  headerTitleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
   },
   optionsGrid: {
     gap: spacing.xs,
@@ -311,7 +283,6 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.xs,
-    letterSpacing: 1.2,
   },
   sheet: {
     backgroundColor: colors.canvas,
