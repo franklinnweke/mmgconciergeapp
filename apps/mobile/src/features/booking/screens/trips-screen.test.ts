@@ -7,12 +7,12 @@ describe('trips screen grouping', () => {
   it('labels groups accurately and keeps active, upcoming, intervention, and past scannable', () => {
     const sections = groupTripsForDisplay(previewRenterTrips);
     expect(sections.map((section) => section.label)).toEqual([
-      'ACTIVE REQUESTS',
-      'UPCOMING',
-      'NEEDS ATTENTION',
-      'PAST',
+      'Active requests',
+      'Upcoming',
+      'Needs attention',
+      'Past',
     ]);
-    expect(renterTripGroupCopy.active).toBe('ACTIVE REQUESTS');
+    expect(renterTripGroupCopy.active).toBe('Active requests');
     expect(sections.find((section) => section.group === 'active')?.trips.map((trip) => trip.state))
       .toEqual(expect.arrayContaining(['checkout_pending', 'in_progress', 'paid_pending_owner']));
     expect(sections.find((section) => section.group === 'upcoming')?.trips.map((trip) => trip.state)).toEqual(['confirmed']);

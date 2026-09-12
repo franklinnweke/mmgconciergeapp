@@ -91,4 +91,52 @@ describe('trip detail screen flows', () => {
     });
     expect(connectedActions).toEqual([]);
   });
+
+  it('maps request-first states to human sentence-case copy without internal jargon', () => {
+    const requestedCopy = tripStateCopy('requested');
+    expect(requestedCopy.label).toBe('Request received');
+    expect(requestedCopy.title).toMatch(/MMG is confirming/i);
+
+    const approvedCopy = tripStateCopy('approved');
+    expect(approvedCopy.label).toBe('Confirming availability');
+
+    const readyCopy = tripStateCopy('ready_for_payment');
+    expect(readyCopy.label).toBe('Payment ready');
+    expect(readyCopy.body).toMatch(/30 minutes/i);
+
+    const confirmedCopy = tripStateCopy('confirmed');
+    expect(confirmedCopy.label).toBe('Confirmed');
+
+    const needsAttentionCopy = tripStateCopy('needs_attention');
+    expect(needsAttentionCopy.label).toBe('Needs attention');
+
+    const expiredCopy = tripStateCopy('payment_window_expired');
+    expect(expiredCopy.label).toBe('Payment window expired');
+  });
+
+  it('structures request-first timelines to answer what happens next and omits for simple terminal states', () => {
+    const requestedTimeline = renterTripTimeline('requested');
+    expect(requestedTimeline.map((s) => s.label)).toEqual([
+      'Request sent',
+      'MMG confirmation',
+      'Payment',
+      'Confirmed trip',
+    ]);
+    expect(requestedTimeline[0].status).toBe('current');
+    expect(requestedTimeline[1].status).toBe('upcoming');
+
+    const readyTimeline = renterTripTimeline('ready_for_payment');
+    expect(readyTimeline.map((s) => s.label)).toEqual([
+      'Request sent',
+      'MMG confirmation',
+      'Complete payment',
+      'Confirmed trip',
+    ]);
+    expect(readyTimeline.find((s) => s.id === 'checkout')?.status).toBe('current');
+
+    // Terminal states have length 1 so screen cleanly omits timeline section
+    expect(renterTripTimeline('cancelled_by_renter').length).toBe(1);
+    expect(renterTripTimeline('declined').length).toBe(1);
+    expect(renterTripTimeline('payment_window_expired').length).toBe(1);
+  });
 });

@@ -109,7 +109,6 @@ export default function TripsScreen() {
               <View key={section.group} style={styles.section}>
                 <View style={styles.sectionHead}>
                   <Text style={styles.sectionLabel}>{sectionTitles[section.group]}</Text>
-                  <Text style={styles.sectionCount}>{section.trips.length}</Text>
                 </View>
                 <View style={styles.tripList}>
                   {section.trips.map((item) => (
@@ -241,7 +240,6 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.black, flex: 1 },
   scrollContent: { gap: spacing.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   section: { gap: spacing.sm },
-  sectionCount: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
   sectionHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   sectionLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
   stateText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11 },
