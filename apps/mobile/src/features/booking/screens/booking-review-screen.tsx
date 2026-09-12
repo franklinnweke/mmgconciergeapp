@@ -24,6 +24,7 @@ import {
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 import type { CreateRentalRequestData } from '@mmg/contracts/rental-request';
 
+import { useBookings } from '../booking-context';
 import {
   createRentalRequestGateway,
   RentalRequestSubmissionKey,
@@ -35,6 +36,7 @@ import { resolveServiceAreaLabel } from '../domain/renter-rental-request';
 type BookingReviewScreenProps = {
   endDate?: string;
   pickup?: string;
+  refreshRentalRequests?: () => Promise<void>;
   rentalRequestGateway?: RentalRequestGateway;
   startDate?: string;
   vehicleId: string;
@@ -43,6 +45,7 @@ type BookingReviewScreenProps = {
 export default function BookingReviewScreen({
   endDate,
   pickup,
+  refreshRentalRequests: refreshRentalRequestsProp,
   rentalRequestGateway,
   startDate,
   vehicleId,
@@ -51,6 +54,8 @@ export default function BookingReviewScreen({
   const router = useRouter();
   const auth = useAuth();
   const { profile, saveProfile } = useRenterProfile();
+  const bookings = useBookings();
+  const refreshRentalRequests = refreshRentalRequestsProp ?? bookings.refreshRentalRequests;
   const gateway = useMemo(() => createDiscoveryGateway(), []);
   const requestGateway = useMemo(
     () => rentalRequestGateway ?? createRentalRequestGateway(),
@@ -130,10 +135,6 @@ export default function BookingReviewScreen({
       setErrorMessage('Enter a valid Nigerian mobile number.');
       return;
     }
-    if (needsProfile && fullName.trim().length < 2 && !auth.user?.displayName) {
-      setErrorMessage('Add your name to continue.');
-      return;
-    }
 
     setSubmitting(true);
     setErrorMessage(null);
@@ -174,6 +175,7 @@ export default function BookingReviewScreen({
         submissionKey.current.forData(data),
       );
       submissionKey.current.markSucceeded();
+      await refreshRentalRequests();
       router.replace(`/trip/${result.result.requestId}` as any);
     } catch (error: unknown) {
       setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
@@ -289,7 +291,7 @@ export default function BookingReviewScreen({
             <TextInput
               accessibilityLabel="Full name"
               onChangeText={setNameDraft}
-              placeholder="Full name"
+              placeholder="Full name (optional)"
               placeholderTextColor={colors.muted}
               style={styles.input}
               value={fullName}

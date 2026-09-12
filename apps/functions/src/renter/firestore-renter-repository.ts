@@ -9,6 +9,7 @@ import {
 
 import type {
   RenterAuditEvent,
+  RenterPrivacyPurgeSummary,
   RenterRepository,
   RenterTransaction,
   StoredRenterIdempotency,
@@ -94,40 +95,50 @@ class FirestoreRenterTransaction implements RenterTransaction {
     return !snap.empty;
   }
 
-  async deleteRentalRequestContacts(renterId: string): Promise<number> {
-    const contacts = await this.transaction.get(
+  async purgeRenterPrivacyData(renterId: string): Promise<RenterPrivacyPurgeSummary> {
+    // 1. ALL READS FIRST (Firestore transactions require all reads before writes)
+    const contactsSnap = await this.transaction.get(
       this.firestore.collection('rentalRequestContacts').where('renterId', '==', renterId),
     );
-    for (const document of contacts.docs) {
-      this.transaction.delete(document.ref);
-    }
-    return contacts.size;
-  }
+    const requestsSnap = await this.transaction.get(
+      this.firestore.collection('rentalRequests').where('renterId', '==', renterId),
+    );
+    const idempotencySnap = await this.transaction.get(
+      this.firestore.collection('idempotencyKeys').where('actorId', '==', renterId),
+    );
 
-  async redactRentalRequestLocations(renterId: string): Promise<number> {
-    const requestsRef = this.firestore.collection('rentalRequests');
-    const snap = await this.transaction.get(requestsRef.where('renterId', '==', renterId));
-    let count = 0;
-    for (const document of snap.docs) {
-      const data = document.data();
+    // Target ONLY createRentalRequest idempotency keys containing location PII
+    const relevantIdempotencyDocs = idempotencySnap.docs.filter(
+      (doc) => doc.data()?.commandName === 'createRentalRequest',
+    );
+
+    // 2. ALL WRITES SECOND
+    for (const doc of contactsSnap.docs) {
+      this.transaction.delete(doc.ref);
+    }
+
+    let redactedLocationsCount = 0;
+    const nowTimestamp = Timestamp.fromDate(new Date());
+    for (const doc of requestsSnap.docs) {
+      const data = doc.data();
       if (data?.pickupLocation) {
-        this.transaction.update(document.ref, {
+        this.transaction.update(doc.ref, {
           pickupLocation: FieldValue.delete(),
-          updatedAt: Timestamp.fromDate(new Date()),
+          updatedAt: nowTimestamp,
         });
-        count++;
+        redactedLocationsCount++;
       }
     }
-    return count;
-  }
 
-  async deleteRenterIdempotencyKeys(renterId: string): Promise<number> {
-    const idempotencyRef = this.firestore.collection('idempotencyKeys');
-    const snap = await this.transaction.get(idempotencyRef.where('actorId', '==', renterId));
-    for (const document of snap.docs) {
-      this.transaction.delete(document.ref);
+    for (const doc of relevantIdempotencyDocs) {
+      this.transaction.delete(doc.ref);
     }
-    return snap.size;
+
+    return {
+      deletedRentalRequestContactCount: contactsSnap.size,
+      redactedRentalRequestLocationCount: redactedLocationsCount,
+      deletedIdempotencyKeyCount: relevantIdempotencyDocs.length,
+    };
   }
 
   async getIdempotency(documentId: string): Promise<StoredRenterIdempotency | null> {

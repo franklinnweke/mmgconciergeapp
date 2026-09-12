@@ -63,9 +63,7 @@ export async function requestAccountDeletionService(
       );
     }
 
-    const deletedRequestContacts = await tx.deleteRentalRequestContacts(actor.uid);
-    const redactedRequestLocations = await tx.redactRentalRequestLocations(actor.uid);
-    const deletedIdempotencyKeys = await tx.deleteRenterIdempotencyKeys(actor.uid);
+    const purgeSummary = await tx.purgeRenterPrivacyData(actor.uid);
 
     const updatedProfile = {
       ...existing,
@@ -89,9 +87,9 @@ export async function requestAccountDeletionService(
       occurredAt: now,
       details: {
         reason: data.reason ?? null,
-        deletedRentalRequestContactCount: deletedRequestContacts,
-        redactedRentalRequestLocationCount: redactedRequestLocations,
-        deletedIdempotencyKeyCount: deletedIdempotencyKeys,
+        deletedRentalRequestContactCount: purgeSummary.deletedRentalRequestContactCount,
+        redactedRentalRequestLocationCount: purgeSummary.redactedRentalRequestLocationCount,
+        deletedIdempotencyKeyCount: purgeSummary.deletedIdempotencyKeyCount,
       },
     });
 

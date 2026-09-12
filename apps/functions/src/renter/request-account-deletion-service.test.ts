@@ -27,20 +27,18 @@ class MockRenterRepository implements RenterRepository {
       },
       hasActiveBookings: async (id) => this.activeBookings.has(id),
       hasActiveRentalRequests: async (id) => this.activeRentalRequests.has(id),
-      deleteRentalRequestContacts: async (id) => {
-        const count = this.rentalRequestContactCount.get(id) ?? 0;
+      purgeRenterPrivacyData: async (id) => {
+        const contactCount = this.rentalRequestContactCount.get(id) ?? 0;
         this.rentalRequestContactCount.set(id, 0);
-        return count;
-      },
-      redactRentalRequestLocations: async (id) => {
-        const count = this.rentalRequestLocationCount.get(id) ?? 0;
+        const locationCount = this.rentalRequestLocationCount.get(id) ?? 0;
         this.rentalRequestLocationCount.set(id, 0);
-        return count;
-      },
-      deleteRenterIdempotencyKeys: async (id) => {
-        const count = this.renterIdempotencyKeyCount.get(id) ?? 0;
+        const idempotencyCount = this.renterIdempotencyKeyCount.get(id) ?? 0;
         this.renterIdempotencyKeyCount.set(id, 0);
-        return count;
+        return {
+          deletedRentalRequestContactCount: contactCount,
+          redactedRentalRequestLocationCount: locationCount,
+          deletedIdempotencyKeyCount: idempotencyCount,
+        };
       },
       getIdempotency: async (id) => this.idempotency.get(id) ?? null,
       saveIdempotency: (id, record) => {

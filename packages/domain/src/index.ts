@@ -513,13 +513,20 @@ export function haversineDistanceKm(
   return Math.round(d * 10) / 10;
 }
 
+export const LAGOS_SERVICE_BBOX = {
+  minLatitude: 6.30,
+  maxLatitude: 6.75,
+  minLongitude: 2.70,
+  maxLongitude: 4.30,
+} as const;
+
 /**
- * Validates whether latitude and longitude lie inside the Lagos bounding box.
+ * Validates whether latitude and longitude lie inside the Lagos operational service envelope.
  */
 export function isWithinLagosBBox(
   lat: number,
   lon: number,
-  bbox = { minLatitude: 6.35, maxLatitude: 6.72, minLongitude: 3.05, maxLongitude: 3.70 },
+  bbox: { minLatitude: number; maxLatitude: number; minLongitude: number; maxLongitude: number } = LAGOS_SERVICE_BBOX,
 ): boolean {
   return (
     lat >= bbox.minLatitude &&

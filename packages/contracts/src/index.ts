@@ -677,11 +677,13 @@ export const MIN_IMAGE_HEIGHT = 720;
 export const MAX_IMAGE_EDGE = 8000;
 
 export const LAGOS_BBOX = {
-  minLatitude: 6.35,
-  maxLatitude: 6.72,
-  minLongitude: 3.05,
-  maxLongitude: 3.70,
+  minLatitude: 6.30,
+  maxLatitude: 6.75,
+  minLongitude: 2.70,
+  maxLongitude: 4.30,
 } as const;
+
+export const LAGOS_SERVICE_ENVELOPE = LAGOS_BBOX;
 
 // ── Vehicle Zod schemas ──
 

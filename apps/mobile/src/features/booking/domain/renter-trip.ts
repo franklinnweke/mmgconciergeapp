@@ -100,6 +100,10 @@ const terminalStates: readonly RenterTripState[] = [
   'payment_window_expired',
 ];
 
+export function isTerminalState(state: RenterTripState): boolean {
+  return terminalStates.includes(state);
+}
+
 export function stateGroup(state: RenterTripState): RenterTripGroup {
   if (state === 'intervention_required' || state === 'paid_conflict' || state === 'needs_attention') {
     return 'intervention';
@@ -143,7 +147,7 @@ export function tripStateCopy(state: RenterTripState): {
       body: 'This earlier estimate holds no dates, takes no payment, and creates no confirmation.',
     },
     intent_created: {
-      label: 'Payment processing',
+      label: 'Dates held',
       title: 'Dates held briefly.',
       body: 'Review the verified total before secure checkout becomes available.',
     },
@@ -332,7 +336,7 @@ export function renterTripTimeline(state: RenterTripState): readonly RenterTripT
     return [
       item('request', 'Booking intent created', 'Pricing and dates were checked by MMG.', 'complete'),
       item('checkout', 'Secure checkout', 'Payment has not been verified.', 'current'),
-      item('owner', 'Owner confirmation', 'Begins only after verified payment.', 'upcoming'),
+      item('owner', 'Reservation confirmation', 'Begins only after verified payment.', 'upcoming'),
     ];
   }
   if (state === 'paid') {
@@ -357,7 +361,7 @@ export function renterTripTimeline(state: RenterTripState): readonly RenterTripT
   ) {
     return [
       item('payment', 'Payment verified', 'The provider reported a successful payment.', 'complete'),
-      item('owner', 'Owner confirmed', 'Vehicle and chauffeur were reserved.', 'complete'),
+      item('owner', 'Reservation confirmed', 'Vehicle and chauffeur were reserved.', 'complete'),
       item(
         'journey',
         state === 'completed'
