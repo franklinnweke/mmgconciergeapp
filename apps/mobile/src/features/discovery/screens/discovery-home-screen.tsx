@@ -27,12 +27,16 @@ import {
 } from '../components/executive-booking-desk';
 import { FeaturedVehicleCard } from '../components/featured-vehicle-card';
 import { LiveJourneyCard } from '../components/live-journey-card';
-import { PickupDistrictSheet } from '../components/pickup-district-sheet';
+import { PickupLocationSheet } from '../components/pickup-location-sheet';
 import {
   addDaysToDateOnly,
-  pickupDestinations,
   todayLagosDateOnly,
 } from '../data/lagos-destinations';
+import {
+  DEFAULT_PICKUP_LOCATION,
+  serializePickupLocation,
+  type PickupLocation,
+} from '../domain/pickup-location';
 import { useFeaturedVehicles } from '../hooks/use-featured-vehicles';
 
 const carouselGap = spacing.md;
@@ -40,7 +44,8 @@ const carouselGap = spacing.md;
 function initialJourneyPlan(): JourneyPlan {
   const startDate = todayLagosDateOnly();
   return {
-    area: pickupDestinations[0].area,
+    area: DEFAULT_PICKUP_LOCATION.serviceAreaLabel,
+    pickup: DEFAULT_PICKUP_LOCATION,
     startDate,
     endDate: addDaysToDateOnly(startDate, 3),
     durationDays: 3,
@@ -54,7 +59,7 @@ export default function DiscoveryHomeScreen() {
   const { user } = useAuth();
   const { trips } = useBookings();
   const { error, isLoading, vehicles } = useFeaturedVehicles();
-  const [area, setArea] = useState(pickupDestinations[0].area);
+  const [pickup, setPickup] = useState<PickupLocation>(DEFAULT_PICKUP_LOCATION);
   const [journeyPlan, setJourneyPlan] = useState<JourneyPlan>(initialJourneyPlan);
   const [destinationsOpen, setDestinationsOpen] = useState(false);
   const liveTrip = useMemo(() => selectHomeJourney(trips), [trips]);
@@ -63,14 +68,15 @@ export default function DiscoveryHomeScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const cardWidth = Math.min(352, Math.max(280, windowWidth - 48));
 
-  function openFleet(nextArea = area) {
+  function openFleet(nextPickup = pickup) {
     router.push({
       pathname: '/(renter)/browse',
       params: {
-        area: nextArea,
-        startDate: journeyPlan.startDate,
+        area: nextPickup.serviceAreaLabel,
         endDate: journeyPlan.endDate,
         journey: journeyPlan.journeyLabel,
+        pickup: serializePickupLocation(nextPickup),
+        startDate: journeyPlan.startDate,
       },
     });
   }
@@ -114,27 +120,28 @@ export default function DiscoveryHomeScreen() {
         ) : null}
 
         <ExecutiveBookingDesk
-          areaLabel={area}
           onExploreFleet={(plan) => {
             setJourneyPlan(plan);
             router.push({
               pathname: '/(renter)/browse',
               params: {
-                area: plan.area,
-                startDate: plan.startDate,
+                area: plan.pickup.serviceAreaLabel,
                 endDate: plan.endDate,
                 journey: plan.journeyLabel,
+                pickup: serializePickupLocation(plan.pickup),
+                startDate: plan.startDate,
               },
             });
           }}
           onPlanChange={setJourneyPlan}
           onPressArea={() => setDestinationsOpen(true)}
+          pickup={pickup}
         />
 
-        <PickupDistrictSheet
+        <PickupLocationSheet
           onClose={() => setDestinationsOpen(false)}
-          onSelectArea={(selectedArea) => setArea(selectedArea)}
-          selectedArea={area}
+          onSelectLocation={(selected) => setPickup(selected)}
+          selectedLocation={pickup}
           visible={destinationsOpen}
         />
 
@@ -185,8 +192,9 @@ export default function DiscoveryHomeScreen() {
                 onPress={() => router.push({
                   pathname: '/vehicle/[vehicleId]',
                   params: {
-                    startDate: journeyPlan.startDate,
                     endDate: journeyPlan.endDate,
+                    pickup: serializePickupLocation(pickup),
+                    startDate: journeyPlan.startDate,
                     vehicleId: vehicle.id,
                   },
                 })}

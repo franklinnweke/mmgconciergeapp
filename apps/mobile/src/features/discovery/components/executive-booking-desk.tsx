@@ -11,9 +11,15 @@ import {
   formatLagosDateOnly,
   todayLagosDateOnly,
 } from '../data/lagos-destinations';
+import {
+  DEFAULT_PICKUP_LOCATION,
+  parsePickupLocation,
+  type PickupLocation,
+} from '../domain/pickup-location';
 
 export type JourneyPlan = {
   area: string;
+  pickup: PickupLocation;
   startDate: string;
   endDate: string;
   durationDays: number;
@@ -21,7 +27,8 @@ export type JourneyPlan = {
 };
 
 export type ExecutiveBookingDeskProps = {
-  areaLabel: string;
+  areaLabel?: string;
+  pickup?: PickupLocation;
   onPlanChange?(plan: JourneyPlan): void;
   onPressArea(): void;
   onExploreFleet(plan: JourneyPlan): void;
@@ -57,10 +64,12 @@ function dateOptionCopy(dateOnly: string, offset: number): Omit<DateOption, 'dat
 
 export function ExecutiveBookingDesk({
   areaLabel,
+  pickup: propPickup,
   onPlanChange,
   onPressArea,
   onExploreFleet,
 }: ExecutiveBookingDeskProps) {
+  const pickup = propPickup ?? (areaLabel ? parsePickupLocation(areaLabel) : DEFAULT_PICKUP_LOCATION);
   const insets = useSafeAreaInsets();
   const [startOffset, setStartOffset] = useState(0);
   const [durationDays, setDurationDays] = useState(3);
@@ -82,12 +91,13 @@ export function ExecutiveBookingDesk({
   const journeyLabel = startOffset === 0 ? 'Today' : startOffset === 1 ? 'Tomorrow' : formattedStart;
 
   const plan = useMemo<JourneyPlan>(() => ({
-    area: areaLabel,
+    area: pickup.serviceAreaLabel,
+    pickup,
     startDate,
     endDate,
     durationDays,
     journeyLabel,
-  }), [areaLabel, durationDays, endDate, journeyLabel, startDate]);
+  }), [pickup, durationDays, endDate, journeyLabel, startDate]);
 
   useEffect(() => {
     onPlanChange?.(plan);
@@ -97,7 +107,7 @@ export function ExecutiveBookingDesk({
     <View style={styles.container}>
       <View style={styles.summaryShell}>
         <PressableScale
-          accessibilityLabel={`Pickup location, ${areaLabel}, Lagos. Change pickup location`}
+          accessibilityLabel={`Pickup location, ${pickup.displayName}, ${pickup.formattedAddress}. Change pickup location`}
           accessibilityRole="button"
           onPress={onPressArea}
         >
@@ -107,7 +117,8 @@ export function ExecutiveBookingDesk({
             </View>
             <View style={styles.summaryCopy}>
               <Text style={styles.summaryLabel}>Pickup</Text>
-              <Text numberOfLines={1} style={styles.summaryValue}>{areaLabel}, Lagos</Text>
+              <Text numberOfLines={1} style={styles.summaryValue}>{pickup.displayName}</Text>
+              <Text numberOfLines={1} style={styles.summaryMeta}>{pickup.formattedAddress}</Text>
             </View>
             <Text style={styles.editText}>Edit</Text>
           </View>
