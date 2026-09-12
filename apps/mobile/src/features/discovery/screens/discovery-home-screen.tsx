@@ -92,22 +92,16 @@ export default function DiscoveryHomeScreen() {
         <View style={styles.inset}>
           <ScreenHeader
             right={(
-              <View style={styles.topActions}>
-                <View style={styles.cityPill}>
-                  <Ionicons color={colors.muted} name="location-outline" size={14} />
-                  <Text style={styles.cityText}>Lagos</Text>
+              <PressableScale
+                accessibilityLabel="Open account"
+                accessibilityRole="button"
+                onPress={() => router.push('/(renter)/account')}
+                style={styles.avatarPress}
+              >
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
                 </View>
-                <PressableScale
-                  accessibilityLabel="Open account"
-                  accessibilityRole="button"
-                  onPress={() => router.push('/(renter)/account')}
-                  style={styles.avatarPress}
-                >
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
-                  </View>
-                </PressableScale>
-              </View>
+              </PressableScale>
             )}
           />
         </View>
@@ -226,15 +220,6 @@ const styles = StyleSheet.create({
   avatarPress: { flexShrink: 0, height: 40, width: 40 },
   avatarText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
   carousel: { gap: carouselGap, paddingHorizontal: spacing.md },
-  cityPill: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexShrink: 0,
-    gap: 4,
-    minHeight: 40,
-    paddingHorizontal: 4,
-  },
-  cityText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: fontSizes.xs },
   content: { gap: spacing.md, paddingBottom: 116 },
   emptyFeaturedBox: {
     borderColor: colors.line,
@@ -260,6 +245,5 @@ const styles = StyleSheet.create({
   inventorySubtitle: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 3 },
   inventoryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
   screen: { backgroundColor: colors.black, flex: 1, maxWidth: '100%', overflow: 'hidden', width: '100%' },
-  topActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   viewAll: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm, paddingVertical: spacing.xs },
 });

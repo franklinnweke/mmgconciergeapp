@@ -70,7 +70,6 @@ export default function BookingReviewScreen({
   const [reloadKey, setReloadKey] = useState(0);
   const [phoneDraft, setPhoneDraft] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
-  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -117,6 +116,72 @@ export default function BookingReviewScreen({
   );
   const needsProfile = !profile || profile.accountStatus !== 'active';
 
+  const handleSubmitRequest = async () => {
+    if (!pickupLocation || !isServiceable) {
+      setErrorMessage(
+        pickupLocation
+          ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
+          : 'Choose a Lagos delivery landmark or use your current location to request this car.',
+      );
+      return;
+    }
+    const contactPhone = normalizeNigerianPhone(phoneInput);
+    if (!contactPhone) {
+      setErrorMessage('Enter a valid Nigerian mobile number.');
+      return;
+    }
+    if (needsProfile && fullName.trim().length < 2 && !auth.user?.displayName) {
+      setErrorMessage('Add your name to continue.');
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMessage(null);
+    try {
+      if (needsProfile) {
+        try {
+          await saveProfile({
+            fullName: fullName.trim() || auth.user?.displayName || 'MMG renter',
+            phone: contactPhone,
+            defaultDeliveryAddress: {
+              areaLabel: serviceArea,
+              streetAddress: streetAddress.trim() || pickupLocation.formattedAddress,
+            },
+            acceptedRenterTermsVersion: '2026-03-01',
+            acceptedPrivacyNoticeVersion: '2026-03-01',
+          });
+        } catch {
+          // Profile enrichment failure does not block soft request submission
+        }
+      }
+      const data: CreateRentalRequestData = {
+        vehicleId: vehicle!.id,
+        startDate: journey.startDate,
+        endDate: journey.endDate,
+        contactPhone,
+        serviceAreaLabel: serviceArea,
+        pickupLocation: {
+          displayName: pickupLocation.displayName,
+          formattedAddress: pickupLocation.formattedAddress,
+          latitude: pickupLocation.latitude,
+          longitude: pickupLocation.longitude,
+          ...(pickupLocation.placeId ? { placeId: pickupLocation.placeId } : {}),
+          serviceAreaLabel: pickupLocation.serviceAreaLabel,
+        },
+      };
+      const result = await requestGateway.createRequest(
+        data,
+        submissionKey.current.forData(data),
+      );
+      submissionKey.current.markSucceeded();
+      router.replace(`/trip/${result.result.requestId}` as any);
+    } catch (error: unknown) {
+      setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
@@ -157,10 +222,6 @@ export default function BookingReviewScreen({
       >
         <ScreenHeader onBack={() => router.back()} title="Request this car" />
 
-        <Text style={styles.introText}>
-          Send a request to MMG. This does not lock dates or take payment. MMG will confirm the car, then contact you before opening a 30-minute payment window.
-        </Text>
-
         <View style={styles.vehicleRow}>
           <Image
             accessibilityLabel={vehicle.displayName}
@@ -185,6 +246,58 @@ export default function BookingReviewScreen({
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Delivery location</Text>
+          <View style={styles.deliveryCard}>
+            <View style={styles.deliveryIcon}>
+              <Ionicons color={colors.goldStrong} name="location-outline" size={20} />
+            </View>
+            <View style={styles.deliveryCopy}>
+              <Text style={styles.deliveryTitle}>{pickupLocation?.displayName ?? 'Lagos Pickup Location'}</Text>
+              <Text style={styles.deliveryAddress}>{pickupLocation?.formattedAddress ?? 'Lagos, Nigeria'}</Text>
+            </View>
+          </View>
+          {!isServiceable ? (
+            <View style={styles.warningRow}>
+              <Ionicons color={colors.danger} name="alert-circle" size={16} />
+              <Text style={styles.warningText}>
+                {pickupLocation
+                  ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
+                  : 'Choose a Lagos delivery landmark or use your current location to request this car.'}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contact phone</Text>
+          <TextInput
+            accessibilityLabel="Nigerian mobile number"
+            autoComplete="tel"
+            keyboardType="phone-pad"
+            onChangeText={setPhoneDraft}
+            placeholder="0801 234 5678"
+            placeholderTextColor={colors.muted}
+            style={styles.input}
+            value={phoneInput}
+          />
+          <Text style={styles.noteText}>Used by MMG to call you before opening payment.</Text>
+        </View>
+
+        {needsProfile ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Renter details</Text>
+            <TextInput
+              accessibilityLabel="Full name"
+              onChangeText={setNameDraft}
+              placeholder="Full name"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={fullName}
+            />
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Estimated total</Text>
           <QuoteRow
             label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${journey.durationDays} ${journey.durationDays === 1 ? 'day' : 'days'}`}
@@ -196,77 +309,11 @@ export default function BookingReviewScreen({
             <Text style={styles.totalLabel}>Estimated total</Text>
             <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
           </View>
-          <Text style={styles.noteText}>
-            This is a client-preview estimate. MMG recalculates the authoritative amount only when the payment window is opened.
-          </Text>
         </View>
 
-        {submittedRequestId ? (
-          <View accessibilityLiveRegion="polite" style={styles.holdSummary}>
-            <Ionicons color={colors.success} name="checkmark-circle" size={20} />
-            <View style={styles.holdCopy}>
-              <Text style={styles.holdTitle}>Request received — MMG is confirming</Text>
-              <Text style={styles.holdText}>
-                No payment was taken and the dates are not locked. Track this request in Trips.
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Contact phone</Text>
-              <TextInput
-                accessibilityLabel="Nigerian mobile number"
-                autoComplete="tel"
-                keyboardType="phone-pad"
-                onChangeText={setPhoneDraft}
-                placeholder="0801 234 5678"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-                value={phoneInput}
-              />
-              <Text style={styles.noteText}>Used by MMG to call you before payment. This is not an SMS login step.</Text>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Delivery location</Text>
-              <View style={styles.deliveryCard}>
-                <View style={styles.deliveryIcon}>
-                  <Ionicons color={colors.goldStrong} name="location-outline" size={20} />
-                </View>
-                <View style={styles.deliveryCopy}>
-                  <Text style={styles.deliveryTitle}>{pickupLocation?.displayName ?? 'Lagos Pickup Location'}</Text>
-                  <Text style={styles.deliveryAddress}>{pickupLocation?.formattedAddress ?? 'Lagos, Nigeria'}</Text>
-                  <Text style={styles.deliveryZone}>MMG Service Zone: {serviceArea}</Text>
-                </View>
-              </View>
-              {!isServiceable ? (
-                <View style={styles.warningRow}>
-                  <Ionicons color={colors.danger} name="alert-circle" size={16} />
-                  <Text style={styles.warningText}>
-                    {pickupLocation
-                      ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
-                      : 'Choose a Lagos delivery landmark or use your current location to request this car.'}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-
-            {needsProfile ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Renter details</Text>
-                <TextInput
-                  accessibilityLabel="Full name"
-                  onChangeText={setNameDraft}
-                  placeholder="Full name"
-                  placeholderTextColor={colors.muted}
-                  style={styles.input}
-                  value={fullName}
-                />
-              </View>
-            ) : null}
-          </>
-        )}
+        <Text style={styles.reassuranceText}>
+          No payment now. MMG will contact you once your request is confirmed.
+        </Text>
 
         {errorMessage ? (
           <View accessibilityLiveRegion="polite" style={styles.errorRow}>
@@ -275,89 +322,16 @@ export default function BookingReviewScreen({
           </View>
         ) : null}
 
-        {submittedRequestId ? (
-          <PressableScale accessibilityRole="button" onPress={() => router.replace(`/trip/${submittedRequestId}` as any)}>
-            <View style={styles.ctaButton}>
-              <Text style={styles.ctaText}>View trip</Text>
-            </View>
-          </PressableScale>
-        ) : (
-          <PressableScale
-            disabled={submitting || !isServiceable}
-            haptic
-            onPress={async () => {
-              if (!pickupLocation || !isServiceable) {
-                setErrorMessage(
-                  pickupLocation
-                    ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
-                    : 'Choose a Lagos delivery landmark or use your current location to request this car.',
-                );
-                return;
-              }
-              const contactPhone = normalizeNigerianPhone(phoneInput);
-              if (!contactPhone) {
-                setErrorMessage('Enter a valid Nigerian mobile number.');
-                return;
-              }
-              if (needsProfile && fullName.trim().length < 2 && !auth.user?.displayName) {
-                setErrorMessage('Add your name to continue.');
-                return;
-              }
-
-              setSubmitting(true);
-              setErrorMessage(null);
-              try {
-                if (needsProfile) {
-                  try {
-                    await saveProfile({
-                      fullName: fullName.trim() || auth.user?.displayName || 'MMG renter',
-                      phone: contactPhone,
-                      defaultDeliveryAddress: {
-                        areaLabel: serviceArea,
-                        streetAddress: streetAddress.trim() || pickupLocation.formattedAddress,
-                      },
-                      acceptedRenterTermsVersion: '2026-03-01',
-                      acceptedPrivacyNoticeVersion: '2026-03-01',
-                    });
-                  } catch {
-                    // Profile enrichment failure does not block soft request submission
-                  }
-                }
-                const data: CreateRentalRequestData = {
-                  vehicleId: vehicle.id,
-                  startDate: journey.startDate,
-                  endDate: journey.endDate,
-                  contactPhone,
-                  serviceAreaLabel: serviceArea,
-                  pickupLocation: {
-                    displayName: pickupLocation.displayName,
-                    formattedAddress: pickupLocation.formattedAddress,
-                    latitude: pickupLocation.latitude,
-                    longitude: pickupLocation.longitude,
-                    ...(pickupLocation.placeId ? { placeId: pickupLocation.placeId } : {}),
-                    serviceAreaLabel: pickupLocation.serviceAreaLabel,
-                  },
-                };
-                const result = await requestGateway.createRequest(
-                  data,
-                  submissionKey.current.forData(data),
-                );
-                submissionKey.current.markSucceeded();
-                setSubmittedRequestId(result.result.requestId);
-                router.replace(`/trip/${result.result.requestId}` as any);
-              } catch (error: unknown) {
-                setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-          >
-            <View style={[styles.ctaButton, (submitting || !isServiceable) && styles.disabled]}>
-              {submitting ? <ActivityIndicator color={colors.black} size="small" /> : null}
-              <Text style={styles.ctaText}>{submitting ? 'Sending request…' : 'Send request'}</Text>
-            </View>
-          </PressableScale>
-        )}
+        <PressableScale
+          disabled={submitting || !isServiceable}
+          haptic
+          onPress={handleSubmitRequest}
+        >
+          <View style={[styles.ctaButton, (submitting || !isServiceable) && styles.disabled]}>
+            {submitting ? <ActivityIndicator color={colors.black} size="small" /> : null}
+            <Text style={styles.ctaText}>{submitting ? 'Sending request…' : 'Send request'}</Text>
+          </View>
+        </PressableScale>
       </ScrollView>
     </View>
   );
@@ -382,11 +356,6 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  areaChip: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  areaChipSelected: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
-  areaChipText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 12 },
-  areaChipTextSelected: { color: colors.black },
-  areaWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
   ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
   ctaText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
@@ -413,17 +382,11 @@ const styles = StyleSheet.create({
     width: 40,
   },
   deliveryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  deliveryZone: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: 11, marginTop: 2 },
   disabled: { opacity: 0.6 },
   errorRow: { alignItems: 'center', borderColor: colors.danger, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },
   headerInset: { paddingHorizontal: spacing.lg },
-  holdCopy: { flex: 1 },
-  holdSummary: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md },
-  holdText: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 3 },
-  holdTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
   input: { borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 15, minHeight: 48, paddingHorizontal: spacing.md },
-  introText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
   journeyRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
   noteText: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.sm },
   point: { flex: 1, gap: 3 },
@@ -433,6 +396,14 @@ const styles = StyleSheet.create({
   quoteLabel: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 13 },
   quoteRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: 5 },
   quoteValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, textAlign: 'right' },
+  reassuranceText: {
+    color: colors.silver,
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
   screen: { backgroundColor: colors.black, flex: 1 },
   section: { gap: spacing.xs },
   sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17, marginBottom: spacing.xs },

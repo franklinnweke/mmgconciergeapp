@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -101,8 +100,21 @@ export default function BrowseFleetScreen() {
     }).start();
   }, [entrance, reduceMotion]);
 
-  const activeFiltersCount = category !== undefined ? 1 : 0;
   const hasAnyFilterOrSearch = category !== undefined || query.trim().length > 0;
+
+  const quietContext = useMemo(() => {
+    const parts: string[] = [];
+    if (category) {
+      parts.push(category === 'executive_suv' ? 'SUV' : 'Sedan');
+    }
+    if (pickup) {
+      parts.push(`${pickup.displayName} pickup`);
+    }
+    if (query.trim()) {
+      parts.push(`“${query.trim()}”`);
+    }
+    return parts.join(' · ');
+  }, [category, pickup, query]);
 
   const clearAllFilters = () => {
     setCategorySelection({ routeValue: routeCategory, value: undefined });
@@ -133,7 +145,7 @@ export default function BrowseFleetScreen() {
       >
         <ScreenHeader />
 
-        <Text accessibilityRole="header" style={styles.title}>Available in Lagos</Text>
+        <Text accessibilityRole="header" style={styles.title}>Cars</Text>
 
         <View style={styles.searchFilterRow}>
           <View style={styles.searchBox}>
@@ -142,7 +154,7 @@ export default function BrowseFleetScreen() {
               accessibilityLabel="Search vehicles"
               autoCapitalize="words"
               onChangeText={setQuery}
-              placeholder="Search Prado, sedan, or model..."
+              placeholder="Search cars..."
               placeholderTextColor="rgba(180,174,164,0.68)"
               returnKeyType="search"
               style={styles.searchInput}
@@ -163,75 +175,41 @@ export default function BrowseFleetScreen() {
 
           <PressableScale
             accessibilityHint="Opens filter sheet"
-            accessibilityLabel={`Filters${activeFiltersCount > 0 ? `, ${activeFiltersCount} applied` : ''}`}
+            accessibilityLabel="Filters"
             accessibilityRole="button"
             onPress={() => setFilterSheetVisible(true)}
           >
-            <View style={[styles.filterButton, activeFiltersCount > 0 && styles.filterButtonActive]}>
+            <View style={[styles.filterButton, category !== undefined && styles.filterButtonActive]}>
               <Ionicons
-                color={activeFiltersCount > 0 ? colors.black : colors.ivory}
+                color={category !== undefined ? colors.black : colors.ivory}
                 name="options-outline"
                 size={18}
               />
               <Text
                 style={[
                   styles.filterButtonText,
-                  activeFiltersCount > 0 && styles.filterButtonTextActive,
+                  category !== undefined && styles.filterButtonTextActive,
                 ]}
               >
                 Filters
               </Text>
-              {activeFiltersCount > 0 ? (
-                <View style={styles.filterBadge}>
-                  <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
-                </View>
-              ) : null}
             </View>
           </PressableScale>
         </View>
 
-        {hasAnyFilterOrSearch ? (
-          <ScrollView
-            contentContainerStyle={styles.activeFiltersStrip}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            {category !== undefined ? (
+        {quietContext ? (
+          <View style={styles.contextRow}>
+            <Text numberOfLines={1} style={styles.contextText}>{quietContext}</Text>
+            {hasAnyFilterOrSearch ? (
               <PressableScale
-                accessibilityLabel="Remove class filter"
+                accessibilityLabel="Clear filters"
                 accessibilityRole="button"
-                onPress={() => setCategorySelection({ routeValue: routeCategory, value: undefined })}
+                onPress={clearAllFilters}
               >
-                <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>
-                    {category === 'executive_suv' ? 'Executive SUV' : 'Executive Sedan'}
-                  </Text>
-                  <Ionicons color={colors.goldStrong} name="close" size={14} />
-                </View>
+                <Text style={styles.clearFilterText}>Clear</Text>
               </PressableScale>
             ) : null}
-
-            {query ? (
-              <PressableScale
-                accessibilityLabel="Clear search query"
-                accessibilityRole="button"
-                onPress={() => setQuery('')}
-              >
-                <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>“{query}”</Text>
-                  <Ionicons color={colors.goldStrong} name="close" size={14} />
-                </View>
-              </PressableScale>
-            ) : null}
-
-            <PressableScale
-              accessibilityLabel="Clear all filters"
-              accessibilityRole="button"
-              onPress={clearAllFilters}
-            >
-              <Text style={styles.clearAllText}>Clear all</Text>
-            </PressableScale>
-          </ScrollView>
+          </View>
         ) : null}
 
         <View style={styles.resultsHeader}>
@@ -272,16 +250,13 @@ export default function BrowseFleetScreen() {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Ionicons color={colors.goldStrong} name="car-sport-outline" size={26} />
-              </View>
               <Text style={styles.emptyTitle}>No exact match</Text>
               <Text style={styles.emptyBody}>
-                Clear your filters or search to see all Prado and executive options.
+                Clear your search or filters to see all available cars.
               </Text>
               <PressableScale accessibilityRole="button" onPress={clearAllFilters}>
                 <View style={styles.emptyAction}>
-                  <Text style={styles.emptyActionText}>SHOW ALL VEHICLES</Text>
+                  <Text style={styles.emptyActionText}>Clear filters</Text>
                 </View>
               </PressableScale>
             </View>
@@ -303,35 +278,6 @@ export default function BrowseFleetScreen() {
 }
 
 const styles = StyleSheet.create({
-  activeFiltersStrip: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-  activeTag: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  activeTagText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
-  clearAllText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    marginLeft: spacing.xs,
-    textDecorationLine: 'underline',
-  },
   clearSearch: {
     padding: spacing.xs,
   },
@@ -340,6 +286,24 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingBottom: 120,
     paddingHorizontal: layout.screenGutter,
+  },
+  contextRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.xs,
+  },
+  contextText: {
+    color: colors.silver,
+    flex: 1,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.xs,
+  },
+  clearFilterText: {
+    color: colors.goldStrong,
+    fontFamily: typography.bodySemiBold,
+    fontSize: fontSizes.xs,
+    marginLeft: spacing.sm,
   },
   emptyAction: {
     alignItems: 'center',
@@ -354,7 +318,6 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.sm,
-    letterSpacing: 1.1,
   },
   emptyBody: {
     color: colors.muted,
@@ -364,15 +327,6 @@ const styles = StyleSheet.create({
     maxWidth: 280,
     marginTop: spacing.xs,
     textAlign: 'center',
-  },
-  emptyIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderRadius: radii.pill,
-    height: 56,
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-    width: 56,
   },
   emptyState: {
     alignItems: 'center',
@@ -404,20 +358,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.sm,
-  },
-  filterBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    height: 20,
-    justifyContent: 'center',
-    minWidth: 20,
-    paddingHorizontal: 5,
-  },
-  filterBadgeText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
   },
   filterButton: {
     alignItems: 'center',

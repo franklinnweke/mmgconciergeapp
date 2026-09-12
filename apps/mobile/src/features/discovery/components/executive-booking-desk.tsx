@@ -168,14 +168,14 @@ export function ExecutiveBookingDesk({
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={styles.sheetTitle}>Choose dates</Text>
-                <Text style={styles.sheetSubtitle}>Pickup and return stay together across your search.</Text>
+                <Text style={styles.sheetSubtitle}>Select rental dates</Text>
               </View>
               <PressableScale accessibilityRole="button" haptic onPress={() => setDatesOpen(false)}>
                 <Text style={styles.doneText}>Done</Text>
               </PressableScale>
             </View>
 
-            <Text style={styles.pickerLabel}>PICKUP</Text>
+            <Text style={styles.pickerLabel}>Pickup</Text>
             <ScrollView contentContainerStyle={styles.dateRail} horizontal showsHorizontalScrollIndicator={false}>
               {dateOptions.map((option) => {
                 const selected = option.offset === startOffset;
@@ -195,7 +195,7 @@ export function ExecutiveBookingDesk({
               })}
             </ScrollView>
 
-            <Text style={styles.pickerLabel}>DURATION</Text>
+            <Text style={styles.pickerLabel}>Duration</Text>
             <View style={styles.durationGrid}>
               <PressableScale accessibilityLabel="Shorten rental by one day" accessibilityRole="button" accessibilityState={{ disabled: durationDays === 1 }} disabled={durationDays === 1} onPress={() => setDurationDays((days) => adjustRentalDuration(days, -1))}>
                 <View style={styles.durationChip}><Ionicons name="remove" size={22} color={durationDays === 1 ? colors.muted : colors.ivory} /></View>
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   },
   exploreText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
   modalRoot: { backgroundColor: 'rgba(0,0,0,0.58)', flex: 1, justifyContent: 'flex-end' },
-  pickerLabel: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs, letterSpacing: 1.2, marginBottom: spacing.sm, marginTop: spacing.md },
+  pickerLabel: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs, marginBottom: spacing.sm, marginTop: spacing.md },
   rangeLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
   rangeSummary: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: 3, marginTop: spacing.lg, paddingTop: spacing.md },
   rangeValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
