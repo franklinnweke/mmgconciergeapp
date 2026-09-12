@@ -304,6 +304,14 @@ Merge sequence:
 - PR #50 (`feat(discovery): implement coordinate-first pickup location model (WP1A.1)`) merged into `main`.
 - Post-merge CI (`34672463224`) passed green across all jobs (Firebase Rules, Quality, Functions Emulator, Gate).
 
+Validated pickup correctness, privacy deletion, and service boundary source checkpoint merged to `main`:
+
+`9783b1d239848dc3fae692e4ed1613666955940d`
+
+Merge sequence:
+- PR #51 (`fix(discovery): address pickup place search precision, silent defaults, service envelope, and privacy deletion`) merged into `main`.
+- Post-merge CI (`34677815474`) passed green across all jobs (Firebase Rules in 1m22s, Functions Emulator in 1m31s, Quality in 3m23s, Gate in 2s).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -312,6 +320,7 @@ Current state:
 - Mobile exact pickup location model & unified journey context (WP1A): merged to `main`
 - Mobile truthfulness & fake data/dead action subtraction (WP1B): merged to `main`
 - Mobile coordinate-first pickup location model (WP1A.1): merged to `main`
+- Pickup correctness, privacy deletion, and service boundary enforcement: merged to `main`
 - Mobile renter/owner integration: merged to `main`
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
