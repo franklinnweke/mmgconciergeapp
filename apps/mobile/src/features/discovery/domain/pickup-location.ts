@@ -103,8 +103,6 @@ export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
   },
 ] as const;
 
-export const DEFAULT_PICKUP_LOCATION: PickupLocation = CURATED_PICKUP_LOCATIONS[2]; // Eko Hotel & Suites
-
 function isValidServiceArea(label: unknown): label is LagosAreaLabel {
   return typeof label === 'string' && (LAGOS_AREA_LABELS as readonly string[]).includes(label);
 }
@@ -120,7 +118,7 @@ export function deriveLagosAreaLabel(
     if (!isWithinLagosBBox(input.lat, input.lng)) {
       return null;
     }
-    let closestArea: LagosAreaLabel = 'Victoria Island';
+    let closestArea: LagosAreaLabel | null = null;
     let minDistance = Number.POSITIVE_INFINITY;
     for (const [area, centroid] of Object.entries(LAGOS_AREA_CENTROIDS) as [LagosAreaLabel, { lat: number; lng: number }][]) {
       const dist = haversineDistanceKm(input.lat, input.lng, centroid.lat, centroid.lng);

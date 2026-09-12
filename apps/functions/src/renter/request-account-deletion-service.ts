@@ -64,6 +64,8 @@ export async function requestAccountDeletionService(
     }
 
     const deletedRequestContacts = await tx.deleteRentalRequestContacts(actor.uid);
+    const redactedRequestLocations = await tx.redactRentalRequestLocations(actor.uid);
+    const deletedIdempotencyKeys = await tx.deleteRenterIdempotencyKeys(actor.uid);
 
     const updatedProfile = {
       ...existing,
@@ -88,6 +90,8 @@ export async function requestAccountDeletionService(
       details: {
         reason: data.reason ?? null,
         deletedRentalRequestContactCount: deletedRequestContacts,
+        redactedRentalRequestLocationCount: redactedRequestLocations,
+        deletedIdempotencyKeyCount: deletedIdempotencyKeys,
       },
     });
 

@@ -16,6 +16,8 @@ class MockRenterRepository implements RenterRepository {
   activeBookings = new Set<string>();
   activeRentalRequests = new Set<string>();
   rentalRequestContactCount = new Map<string, number>();
+  rentalRequestLocationCount = new Map<string, number>();
+  renterIdempotencyKeyCount = new Map<string, number>();
 
   async runTransaction<T>(work: (transaction: RenterTransaction) => Promise<T>): Promise<T> {
     const tx: RenterTransaction = {
@@ -28,6 +30,16 @@ class MockRenterRepository implements RenterRepository {
       deleteRentalRequestContacts: async (id) => {
         const count = this.rentalRequestContactCount.get(id) ?? 0;
         this.rentalRequestContactCount.set(id, 0);
+        return count;
+      },
+      redactRentalRequestLocations: async (id) => {
+        const count = this.rentalRequestLocationCount.get(id) ?? 0;
+        this.rentalRequestLocationCount.set(id, 0);
+        return count;
+      },
+      deleteRenterIdempotencyKeys: async (id) => {
+        const count = this.renterIdempotencyKeyCount.get(id) ?? 0;
+        this.renterIdempotencyKeyCount.set(id, 0);
         return count;
       },
       getIdempotency: async (id) => this.idempotency.get(id) ?? null,
@@ -68,10 +80,12 @@ describe('requestAccountDeletionService', () => {
     updatedAt: new Date().toISOString(),
   };
 
-  it('marks active renter profile as deletion_requested and purges request contact PII', async () => {
+  it('marks active renter profile as deletion_requested and purges request contact PII, location data, and idempotency keys', async () => {
     const repo = new MockRenterRepository();
     repo.profiles.set('renter-1', validProfile);
     repo.rentalRequestContactCount.set('renter-1', 2);
+    repo.rentalRequestLocationCount.set('renter-1', 3);
+    repo.renterIdempotencyKeyCount.set('renter-1', 1);
 
     const result = await requestAccountDeletionService(
       {
@@ -90,7 +104,13 @@ describe('requestAccountDeletionService', () => {
     expect(repo.profiles.get('renter-1')?.accountStatus).toBe('deletion_requested');
     expect(repo.profiles.get('renter-1')?.deletionReason).toBe('No longer residing in Lagos');
     expect(repo.rentalRequestContactCount.get('renter-1')).toBe(0);
-    expect(repo.events.at(-1)?.details).toMatchObject({ deletedRentalRequestContactCount: 2 });
+    expect(repo.rentalRequestLocationCount.get('renter-1')).toBe(0);
+    expect(repo.renterIdempotencyKeyCount.get('renter-1')).toBe(0);
+    expect(repo.events.at(-1)?.details).toMatchObject({
+      deletedRentalRequestContactCount: 2,
+      redactedRentalRequestLocationCount: 3,
+      deletedIdempotencyKeyCount: 1,
+    });
   });
 
   it('rejects deletion when renter has active bookings', async () => {

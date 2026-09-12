@@ -101,7 +101,7 @@ export async function createRentalRequest(
 ): Promise<CreateRentalRequestResult> {
   if (!renterId) throw new BookingCommandError('UNAUTHENTICATED', 'Sign in to request a vehicle.');
   const parsed = createRentalRequestCommandSchema.safeParse(untrustedCommand);
-  if (!parsed.success) throw new BookingCommandError('INVALID_ARGUMENT', 'Rental request is invalid.');
+  if (!parsed.success) throw new BookingCommandError('INVALID_ARGUMENT', parsed.error.issues[0]?.message || 'Rental request is invalid.');
   const now = (dependencies.now ?? (() => new Date()))();
   return dependencies.repository.createRequest({
     renterId,
