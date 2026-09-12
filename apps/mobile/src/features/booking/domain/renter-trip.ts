@@ -50,10 +50,10 @@ export const allRenterTripStates = [
 ] as const satisfies readonly RenterTripState[];
 
 export const renterTripGroupCopy: Record<RenterTripGroup, string> = {
-  active: 'ACTIVE REQUESTS',
-  upcoming: 'UPCOMING',
-  intervention: 'NEEDS ATTENTION',
-  past: 'PAST',
+  active: 'Active requests',
+  upcoming: 'Upcoming',
+  intervention: 'Needs attention',
+  past: 'Past',
 };
 
 export type RenterTripTimelineItem = {
@@ -138,127 +138,127 @@ export function tripStateCopy(state: RenterTripState): {
 } {
   const copy: Record<RenterTripState, { label: string; title: string; body: string }> = {
     legacy_availability_requested: {
-      label: 'REQUEST RECEIVED',
+      label: 'Request received',
       title: 'Your request is with MMG.',
       body: 'This earlier estimate holds no dates, takes no payment, and creates no confirmation.',
     },
     intent_created: {
-      label: 'DATES HELD',
-      title: 'Your dates are held briefly.',
+      label: 'Payment processing',
+      title: 'Dates held briefly.',
       body: 'Review the verified total before secure checkout becomes available.',
     },
     checkout_pending: {
-      label: 'PAYMENT NEEDED',
+      label: 'Payment processing',
       title: 'Secure checkout is the next step.',
       body: 'Your booking is not paid or confirmed until the provider verifies payment.',
     },
     paid: {
-      label: 'PAYMENT VERIFIED',
+      label: 'Payment processing',
       title: 'Payment has been verified.',
       body: 'MMG is creating the paid booking record for owner response.',
     },
     expired: {
-      label: 'HOLD EXPIRED',
+      label: 'Hold expired',
       title: 'This date hold has expired.',
       body: 'Return to the fleet to request current availability and pricing.',
     },
     failed: {
-      label: 'PAYMENT FAILED',
+      label: 'Payment failed',
       title: 'Payment was not completed.',
       body: 'No booking confirmation was created. You can contact concierge for help.',
     },
     invalid: {
-      label: 'REVIEW REQUIRED',
+      label: 'Review required',
       title: 'This request needs review.',
       body: 'MMG could not safely continue with the supplied booking details.',
     },
     paid_conflict: {
-      label: 'URGENT INTERVENTION',
+      label: 'Needs attention',
       title: 'Payment needs concierge attention.',
       body: 'Payment arrived after the date hold changed. MMG will resolve or refund it.',
     },
     paid_pending_owner: {
-      label: 'AWAITING OWNER',
-      title: 'Paid - awaiting vehicle confirmation.',
+      label: 'Confirming availability',
+      title: 'Paid — awaiting vehicle confirmation.',
       body: 'The verified payment is held while the owner confirms the vehicle and chauffeur.',
     },
     confirmed: {
-      label: 'CONFIRMED',
+      label: 'Confirmed',
       title: 'Your arrival is confirmed.',
       body: 'The vehicle and chauffeur are reserved for your journey.',
     },
     intervention_required: {
-      label: 'CONCIERGE REVIEW',
+      label: 'Needs attention',
       title: 'MMG is resolving an issue.',
       body: 'A concierge specialist is reviewing the booking and will provide the next safe option.',
     },
     cancelled: {
-      label: 'CANCELLED',
+      label: 'Cancelled',
       title: 'This journey is cancelled.',
       body: 'Any eligible refund is tracked separately and is not complete unless shown as refunded.',
     },
     refund_pending: {
-      label: 'REFUND PENDING',
+      label: 'Refund pending',
       title: 'Your cancellation is being reviewed.',
       body: 'Payment was captured. MMG is reviewing the refund consequence under the policy saved with this booking.',
     },
     refunded: {
-      label: 'REFUNDED',
+      label: 'Refunded',
       title: 'The refund is complete.',
       body: 'The payment provider has reported this booking as refunded.',
     },
     in_progress: {
-      label: 'JOURNEY UNDERWAY',
+      label: 'In progress',
       title: 'Your journey is underway.',
       body: 'Concierge support remains available throughout the booking.',
     },
     completion_pending: {
-      label: 'CONFIRM COMPLETION',
+      label: 'Trip ending',
       title: 'Confirm your journey is complete.',
       body: 'The booking closes once you or MMG confirms the journey ended as planned.',
     },
     completed: {
-      label: 'COMPLETED',
+      label: 'Completed',
       title: 'Journey complete.',
       body: 'Thank you for travelling with MMG Concierge.',
     },
     requested: {
-      label: 'REQUEST RECEIVED',
-      title: 'Request received - MMG is confirming.',
+      label: 'Request received',
+      title: 'Request received — MMG is confirming.',
       body: 'No payment has been taken and the dates are not locked. You can cancel this request.',
     },
     approved: {
-      label: 'APPROVED',
+      label: 'Confirming availability',
       title: 'Your request is approved.',
       body: 'MMG will contact you before payment is opened. No payment window yet, and you can still cancel.',
     },
     ready_for_payment: {
-      label: 'READY FOR PAYMENT',
+      label: 'Payment ready',
       title: 'Vehicle available for payment.',
       body: 'Complete payment within 30 minutes, or cancel the request before checkout begins.',
     },
     cancellation_requested: {
-      label: 'CANCELLATION REQUESTED',
+      label: 'Cancellation requested',
       title: 'Your cancellation request is recorded.',
       body: 'Payment processing had already started, so MMG is preserving the dates until Paystack resolves. If payment succeeds, the booking will move to refund review.',
     },
     cancelled_by_renter: {
-      label: 'CANCELLED',
+      label: 'Cancelled',
       title: 'You cancelled this request.',
       body: 'No payment is due. Any temporary date hold tied to this request has been released.',
     },
     declined: {
-      label: 'DECLINED',
+      label: 'Declined',
       title: 'This request was declined.',
       body: 'No payment was taken and the dates were not locked.',
     },
     payment_window_expired: {
-      label: 'PAYMENT WINDOW EXPIRED',
+      label: 'Payment window expired',
       title: 'The payment window expired.',
       body: 'Dates were released. No charge was taken. You can send a new request.',
     },
     needs_attention: {
-      label: 'NEEDS ATTENTION',
+      label: 'Needs attention',
       title: 'MMG Concierge is resolving the booking.',
       body: 'A payment was recorded but the booking could not be completed automatically.',
     },
@@ -279,20 +279,26 @@ export function renterTripTimeline(state: RenterTripState): readonly RenterTripT
   }
   if (state === 'requested') {
     return [
-      item('request', 'Request received', 'MMG is confirming the request. Dates are not locked.', 'current'),
-      item('checkout', 'Payment window', 'Opens only after MMG contacts you.', 'upcoming'),
+      item('request', 'Request sent', 'MMG received your request. Dates are not locked.', 'current'),
+      item('checkout', 'MMG confirmation', 'MMG will contact you before opening payment.', 'upcoming'),
+      item('payment', 'Payment', '30-minute payment window opens once ready.', 'upcoming'),
+      item('journey', 'Confirmed trip', 'Vehicle and chauffeur reserved.', 'upcoming'),
     ];
   }
   if (state === 'approved') {
     return [
-      item('request', 'Request approved', 'MMG will contact you before payment is opened.', 'complete'),
-      item('checkout', 'Payment window', 'Not opened yet. No dates are locked.', 'current'),
+      item('request', 'Request sent', 'MMG received your request.', 'complete'),
+      item('checkout', 'MMG confirmation', 'Request approved. MMG will contact you before payment.', 'current'),
+      item('payment', 'Payment', '30-minute payment window opens once ready.', 'upcoming'),
+      item('journey', 'Confirmed trip', 'Vehicle and chauffeur reserved.', 'upcoming'),
     ];
   }
   if (state === 'ready_for_payment') {
     return [
-      item('request', 'Request approved', 'The vehicle can be reserved for these dates.', 'complete'),
-      item('checkout', 'Complete payment', 'You have 30 minutes. Browser return is not confirmation.', 'current'),
+      item('request', 'Request sent', 'MMG received your request.', 'complete'),
+      item('owner', 'MMG confirmation', 'Vehicle available for your dates.', 'complete'),
+      item('checkout', 'Complete payment', 'You have 30 minutes to complete secure payment.', 'current'),
+      item('journey', 'Confirmed trip', 'Vehicle and chauffeur reserved.', 'upcoming'),
     ];
   }
   if (state === 'cancellation_requested') {

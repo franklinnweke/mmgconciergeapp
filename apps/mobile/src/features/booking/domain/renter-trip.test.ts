@@ -37,8 +37,8 @@ describe('renter trip state presentation', () => {
   });
 
   it('labels the active group as active requests, not in progress', () => {
-    expect(renterTripGroupCopy.active).toBe('ACTIVE REQUESTS');
-    expect(renterTripGroupCopy.active).not.toContain('IN PROGRESS');
+    expect(renterTripGroupCopy.active).toBe('Active requests');
+    expect(renterTripGroupCopy.active).not.toContain('in progress');
   });
 
   it('places in-progress journeys in active and confirmed journeys in upcoming', () => {
@@ -111,10 +111,10 @@ describe('renter trip state presentation', () => {
   it('groups preview journeys into scannable active, upcoming, intervention, and past sections', () => {
     const sections = groupTripsForDisplay(previewRenterTrips);
     expect(sections.map((section) => section.label)).toEqual([
-      'ACTIVE REQUESTS',
-      'UPCOMING',
-      'NEEDS ATTENTION',
-      'PAST',
+      'Active requests',
+      'Upcoming',
+      'Needs attention',
+      'Past',
     ]);
     expect(sections.find((section) => section.group === 'active')?.trips.some((trip) => trip.state === 'in_progress')).toBe(true);
     expect(sections.find((section) => section.group === 'upcoming')?.trips.every((trip) => trip.state === 'confirmed')).toBe(true);

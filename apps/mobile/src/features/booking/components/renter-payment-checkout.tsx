@@ -245,14 +245,14 @@ export function RenterPaymentCheckout({
     <View style={styles.panel}>
       <View style={styles.headingRow}>
         <Ionicons color={colors.goldStrong} name="card-outline" size={21} />
-        <Text style={styles.panelTitle}>Pay securely with Paystack</Text>
+        <Text style={styles.panelTitle}>Payment ready</Text>
       </View>
       <Text style={styles.bodyText}>
         {mode === 'request_first'
-          ? 'Complete payment within 30 minutes. Returning from Paystack does not confirm the booking until MMG verifies it.'
-          : 'Your held total is server-authoritative. Returning from Paystack does not confirm payment until MMG verifies it.'}
+          ? 'Complete payment within 30 minutes to reserve your vehicle. Returning from the browser does not confirm your booking until MMG verifies it.'
+          : 'Your held total is server-authoritative. Returning from the browser does not confirm payment until MMG verifies it.'}
       </Text>
-      <ActionButton label="Pay with Paystack" onPress={() => void openCheckout()} />
+      <ActionButton label="Pay securely" onPress={() => void openCheckout()} />
       {mode === 'request_first' && onReleaseDates ? (
         confirmingRelease ? (
           <View style={styles.releaseConfirmation}>
