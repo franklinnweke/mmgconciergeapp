@@ -34,6 +34,10 @@ import {
   vehicleAreaForPickup,
   type JourneyOption,
 } from '../data/lagos-destinations';
+import {
+  parsePickupLocation,
+  serializePickupLocation,
+} from '../domain/pickup-location';
 import { useVehicleSearch } from '../hooks/use-vehicle-search';
 
 const pickupChoices = [
@@ -44,9 +48,10 @@ const pickupChoices = [
 ];
 
 export default function BrowseFleetScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
+    pickup?: string | string[];
     area?: string | string[];
     category?: string | string[];
     journey?: string | string[];
@@ -54,7 +59,12 @@ export default function BrowseFleetScreen() {
     endDate?: string | string[];
   }>();
 
-  const routeArea = firstRouteParam(params.area);
+  const pickup = useMemo(
+    () => parsePickupLocation(firstRouteParam(params.pickup) ?? firstRouteParam(params.area)),
+    [params.pickup, params.area],
+  );
+
+  const routeArea = firstRouteParam(params.area) ?? pickup.serviceAreaLabel;
   const resolvedRouteArea =
     routeArea && pickupChoices.includes(routeArea) ? routeArea : 'All Lagos';
 
@@ -305,6 +315,7 @@ export default function BrowseFleetScreen() {
                     pathname: '/vehicle/[vehicleId]',
                     params: {
                       ...selectedJourneyDates,
+                      pickup: serializePickupLocation(pickup),
                       vehicleId: vehicle.id,
                     },
                   })

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import { LAGOS_AREA_LABELS, type LagosAreaLabel, type VehicleSummary } from '@mmg/contracts';
+import { type LagosAreaLabel, type VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -17,6 +17,7 @@ import { useRenterProfile } from '@/features/account/hooks/use-renter-profile';
 import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 import { formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import { resolveRentalJourney } from '@/features/discovery/data/rental-journey';
+import { parsePickupLocation } from '@/features/discovery/domain/pickup-location';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import {
@@ -29,6 +30,7 @@ import { resolveServiceAreaLabel } from '../domain/renter-rental-request';
 
 type BookingReviewScreenProps = {
   endDate?: string;
+  pickup?: string;
   rentalRequestGateway?: RentalRequestGateway;
   startDate?: string;
   vehicleId: string;
@@ -36,6 +38,7 @@ type BookingReviewScreenProps = {
 
 export default function BookingReviewScreen({
   endDate,
+  pickup,
   rentalRequestGateway,
   startDate,
   vehicleId,
@@ -51,6 +54,7 @@ export default function BookingReviewScreen({
   );
   const submissionKey = useRef(new RentalRequestSubmissionKey());
   const journey = useMemo(() => resolveRentalJourney(startDate, endDate), [endDate, startDate]);
+  const pickupLocation = useMemo(() => parsePickupLocation(pickup), [pickup]);
 
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
@@ -58,11 +62,17 @@ export default function BookingReviewScreen({
   const [reloadKey, setReloadKey] = useState(0);
   const [phoneDraft, setPhoneDraft] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
-  const [streetDraft, setStreetDraft] = useState<string | null>(null);
-  const [serviceArea, setServiceArea] = useState<LagosAreaLabel>('Victoria Island');
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const serviceArea: LagosAreaLabel = useMemo(() => {
+    if (pickup) {
+      return pickupLocation.serviceAreaLabel;
+    }
+    const fromVehicle = resolveServiceAreaLabel(vehicle?.areaLabel);
+    return fromVehicle ?? pickupLocation.serviceAreaLabel;
+  }, [pickup, pickupLocation.serviceAreaLabel, vehicle?.areaLabel]);
 
   const retryFetch = useCallback(() => {
     setFetchError(null);
@@ -79,8 +89,6 @@ export default function BookingReviewScreen({
         setVehicle(nextVehicle);
         setLoading(false);
         setFetchError(null);
-        const fromVehicle = resolveServiceAreaLabel(nextVehicle?.areaLabel);
-        if (fromVehicle) setServiceArea(fromVehicle);
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -93,7 +101,7 @@ export default function BookingReviewScreen({
 
   const phoneInput = phoneDraft ?? profile?.phone ?? '';
   const fullName = nameDraft ?? profile?.fullName ?? '';
-  const streetAddress = streetDraft ?? profile?.defaultDeliveryAddress?.streetAddress ?? '';
+  const streetAddress = profile?.defaultDeliveryAddress?.streetAddress ?? '';
 
   const quote = useMemo(
     () => vehicle ? calculateBookingQuote(vehicle.dailyRateKobo, journey.durationDays) : null,
@@ -213,23 +221,16 @@ export default function BookingReviewScreen({
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Lagos service area</Text>
-              <View style={styles.areaWrap}>
-                {LAGOS_AREA_LABELS.map((area) => {
-                  const selected = area === serviceArea;
-                  return (
-                    <PressableScale
-                      key={area}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      onPress={() => setServiceArea(area)}
-                    >
-                      <View style={[styles.areaChip, selected && styles.areaChipSelected]}>
-                        <Text style={[styles.areaChipText, selected && styles.areaChipTextSelected]}>{area}</Text>
-                      </View>
-                    </PressableScale>
-                  );
-                })}
+              <Text style={styles.sectionTitle}>Delivery location</Text>
+              <View style={styles.deliveryCard}>
+                <View style={styles.deliveryIcon}>
+                  <Ionicons color={colors.goldStrong} name="location-outline" size={20} />
+                </View>
+                <View style={styles.deliveryCopy}>
+                  <Text style={styles.deliveryTitle}>{pickupLocation.displayName}</Text>
+                  <Text style={styles.deliveryAddress}>{pickupLocation.formattedAddress}</Text>
+                  <Text style={styles.deliveryZone}>MMG Service Zone: {serviceArea}</Text>
+                </View>
               </View>
             </View>
 
@@ -244,14 +245,6 @@ export default function BookingReviewScreen({
                   style={styles.input}
                   value={fullName}
                 />
-                <TextInput
-                  accessibilityLabel="Lagos delivery address"
-                  onChangeText={setStreetDraft}
-                  placeholder="Street address"
-                  placeholderTextColor={colors.muted}
-                  style={styles.input}
-                  value={streetAddress}
-                />
               </View>
             ) : null}
           </>
@@ -265,9 +258,9 @@ export default function BookingReviewScreen({
         ) : null}
 
         {submittedRequestId ? (
-          <PressableScale accessibilityRole="button" onPress={() => router.replace('/trips')}>
+          <PressableScale accessibilityRole="button" onPress={() => router.replace(`/trip/${submittedRequestId}` as any)}>
             <View style={styles.ctaButton}>
-              <Text style={styles.ctaText}>View trips</Text>
+              <Text style={styles.ctaText}>View trip</Text>
             </View>
           </PressableScale>
         ) : (
@@ -280,12 +273,8 @@ export default function BookingReviewScreen({
                 setErrorMessage('Enter a valid Nigerian mobile number.');
                 return;
               }
-              if (needsProfile && fullName.trim().length < 2) {
+              if (needsProfile && fullName.trim().length < 2 && !auth.user?.displayName) {
                 setErrorMessage('Add your name to continue.');
-                return;
-              }
-              if (needsProfile && streetAddress.trim().length < 5) {
-                setErrorMessage('Add your Lagos delivery address to continue.');
                 return;
               }
 
@@ -293,16 +282,20 @@ export default function BookingReviewScreen({
               setErrorMessage(null);
               try {
                 if (needsProfile) {
-                  await saveProfile({
-                    fullName: fullName.trim() || auth.user?.displayName || 'MMG renter',
-                    phone: contactPhone,
-                    defaultDeliveryAddress: {
-                      areaLabel: serviceArea,
-                      streetAddress: streetAddress.trim(),
-                    },
-                    acceptedRenterTermsVersion: '2026-03-01',
-                    acceptedPrivacyNoticeVersion: '2026-03-01',
-                  });
+                  try {
+                    await saveProfile({
+                      fullName: fullName.trim() || auth.user?.displayName || 'MMG renter',
+                      phone: contactPhone,
+                      defaultDeliveryAddress: {
+                        areaLabel: serviceArea,
+                        streetAddress: streetAddress.trim() || pickupLocation.formattedAddress,
+                      },
+                      acceptedRenterTermsVersion: '2026-03-01',
+                      acceptedPrivacyNoticeVersion: '2026-03-01',
+                    });
+                  } catch {
+                    // Profile enrichment failure does not block soft request submission
+                  }
                 }
                 const data = {
                   vehicleId: vehicle.id,
@@ -317,6 +310,7 @@ export default function BookingReviewScreen({
                 );
                 submissionKey.current.markSucceeded();
                 setSubmittedRequestId(result.result.requestId);
+                router.replace(`/trip/${result.result.requestId}` as any);
               } catch (error: unknown) {
                 setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
               } finally {
@@ -335,7 +329,7 @@ export default function BookingReviewScreen({
   );
 }
 
-function JourneyPoint({ alignEnd = false, label, value }: { alignEnd?: boolean; label: string; value: string }) {
+function JourneyPoint({ alignEnd, label, value }: { alignEnd?: boolean; label: string; value: string }) {
   return (
     <View style={[styles.point, alignEnd && styles.pointEnd]}>
       <Text style={styles.pointLabel}>{label}</Text>
@@ -362,6 +356,30 @@ const styles = StyleSheet.create({
   content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
   ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
   ctaText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  deliveryAddress: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
+  deliveryCard: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  deliveryCopy: { flex: 1, gap: 2 },
+  deliveryIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.graphiteRaised,
+    borderColor: colors.lineStrong,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  deliveryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  deliveryZone: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: 11, marginTop: 2 },
   disabled: { opacity: 0.6 },
   errorRow: { alignItems: 'center', borderColor: colors.danger, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },

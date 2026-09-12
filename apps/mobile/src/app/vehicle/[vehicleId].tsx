@@ -6,8 +6,9 @@ import VehicleDetailScreen from '@/features/discovery/screens/vehicle-detail-scr
 
 export default function VehicleDetailRoute() {
   const { initializing, user } = useAuth();
-  const { endDate, startDate, vehicleId } = useLocalSearchParams<{
+  const { endDate, pickup, startDate, vehicleId } = useLocalSearchParams<{
     endDate?: string;
+    pickup?: string;
     startDate?: string;
     vehicleId: string;
   }>();
@@ -18,6 +19,7 @@ export default function VehicleDetailRoute() {
   return (
     <VehicleDetailScreen
       endDate={Array.isArray(endDate) ? endDate[0] : endDate}
+      pickup={Array.isArray(pickup) ? pickup[0] : pickup}
       startDate={Array.isArray(startDate) ? startDate[0] : startDate}
       vehicleId={Array.isArray(vehicleId) ? vehicleId[0] : vehicleId}
     />

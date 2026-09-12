@@ -34,12 +34,17 @@ import {
   type VehicleCalendarGateway,
 } from '../data/vehicle-calendar-gateway';
 import { vehicleCalendarErrorMessage } from '../data/vehicle-calendar-gateway-core';
+import {
+  parsePickupLocation,
+  serializePickupLocation,
+} from '../domain/pickup-location';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export type VehicleDetailScreenProps = {
   calendarGateway?: VehicleCalendarGateway;
   endDate?: string;
+  pickup?: string;
   startDate?: string;
   vehicleId: string;
 };
@@ -47,6 +52,7 @@ export type VehicleDetailScreenProps = {
 export default function VehicleDetailScreen({
   calendarGateway: injectedCalendarGateway,
   endDate: propEndDate,
+  pickup,
   startDate: propStartDate,
   vehicleId,
 }: VehicleDetailScreenProps) {
@@ -58,6 +64,7 @@ export default function VehicleDetailScreen({
     [injectedCalendarGateway],
   );
   const journey = useMemo(() => resolveRentalJourney(propStartDate, propEndDate), [propEndDate, propStartDate]);
+  const pickupLocation = useMemo(() => parsePickupLocation(pickup), [pickup]);
 
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
@@ -237,6 +244,13 @@ export default function VehicleDetailScreen({
               </View>
             </View>
 
+            <View style={styles.deliveryBadge}>
+              <Ionicons color={colors.goldStrong} name="location-outline" size={15} />
+              <Text numberOfLines={1} style={styles.deliveryBadgeText}>
+                Delivery to {pickupLocation.displayName}
+              </Text>
+            </View>
+
             <View accessibilityLiveRegion="polite" style={styles.availabilityRow}>
               {availability.status === 'loading' ? (
                 <ActivityIndicator color={colors.goldStrong} size="small" />
@@ -309,7 +323,11 @@ export default function VehicleDetailScreen({
           haptic
           onPress={() => router.push({
             pathname: '/booking/review',
-            params: { endDate: journey.endDate, startDate: journey.startDate, vehicleId: vehicle.id },
+            params: {
+              endDate: journey.endDate, startDate: journey.startDate,
+              pickup: serializePickupLocation(pickupLocation),
+              vehicleId: vehicle.id,
+            },
           })}
           style={[styles.actionFlex, availability.status !== 'available' && styles.disabled]}
         >
@@ -359,6 +377,24 @@ const styles = StyleSheet.create({
   content: { backgroundColor: colors.black },
   counterPill: { backgroundColor: 'rgba(4,4,4,0.68)', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
   counterText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs },
+  deliveryBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.graphite,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+  },
+  deliveryBadgeText: {
+    color: colors.ivory,
+    flex: 1,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.xs,
+  },
   detailLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm },
   detailRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 46 },
   detailValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
