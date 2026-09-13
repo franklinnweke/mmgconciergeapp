@@ -16,9 +16,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
-import { type PickupLocation } from '../domain/pickup-location';
+import { type PickupLocation, deriveLagosAreaLabel } from '../domain/pickup-location';
 import { useCurrentLocation } from '../hooks/use-current-location';
 import { usePlaceSearch, type PlaceSuggestion } from '../hooks/use-place-search';
+import { PickupPinMap } from './pickup-pin-map';
 
 export type PickupLocationSheetProps = {
   visible: boolean;
@@ -53,6 +54,8 @@ export function PickupLocationSheet({
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [pendingLocation, setPendingLocation] = useState<PickupLocation | null>(null);
+  const [initialCoords, setInitialCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isPinDragging, setIsPinDragging] = useState(false);
   const [note, setNote] = useState('');
   const [resolvingPlaceId, setResolvingPlaceId] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
@@ -63,6 +66,8 @@ export function PickupLocationSheet({
   const handleDismiss = () => {
     setQuery('');
     setPendingLocation(null);
+    setInitialCoords(null);
+    setIsPinDragging(false);
     setNote('');
     setResolveError(null);
     resetCurrentLoc();
@@ -83,6 +88,7 @@ export function PickupLocationSheet({
     setResolveError(null);
     if (item.isCurated && item.location) {
       setPendingLocation(item.location);
+      setInitialCoords({ latitude: item.location.latitude, longitude: item.location.longitude });
       setNote(item.location.note ?? (isSelected(item.location) ? (selectedLocation?.note ?? '') : ''));
       return;
     }
@@ -91,6 +97,7 @@ export function PickupLocationSheet({
     try {
       const loc = await resolvePlace(item);
       setPendingLocation(loc);
+      setInitialCoords({ latitude: loc.latitude, longitude: loc.longitude });
       setNote(isSelected(loc) ? (selectedLocation?.note ?? '') : '');
     } catch (err: unknown) {
       setResolveError(err instanceof Error ? err.message : 'Could not resolve pickup location.');
@@ -104,8 +111,33 @@ export function PickupLocationSheet({
     const result = await requestCurrentLocation();
     if (result.success) {
       setPendingLocation(result.location);
+      setInitialCoords({ latitude: result.location.latitude, longitude: result.location.longitude });
       setNote(selectedLocation?.note ?? '');
     }
+  };
+
+  const handlePinCoordinateChange = (coords: { latitude: number; longitude: number }) => {
+    if (!pendingLocation) return;
+    const newArea = deriveLagosAreaLabel({ lat: coords.latitude, lng: coords.longitude });
+    setPendingLocation({
+      ...pendingLocation,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      source: 'pin_adjusted',
+      serviceAreaLabel: newArea ?? pendingLocation.serviceAreaLabel,
+    });
+  };
+
+  const handleResetPin = () => {
+    if (!pendingLocation || !initialCoords) return;
+    const newArea = deriveLagosAreaLabel({ lat: initialCoords.latitude, lng: initialCoords.longitude });
+    setPendingLocation({
+      ...pendingLocation,
+      latitude: initialCoords.latitude,
+      longitude: initialCoords.longitude,
+      source: pendingLocation.placeId ? 'place_search' : 'suggested',
+      serviceAreaLabel: newArea ?? pendingLocation.serviceAreaLabel,
+    });
   };
 
   const isSelected = (loc: PickupLocation | PlaceSuggestion) => {
@@ -146,13 +178,22 @@ export function PickupLocationSheet({
 
             {/* If pendingLocation is set, show Confirmation Step */}
             {pendingLocation ? (
-              <View style={styles.confirmContainer}>
+              <ScrollView
+                bounces={false}
+                contentContainerStyle={styles.confirmContainer}
+                keyboardShouldPersistTaps="handled"
+                scrollEnabled={!isPinDragging}
+                showsVerticalScrollIndicator={false}
+              >
                 {/* Confirmation Header */}
                 <View style={styles.header}>
                   <PressableScale
                     accessibilityLabel="Back to search"
                     accessibilityRole="button"
-                    onPress={() => setPendingLocation(null)}
+                    onPress={() => {
+                      setPendingLocation(null);
+                      setInitialCoords(null);
+                    }}
                     style={styles.backButton}
                   >
                     <Ionicons color={colors.ivory} name="arrow-back" size={18} />
@@ -199,6 +240,17 @@ export function PickupLocationSheet({
                   </View>
                 </View>
 
+                {/* Interactive Map Pin for Arrival Gate/Lobby */}
+                <PickupPinMap
+                  initialLatitude={initialCoords?.latitude}
+                  initialLongitude={initialCoords?.longitude}
+                  latitude={pendingLocation.latitude}
+                  longitude={pendingLocation.longitude}
+                  onCoordinatesChange={handlePinCoordinateChange}
+                  onDragChange={setIsPinDragging}
+                  onReset={handleResetPin}
+                />
+
                 {/* Optional Note Input */}
                 <View style={styles.noteSection}>
                   <Text style={styles.noteLabel}>Entrance / meeting point note (optional)</Text>
@@ -227,7 +279,17 @@ export function PickupLocationSheet({
                   <Text style={styles.confirmButtonText}>Confirm pickup location</Text>
                   <Ionicons color={colors.black} name="checkmark" size={18} />
                 </PressableScale>
-              </View>
+
+                {/* Confirmation Google Attribution */}
+                {pendingLocation.source === 'place_search' || pendingLocation.source === 'pin_adjusted' ? (
+                  <View
+                    accessibilityLabel="Powered by Google"
+                    style={styles.attributionContainer}
+                  >
+                    <Text style={styles.attributionText}>Powered by Google</Text>
+                  </View>
+                ) : null}
+              </ScrollView>
             ) : (
               /* Search and Selection View */
               <View>
@@ -418,7 +480,7 @@ const styles = StyleSheet.create({
   attributionText: {
     color: colors.muted,
     fontFamily: typography.body,
-    fontSize: fontSizes.xs,
+    fontSize: 12,
     letterSpacing: 0.2,
   },
   backButton: {

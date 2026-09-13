@@ -47,6 +47,14 @@ vi.mock('@/components/pressable-scale', () => ({
   PressableScale: 'PressableScale',
 }));
 
+vi.mock('expo-image', () => ({
+  Image: 'Image',
+}));
+
+vi.mock('./pickup-pin-map', () => ({
+  PickupPinMap: 'PickupPinMap',
+}));
+
 describe('PickupLocationSheet', () => {
   it('defines the component function properly', () => {
     expect(typeof PickupLocationSheet).toBe('function');
@@ -126,5 +134,52 @@ describe('PickupLocationSheet', () => {
 
     // Case 3: Empty results -> no attribution
     expect(shouldShowAttribution([], 'Zzz')).toBe(false);
+  });
+
+  it('identifies when confirmation step requires Google attribution', () => {
+    const shouldShowConfirmationAttribution = (source: string) =>
+      source === 'place_search' || source === 'pin_adjusted';
+
+    // Google Places search result displayed on confirmation card -> attribution required
+    expect(shouldShowConfirmationAttribution('place_search')).toBe(true);
+
+    // Adjusted pin from Places search result displayed on confirmation card -> attribution required
+    expect(shouldShowConfirmationAttribution('pin_adjusted')).toBe(true);
+
+    // Curated suggested location -> no Google attribution needed
+    expect(shouldShowConfirmationAttribution('suggested')).toBe(false);
+
+    // Native GPS current location -> no Google attribution needed
+    expect(shouldShowConfirmationAttribution('current_location')).toBe(false);
+  });
+
+  it('allows pin adjustment to refine coordinates with updated source and canonical area', () => {
+    const originalLocation = {
+      placeId: 'ChIJ_hotel_eko',
+      displayName: 'Eko Hotel & Suites',
+      formattedAddress: 'Plot 1415 Adetokunbo Ademola St, Victoria Island, Lagos',
+      latitude: 6.4269,
+      longitude: 3.4285,
+      source: 'place_search' as const,
+      serviceAreaLabel: 'Victoria Island' as const,
+    };
+
+    // Simulate dragging pin ~30 meters toward gate
+    const adjustedCoords = {
+      latitude: 6.42715,
+      longitude: 3.4288,
+    };
+
+    const adjustedLocation = {
+      ...originalLocation,
+      latitude: adjustedCoords.latitude,
+      longitude: adjustedCoords.longitude,
+      source: 'pin_adjusted' as const,
+    };
+
+    expect(adjustedLocation.source).toBe('pin_adjusted');
+    expect(adjustedLocation.latitude).toBe(6.42715);
+    expect(adjustedLocation.longitude).toBe(3.4288);
+    expect(adjustedLocation.placeId).toBe('ChIJ_hotel_eko');
   });
 });

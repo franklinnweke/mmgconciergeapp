@@ -5,7 +5,7 @@ import {
 } from '@mmg/domain';
 import { LAGOS_AREA_LABELS, type LagosAreaLabel } from '@mmg/contracts';
 
-export type PickupLocationSource = 'current_location' | 'place_search' | 'suggested' | 'saved';
+export type PickupLocationSource = 'current_location' | 'place_search' | 'suggested' | 'saved' | 'pin_adjusted';
 
 export type PickupLocation = {
   source: PickupLocationSource;
