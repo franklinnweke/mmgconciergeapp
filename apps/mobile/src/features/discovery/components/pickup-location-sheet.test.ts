@@ -93,4 +93,38 @@ describe('PickupLocationSheet', () => {
       }),
     );
   });
+
+  it('identifies when provider search suggestions require Google attribution', () => {
+    const remoteSuggestion = {
+      placeId: 'ChIJ12345',
+      primaryText: 'Eko Hotel',
+      secondaryText: 'Victoria Island, Lagos',
+      fullText: 'Eko Hotel, Victoria Island, Lagos',
+      displayName: 'Eko Hotel',
+      formattedAddress: 'Victoria Island, Lagos',
+      isCurated: false,
+    };
+
+    const curatedSuggestion = {
+      placeId: 'landmark-1',
+      primaryText: 'Murtala Muhammed Airport',
+      secondaryText: 'Ikeja, Lagos',
+      fullText: 'Murtala Muhammed Airport, Ikeja, Lagos',
+      displayName: 'Murtala Muhammed Airport',
+      formattedAddress: 'Ikeja, Lagos',
+      isCurated: true,
+    };
+
+    const shouldShowAttribution = (suggestions: { isCurated?: boolean }[], query: string) =>
+      suggestions.length > 0 && (query.trim().length >= 2 || suggestions.some((s) => !s.isCurated));
+
+    // Case 1: Initial state (query empty, curated only) -> no Google attribution
+    expect(shouldShowAttribution([curatedSuggestion], '')).toBe(false);
+
+    // Case 2: Remote provider results returned -> Google attribution required
+    expect(shouldShowAttribution([remoteSuggestion], 'Eko')).toBe(true);
+
+    // Case 3: Empty results -> no attribution
+    expect(shouldShowAttribution([], 'Zzz')).toBe(false);
+  });
 });

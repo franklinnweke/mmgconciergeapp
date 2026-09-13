@@ -373,6 +373,14 @@ export function PickupLocationSheet({
                       );
                     })
                   )}
+                  {suggestions.length > 0 && (query.trim().length >= 2 || suggestions.some((s) => !s.isCurated)) ? (
+                    <View
+                      accessibilityLabel="Powered by Google"
+                      style={styles.attributionContainer}
+                    >
+                      <Text style={styles.attributionText}>Powered by Google</Text>
+                    </View>
+                  ) : null}
                 </ScrollView>
               </View>
             )}
@@ -401,6 +409,17 @@ const styles = StyleSheet.create({
     color: colors.goldStrong,
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.xs,
+  },
+  attributionContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
+  attributionText: {
+    color: colors.muted,
+    fontFamily: typography.body,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.2,
   },
   backButton: {
     alignItems: 'center',

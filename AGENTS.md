@@ -376,9 +376,10 @@ Current auth/UI expectations:
 - `List your car` carries owner intent into owner onboarding.
 - Renter checkout does not use Firebase Phone Auth. Owner onboarding may still do so.
 
-Apple public-release work still pending:
+Pre-launch compliance and policy reviews pending:
 
-- private email relay/operator-domain verification as applicable;
+- Google Places API policy review: storage/caching of Places content (formatted address, lat/lng, displayName) in booking records must undergo policy review prior to public launch per Google Places caching policies.
+- Apple private email relay/operator-domain verification as applicable.
 - Apple token revocation on account deletion before public App Store release.
 
 Automatic development CD remains intentionally disabled until Google Workload Identity variables are configured. This is infrastructure work, not an MVP functional blocker. Production Firebase and live Paystack remain out of scope without explicit authorization.

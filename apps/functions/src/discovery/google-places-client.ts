@@ -46,7 +46,7 @@ export class HttpGooglePlacesClient implements GooglePlacesClient {
     if (!q) return [];
     if (!this.apiKey) {
       logger.warn('google_places.missing_api_key', { operation: 'searchPlaces' });
-      return [];
+      throw new CommandError('CONFIGURATION_UNAVAILABLE', 'Google Places API key is not configured.');
     }
 
     const url = `${this.endpointBaseUrl}/places:autocomplete`;
@@ -83,7 +83,7 @@ export class HttpGooglePlacesClient implements GooglePlacesClient {
           status: response.status,
           statusText: response.statusText,
         });
-        return [];
+        throw new CommandError('INTERNAL', 'Google Places search is currently unavailable.');
       }
 
       const data = (await response.json()) as {
@@ -129,10 +129,11 @@ export class HttpGooglePlacesClient implements GooglePlacesClient {
 
       return suggestions;
     } catch (error: unknown) {
+      if (error instanceof CommandError) throw error;
       logger.error('google_places.autocomplete_network_error', {
         message: error instanceof Error ? error.message : 'Unknown network error',
       });
-      return [];
+      throw new CommandError('INTERNAL', 'Google Places search could not be completed.');
     }
   }
 

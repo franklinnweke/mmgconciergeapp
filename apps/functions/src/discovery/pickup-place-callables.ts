@@ -36,6 +36,9 @@ function rethrow(error: unknown, fallback: string): never {
     if (code === 'CONFIGURATION_UNAVAILABLE') {
       throw new HttpsError('unavailable', error.message);
     }
+    if (code === 'INTERNAL') {
+      throw new HttpsError('internal', error.message);
+    }
   }
   logger.error(fallback, {
     error: error instanceof Error ? error.message : 'Unknown error',
