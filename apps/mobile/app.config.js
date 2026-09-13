@@ -14,12 +14,24 @@ if (!googleWebClientId) {
 }
 
 const googleMapsApiKey = googleServices.client?.[0]?.api_key?.[0]?.current_key;
+const apnsEnvironment = process.env.MMG_APNS_ENV === 'production' ? 'production' : 'development';
+const backgroundModes = Array.isArray(baseConfig.ios?.infoPlist?.UIBackgroundModes)
+  ? baseConfig.ios.infoPlist.UIBackgroundModes
+  : [];
 
 module.exports = {
   ...baseConfig,
   ios: {
     ...baseConfig.ios,
     googleServicesFile: isProduction ? './GoogleService-Info.plist' : './GoogleService-Info.dev.plist',
+    entitlements: {
+      ...baseConfig.ios?.entitlements,
+      'aps-environment': apnsEnvironment,
+    },
+    infoPlist: {
+      ...baseConfig.ios?.infoPlist,
+      UIBackgroundModes: [...new Set([...backgroundModes, 'fetch', 'remote-notification'])],
+    },
   },
   android: {
     ...baseConfig.android,

@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "MMG_FIREBASE_ENV": "development"
+        "MMG_FIREBASE_ENV": "development",
+        "MMG_APNS_ENV": "production"
       }
     },
     "development-simulator": {
@@ -20,7 +21,8 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "MMG_FIREBASE_ENV": "development"
+        "MMG_FIREBASE_ENV": "development",
+        "MMG_APNS_ENV": "production"
       }
     },
     "testflight-development": {
@@ -32,7 +34,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "MMG_FIREBASE_ENV": "production"
+        "MMG_FIREBASE_ENV": "production",
+        "MMG_APNS_ENV": "production"
       },
       "ios": {
         "image": "macos-tahoe-26.5-xcode-26.6"
