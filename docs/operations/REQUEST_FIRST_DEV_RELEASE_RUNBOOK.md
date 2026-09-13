@@ -61,14 +61,15 @@ creating, error, or absent.
 npm run firebase:deploy:request-first-functions
 ```
 
-This command names exactly these 13 Functions and excludes `createBookingIntent`:
+This command names exactly these 19 Functions and excludes `createBookingIntent`:
 
 ```text
 createRentalRequest approveRentalRequest declineRentalRequest
-releaseRentalRequestPaymentHold initializeRentalRequestPayment
-listRenterRentalRequests listOwnerRentalRequests
-expireRentalRequestPaymentWindows initializeBookingPayment paystackWebhook
-processPaystackPaymentEvent reconcilePayment requestAccountDeletion
+releaseRentalRequestPaymentHold cancelRentalRequest quoteBookingCancellation
+cancelBooking initializeRentalRequestPayment listRenterRentalRequests
+listOwnerRentalRequests expireRentalRequestPaymentWindows resolveRenterCancellations
+initializeBookingPayment paystackWebhook processPaystackPaymentEvent
+reconcilePayment requestAccountDeletion searchPickupPlaces resolvePickupPlace
 ```
 
 After deployment, verify the targeted Functions and scheduled job using

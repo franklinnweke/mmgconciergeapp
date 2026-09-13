@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { CommandError } from '../errors.js';
 import { HttpGooglePlacesClient } from './google-places-client.js';
 
 describe('HttpGooglePlacesClient', () => {
-  it('returns empty predictions when API key is missing', async () => {
+  it('throws CONFIGURATION_UNAVAILABLE when API key is missing', async () => {
     const client = new HttpGooglePlacesClient({ apiKey: '' });
-    const suggestions = await client.searchPlaces({ query: 'Eko Hotel' });
-    expect(suggestions).toEqual([]);
+    await expect(client.searchPlaces({ query: 'Eko Hotel' })).rejects.toThrow(CommandError);
+    await expect(client.searchPlaces({ query: 'Eko Hotel' })).rejects.toMatchObject({
+      code: 'CONFIGURATION_UNAVAILABLE',
+    });
   });
 
   it('sends sessionToken, locationRestriction, and query in autocomplete request', async () => {
@@ -73,7 +76,7 @@ describe('HttpGooglePlacesClient', () => {
     });
   });
 
-  it('handles autocomplete provider error and empty responses safely', async () => {
+  it('throws INTERNAL error when autocomplete provider responds with an error', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
@@ -85,7 +88,31 @@ describe('HttpGooglePlacesClient', () => {
       fetchFn: mockFetch as unknown as typeof fetch,
     });
 
-    const results = await client.searchPlaces({ query: 'Eko' });
+    await expect(client.searchPlaces({ query: 'Eko' })).rejects.toThrow(CommandError);
+    await expect(client.searchPlaces({ query: 'Eko' })).rejects.toMatchObject({
+      code: 'INTERNAL',
+    });
+  });
+
+  it('returns empty predictions when provider returns no suggestions', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ suggestions: [] }),
+    });
+
+    const client = new HttpGooglePlacesClient({
+      apiKey: 'test-api-key',
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+
+    const results = await client.searchPlaces({ query: 'NonExistentPlace' });
+    expect(results).toEqual([]);
+  });
+
+  it('returns empty predictions immediately when query is blank', async () => {
+    const client = new HttpGooglePlacesClient({ apiKey: 'test-api-key' });
+    const results = await client.searchPlaces({ query: '   ' });
     expect(results).toEqual([]);
   });
 
