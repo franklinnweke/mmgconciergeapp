@@ -1,46 +1,108 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { isWithinLagosBBox } from '@mmg/domain';
+import {
+  calculateDistanceMeters,
+  clampToArrivalPerimeter,
+  MAX_ARRIVAL_RADIUS_METERS,
+  METERS_PER_LAT_DEGREE,
+  METERS_PER_LNG_DEGREE,
+  MICRO_STEP_METERS,
+} from '../domain/arrival-perimeter';
+import { PickupPinMap, LUXURY_DARK_MAP_STYLE } from './pickup-pin-map';
 
-describe('PickupPinMap logic and boundary constraints', () => {
-  const METERS_PER_LAT_DEGREE = 111_000;
-  const METERS_PER_LNG_DEGREE = 110_285;
-  const MICRO_STEP_METERS = 15;
-
-  function clampToLagos(lat: number, lng: number): { latitude: number; longitude: number } {
-    const clampedLat = Math.min(6.75, Math.max(6.30, lat));
-    const clampedLng = Math.min(4.30, Math.max(2.70, lng));
-    return {
-      latitude: Number(clampedLat.toFixed(6)),
-      longitude: Number(clampedLng.toFixed(6)),
-    };
+vi.mock('react-native', () => {
+  class AnimatedValue {
+    interpolate() {
+      return {};
+    }
   }
+  return {
+    Animated: {
+      Value: AnimatedValue,
+      spring: () => ({ start: vi.fn() }),
+      View: 'View',
+    },
+    Platform: { OS: 'ios', select: (obj: any) => obj.ios },
+    StyleSheet: {
+      absoluteFillObject: {},
+      create: (styles: any) => styles,
+    },
+    Text: 'Text',
+    View: 'View',
+  };
+});
+
+vi.mock('react-native-maps', () => ({
+  __esModule: true,
+  default: 'MapView',
+  MapView: 'MapView',
+}));
+
+vi.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}));
+
+vi.mock('@/components/pressable-scale', () => ({
+  PressableScale: 'PressableScale',
+}));
+
+describe('PickupPinMap native MapView and arrival perimeter bounding', () => {
+  const centerLat = 6.4269;
+  const centerLng = 3.4285;
+
+  it('exports a valid PickupPinMap functional component', () => {
+    expect(typeof PickupPinMap).toBe('function');
+  });
+
+  it('defines custom luxury dark map styling matching MMG brand', () => {
+    expect(Array.isArray(LUXURY_DARK_MAP_STYLE)).toBe(true);
+    expect(LUXURY_DARK_MAP_STYLE.length).toBeGreaterThan(0);
+    const geometryStyle = LUXURY_DARK_MAP_STYLE.find((s) => s.elementType === 'geometry');
+    expect(geometryStyle).toBeDefined();
+  });
 
   it('clamps coordinates strictly within the Lagos operational envelope', () => {
     // Normal coordinates in VI
-    const normal = clampToLagos(6.4269, 3.4285);
-    expect(normal.latitude).toBe(6.4269);
-    expect(normal.longitude).toBe(3.4285);
-    expect(isWithinLagosBBox(normal.latitude, normal.longitude)).toBe(true);
+    expect(isWithinLagosBBox(6.4269, 3.4285)).toBe(true);
 
     // North out-of-envelope clamp
-    const tooFarNorth = clampToLagos(7.50, 3.4285);
-    expect(tooFarNorth.latitude).toBe(6.75);
-    expect(isWithinLagosBBox(tooFarNorth.latitude, tooFarNorth.longitude)).toBe(true);
+    const tooFarNorth = Math.min(6.75, Math.max(6.30, 7.50));
+    expect(tooFarNorth).toBe(6.75);
+    expect(isWithinLagosBBox(tooFarNorth, 3.4285)).toBe(true);
 
     // South out-of-envelope clamp
-    const tooFarSouth = clampToLagos(5.50, 3.4285);
-    expect(tooFarSouth.latitude).toBe(6.30);
-    expect(isWithinLagosBBox(tooFarSouth.latitude, tooFarSouth.longitude)).toBe(true);
+    const tooFarSouth = Math.min(6.75, Math.max(6.30, 5.50));
+    expect(tooFarSouth).toBe(6.30);
+    expect(isWithinLagosBBox(tooFarSouth, 3.4285)).toBe(true);
 
     // East out-of-envelope clamp
-    const tooFarEast = clampToLagos(6.4269, 5.00);
-    expect(tooFarEast.longitude).toBe(4.30);
-    expect(isWithinLagosBBox(tooFarEast.latitude, tooFarEast.longitude)).toBe(true);
+    const tooFarEast = Math.min(4.30, Math.max(2.70, 5.00));
+    expect(tooFarEast).toBe(4.30);
+    expect(isWithinLagosBBox(6.4269, tooFarEast)).toBe(true);
 
     // West out-of-envelope clamp
-    const tooFarWest = clampToLagos(6.4269, 2.00);
-    expect(tooFarWest.longitude).toBe(2.70);
-    expect(isWithinLagosBBox(tooFarWest.latitude, tooFarWest.longitude)).toBe(true);
+    const tooFarWest = Math.min(4.30, Math.max(2.70, 2.00));
+    expect(tooFarWest).toBe(2.70);
+    expect(isWithinLagosBBox(6.4269, tooFarWest)).toBe(true);
+  });
+
+  it('enforces 300m arrival perimeter clamp to prevent address drift', () => {
+    // 50 meters from building center -> allowed without clamping
+    const nearLat = centerLat + 35 / METERS_PER_LAT_DEGREE;
+    const nearLng = centerLng + 35 / METERS_PER_LNG_DEGREE;
+    const nearResult = clampToArrivalPerimeter(centerLat, centerLng, nearLat, nearLng);
+    expect(nearResult.wasClamped).toBe(false);
+    expect(nearResult.distanceMeters).toBeLessThanOrEqual(MAX_ARRIVAL_RADIUS_METERS);
+
+    // 1,000 meters from building center -> strictly clamped to 300m perimeter
+    const farLat = centerLat + 700 / METERS_PER_LAT_DEGREE;
+    const farLng = centerLng + 700 / METERS_PER_LNG_DEGREE;
+    const farResult = clampToArrivalPerimeter(centerLat, centerLng, farLat, farLng);
+    expect(farResult.wasClamped).toBe(true);
+    expect(farResult.distanceMeters).toBe(300);
+
+    const actualDist = calculateDistanceMeters(centerLat, centerLng, farResult.latitude, farResult.longitude);
+    expect(actualDist).toBe(300);
   });
 
   it('calculates micro-step adjustments for gate pinpointing', () => {
@@ -58,20 +120,16 @@ describe('PickupPinMap logic and boundary constraints', () => {
     expect(stepEastLng - startLng).toBeCloseTo(0.000136, 5);
   });
 
-  it('detects when pin has been adjusted from initial geocoded place coordinates', () => {
-    const initial = { latitude: 6.4269, longitude: 3.4285 };
+  it('accurately identifies when pin is at default center vs adjusted gate', () => {
+    // Unadjusted (0m)
+    const distZero = calculateDistanceMeters(centerLat, centerLng, centerLat, centerLng);
+    expect(distZero).toBe(0);
+    expect(distZero > 5).toBe(false);
 
-    const unadjusted = { latitude: 6.4269, longitude: 3.4285 };
-    const hasAdjusted1 =
-      Math.abs(unadjusted.latitude - initial.latitude) > 0.00005 ||
-      Math.abs(unadjusted.longitude - initial.longitude) > 0.00005;
-    expect(hasAdjusted1).toBe(false);
-
-    // Adjusted by 25 meters
-    const adjusted = { latitude: 6.42715, longitude: 3.4285 };
-    const hasAdjusted2 =
-      Math.abs(adjusted.latitude - initial.latitude) > 0.00005 ||
-      Math.abs(adjusted.longitude - initial.longitude) > 0.00005;
-    expect(hasAdjusted2).toBe(true);
+    // Adjusted gate (45m North)
+    const gateLat = centerLat + 45 / METERS_PER_LAT_DEGREE;
+    const distGate = calculateDistanceMeters(centerLat, centerLng, gateLat, centerLng);
+    expect(distGate).toBe(45);
+    expect(distGate > 5).toBe(true);
   });
 });

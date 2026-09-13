@@ -31,10 +31,19 @@ export class AdminStorageGateway implements StorageGateway {
   // the write side (download/write/copy/delete) that vehicle image processing
   // needs. The read-only `StorageGateway` interface stays narrow so the owner
   // verification tests' fakes do not have to implement writes.
-  protected readonly bucket: StorageBucket;
+  private bucketInstance?: StorageBucket;
 
   constructor(bucket?: StorageBucket) {
-    this.bucket = bucket ?? getStorage().bucket();
+    if (bucket) {
+      this.bucketInstance = bucket;
+    }
+  }
+
+  protected get bucket(): StorageBucket {
+    if (!this.bucketInstance) {
+      this.bucketInstance = getStorage().bucket();
+    }
+    return this.bucketInstance;
   }
 
   async getObjectMetadata(storagePath: string): Promise<StoredObjectMetadata | null> {

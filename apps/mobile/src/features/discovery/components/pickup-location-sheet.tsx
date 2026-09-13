@@ -55,7 +55,6 @@ export function PickupLocationSheet({
   const [query, setQuery] = useState('');
   const [pendingLocation, setPendingLocation] = useState<PickupLocation | null>(null);
   const [initialCoords, setInitialCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [isPinDragging, setIsPinDragging] = useState(false);
   const [note, setNote] = useState('');
   const [resolvingPlaceId, setResolvingPlaceId] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
@@ -67,7 +66,6 @@ export function PickupLocationSheet({
     setQuery('');
     setPendingLocation(null);
     setInitialCoords(null);
-    setIsPinDragging(false);
     setNote('');
     setResolveError(null);
     resetCurrentLoc();
@@ -182,7 +180,6 @@ export function PickupLocationSheet({
                 bounces={false}
                 contentContainerStyle={styles.confirmContainer}
                 keyboardShouldPersistTaps="handled"
-                scrollEnabled={!isPinDragging}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Confirmation Header */}
@@ -247,7 +244,6 @@ export function PickupLocationSheet({
                   latitude={pendingLocation.latitude}
                   longitude={pendingLocation.longitude}
                   onCoordinatesChange={handlePinCoordinateChange}
-                  onDragChange={setIsPinDragging}
                   onReset={handleResetPin}
                 />
 

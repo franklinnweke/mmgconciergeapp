@@ -13,6 +13,8 @@ if (!googleWebClientId) {
   throw new Error(`Missing web OAuth client for ${firebaseEnvironment} Firebase configuration.`);
 }
 
+const googleMapsApiKey = googleServices.client?.[0]?.api_key?.[0]?.current_key;
+
 module.exports = {
   ...baseConfig,
   ios: {
@@ -22,6 +24,12 @@ module.exports = {
   android: {
     ...baseConfig.android,
     googleServicesFile: isProduction ? './google-services.json' : './google-services.dev.json',
+    config: {
+      ...baseConfig.android?.config,
+      googleMaps: {
+        apiKey: googleMapsApiKey,
+      },
+    },
   },
   extra: {
     ...baseConfig.extra,

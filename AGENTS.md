@@ -360,6 +360,11 @@ Merge sequence:
 - PR #57 (`fix(discovery): address request resilience, Places compliance, and pickup pin adjustment`) merged into `main`.
 - Post-merge CI (`34734418860`) passed green across all jobs (Firebase Rules in 1m34s, Functions Emulator in 1m50s, Quality in 3m27s, Gate in 3s).
 
+Validated native MapView pickup pin, arrival perimeter bounding, and dev deployment source checkpoint:
+
+Merge sequence:
+- PR #58 (`feat(discovery): native MapView, arrival perimeter bounding, and dev deployment`) merged into `main`.
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -371,7 +376,8 @@ Current state:
 - Pickup correctness, privacy deletion, and service boundary enforcement: merged to `main`
 - Real provider-backed pickup search & server authority (WP1A.2: Google Places API (New) two-step backend with session tokens and Lagos bounding box restriction, mandatory server-authoritative pickup validation and derived service area on rental requests, operational coordinates and address in rentalRequests and private rentalRequestContacts, zero exposed coordinates in owner projection, zero Victoria Island/Eko Hotel fallbacks, interactive delivery card, pickup confirmation step with optional entrance note): merged to `main`
 - Discovery operational hardening & Places compliance (WP1A.2a: root deploy script updated with searchPickupPlaces and resolvePickupPlace, loud CommandError handling on missing API key / HTTP failure / network failure, Google Places attribution in mobile sheet, Places API field mask pricing documentation, pre-launch Places caching policy review recorded): merged to `main`
-- Request resilience, Places compliance, and pickup pin adjustment (Booking Review decoupled refresh, Trip Detail bounded auto-refresh & settled missing state, minimum 12sp text attribution, Google attribution on Confirmation card, codified TOS §3.2.3 storage compliance, and PickupPinMap touch drag + micro-nudge pin adjustment with 'pin_adjusted' location source): merged to `main`
+- Request resilience, Places compliance, and pickup pin adjustment (Booking Review decoupled refresh, Trip Detail bounded auto-refresh & settled missing state, minimum 12sp text attribution, Google attribution on Confirmation card, codified TOS §3.2.3 storage compliance): merged to `main`
+- Native MapView pickup pin & property-perimeter bounding (Uber-style native MapView with stationary center pin, spring lift/drop animation, strict 300m arrival perimeter bounding to prevent address drift, 15m micro-nudge adjustment buttons, reset center button, distance offset badge, and luxury dark map styling): merged to `main`
 - Renter commercial journey subtraction (WP2: Home, Browse, Vehicle Detail, Booking Review): merged to `main`
 - Trip and request state simplification (WP3: human vocabulary, Trips list, Trip Detail subtractions, real actions only): merged to `main`
 - Renter correctness & privacy transaction ordering (WP3 refinements: upfront reads, targeted idempotency, envelope unification, hydration race, no name gating, truthful terminal states): merged to `main`
@@ -379,8 +385,8 @@ Current state:
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
 - Production `mmg-concierge`: untouched
-- Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes, all 17 approved Functions and both schedulers active)
-- EAS/TestFlight Build 31: created from `44b677f` and submitted to Apple App Store Connect for TestFlight processing
+- Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes, all 19 approved Functions including `searchPickupPlaces` and `resolvePickupPlace`, and both schedulers active; `GOOGLE_PLACES_API_KEY` secret active)
+- Native Build Milestone: Build 31 predated native maps; native `react-native-maps@1.27.2` requires Build 32 EAS development build from `main`
 - Android native validation: in progress on Pixel 7 API 35
 
 Do not call the release complete until Admin is deployed by the VPS/Admin agent and end-to-end human acceptance has been completed on the physical device.

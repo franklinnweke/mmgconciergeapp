@@ -18,3 +18,4 @@ apps/admin/tsconfig.tsbuildinfo
 output/
 .idea/
 tmp/
+apps/functions/functions.yaml
