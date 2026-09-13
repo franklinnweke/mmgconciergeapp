@@ -182,9 +182,11 @@ export function getFriendlyAuthError(error: unknown): string {
     'auth/credential-already-in-use': 'That phone number is already used by another account.',
     'auth/account-exists-with-different-credential':
       'An account already exists with this email. Sign in using your existing method.',
-    'auth/operation-not-allowed': 'This sign-in method is not enabled yet. Try another method.',
+    'auth/operation-not-allowed':
+      'This sign-in method is temporarily unavailable. Please try another method or contact MMG Concierge.',
     'auth/apple-sign-in-failed': 'Apple sign-in could not be completed. Try again.',
-    'storage/unauthorized': 'The document could not be stored. Try again.',
+    'storage/unauthorized':
+      'Upload not permitted. Ensure your email is verified and your owner profile is complete before uploading identification.',
   };
 
   if (messages[code]) return messages[code];

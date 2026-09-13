@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import type { GovernmentIdKind } from '@mmg/contracts';
+import type { GovernmentIdKind, OwnerVisibleProfile } from '@mmg/contracts';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { type Href, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { useAuth } from '@/core/auth/auth-context';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
+import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import { saveDraftUpload } from '../data/owner-draft-store';
+import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 
 const DOCUMENT_KINDS: { kind: GovernmentIdKind; label: string; description: string }[] = [
@@ -62,10 +64,53 @@ export function OwnerIdScreen() {
     fileSize?: number;
   } | null>(null);
 
+  const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(Boolean(auth.user?.uid));
   const [uploading, setUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    const ownerId = auth.user?.uid;
+    if (!ownerId) {
+      return;
+    }
+    const repository = createOwnerVerificationRepository();
+    const unsubscribe = repository.subscribe(
+      ownerId,
+      (updatedProfile) => {
+        setProfile(updatedProfile);
+        setLoadingProfile(false);
+      },
+      () => {
+        setLoadingProfile(false);
+      },
+    );
+    return () => unsubscribe();
+  }, [auth.user?.uid]);
+
+  const emailVerified = Boolean(auth.user?.emailVerified);
+  const identityComplete = Boolean(
+    profile?.legalName &&
+      profile?.address?.line1 &&
+      profile?.address?.areaLabel &&
+      profile?.termsAcceptedAt,
+  );
+  const phoneComplete = isNigerianE164(auth.user?.phoneNumber);
+  const prerequisitesMet = emailVerified && identityComplete && phoneComplete;
+  const applicationIsEditable = isOwnerApplicationEditable(profile?.verificationStatus);
+
   const handleTakePhoto = async () => {
+    if (!applicationIsEditable) {
+      setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
+      return;
+    }
+    if (!prerequisitesMet) {
+      if (!emailVerified) setErrorMessage('Verify your email address before uploading identification.');
+      else if (!identityComplete) setErrorMessage('Complete your owner identity details and accept terms before uploading identification.');
+      else setErrorMessage('Verify your Nigerian phone number before uploading identification.');
+      return;
+    }
+
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
@@ -97,6 +142,17 @@ export function OwnerIdScreen() {
   };
 
   const handlePickLibrary = async () => {
+    if (!applicationIsEditable) {
+      setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
+      return;
+    }
+    if (!prerequisitesMet) {
+      if (!emailVerified) setErrorMessage('Verify your email address before uploading identification.');
+      else if (!identityComplete) setErrorMessage('Complete your owner identity details and accept terms before uploading identification.');
+      else setErrorMessage('Verify your Nigerian phone number before uploading identification.');
+      return;
+    }
+
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
@@ -129,6 +185,16 @@ export function OwnerIdScreen() {
 
   const handleUpload = async () => {
     if (!selectedAsset || !auth.user?.uid || uploading) return;
+    if (!applicationIsEditable) {
+      setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
+      return;
+    }
+    if (!prerequisitesMet) {
+      if (!emailVerified) setErrorMessage('Verify your email address before uploading identification.');
+      else if (!identityComplete) setErrorMessage('Complete your owner identity details and accept terms before uploading identification.');
+      else setErrorMessage('Verify your Nigerian phone number before uploading identification.');
+      return;
+    }
     setUploading(true);
     setErrorMessage(null);
 
@@ -165,7 +231,14 @@ export function OwnerIdScreen() {
         },
       } as any);
     } catch (err) {
-      setErrorMessage(ownerCommandErrorMessage(err));
+      const code = (err as { code?: unknown })?.code;
+      if (code === 'storage/unauthorized') {
+        setErrorMessage(
+          'Upload not permitted. Ensure your email is verified and your owner profile details are saved before uploading your ID.',
+        );
+      } else {
+        setErrorMessage(ownerCommandErrorMessage(err));
+      }
     } finally {
       setUploading(false);
     }
@@ -201,80 +274,137 @@ export function OwnerIdScreen() {
           </View>
         )}
 
-        {/* Document Kind Selector */}
-        <Text style={styles.sectionTitle}>Select Document Type</Text>
-        <View style={styles.kindsList}>
-          {DOCUMENT_KINDS.map((item) => {
-            const isSelected = documentKind === item.kind;
-            return (
-              <Pressable
-                key={item.kind}
-                onPress={() => setDocumentKind(item.kind)}
-                style={[styles.kindRow, isSelected && styles.kindRowActive]}
-              >
-                <View style={[styles.radio, isSelected && styles.radioActive]}>
-                  {isSelected && <View style={styles.radioDot} />}
-                </View>
-                <View style={styles.kindCopy}>
-                  <Text style={[styles.kindLabel, isSelected && styles.kindLabelActive]}>{item.label}</Text>
-                  <Text style={styles.kindDescription}>{item.description}</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Capture / Select Controls */}
-        <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Document Photo</Text>
-
-        {selectedAsset ? (
-          <View style={styles.previewContainer}>
-            <Image
-              contentFit="contain"
-              source={{ uri: selectedAsset.uri }}
-              style={styles.previewImage}
-            />
-            <View style={styles.previewMeta}>
-              <Text style={styles.fileName}>{selectedAsset.fileName}</Text>
-              <PressableScale onPress={() => setSelectedAsset(null)}>
-                <Text style={styles.changeText}>Change Photo</Text>
-              </PressableScale>
+        {loadingProfile ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={colors.goldStrong} size="small" />
+            <Text style={styles.loadingText}>Checking verification status...</Text>
+          </View>
+        ) : !applicationIsEditable ? (
+          <View style={styles.prerequisiteCard}>
+            <View style={styles.prerequisiteHeader}>
+              <Ionicons color={colors.goldStrong} name="information-circle-outline" size={22} />
+              <Text style={styles.prerequisiteTitle}>Application status managed by MMG</Text>
             </View>
+            <Text style={styles.prerequisiteBody}>
+              Your owner application is no longer editable. Return to your Owner Desk to see its current status.
+            </Text>
+            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={{ marginTop: spacing.md }}>
+              <View style={styles.prerequisiteButton}>
+                <Text style={styles.prerequisiteButtonText}>RETURN TO OWNER DESK</Text>
+              </View>
+            </PressableScale>
+          </View>
+        ) : !prerequisitesMet ? (
+          <View style={styles.prerequisiteCard}>
+            <View style={styles.prerequisiteHeader}>
+              <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={22} />
+              <Text style={styles.prerequisiteTitle}>Prerequisites Required</Text>
+            </View>
+            <Text style={styles.prerequisiteBody}>
+              {!emailVerified
+                ? 'Verify your email address before uploading government identification.'
+                : !identityComplete
+                ? 'Complete your owner identity details and accept platform terms before uploading identification.'
+                : 'Verify your Nigerian mobile number before uploading identification.'}
+            </Text>
+            <PressableScale
+              onPress={() => {
+                if (!emailVerified) router.push('/' as Href);
+                else if (!identityComplete) router.push('/(owner)/identity' as Href);
+                else router.push('/(owner)/phone' as Href);
+              }}
+              style={{ marginTop: spacing.md }}
+            >
+              <View style={styles.prerequisiteButton}>
+                <Text style={styles.prerequisiteButtonText}>
+                  {!emailVerified
+                    ? 'VERIFY EMAIL'
+                    : !identityComplete
+                    ? 'COMPLETE OWNER IDENTITY'
+                    : 'LINK NIGERIAN PHONE'}
+                </Text>
+                <Ionicons color={colors.black} name="arrow-forward" size={16} />
+              </View>
+            </PressableScale>
           </View>
         ) : (
-          <View style={styles.captureRow}>
-            <PressableScale onPress={handleTakePhoto} style={{ flex: 1 }}>
-              <View style={styles.captureButton}>
-                <Ionicons color={colors.goldStrong} name="camera-outline" size={24} />
-                <Text style={styles.captureButtonText}>Take Photo</Text>
-              </View>
-            </PressableScale>
+          <>
+            {/* Document Kind Selector */}
+            <Text style={styles.sectionTitle}>Select Document Type</Text>
+            <View style={styles.kindsList}>
+              {DOCUMENT_KINDS.map((item) => {
+                const isSelected = documentKind === item.kind;
+                return (
+                  <Pressable
+                    key={item.kind}
+                    onPress={() => setDocumentKind(item.kind)}
+                    style={[styles.kindRow, isSelected && styles.kindRowActive]}
+                  >
+                    <View style={[styles.radio, isSelected && styles.radioActive]}>
+                      {isSelected && <View style={styles.radioDot} />}
+                    </View>
+                    <View style={styles.kindCopy}>
+                      <Text style={[styles.kindLabel, isSelected && styles.kindLabelActive]}>{item.label}</Text>
+                      <Text style={styles.kindDescription}>{item.description}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
 
-            <PressableScale onPress={handlePickLibrary} style={{ flex: 1 }}>
-              <View style={styles.captureButton}>
-                <Ionicons color={colors.goldStrong} name="images-outline" size={24} />
-                <Text style={styles.captureButtonText}>Choose File</Text>
-              </View>
-            </PressableScale>
-          </View>
-        )}
+            {/* Capture / Select Controls */}
+            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Document Photo</Text>
 
-        {/* Primary Upload Button */}
-        <PressableScale
-          onPress={handleUpload}
-          style={[{ marginTop: spacing.xl }, (!selectedAsset || uploading) && { opacity: 0.5 }]}
-        >
-          <View style={styles.primaryButton}>
-            {uploading ? (
-              <ActivityIndicator color={colors.black} size="small" />
+            {selectedAsset ? (
+              <View style={styles.previewContainer}>
+                <Image
+                  contentFit="contain"
+                  source={{ uri: selectedAsset.uri }}
+                  style={styles.previewImage}
+                />
+                <View style={styles.previewMeta}>
+                  <Text style={styles.fileName}>{selectedAsset.fileName}</Text>
+                  <PressableScale onPress={() => setSelectedAsset(null)}>
+                    <Text style={styles.changeText}>Change Photo</Text>
+                  </PressableScale>
+                </View>
+              </View>
             ) : (
-              <>
-                <Text style={styles.primaryText}>SAVE DOCUMENT</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={18} />
-              </>
+              <View style={styles.captureRow}>
+                <PressableScale onPress={handleTakePhoto} style={{ flex: 1 }}>
+                  <View style={styles.captureButton}>
+                    <Ionicons color={colors.goldStrong} name="camera-outline" size={24} />
+                    <Text style={styles.captureButtonText}>Take Photo</Text>
+                  </View>
+                </PressableScale>
+
+                <PressableScale onPress={handlePickLibrary} style={{ flex: 1 }}>
+                  <View style={styles.captureButton}>
+                    <Ionicons color={colors.goldStrong} name="images-outline" size={24} />
+                    <Text style={styles.captureButtonText}>Choose File</Text>
+                  </View>
+                </PressableScale>
+              </View>
             )}
-          </View>
-        </PressableScale>
+
+            {/* Primary Upload Button */}
+            <PressableScale
+              onPress={handleUpload}
+              style={[{ marginTop: spacing.xl }, (!selectedAsset || uploading) && { opacity: 0.5 }]}
+            >
+              <View style={styles.primaryButton}>
+                {uploading ? (
+                  <ActivityIndicator color={colors.black} size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.primaryText}>SAVE DOCUMENT</Text>
+                    <Ionicons color={colors.black} name="arrow-forward" size={18} />
+                  </>
+                )}
+              </View>
+            </PressableScale>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -300,6 +430,14 @@ const styles = StyleSheet.create({
   previewContainer: { backgroundColor: '#090A0C', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, overflow: 'hidden' },
   previewImage: { height: 200, width: '100%' },
   previewMeta: { alignItems: 'center', backgroundColor: colors.graphiteRaised, flexDirection: 'row', justifyContent: 'space-between', padding: spacing.sm },
+  loadingBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
+  loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+  prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
+  prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
+  prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+  prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 48 },
+  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13, letterSpacing: 0.5 },
   privacyBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.08)', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
   privacyText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },

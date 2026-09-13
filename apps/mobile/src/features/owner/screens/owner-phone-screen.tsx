@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
+import { type OwnerVisibleProfile } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -19,7 +20,12 @@ import {
   createOwnerVerificationGateway,
   type PhoneConfirmationSession,
 } from '../data/owner-verification-gateway';
-import { isNigerianE164, normalizeNigerianPhone } from '../domain/owner-application';
+import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
+import {
+  isNigerianE164,
+  isOwnerApplicationEditable,
+  normalizeNigerianPhone,
+} from '../domain/owner-application';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 
 export function OwnerPhoneScreen() {
@@ -33,9 +39,40 @@ export function OwnerPhoneScreen() {
   const [session, setSession] = useState<PhoneConfirmationSession | null>(null);
   const [countdown, setCountdown] = useState(0);
 
+  const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(Boolean(auth.user?.uid));
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ownerId = auth.user?.uid;
+    if (!ownerId) {
+      return;
+    }
+    const repository = createOwnerVerificationRepository();
+    const unsubscribe = repository.subscribe(
+      ownerId,
+      (updatedProfile) => {
+        setProfile(updatedProfile);
+        setLoadingProfile(false);
+      },
+      () => {
+        setLoadingProfile(false);
+      },
+    );
+    return () => unsubscribe();
+  }, [auth.user?.uid]);
+
+  const emailVerified = Boolean(auth.user?.emailVerified);
+  const identityComplete = Boolean(
+    profile?.legalName &&
+      profile?.address?.line1 &&
+      profile?.address?.areaLabel &&
+      profile?.termsAcceptedAt,
+  );
+  const prerequisitesMet = emailVerified && identityComplete;
+  const applicationIsEditable = isOwnerApplicationEditable(profile?.verificationStatus);
 
   const isAlreadyLinked = isNigerianE164(auth.user?.phoneNumber);
   const normalizedPhone = normalizeNigerianPhone(phoneInput);
@@ -51,6 +88,18 @@ export function OwnerPhoneScreen() {
 
   const handleSendCode = async () => {
     if (isWeb || !normalizedPhone || loading) return;
+    if (!applicationIsEditable) {
+      setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
+      return;
+    }
+    if (!prerequisitesMet) {
+      if (!emailVerified) {
+        setErrorMessage('Verify your email address before linking your phone number.');
+      } else {
+        setErrorMessage('Complete your owner identity and accept terms before linking your phone number.');
+      }
+      return;
+    }
     setLoading(true);
     setErrorMessage(null);
 
@@ -69,6 +118,10 @@ export function OwnerPhoneScreen() {
 
   const handleVerifyCode = async () => {
     if (isWeb || !session || code.trim().length !== 6 || loading) return;
+    if (!applicationIsEditable) {
+      setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
+      return;
+    }
     setLoading(true);
     setErrorMessage(null);
 
@@ -122,7 +175,53 @@ export function OwnerPhoneScreen() {
           </View>
         )}
 
-        {isAlreadyLinked ? (
+        {loadingProfile ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={colors.goldStrong} size="small" />
+            <Text style={styles.loadingText}>Checking verification status...</Text>
+          </View>
+        ) : !applicationIsEditable ? (
+          <View style={styles.prerequisiteCard}>
+            <View style={styles.prerequisiteHeader}>
+              <Ionicons color={colors.goldStrong} name="information-circle-outline" size={22} />
+              <Text style={styles.prerequisiteTitle}>Application status managed by MMG</Text>
+            </View>
+            <Text style={styles.prerequisiteBody}>
+              Your owner application is no longer editable. Return to your Owner Desk to see its current status.
+            </Text>
+            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={{ marginTop: spacing.md }}>
+              <View style={styles.prerequisiteButton}>
+                <Text style={styles.prerequisiteButtonText}>RETURN TO OWNER DESK</Text>
+              </View>
+            </PressableScale>
+          </View>
+        ) : !prerequisitesMet ? (
+          <View style={styles.prerequisiteCard}>
+            <View style={styles.prerequisiteHeader}>
+              <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={22} />
+              <Text style={styles.prerequisiteTitle}>Owner Identity Required</Text>
+            </View>
+            <Text style={styles.prerequisiteBody}>
+              {!emailVerified
+                ? 'Verify your email address before linking your phone number.'
+                : 'Complete your legal name, Lagos operating address, and platform terms before verifying your phone number.'}
+            </Text>
+            <PressableScale
+              onPress={() => {
+                if (!emailVerified) router.push('/' as Href);
+                else router.push('/(owner)/identity' as Href);
+              }}
+              style={{ marginTop: spacing.md }}
+            >
+              <View style={styles.prerequisiteButton}>
+                <Text style={styles.prerequisiteButtonText}>
+                  {!emailVerified ? 'VERIFY EMAIL' : 'COMPLETE OWNER IDENTITY'}
+                </Text>
+                <Ionicons color={colors.black} name="arrow-forward" size={16} />
+              </View>
+            </PressableScale>
+          </View>
+        ) : isAlreadyLinked ? (
           <View style={styles.verifiedCard}>
             <Ionicons color={colors.goldStrong} name="shield-checkmark" size={28} />
             <View>
@@ -245,6 +344,14 @@ const styles = StyleSheet.create({
   resendRow: { alignItems: 'center', marginTop: spacing.md },
   resendText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
   screen: { backgroundColor: colors.black, flex: 1 },
+  loadingBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
+  loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+  prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
+  prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
+  prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+  prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 48 },
+  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13, letterSpacing: 0.5 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 26, letterSpacing: -0.4, marginTop: 2 },
   verifiedCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: spacing.lg },

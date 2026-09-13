@@ -7,9 +7,10 @@ import {
   LAGOS_AREA_LABELS,
   type CompleteOwnerProfileCommand,
   type LagosAreaLabel,
+  type OwnerVisibleProfile,
 } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -30,7 +31,8 @@ import {
   PRIVACY_NOTICE_SUMMARY,
 } from '../content/owner-terms';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
-import { isNigerianE164 } from '../domain/owner-application';
+import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
+import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 
 export function OwnerIdentityScreen() {
@@ -49,6 +51,25 @@ export function OwnerIdentityScreen() {
 
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(Boolean(auth.user?.uid));
+
+  useEffect(() => {
+    const ownerId = auth.user?.uid;
+    if (!ownerId) {
+      return;
+    }
+
+    const unsubscribe = createOwnerVerificationRepository().subscribe(
+      ownerId,
+      (updatedProfile) => {
+        setProfile(updatedProfile);
+        setLoadingProfile(false);
+      },
+      () => setLoadingProfile(false),
+    );
+    return () => unsubscribe();
+  }, [auth.user?.uid]);
 
   // Frozen per mount (same pattern as the submit screen): a fresh Date.now()
   // key per attempt defeats the backend's idempotency replay, so a
@@ -60,6 +81,7 @@ export function OwnerIdentityScreen() {
   );
 
   const isFormValid =
+    Boolean(auth.user?.emailVerified) &&
     legalName.trim().length >= 3 &&
     legalName.trim().length <= 120 &&
     line1.trim().length >= 8 &&
@@ -109,6 +131,35 @@ export function OwnerIdentityScreen() {
     }
   };
 
+  if (loadingProfile) {
+    return (
+      <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={colors.goldStrong} size="small" />
+          <Text style={styles.loadingText}>Checking verification status...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!isOwnerApplicationEditable(profile?.verificationStatus)) {
+    return (
+      <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+        <View style={styles.statusBox}>
+          <Text style={styles.statusTitle}>Application status managed by MMG</Text>
+          <Text style={styles.statusBody}>
+            Your owner application is no longer editable. Return to your Owner Desk to see its current status.
+          </Text>
+          <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={{ marginTop: spacing.md }}>
+            <View style={styles.primaryButton}>
+              <Text style={styles.primaryText}>RETURN TO OWNER DESK</Text>
+            </View>
+          </PressableScale>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -145,12 +196,25 @@ export function OwnerIdentityScreen() {
 
         {/* Email (Read only) */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Verified Email Address</Text>
+          <Text style={styles.label}>Email Address</Text>
           <View style={[styles.input, styles.readOnlyInput]}>
-            <Text style={styles.readOnlyText}>{auth.user?.email || 'owner@example.com'}</Text>
-            <Ionicons color={colors.goldStrong} name="checkmark-circle" size={16} />
+            <Text style={styles.readOnlyText}>{auth.user?.email || 'Unavailable'}</Text>
+            <Ionicons
+              color={auth.user?.emailVerified ? colors.goldStrong : colors.muted}
+              name={auth.user?.emailVerified ? 'checkmark-circle' : 'alert-circle-outline'}
+              size={16}
+            />
           </View>
         </View>
+
+        {!auth.user?.emailVerified && (
+          <View style={styles.errorBox}>
+            <Ionicons color="#EF4444" name="alert-circle-outline" size={18} />
+            <Text style={styles.errorText}>
+              Verify your email address before setting up an owner identity.
+            </Text>
+          </View>
+        )}
 
         {/* Lagos Operating Area Picker */}
         <View style={styles.fieldGroup}>
@@ -315,6 +379,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
   input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
   label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
+  loadingBox: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center', padding: spacing.lg },
+  loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
   modalContent: { backgroundColor: '#14181F', borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '60%', padding: spacing.lg },
   modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   modalItem: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
@@ -332,6 +398,9 @@ const styles = StyleSheet.create({
   rowFields: { flexDirection: 'row', gap: spacing.md },
   screen: { backgroundColor: colors.black, flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  statusBody: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  statusBox: { flex: 1, justifyContent: 'center', padding: spacing.lg },
+  statusTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18, marginBottom: spacing.xs },
   sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginBottom: spacing.md },
   termsCopy: { flex: 1 },
   termsDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
