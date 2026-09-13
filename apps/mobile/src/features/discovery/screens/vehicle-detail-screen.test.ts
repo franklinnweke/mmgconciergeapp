@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { type VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
 
-describe('VehicleDetailScreen verified facts and commercial presentation', () => {
+describe('VehicleDetailScreen commercial presentation', () => {
   const mockVehicle: VehicleSummary = {
     id: 'veh_test_001',
     displayName: 'Toyota Land Cruiser Prado',
@@ -15,21 +15,13 @@ describe('VehicleDetailScreen verified facts and commercial presentation', () =>
     deliveryPolicy: 'included',
   };
 
-  it('formats verified facts using real vehicle data only', () => {
-    const facts = [
-      `${mockVehicle.seats} passengers`,
-      'Chauffeur included',
-      'Delivery included',
-    ];
+  it('keeps primary vehicle metadata concise and grounded in vehicle data', () => {
+    const metadata = `${mockVehicle.areaLabel} · ${mockVehicle.seats} passengers`;
 
-    expect(facts).toContain('7 passengers');
-    expect(facts).toContain('Chauffeur included');
-    expect(facts).toContain('Delivery included');
-
-    // Non-verified or fabricated specs must not be present
-    expect(facts).not.toContain('3 large bags');
-    expect(facts).not.toContain('Automatic');
-    expect(facts).not.toContain('Dual A/C');
+    expect(metadata).toBe('Victoria Island · 7 passengers');
+    expect(metadata).not.toContain('3 large bags');
+    expect(metadata).not.toContain('Automatic');
+    expect(metadata).not.toContain('Dual A/C');
   });
 
   it('calculates authoritative quote breakdown correctly for rental duration', () => {

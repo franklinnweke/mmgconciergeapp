@@ -80,10 +80,6 @@ export function BrowseVehicleCard({ onPress, vehicle }: BrowseVehicleCardProps) 
             <Text style={styles.perDay}> / day</Text>
           </View>
         </View>
-
-        <View style={styles.serviceRow}>
-          <Text style={styles.serviceText}>Chauffeur · Lagos delivery included</Text>
-        </View>
       </View>
     </PressableScale>
   );
@@ -102,7 +98,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingVertical: spacing.md,
   },
   imageCopy: {
     bottom: spacing.md,
@@ -155,16 +151,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: fontSizes.sm,
-  },
-  serviceRow: {
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  serviceText: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
   },
   title: {
     color: colors.ivory,

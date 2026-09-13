@@ -217,17 +217,11 @@ export default function VehicleDetailScreen({
         <View style={styles.body}>
           <View style={styles.identityBlock}>
             <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
-            <Text style={styles.vehicleMeta}>{vehicle.areaLabel}</Text>
+            <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · {vehicle.seats} passengers</Text>
             <View style={styles.rateLine}>
               <Text style={styles.rate}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
               <Text style={styles.rateUnit}> / day</Text>
             </View>
-          </View>
-
-          <View style={styles.factRow}>
-            <Fact icon="people-outline" label={`${vehicle.seats} passengers`} />
-            <Fact icon="person-outline" label="Chauffeur included" />
-            <Fact icon="car-outline" label="Delivery included" />
           </View>
 
           <View style={styles.section}>
@@ -242,13 +236,6 @@ export default function VehicleDetailScreen({
                 <Text style={styles.rowLabel}>Return</Text>
                 <Text style={styles.rowValue}>{formatLagosDateOnly(journey.endDate)}</Text>
               </View>
-            </View>
-
-            <View style={styles.deliveryBadge}>
-              <Ionicons color={colors.goldStrong} name="location-outline" size={15} />
-              <Text numberOfLines={1} style={styles.deliveryBadgeText}>
-                Delivery to {pickupLocation?.displayName ?? 'Lagos'}
-              </Text>
             </View>
 
             <View accessibilityLiveRegion="polite" style={styles.availabilityRow}>
@@ -293,7 +280,6 @@ export default function VehicleDetailScreen({
             <Text style={styles.sectionTitle}>Estimated total</Text>
             <QuoteRow label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${journey.durationDays} ${journey.durationDays === 1 ? 'day' : 'days'}`} value={formatNairaFromKobo(quote.rentalKobo)} />
             <QuoteRow label="Service and protection" value={formatNairaFromKobo(quote.serviceFeeKobo)} />
-            <QuoteRow label="Chauffeur and Lagos delivery" value="Included" />
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
@@ -330,15 +316,6 @@ export default function VehicleDetailScreen({
   );
 }
 
-function Fact({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
-  return (
-    <View style={styles.fact}>
-      <Ionicons color={colors.muted} name={icon} size={17} />
-      <Text style={styles.factText}>{label}</Text>
-    </View>
-  );
-}
-
 function QuoteRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.quoteRow}>
@@ -358,28 +335,7 @@ const styles = StyleSheet.create({
   content: { backgroundColor: colors.black },
   counterPill: { backgroundColor: 'rgba(4,4,4,0.68)', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
   counterText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs },
-  deliveryBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-  },
-  deliveryBadgeText: {
-    color: colors.ivory,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
   disabled: { opacity: 0.45 },
-  fact: { alignItems: 'center', flex: 1, gap: 5 },
-  factRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.md },
-  factText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 11, textAlign: 'center' },
   gallerySlide: { height: 310, width: SCREEN_WIDTH },
   hero: { height: 310 },
   heroHeader: { left: layout.screenGutter, position: 'absolute', right: layout.screenGutter, top: 0 },
