@@ -2,11 +2,17 @@ import { DiscoveryGateway, type VehicleSearchCriteria, type VehicleSummary } fro
 import {
   discoveryVehicleToSummary,
   getVehicleDetailsResultSchema,
+  resolvePickupPlaceDataSchema,
+  resolvePickupPlaceResultSchema,
   resolveSearchPlaceDataSchema,
   resolveSearchPlaceResultSchema,
+  searchPickupPlacesDataSchema,
+  searchPickupPlacesResultSchema,
   searchVehiclesDataSchema,
   searchVehiclesResultSchema,
+  type ResolvePickupPlaceResult,
   type ResolveSearchPlaceResult,
+  type SearchPickupPlacesResult,
 } from '@mmg/contracts/discovery';
 import { getFunctions, httpsCallable, type Functions } from 'firebase/functions';
 
@@ -65,6 +71,26 @@ export class WebFirestoreDiscoveryGateway implements DiscoveryGateway {
       resolveSearchPlaceResultSchema,
       response.data,
       'resolveSearchPlace',
+    );
+  }
+
+  async searchPickupPlaces(data: { query: string; sessionToken?: string }): Promise<SearchPickupPlacesResult> {
+    const validated = searchPickupPlacesDataSchema.parse(data);
+    const response = await httpsCallable(this.functions, 'searchPickupPlaces')(validated);
+    return parseCallableResult(
+      searchPickupPlacesResultSchema,
+      response.data,
+      'searchPickupPlaces',
+    );
+  }
+
+  async resolvePickupPlace(data: { placeId: string; sessionToken?: string }): Promise<ResolvePickupPlaceResult> {
+    const validated = resolvePickupPlaceDataSchema.parse(data);
+    const response = await httpsCallable(this.functions, 'resolvePickupPlace')(validated);
+    return parseCallableResult(
+      resolvePickupPlaceResultSchema,
+      response.data,
+      'resolvePickupPlace',
     );
   }
 }

@@ -44,6 +44,15 @@ export function toCreateRentalRequestData(input: {
   endDate: string;
   contactPhone: string;
   serviceAreaLabel: LagosAreaLabel;
+  pickupLocation: {
+    displayName: string;
+    formattedAddress: string;
+    latitude: number;
+    longitude: number;
+    serviceAreaLabel: LagosAreaLabel;
+    placeId?: string;
+    note?: string;
+  };
 }): CreateRentalRequestData {
   return {
     vehicleId: input.vehicleId,
@@ -51,5 +60,6 @@ export function toCreateRentalRequestData(input: {
     endDate: input.endDate,
     contactPhone: input.contactPhone,
     serviceAreaLabel: input.serviceAreaLabel,
+    pickupLocation: input.pickupLocation,
   };
 }

@@ -62,6 +62,7 @@ export const pickupLocationSnapshotSchema = z.object({
   longitude: pickupLongitudeSchema,
   placeId: z.string().trim().min(1).max(200).optional(),
   serviceAreaLabel: rentalRequestServiceAreaSchema,
+  note: z.string().trim().max(300).optional(),
 }).strict();
 export type PickupLocationSnapshot = z.infer<typeof pickupLocationSnapshotSchema>;
 
@@ -71,7 +72,7 @@ export const createRentalRequestDataSchema = z.object({
   endDate: dateOnlySchema,
   contactPhone: rentalRequestContactPhoneSchema,
   serviceAreaLabel: rentalRequestServiceAreaSchema,
-  pickupLocation: pickupLocationSnapshotSchema.optional(),
+  pickupLocation: pickupLocationSnapshotSchema,
 }).strict().superRefine((data, ctx) => {
   if (data.pickupLocation && data.pickupLocation.serviceAreaLabel !== data.serviceAreaLabel) {
     ctx.addIssue({

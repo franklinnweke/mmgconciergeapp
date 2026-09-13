@@ -28,6 +28,13 @@ const createData = {
   endDate: '2026-09-20',
   contactPhone: '+2348012345678',
   serviceAreaLabel: 'Ikoyi' as const,
+  pickupLocation: {
+    displayName: 'The Wheatbaker',
+    formattedAddress: '4 Onitolo Rd, Ikoyi, Lagos',
+    latitude: 6.4485,
+    longitude: 3.4385,
+    serviceAreaLabel: 'Ikoyi' as const,
+  },
 };
 
 const priceSnapshot = {

@@ -24,6 +24,7 @@ import {
   intervalsOverlap,
   isCurrentRenterTerms,
   isCurrentTerms,
+  deriveLagosAreaLabelFromCoordinates,
   isTerminalOwnerVerification,
   isWithinLagosBBox,
   LAGOS_SERVICE_BBOX,
@@ -579,6 +580,23 @@ describe('Lagos geo calculations and discovery ranking', () => {
     expect(isWithinLagosBBox(9.0765, 7.3986)).toBe(false); // Abuja
     expect(isWithinLagosBBox(4.8156, 7.0498)).toBe(false); // Port Harcourt
     expect(isWithinLagosBBox(51.5074, -0.1278)).toBe(false); // London
+  });
+
+  it('derives canonical Lagos service area labels from coordinates', () => {
+    // Victoria Island
+    expect(deriveLagosAreaLabelFromCoordinates(6.4269, 3.4285)).toBe('Victoria Island'); // Eko Hotel
+    // Ikoyi
+    expect(deriveLagosAreaLabelFromCoordinates(6.4485, 3.4385)).toBe('Ikoyi'); // Wheatbaker
+    // Ikeja
+    expect(deriveLagosAreaLabelFromCoordinates(6.5774, 3.3212)).toBe('Ikeja'); // MMA Airport
+    // Lekki Phase 1
+    expect(deriveLagosAreaLabelFromCoordinates(6.4474, 3.4738)).toBe('Lekki Phase 1');
+    // Banana Island
+    expect(deriveLagosAreaLabelFromCoordinates(6.4632, 3.4477)).toBe('Banana Island');
+
+    // Fails closed on out-of-boundary coordinates
+    expect(deriveLagosAreaLabelFromCoordinates(9.0765, 7.3986)).toBeNull(); // Abuja
+    expect(deriveLagosAreaLabelFromCoordinates(51.5074, -0.1278)).toBeNull(); // London
   });
 
   it('calculates discovery score using distance and price weighting', () => {

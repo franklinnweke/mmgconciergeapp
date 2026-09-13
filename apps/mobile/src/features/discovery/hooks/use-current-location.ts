@@ -38,7 +38,7 @@ export function useCurrentLocation() {
       }
 
       if (finalStatus !== Location.PermissionStatus.GRANTED) {
-        const msg = 'Location permission was denied. Please search for an address or place instead.';
+        const msg = 'Location access is unavailable. Search for your pickup instead.';
         setStatus('denied');
         setErrorMessage(msg);
         return { success: false, reason: 'denied', message: msg };

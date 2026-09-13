@@ -13,6 +13,11 @@ import {
   type ReleaseRentalRequestPaymentHoldResult,
 } from '@mmg/contracts/rental-request';
 
+import {
+  deriveLagosAreaLabelFromCoordinates,
+  isWithinLagosBBox,
+} from '@mmg/domain';
+
 import { BookingCommandError } from './errors.js';
 
 export const RENTAL_REQUEST_PAYMENT_WINDOW_MINUTES = 30;
@@ -102,14 +107,42 @@ export async function createRentalRequest(
   if (!renterId) throw new BookingCommandError('UNAUTHENTICATED', 'Sign in to request a vehicle.');
   const parsed = createRentalRequestCommandSchema.safeParse(untrustedCommand);
   if (!parsed.success) throw new BookingCommandError('INVALID_ARGUMENT', parsed.error.issues[0]?.message || 'Rental request is invalid.');
+
+  const pickup = parsed.data.data.pickupLocation;
+  if (!pickup || typeof pickup.latitude !== 'number' || typeof pickup.longitude !== 'number') {
+    throw new BookingCommandError('INVALID_ARGUMENT', 'A valid pickup location is required.');
+  }
+
+  if (!isWithinLagosBBox(pickup.latitude, pickup.longitude)) {
+    throw new BookingCommandError(
+      'INVALID_ARGUMENT',
+      'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.',
+    );
+  }
+
+  const authoritativeServiceArea = deriveLagosAreaLabelFromCoordinates(pickup.latitude, pickup.longitude);
+  if (!authoritativeServiceArea) {
+    throw new BookingCommandError('INVALID_ARGUMENT', 'Pickup coordinates are outside the supported Lagos service area.');
+  }
+
+  // Server authority: canonical serviceAreaLabel is determined by server coordinates
+  const canonicalData = {
+    ...parsed.data.data,
+    serviceAreaLabel: authoritativeServiceArea,
+    pickupLocation: {
+      ...pickup,
+      serviceAreaLabel: authoritativeServiceArea,
+    },
+  };
+
   const now = (dependencies.now ?? (() => new Date()))();
   return dependencies.repository.createRequest({
     renterId,
     requestId: (dependencies.createId ?? randomUUID)(),
     commandRequestId: (dependencies.createRequestId ?? randomUUID)(),
-    requestHash: stableHash(parsed.data.data),
+    requestHash: stableHash(canonicalData),
     idempotencyDocumentId: idempotencyDocumentId(renterId, 'createRentalRequest', parsed.data.idempotencyKey),
-    data: parsed.data.data,
+    data: canonicalData,
     now,
   });
 }

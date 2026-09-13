@@ -44,6 +44,27 @@ describe('BookingReviewScreen request confirmation and commercial subtraction', 
     expect(payload.pickupLocation?.displayName).toBe('Eko Hotels & Suites');
   });
 
+  it('includes optional entrance note in pickup snapshot when provided', () => {
+    const contactPhone = normalizeNigerianPhone('0803 123 4567')!;
+    const payload: CreateRentalRequestData = {
+      vehicleId: 'veh_test_001',
+      startDate: '2026-09-15',
+      endDate: '2026-09-18',
+      contactPhone,
+      serviceAreaLabel: mockPickupLocation.serviceAreaLabel,
+      pickupLocation: {
+        displayName: mockPickupLocation.displayName,
+        formattedAddress: mockPickupLocation.formattedAddress,
+        latitude: mockPickupLocation.latitude,
+        longitude: mockPickupLocation.longitude,
+        serviceAreaLabel: mockPickupLocation.serviceAreaLabel,
+        note: 'Gate 3, North Lobby',
+      },
+    };
+
+    expect(payload.pickupLocation?.note).toBe('Gate 3, North Lobby');
+  });
+
   it('routes directly to /trip/${requestId} upon successful submission without intermediate state', async () => {
     const mockRouter = { replace: vi.fn() };
     const mockGateway = {

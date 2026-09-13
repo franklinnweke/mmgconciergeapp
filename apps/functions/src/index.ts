@@ -773,3 +773,4 @@ export const requestAccountDeletion = onCall(
 // second name would register a second Cloud Scheduler job racing on the same
 // Storage deletes.
 export { expireAbandonedOwnerVerificationUploads };
+export { resolvePickupPlace, searchPickupPlaces } from './discovery/pickup-place-callables.js';

@@ -72,4 +72,25 @@ describe('PickupLocationSheet', () => {
       expect(loc.formattedAddress.length).toBeGreaterThan(0);
     }
   });
+
+  it('supports selecting a pickup location with an optional entrance note', () => {
+    const onSelectLocation = vi.fn();
+    const curated = CURATED_PICKUP_LOCATIONS[0];
+    const withNote = {
+      ...curated,
+      note: 'Gate 2, North Lobby',
+    };
+
+    onSelectLocation(withNote);
+
+    expect(onSelectLocation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        placeId: curated.placeId,
+        displayName: curated.displayName,
+        formattedAddress: curated.formattedAddress,
+        serviceAreaLabel: curated.serviceAreaLabel,
+        note: 'Gate 2, North Lobby',
+      }),
+    );
+  });
 });

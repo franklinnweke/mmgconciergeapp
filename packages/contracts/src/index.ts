@@ -73,6 +73,21 @@ export interface DiscoveryGateway {
     approxLongitude: number;
     withinLagos: boolean;
   }>;
+  searchPickupPlaces?(input: { query: string; sessionToken?: string }): Promise<{
+    suggestions: readonly {
+      placeId: string;
+      primaryText: string;
+      secondaryText?: string;
+    }[];
+  }>;
+  resolvePickupPlace?(input: { placeId: string; sessionToken?: string }): Promise<{
+    placeId: string;
+    displayName: string;
+    formattedAddress: string;
+    latitude: number;
+    longitude: number;
+    serviceAreaLabel: LagosAreaLabel;
+  }>;
 }
 
 export const schemaVersionSchema = z.literal(1);
