@@ -344,6 +344,14 @@ Merge sequence:
 - PR #55 (`feat(discovery): real provider-backed pickup search and server authority (WP1A.2)`) merged into `main`.
 - Post-merge CI (`34732098816`) passed green across all jobs (Firebase Rules in 1m27s, Functions Emulator in 1m44s, Quality in 3m3s, Gate in 4s).
 
+Validated discovery operational hardening and Places compliance source checkpoint merged to `main`:
+
+`9dbfa90872f7fa69a00be0287d5f3bff9af63065`
+
+Merge sequence:
+- PR #56 (`fix(discovery): operational hardening, provider failure handling, and Places compliance (WP1A.2a)`) merged into `main`.
+- Post-merge CI (`34732955182`) passed green across all jobs (Firebase Rules in 1m25s, Functions Emulator in 1m45s, Quality in 3m2s, Gate in 2s).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -354,6 +362,7 @@ Current state:
 - Mobile coordinate-first pickup location model (WP1A.1): merged to `main`
 - Pickup correctness, privacy deletion, and service boundary enforcement: merged to `main`
 - Real provider-backed pickup search & server authority (WP1A.2: Google Places API (New) two-step backend with session tokens and Lagos bounding box restriction, mandatory server-authoritative pickup validation and derived service area on rental requests, operational coordinates and address in rentalRequests and private rentalRequestContacts, zero exposed coordinates in owner projection, zero Victoria Island/Eko Hotel fallbacks, interactive delivery card, pickup confirmation step with optional entrance note): merged to `main`
+- Discovery operational hardening & Places compliance (WP1A.2a: root deploy script updated with searchPickupPlaces and resolvePickupPlace, loud CommandError handling on missing API key / HTTP failure / network failure, Google Places attribution in mobile sheet, Places API field mask pricing documentation, pre-launch Places caching policy review recorded): merged to `main`
 - Renter commercial journey subtraction (WP2: Home, Browse, Vehicle Detail, Booking Review): merged to `main`
 - Trip and request state simplification (WP3: human vocabulary, Trips list, Trip Detail subtractions, real actions only): merged to `main`
 - Renter correctness & privacy transaction ordering (WP3 refinements: upfront reads, targeted idempotency, envelope unification, hydration race, no name gating, truthful terminal states): merged to `main`
