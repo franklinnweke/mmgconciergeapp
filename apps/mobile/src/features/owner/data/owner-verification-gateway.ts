@@ -1,10 +1,3 @@
-import {
-  getAuth,
-  getIdToken,
-  linkWithCredential,
-  PhoneAuthProvider,
-  reload,
-} from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { getStorage, putFile, ref } from '@react-native-firebase/storage';
 import {
@@ -16,6 +9,10 @@ import {
   type SubmitOwnerVerificationResult,
 } from '@mmg/contracts';
 
+import {
+  requestPhoneVerification as coreRequestPhoneVerification,
+  confirmPhoneVerification as coreConfirmPhoneVerification,
+} from '@/core/auth/phone-verification';
 import { parseCallableResult } from '@/core/firebase/parse-callable-result';
 
 export type UploadedIdMetadata = {
@@ -27,6 +24,7 @@ export type UploadedIdMetadata = {
 };
 
 export type PhoneConfirmationSession = {
+  authUid: string;
   verificationId: string;
 };
 
@@ -116,35 +114,18 @@ export class NativeOwnerVerificationGateway implements OwnerVerificationGateway 
   async requestPhoneVerification(
     phoneE164: string,
   ): Promise<PhoneConfirmationSession> {
-    const authInstance = getAuth();
-    const currentUser = authInstance.currentUser;
-    if (!currentUser) {
-      throw new Error('Sign in before verifying your phone number.');
-    }
-
-    const provider = new PhoneAuthProvider(authInstance);
-    // RN Firebase 26 accepts an ApplicationVerifier for JS SDK API parity; native manages verification directly
-    const verificationId = await provider.verifyPhoneNumber(phoneE164, {
-      type: 'recaptcha',
-      verify: async () => '',
-    });
-    return { verificationId };
+    const session = await coreRequestPhoneVerification(phoneE164);
+    return { authUid: session.authUid, verificationId: session.verificationId };
   }
 
   async confirmPhoneVerification(
     session: PhoneConfirmationSession,
     code: string,
   ): Promise<void> {
-    const authInstance = getAuth();
-    const currentUser = authInstance.currentUser;
-    if (!currentUser) {
-      throw new Error('Sign in before confirming verification code.');
-    }
-
-    const credential = PhoneAuthProvider.credential(session.verificationId, code);
-    await linkWithCredential(currentUser, credential);
-    await reload(currentUser);
-    await getIdToken(currentUser, true);
+    await coreConfirmPhoneVerification(
+      { authUid: session.authUid, verificationId: session.verificationId, phoneE164: '' },
+      code,
+    );
   }
 }
 

@@ -21,7 +21,11 @@ import { useAuth } from '@/core/auth/auth-context';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
-import type { LocalUploadedDocument } from '../domain/owner-application';
+import {
+  computeApplicationCompleteness,
+  isOwnerApplicationEditable,
+  type LocalUploadedDocument,
+} from '../domain/owner-application';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 
 export function OwnerSubmitScreen() {
@@ -71,9 +75,25 @@ export function OwnerSubmitScreen() {
     'government-identification.jpg';
 
   const hasValidDocument = Boolean(uploadId);
+  const completeness = computeApplicationCompleteness(
+    profile,
+    auth.user?.phoneNumber,
+    draftUpload,
+    Boolean(auth.user?.emailVerified),
+  );
+  const applicationIsEditable = isOwnerApplicationEditable(profile?.verificationStatus);
+  const canSubmit = applicationIsEditable && completeness.canSubmit && hasValidDocument;
 
   const handleSubmit = async () => {
     if (submitting || !auth.user?.uid || !uploadId) return;
+    if (!applicationIsEditable) {
+      setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
+      return;
+    }
+    if (!completeness.canSubmit) {
+      setErrorMessage('Complete every owner verification step before submitting your application.');
+      return;
+    }
     setSubmitting(true);
     setErrorMessage(null);
 
@@ -203,22 +223,34 @@ export function OwnerSubmitScreen() {
           </View>
         </View>
 
-        {/* Submit Button */}
-        <PressableScale
-          onPress={handleSubmit}
-          style={[{ marginTop: spacing.xl }, (!hasValidDocument || submitting) && { opacity: 0.5 }]}
-        >
-          <View style={styles.primaryButton}>
-            {submitting ? (
-              <ActivityIndicator color={colors.black} size="small" />
-            ) : (
-              <>
-                <Text style={styles.primaryText}>SUBMIT APPLICATION</Text>
-                <Ionicons color={colors.black} name="shield-checkmark-outline" size={18} />
-              </>
-            )}
+        {!applicationIsEditable ? (
+          <View style={styles.statusNotice}>
+            <Text style={styles.statusNoticeText}>
+              This application is no longer editable. Check your Owner Desk for its current status.
+            </Text>
+            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={{ marginTop: spacing.md }}>
+              <View style={styles.primaryButton}>
+                <Text style={styles.primaryText}>RETURN TO OWNER DESK</Text>
+              </View>
+            </PressableScale>
           </View>
-        </PressableScale>
+        ) : (
+          <PressableScale
+            onPress={handleSubmit}
+            style={[{ marginTop: spacing.xl }, (!canSubmit || submitting) && { opacity: 0.5 }]}
+          >
+            <View style={styles.primaryButton}>
+              {submitting ? (
+                <ActivityIndicator color={colors.black} size="small" />
+              ) : (
+                <>
+                  <Text style={styles.primaryText}>SUBMIT APPLICATION</Text>
+                  <Ionicons color={colors.black} name="shield-checkmark-outline" size={18} />
+                </>
+              )}
+            </View>
+          </PressableScale>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -236,6 +268,8 @@ const styles = StyleSheet.create({
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
   screen: { backgroundColor: colors.black, flex: 1 },
+  statusNotice: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginTop: spacing.xl, paddingBottom: spacing.lg },
+  statusNoticeText: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
   summaryCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm },
   summaryLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 13 },

@@ -9,12 +9,24 @@ import {
 import {
   computeApplicationCompleteness,
   getDeskPresentation,
+  getStepLockReason,
+  isOwnerApplicationEditable,
   isNigerianE164,
   normalizeNigerianPhone,
 } from './owner-application.js';
 import { ownerCommandErrorMessage } from './owner-errors.js';
 
 describe('owner application domain', () => {
+  it('allows edits only for draft and rejected owner applications', () => {
+    expect(isOwnerApplicationEditable(undefined)).toBe(true);
+    expect(isOwnerApplicationEditable('draft')).toBe(true);
+    expect(isOwnerApplicationEditable('rejected')).toBe(true);
+    expect(isOwnerApplicationEditable('submitted')).toBe(false);
+    expect(isOwnerApplicationEditable('under_review')).toBe(false);
+    expect(isOwnerApplicationEditable('approved')).toBe(false);
+    expect(isOwnerApplicationEditable('suspended')).toBe(false);
+  });
+
   describe('Nigerian phone validation and normalization', () => {
     it('validates Nigerian E.164 phone numbers', () => {
       expect(isNigerianE164('+2348012345678')).toBe(true);
@@ -61,21 +73,40 @@ describe('owner application domain', () => {
     };
 
     it('returns identity incomplete when profile is null', () => {
-      const completeness = computeApplicationCompleteness(null, null, null);
+      const completeness = computeApplicationCompleteness(null, null, null, true);
       expect(completeness.identityComplete).toBe(false);
       expect(completeness.canSubmit).toBe(false);
       expect(completeness.firstIncompleteStep).toBe('identity');
     });
 
+    it('fails closed while email verification is unknown', () => {
+      const completeness = computeApplicationCompleteness(
+        mockProfile,
+        '+2348012345678',
+        {
+          uploadId: 'upload-123',
+          documentKind: 'national_id',
+          originalFileName: 'nin.jpg',
+          contentType: 'image/jpeg',
+          byteSize: 1024,
+          uploadedAt: '2026-08-15T12:00:00.000Z',
+        },
+      );
+
+      expect(completeness.emailVerified).toBe(false);
+      expect(completeness.canSubmit).toBe(false);
+      expect(completeness.identityUnlocked).toBe(false);
+    });
+
     it('returns phone incomplete when profile is complete but phone is unverified', () => {
-      const completeness = computeApplicationCompleteness(mockProfile, null, null);
+      const completeness = computeApplicationCompleteness(mockProfile, null, null, true);
       expect(completeness.identityComplete).toBe(true);
       expect(completeness.phoneComplete).toBe(false);
       expect(completeness.firstIncompleteStep).toBe('phone');
     });
 
     it('returns id incomplete when profile and phone are verified but document is missing', () => {
-      const completeness = computeApplicationCompleteness(mockProfile, '+2348012345678', null);
+      const completeness = computeApplicationCompleteness(mockProfile, '+2348012345678', null, true);
       expect(completeness.identityComplete).toBe(true);
       expect(completeness.phoneComplete).toBe(true);
       expect(completeness.idUploaded).toBe(false);
@@ -90,9 +121,49 @@ describe('owner application domain', () => {
         contentType: 'image/jpeg',
         byteSize: 1024,
         uploadedAt: '2026-08-15T12:00:00.000Z',
-      });
+      }, true);
       expect(completeness.canSubmit).toBe(true);
       expect(completeness.firstIncompleteStep).toBe('submit');
+      expect(completeness.submitUnlocked).toBe(true);
+    });
+
+    it('enforces sequential prerequisite unlocking', () => {
+      // 1. Unverified email blocks all steps
+      const unverified = computeApplicationCompleteness(mockProfile, '+2348012345678', null, false);
+      expect(unverified.identityUnlocked).toBe(false);
+      expect(unverified.phoneUnlocked).toBe(false);
+      expect(unverified.idUnlocked).toBe(false);
+      expect(unverified.canSubmit).toBe(false);
+
+      // 2. Incomplete identity locks phone and ID
+      const noIdentity = computeApplicationCompleteness(null, null, null, true);
+      expect(noIdentity.identityUnlocked).toBe(true);
+      expect(noIdentity.phoneUnlocked).toBe(false);
+      expect(noIdentity.idUnlocked).toBe(false);
+
+      // 3. Complete identity unlocks phone, but ID remains locked until phone is verified
+      const unverifiedPhone = computeApplicationCompleteness(mockProfile, null, null, true);
+      expect(unverifiedPhone.identityUnlocked).toBe(true);
+      expect(unverifiedPhone.phoneUnlocked).toBe(true);
+      expect(unverifiedPhone.idUnlocked).toBe(false);
+
+      // 4. Complete identity + phone unlocks ID upload
+      const readyForId = computeApplicationCompleteness(mockProfile, '+2348012345678', null, true);
+      expect(readyForId.identityUnlocked).toBe(true);
+      expect(readyForId.phoneUnlocked).toBe(true);
+      expect(readyForId.idUnlocked).toBe(true);
+      expect(readyForId.submitUnlocked).toBe(false);
+    });
+
+    it('provides clear lock reasons for locked steps', () => {
+      const noIdentity = computeApplicationCompleteness(null, null, null, true);
+      expect(getStepLockReason('identity', noIdentity)).toBeNull();
+      expect(getStepLockReason('phone', noIdentity)).toBe('Complete owner identity first.');
+      expect(getStepLockReason('id', noIdentity)).toBe('Complete owner identity first.');
+
+      const unverifiedPhone = computeApplicationCompleteness(mockProfile, null, null, true);
+      expect(getStepLockReason('phone', unverifiedPhone)).toBeNull();
+      expect(getStepLockReason('id', unverifiedPhone)).toBe('Verify your Nigerian phone number first.');
     });
   });
 

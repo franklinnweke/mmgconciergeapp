@@ -16,11 +16,16 @@ export type LocalUploadedDocument = {
 export type OwnerApplicationStep = 'identity' | 'phone' | 'id' | 'submit';
 
 export type StepCompleteness = {
+  emailVerified: boolean;
   identityComplete: boolean;
   phoneComplete: boolean;
   idUploaded: boolean;
   canSubmit: boolean;
   firstIncompleteStep: OwnerApplicationStep | null;
+  identityUnlocked: boolean;
+  phoneUnlocked: boolean;
+  idUnlocked: boolean;
+  submitUnlocked: boolean;
 };
 
 export type DeskPresentation = {
@@ -35,6 +40,17 @@ export type DeskPresentation = {
   lastDecisionReason: string | null;
   showChecklist: boolean;
 };
+
+export function isOwnerApplicationEditable(
+  status: OwnerVerificationStatus | null | undefined,
+): boolean {
+  return !status || status === 'draft' || status === 'rejected';
+}
+
+type DeskCompleteness = Pick<
+  StepCompleteness,
+  'canSubmit' | 'firstIncompleteStep'
+> & Partial<Omit<StepCompleteness, 'canSubmit' | 'firstIncompleteStep'>>;
 
 export function isNigerianE164(phone: string | null | undefined): boolean {
   if (!phone) return false;
@@ -55,10 +71,48 @@ export function normalizeNigerianPhone(input: string): string | null {
   return null;
 }
 
+export function getStepLockReason(
+  step: OwnerApplicationStep,
+  completeness: StepCompleteness,
+): string | null {
+  switch (step) {
+    case 'identity':
+      if (!completeness.emailVerified) {
+        return 'Verify your email address before setting up owner identity.';
+      }
+      return null;
+    case 'phone':
+      if (!completeness.emailVerified) {
+        return 'Verify your email address before linking a phone number.';
+      }
+      if (!completeness.identityComplete) {
+        return 'Complete owner identity first.';
+      }
+      return null;
+    case 'id':
+      if (!completeness.emailVerified) {
+        return 'Verify your email address before uploading identification.';
+      }
+      if (!completeness.identityComplete) {
+        return 'Complete owner identity first.';
+      }
+      if (!completeness.phoneComplete) {
+        return 'Verify your Nigerian phone number first.';
+      }
+      return null;
+    case 'submit':
+      if (!completeness.canSubmit) {
+        return 'Complete all required steps before submitting.';
+      }
+      return null;
+  }
+}
+
 export function computeApplicationCompleteness(
   profile: OwnerVisibleProfile | null,
   userPhone: string | null | undefined,
   localUploadedDoc: LocalUploadedDocument | null,
+  emailVerified: boolean = false,
 ): StepCompleteness {
   const identityComplete = Boolean(
     profile?.legalName &&
@@ -76,7 +130,7 @@ export function computeApplicationCompleteness(
         profile.governmentId.status !== 'cleared'),
   );
 
-  const canSubmit = identityComplete && phoneComplete && idUploaded;
+  const canSubmit = emailVerified && identityComplete && phoneComplete && idUploaded;
 
   let firstIncompleteStep: OwnerApplicationStep | null = null;
   if (!identityComplete) {
@@ -89,18 +143,28 @@ export function computeApplicationCompleteness(
     firstIncompleteStep = 'submit';
   }
 
+  const identityUnlocked = emailVerified;
+  const phoneUnlocked = emailVerified && identityComplete;
+  const idUnlocked = emailVerified && identityComplete && phoneComplete;
+  const submitUnlocked = canSubmit;
+
   return {
+    emailVerified,
     identityComplete,
     phoneComplete,
     idUploaded,
     canSubmit,
     firstIncompleteStep,
+    identityUnlocked,
+    phoneUnlocked,
+    idUnlocked,
+    submitUnlocked,
   };
 }
 
 export function getDeskPresentation(
   status: OwnerVerificationStatus | null | undefined,
-  completeness: StepCompleteness,
+  completeness: DeskCompleteness,
   lastDecisionReason: string | null = null,
 ): DeskPresentation {
   const currentStatus: OwnerVerificationStatus = status || 'draft';

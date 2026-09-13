@@ -17,6 +17,7 @@ import { createOwnerVerificationRepository } from '../data/owner-verification-re
 import {
   computeApplicationCompleteness,
   getDeskPresentation,
+  getStepLockReason,
   type LocalUploadedDocument,
 } from '../domain/owner-application';
 
@@ -86,8 +87,13 @@ export function OwnerApplicationDeskScreen() {
   }, [auth.user?.uid, retryTrigger]);
 
   const completeness = useMemo(() => {
-    return computeApplicationCompleteness(profile, auth.user?.phoneNumber, draftUpload);
-  }, [profile, auth.user?.phoneNumber, draftUpload]);
+    return computeApplicationCompleteness(
+      profile,
+      auth.user?.phoneNumber,
+      draftUpload,
+      auth.user?.emailVerified ?? false,
+    );
+  }, [profile, auth.user?.phoneNumber, draftUpload, auth.user?.emailVerified]);
 
   const presentation = useMemo(() => {
     return getDeskPresentation(profile?.verificationStatus, completeness, profile?.lastDecisionReason);
@@ -162,76 +168,187 @@ export function OwnerApplicationDeskScreen() {
                 <View style={styles.steps}>
                   {/* Step 1: Owner Identity */}
                   <PressableScale
-                    onPress={() => router.push('/(owner)/identity' as Href)}
+                    accessibilityLabel={
+                      completeness.identityUnlocked
+                        ? 'Owner Identity'
+                        : `Owner Identity, locked. ${getStepLockReason('identity', completeness)}`
+                    }
+                    accessibilityState={{ disabled: !completeness.identityUnlocked }}
+                    disabled={!completeness.identityUnlocked}
+                    onPress={() => {
+                      if (completeness.identityUnlocked) {
+                        router.push('/(owner)/identity' as Href);
+                      }
+                    }}
                     style={styles.stepPressable}
                   >
-                    <View style={styles.stepRow}>
-                      <View style={[styles.stepIcon, completeness.identityComplete && styles.stepIconComplete]}>
+                    <View style={[styles.stepRow, !completeness.identityUnlocked && styles.stepRowLocked]}>
+                      <View
+                        style={[
+                          styles.stepIcon,
+                          completeness.identityComplete && styles.stepIconComplete,
+                          !completeness.identityUnlocked && styles.stepIconLocked,
+                        ]}
+                      >
                         <Ionicons
-                          color={completeness.identityComplete ? colors.black : colors.goldStrong}
-                          name={completeness.identityComplete ? 'checkmark' : 'person-outline'}
+                          color={
+                            completeness.identityComplete
+                              ? colors.black
+                              : !completeness.identityUnlocked
+                              ? colors.muted
+                              : colors.goldStrong
+                          }
+                          name={
+                            completeness.identityComplete
+                              ? 'checkmark'
+                              : !completeness.identityUnlocked
+                              ? 'lock-closed-outline'
+                              : 'person-outline'
+                          }
                           size={20}
                         />
                       </View>
                       <View style={styles.stepCopy}>
-                        <Text style={styles.stepTitle}>Owner Identity</Text>
+                        <Text style={[styles.stepTitle, !completeness.identityUnlocked && styles.stepTitleLocked]}>
+                          Owner Identity
+                        </Text>
                         <Text style={styles.stepDescription}>
                           {completeness.identityComplete
                             ? `${profile?.legalName} · ${profile?.address?.areaLabel}`
+                            : !completeness.identityUnlocked
+                            ? getStepLockReason('identity', completeness)
                             : 'Legal name, Lagos operating address, and platform terms.'}
                         </Text>
                       </View>
-                      <Ionicons color={colors.muted} name="chevron-forward" size={18} />
+                      <Ionicons
+                        color={colors.muted}
+                        name={completeness.identityUnlocked ? 'chevron-forward' : 'lock-closed'}
+                        size={completeness.identityUnlocked ? 18 : 16}
+                      />
                     </View>
                   </PressableScale>
 
                   {/* Step 2: Nigerian Phone */}
                   <PressableScale
-                    onPress={() => router.push('/(owner)/phone' as Href)}
+                    accessibilityLabel={
+                      completeness.phoneUnlocked
+                        ? 'Nigerian Phone Number'
+                        : `Nigerian Phone Number, locked. ${getStepLockReason('phone', completeness)}`
+                    }
+                    accessibilityState={{ disabled: !completeness.phoneUnlocked }}
+                    disabled={!completeness.phoneUnlocked}
+                    onPress={() => {
+                      if (completeness.phoneUnlocked) {
+                        router.push('/(owner)/phone' as Href);
+                      }
+                    }}
                     style={styles.stepPressable}
                   >
-                    <View style={styles.stepRow}>
-                      <View style={[styles.stepIcon, completeness.phoneComplete && styles.stepIconComplete]}>
+                    <View style={[styles.stepRow, !completeness.phoneUnlocked && styles.stepRowLocked]}>
+                      <View
+                        style={[
+                          styles.stepIcon,
+                          completeness.phoneComplete && styles.stepIconComplete,
+                          !completeness.phoneUnlocked && styles.stepIconLocked,
+                        ]}
+                      >
                         <Ionicons
-                          color={completeness.phoneComplete ? colors.black : colors.goldStrong}
-                          name={completeness.phoneComplete ? 'checkmark' : 'call-outline'}
+                          color={
+                            completeness.phoneComplete
+                              ? colors.black
+                              : !completeness.phoneUnlocked
+                              ? colors.muted
+                              : colors.goldStrong
+                          }
+                          name={
+                            completeness.phoneComplete
+                              ? 'checkmark'
+                              : !completeness.phoneUnlocked
+                              ? 'lock-closed-outline'
+                              : 'call-outline'
+                          }
                           size={20}
                         />
                       </View>
                       <View style={styles.stepCopy}>
-                        <Text style={styles.stepTitle}>Nigerian Phone Number</Text>
+                        <Text style={[styles.stepTitle, !completeness.phoneUnlocked && styles.stepTitleLocked]}>
+                          Nigerian Phone Number
+                        </Text>
                         <Text style={styles.stepDescription}>
                           {completeness.phoneComplete
                             ? `${auth.user?.phoneNumber} (Verified)`
+                            : !completeness.phoneUnlocked
+                            ? getStepLockReason('phone', completeness)
                             : 'Link an active Nigerian (+234) mobile phone.'}
                         </Text>
                       </View>
-                      <Ionicons color={colors.muted} name="chevron-forward" size={18} />
+                      <Ionicons
+                        color={colors.muted}
+                        name={completeness.phoneUnlocked ? 'chevron-forward' : 'lock-closed'}
+                        size={completeness.phoneUnlocked ? 18 : 16}
+                      />
                     </View>
                   </PressableScale>
 
                   {/* Step 3: Government ID */}
                   <PressableScale
-                    onPress={() => router.push('/(owner)/id' as Href)}
+                    accessibilityLabel={
+                      completeness.idUnlocked
+                        ? 'Government Identification'
+                        : `Government Identification, locked. ${getStepLockReason('id', completeness)}`
+                    }
+                    accessibilityState={{ disabled: !completeness.idUnlocked }}
+                    disabled={!completeness.idUnlocked}
+                    onPress={() => {
+                      if (completeness.idUnlocked) {
+                        router.push('/(owner)/id' as Href);
+                      }
+                    }}
                     style={styles.stepPressable}
                   >
-                    <View style={styles.stepRow}>
-                      <View style={[styles.stepIcon, completeness.idUploaded && styles.stepIconComplete]}>
+                    <View style={[styles.stepRow, !completeness.idUnlocked && styles.stepRowLocked]}>
+                      <View
+                        style={[
+                          styles.stepIcon,
+                          completeness.idUploaded && styles.stepIconComplete,
+                          !completeness.idUnlocked && styles.stepIconLocked,
+                        ]}
+                      >
                         <Ionicons
-                          color={completeness.idUploaded ? colors.black : colors.goldStrong}
-                          name={completeness.idUploaded ? 'checkmark' : 'shield-checkmark-outline'}
+                          color={
+                            completeness.idUploaded
+                              ? colors.black
+                              : !completeness.idUnlocked
+                              ? colors.muted
+                              : colors.goldStrong
+                          }
+                          name={
+                            completeness.idUploaded
+                              ? 'checkmark'
+                              : !completeness.idUnlocked
+                              ? 'lock-closed-outline'
+                              : 'shield-checkmark-outline'
+                          }
                           size={20}
                         />
                       </View>
                       <View style={styles.stepCopy}>
-                        <Text style={styles.stepTitle}>Government Identification</Text>
+                        <Text style={[styles.stepTitle, !completeness.idUnlocked && styles.stepTitleLocked]}>
+                          Government Identification
+                        </Text>
                         <Text style={styles.stepDescription}>
                           {completeness.idUploaded
                             ? 'Identification document uploaded privately'
+                            : !completeness.idUnlocked
+                            ? getStepLockReason('id', completeness)
                             : 'Photograph your NIN, Driver’s Licence, or Passport.'}
                         </Text>
                       </View>
-                      <Ionicons color={colors.muted} name="chevron-forward" size={18} />
+                      <Ionicons
+                        color={colors.muted}
+                        name={completeness.idUnlocked ? 'chevron-forward' : 'lock-closed'}
+                        size={completeness.idUnlocked ? 18 : 16}
+                      />
                     </View>
                   </PressableScale>
                 </View>
@@ -288,7 +405,10 @@ const styles = StyleSheet.create({
   stepIconComplete: { backgroundColor: colors.goldStrong, borderRadius: radii.pill, width: 28 },
   stepPressable: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },
   stepRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+  stepRowLocked: { opacity: 0.55 },
+  stepIconLocked: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radii.pill, width: 28 },
   stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginTop: 2 },
+  stepTitleLocked: { color: colors.silver },
   statusText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.xs },
   steps: { marginTop: spacing.lg },
   title: { color: colors.ivory, fontFamily: typography.display, fontSize: 32, letterSpacing: -0.6, lineHeight: 38, marginBottom: spacing.xs, marginTop: spacing.xxs },

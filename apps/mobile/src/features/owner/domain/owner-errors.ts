@@ -73,7 +73,7 @@ export function ownerCommandErrorMessage(error: unknown): string {
     return 'That phone number is already used by another account.';
   }
   if (errorCode === 'storage/unauthorized') {
-    return 'The document could not be stored. Try again.';
+    return 'Upload not permitted. Ensure your email is verified and your owner profile details are saved before uploading your ID.';
   }
   if (errorCode === 'auth/network-request-failed' || errorCode === 'network-request-failed') {
     return 'Check your connection and try again.';

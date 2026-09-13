@@ -17,9 +17,12 @@ import { useEffect } from 'react';
 
 import { AuthProvider } from '@/core/auth/auth-context';
 import { initializeNativeAppCheck } from '@/core/firebase/app-check';
+import { AppErrorBoundary, ErrorBoundary } from '@/components/error-boundary';
 import { BookingProvider } from '@/features/booking/booking-context';
 
 import 'react-native-reanimated';
+
+export { ErrorBoundary };
 
 void SplashScreen.preventAutoHideAsync();
 void initializeNativeAppCheck().catch(() => {
@@ -65,12 +68,14 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={mmgNavigationTheme}>
-      <AuthProvider>
-        <BookingProvider>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ contentStyle: { backgroundColor: colors.black }, headerShown: false }} />
-        </BookingProvider>
-      </AuthProvider>
+      <AppErrorBoundary>
+        <AuthProvider>
+          <BookingProvider>
+            <StatusBar style="light" />
+            <Stack screenOptions={{ contentStyle: { backgroundColor: colors.black }, headerShown: false }} />
+          </BookingProvider>
+        </AuthProvider>
+      </AppErrorBoundary>
     </ThemeProvider>
   );
 }
