@@ -32,4 +32,16 @@ describe('discovery callable security boundary', () => {
     expect(deploySource).toContain('searchVehicles');
     expect(deploySource).toContain("from './discovery/discovery-callables.js';");
   });
+
+  it('deploys provider-backed pickup search and resolution callables with App Check and secrets', () => {
+    const pickupCallablesSource = readFileSync(new URL('./pickup-place-callables.ts', import.meta.url), 'utf8');
+    expect(pickupCallablesSource).toContain('export const searchPickupPlaces = onCall');
+    expect(pickupCallablesSource).toContain('export const resolvePickupPlace = onCall');
+    expect(pickupCallablesSource).toMatch(/enforceAppCheck:\s*isProductionAppCheck\(\)/);
+    expect(pickupCallablesSource).toContain('secrets: [googlePlacesSecret]');
+    expect(pickupCallablesSource).toContain('requireAuthenticatedUser(request.auth)');
+    expect(deploySource).toContain('searchPickupPlaces');
+    expect(deploySource).toContain('resolvePickupPlace');
+    expect(deploySource).toContain("from './discovery/pickup-place-callables.js';");
+  });
 });

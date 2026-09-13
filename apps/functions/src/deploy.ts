@@ -6,6 +6,10 @@ export {
   searchVehicles,
 } from './discovery/discovery-callables.js';
 export {
+  resolvePickupPlace,
+  searchPickupPlaces,
+} from './discovery/pickup-place-callables.js';
+export {
   initializeBookingPayment,
   paystackWebhook,
   processPaystackPaymentEvent,

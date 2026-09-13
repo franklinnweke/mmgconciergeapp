@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  LAGOS_AREA_LABELS,
   dateOnlySchema,
   renterVisibleVehicleSchema,
   vehicleCategorySchema,
@@ -65,6 +66,40 @@ export const resolveSearchPlaceResultSchema = z.object({
   withinLagos: z.boolean(),
 }).strict();
 export type ResolveSearchPlaceResult = z.infer<typeof resolveSearchPlaceResultSchema>;
+
+export const searchPickupPlacesDataSchema = z.object({
+  query: z.string().trim().min(1).max(200),
+  sessionToken: z.string().trim().min(1).max(128).optional(),
+}).strict();
+export type SearchPickupPlacesData = z.infer<typeof searchPickupPlacesDataSchema>;
+
+export const pickupPlaceSuggestionSchema = z.object({
+  placeId: z.string().min(1).max(200),
+  primaryText: z.string().min(1).max(200),
+  secondaryText: z.string().max(300).optional(),
+}).strict();
+export type PickupPlaceSuggestion = z.infer<typeof pickupPlaceSuggestionSchema>;
+
+export const searchPickupPlacesResultSchema = z.object({
+  suggestions: z.array(pickupPlaceSuggestionSchema).max(20),
+}).strict();
+export type SearchPickupPlacesResult = z.infer<typeof searchPickupPlacesResultSchema>;
+
+export const resolvePickupPlaceDataSchema = z.object({
+  placeId: z.string().trim().min(1).max(200),
+  sessionToken: z.string().trim().min(1).max(128).optional(),
+}).strict();
+export type ResolvePickupPlaceData = z.infer<typeof resolvePickupPlaceDataSchema>;
+
+export const resolvePickupPlaceResultSchema = z.object({
+  placeId: z.string().min(1).max(200),
+  displayName: z.string().min(1).max(200),
+  formattedAddress: z.string().min(1).max(300),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  serviceAreaLabel: z.enum(LAGOS_AREA_LABELS),
+}).strict();
+export type ResolvePickupPlaceResult = z.infer<typeof resolvePickupPlaceResultSchema>;
 
 export function discoveryVehicleToSummary(
   vehicle: DiscoveryVehicle,

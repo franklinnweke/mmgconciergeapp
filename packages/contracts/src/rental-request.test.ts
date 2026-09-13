@@ -73,10 +73,22 @@ describe('rental-request contract schemas', () => {
     }
   });
 
-  it('allows createRentalRequestDataSchema without pickupLocation for backward compatibility', () => {
+  it('rejects createRentalRequestDataSchema without pickupLocation on new requests', () => {
     const { pickupLocation: _, ...legacyData } = validData;
     const parsed = createRentalRequestDataSchema.safeParse(legacyData);
+    expect(parsed.success).toBe(false);
+  });
+
+  it('validates pickupLocationSnapshotSchema with optional entrance note', () => {
+    const pickupWithNote = {
+      ...validPickup,
+      note: 'Gate 2, Visitor Reception',
+    };
+    const parsed = pickupLocationSnapshotSchema.safeParse(pickupWithNote);
     expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.note).toBe('Gate 2, Visitor Reception');
+    }
   });
 
   it('exports approximate LAGOS_SERVICE_ENVELOPE bounds', () => {

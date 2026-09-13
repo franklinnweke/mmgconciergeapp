@@ -1,4 +1,8 @@
-import { haversineDistanceKm, isWithinLagosBBox } from '@mmg/domain';
+import {
+  deriveLagosAreaLabelFromCoordinates,
+  isWithinLagosBBox,
+  LAGOS_AREA_CENTROIDS,
+} from '@mmg/domain';
 import { LAGOS_AREA_LABELS, type LagosAreaLabel } from '@mmg/contracts';
 
 export type PickupLocationSource = 'current_location' | 'place_search' | 'suggested' | 'saved';
@@ -11,22 +15,10 @@ export type PickupLocation = {
   longitude: number;
   placeId?: string;
   serviceAreaLabel: LagosAreaLabel;
+  note?: string;
 };
 
-export const LAGOS_AREA_CENTROIDS: Record<LagosAreaLabel, { lat: number; lng: number }> = {
-  Ikoyi: { lat: 6.4531, lng: 3.4334 },
-  'Victoria Island': { lat: 6.4281, lng: 3.4219 },
-  'Banana Island': { lat: 6.4632, lng: 3.4477 },
-  'Lekki Phase 1': { lat: 6.4474, lng: 3.4738 },
-  Lekki: { lat: 6.4698, lng: 3.5852 },
-  Oniru: { lat: 6.4342, lng: 3.4435 },
-  Ikeja: { lat: 6.5944, lng: 3.3542 },
-  Maryland: { lat: 6.5721, lng: 3.3667 },
-  Ajah: { lat: 6.4674, lng: 3.5684 },
-  Yaba: { lat: 6.5095, lng: 3.3792 },
-  Surulere: { lat: 6.4975, lng: 3.3567 },
-  'Lagos Island': { lat: 6.4549, lng: 3.3886 },
-};
+export { LAGOS_AREA_CENTROIDS };
 
 export const CURATED_PICKUP_LOCATIONS: readonly PickupLocation[] = [
   {
@@ -115,19 +107,7 @@ export function deriveLagosAreaLabel(
   input: string | { lat: number; lng: number },
 ): LagosAreaLabel | null {
   if (typeof input === 'object' && input !== null) {
-    if (!isWithinLagosBBox(input.lat, input.lng)) {
-      return null;
-    }
-    let closestArea: LagosAreaLabel | null = null;
-    let minDistance = Number.POSITIVE_INFINITY;
-    for (const [area, centroid] of Object.entries(LAGOS_AREA_CENTROIDS) as [LagosAreaLabel, { lat: number; lng: number }][]) {
-      const dist = haversineDistanceKm(input.lat, input.lng, centroid.lat, centroid.lng);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestArea = area;
-      }
-    }
-    return closestArea;
+    return deriveLagosAreaLabelFromCoordinates(input.lat, input.lng) as LagosAreaLabel | null;
   }
 
   const lower = String(input).toLowerCase().trim();
@@ -220,6 +200,7 @@ export function serializePickupLocation(pickup: PickupLocation): string {
     lat: pickup.latitude,
     lng: pickup.longitude,
     ...(pickup.placeId ? { p: pickup.placeId } : {}),
+    ...(pickup.note ? { n: pickup.note } : {}),
   });
 }
 
@@ -240,6 +221,7 @@ export function parsePickupLocation(value?: string | string[] | null): PickupLoc
       const latitude = typeof raw.lat === 'number' ? raw.lat : raw.latitude;
       const longitude = typeof raw.lng === 'number' ? raw.lng : raw.longitude;
       const source: PickupLocationSource = raw.src ?? raw.source ?? 'place_search';
+      const note = raw.n ?? raw.note;
 
       if (
         displayName &&
@@ -257,6 +239,7 @@ export function parsePickupLocation(value?: string | string[] | null): PickupLoc
           latitude,
           longitude,
           placeId: raw.p ?? raw.placeId,
+          ...(note ? { note: String(note) } : {}),
         };
       }
     }

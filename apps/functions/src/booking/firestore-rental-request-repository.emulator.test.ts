@@ -4,6 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { BookingCommandError } from './errors.js';
 import { FirestoreRentalRequestRepository } from './firestore-rental-request-repository.js';
+import { FirestoreOwnerRentalRequestQuery } from './owner-rental-request-query.js';
+import { FirestoreRenterRentalRequestQuery } from './renter-rental-request-query.js';
 import {
   approveRentalRequest,
   createRentalRequest,
@@ -44,7 +46,7 @@ async function clearDatabase(database: Firestore) {
   }
 }
 
-function requestCommand(key: string, startDate = '2026-09-20', endDate = '2026-09-22') {
+function requestCommand(key: string, startDate = '2026-09-20', endDate = '2026-09-22', pickupLocation?: any) {
   return {
     schemaVersion: 1 as const,
     idempotencyKey: key,
@@ -54,6 +56,14 @@ function requestCommand(key: string, startDate = '2026-09-20', endDate = '2026-0
       endDate,
       contactPhone: '+2348012345678',
       serviceAreaLabel: 'Victoria Island' as const,
+      pickupLocation: pickupLocation ?? {
+        displayName: 'Eko Hotel & Suites',
+        formattedAddress: 'Plot 1415 Adetokunbo Ademola St, Victoria Island, Lagos',
+        latitude: 6.4269,
+        longitude: 3.4285,
+        placeId: 'loc-eko-hotel',
+        serviceAreaLabel: 'Victoria Island' as const,
+      },
     },
   };
 }
@@ -305,5 +315,90 @@ describeWithEmulator('request-first rental request Firestore transactions', () =
 
     expect((await database.collection('bookingBlocks').get()).empty).toBe(true);
     expect((await database.doc('rentalRequests/request-no-sentinel').get()).data()?.state).toBe('approved');
+  });
+
+  it('rejects new request without pickupLocation or with coordinates outside Lagos', async () => {
+    // Missing pickupLocation
+    const missingPickup = requestCommand('create-missing-pickup-0001');
+    delete (missingPickup.data as any).pickupLocation;
+    await expect(
+      createRentalRequest(missingPickup, 'renter-one', {
+        repository,
+        createId: () => 'req-no-pickup',
+        createRequestId: () => 'cmd-no-pickup',
+        now: () => new Date('2026-09-09T12:00:00.000Z'),
+      }),
+    ).rejects.toMatchObject<Partial<BookingCommandError>>({ code: 'INVALID_ARGUMENT' });
+
+    // Coordinates outside Lagos (Abuja)
+    const abujaPickup = requestCommand('create-abuja-pickup-0001', '2026-09-20', '2026-09-22', {
+      displayName: 'Transcorp Hilton Abuja',
+      formattedAddress: '1 Aguiyi Ironsi St, Maitama, Abuja',
+      latitude: 9.0765,
+      longitude: 7.3986,
+      serviceAreaLabel: 'Victoria Island' as const,
+    });
+    await expect(
+      createRentalRequest(abujaPickup, 'renter-one', {
+        repository,
+        createId: () => 'req-abuja',
+        createRequestId: () => 'cmd-abuja',
+        now: () => new Date('2026-09-09T12:00:00.000Z'),
+      }),
+    ).rejects.toMatchObject<Partial<BookingCommandError>>({ code: 'INVALID_ARGUMENT' });
+  });
+
+  it('enforces server authority over serviceAreaLabel and preserves privacy boundaries', async () => {
+    // Client claims 'Ikoyi', but coordinates are Eko Hotel in Victoria Island (6.4269, 3.4285)
+    // Server must derive 'Victoria Island' authoritatively
+    const command = requestCommand('create-authority-0001', '2026-09-20', '2026-09-22', {
+      displayName: 'Eko Hotel',
+      formattedAddress: 'Victoria Island, Lagos',
+      latitude: 6.4269,
+      longitude: 3.4285,
+      serviceAreaLabel: 'Victoria Island' as const,
+      note: 'Gate 2 lobby entrance',
+    });
+
+    const created = await createRentalRequest(command, 'renter-authority', {
+      repository,
+      createId: () => 'req-authority-1',
+      createRequestId: () => 'cmd-authority-1',
+      now: () => new Date('2026-09-09T12:00:00.000Z'),
+    });
+
+    expect(created.result.serviceAreaLabel).toBe('Victoria Island');
+    expect(created.result.pickupLocation?.serviceAreaLabel).toBe('Victoria Island');
+    expect(created.result.pickupLocation?.note).toBe('Gate 2 lobby entrance');
+
+    // Verify stored records
+    const storedDoc = (await database.doc('rentalRequests/req-authority-1').get()).data();
+    expect(storedDoc?.serviceAreaLabel).toBe('Victoria Island');
+    expect(storedDoc?.pickupLocation?.serviceAreaLabel).toBe('Victoria Island');
+    expect(storedDoc?.pickupLocation?.note).toBe('Gate 2 lobby entrance');
+
+    // Verify owner projection: NEVER contains pickupLocation or exact coordinates
+    const ownerQuery = new FirestoreOwnerRentalRequestQuery(database);
+    const ownerRequests = await ownerQuery.list('owner-one');
+    const ownerReq = ownerRequests.requests.find((r) => r.requestId === 'req-authority-1');
+    expect(ownerReq).toBeDefined();
+    expect((ownerReq as any).pickupLocation).toBeUndefined();
+    expect((ownerReq as any).latitude).toBeUndefined();
+    expect((ownerReq as any).longitude).toBeUndefined();
+    expect(ownerReq?.serviceAreaLabel).toBe('Victoria Island');
+
+    // Verify renter projection: DOES retain exact validated pickupLocation
+    const renterQuery = new FirestoreRenterRentalRequestQuery(database);
+    const renterRequests = await renterQuery.list('renter-authority');
+    const renterReq = renterRequests.requests.find((r) => r.requestId === 'req-authority-1');
+    expect(renterReq).toBeDefined();
+    expect(renterReq?.pickupLocation).toEqual({
+      displayName: 'Eko Hotel',
+      formattedAddress: 'Victoria Island, Lagos',
+      latitude: 6.4269,
+      longitude: 3.4285,
+      serviceAreaLabel: 'Victoria Island',
+      note: 'Gate 2 lobby entrance',
+    });
   });
 });

@@ -20,7 +20,9 @@ import { resolveRentalJourney } from '@/features/discovery/data/rental-journey';
 import {
   isPickupLocationServiceable,
   parsePickupLocation,
+  type PickupLocation,
 } from '@/features/discovery/domain/pickup-location';
+import { PickupLocationSheet } from '@/features/discovery/components/pickup-location-sheet';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 import type { CreateRentalRequestData } from '@mmg/contracts/rental-request';
 
@@ -63,7 +65,10 @@ export default function BookingReviewScreen({
   );
   const submissionKey = useRef(new RentalRequestSubmissionKey());
   const journey = useMemo(() => resolveRentalJourney(startDate, endDate), [endDate, startDate]);
-  const pickupLocation = useMemo(() => parsePickupLocation(pickup), [pickup]);
+  const initialPickupLocation = useMemo(() => parsePickupLocation(pickup), [pickup]);
+  const [overridePickupLocation, setOverridePickupLocation] = useState<PickupLocation | null | undefined>(undefined);
+  const pickupLocation = overridePickupLocation !== undefined ? overridePickupLocation : initialPickupLocation;
+  const [sheetVisible, setSheetVisible] = useState(false);
   const isServiceable = useMemo(
     () => (pickupLocation ? isPickupLocationServiceable(pickupLocation) : false),
     [pickupLocation],
@@ -78,12 +83,11 @@ export default function BookingReviewScreen({
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const serviceArea: LagosAreaLabel = useMemo(() => {
+  const serviceArea: LagosAreaLabel | null = useMemo(() => {
     if (pickupLocation) {
       return pickupLocation.serviceAreaLabel;
     }
-    const fromVehicle = resolveServiceAreaLabel(vehicle?.areaLabel);
-    return fromVehicle ?? 'Victoria Island';
+    return resolveServiceAreaLabel(vehicle?.areaLabel);
   }, [pickupLocation, vehicle?.areaLabel]);
 
   const retryFetch = useCallback(() => {
@@ -122,7 +126,7 @@ export default function BookingReviewScreen({
   const needsProfile = !profile || profile.accountStatus !== 'active';
 
   const handleSubmitRequest = async () => {
-    if (!pickupLocation || !isServiceable) {
+    if (!pickupLocation || !isServiceable || !serviceArea) {
       setErrorMessage(
         pickupLocation
           ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
@@ -168,6 +172,7 @@ export default function BookingReviewScreen({
           longitude: pickupLocation.longitude,
           ...(pickupLocation.placeId ? { placeId: pickupLocation.placeId } : {}),
           serviceAreaLabel: pickupLocation.serviceAreaLabel,
+          ...(pickupLocation.note ? { note: pickupLocation.note } : {}),
         },
       };
       const result = await requestGateway.createRequest(
@@ -186,13 +191,11 @@ export default function BookingReviewScreen({
 
   if (loading) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
-        <View style={styles.headerInset}>
-          <ScreenHeader onBack={() => router.back()} title="Request this car" />
-        </View>
+      <View style={[styles.stateScreen, { paddingTop: insets.top }]}>
+        <ScreenHeader onBack={() => router.back()} title="Review request" />
         <View style={styles.stateCenter}>
           <ActivityIndicator color={colors.goldStrong} size="large" />
-          <Text style={styles.stateText}>Loading request details…</Text>
+          <Text style={styles.stateText}>Preparing your quote…</Text>
         </View>
       </View>
     );
@@ -200,16 +203,15 @@ export default function BookingReviewScreen({
 
   if (fetchError || !vehicle || !quote) {
     return (
-      <View style={[styles.stateScreen, { paddingTop: insets.top + spacing.sm }]}>
-        <ScreenHeader onBack={() => router.back()} title="Request this car" />
+      <View style={[styles.stateScreen, { paddingTop: insets.top }]}>
+        <ScreenHeader onBack={() => router.back()} title="Review request" />
         <View style={styles.stateCenter}>
-          <Ionicons color={fetchError ? colors.danger : colors.muted} name={fetchError ? 'cloud-offline-outline' : 'car-outline'} size={34} />
-          <Text style={styles.stateTitle}>{fetchError ? 'Could not load quote' : 'Vehicle unavailable'}</Text>
-          <Text style={styles.stateText}>{fetchError ?? 'Return to the fleet and choose another vehicle.'}</Text>
-          <PressableScale accessibilityRole="button" haptic onPress={fetchError ? retryFetch : () => router.back()}>
-            <View style={styles.stateButton}>
-              <Text style={styles.stateButtonText}>{fetchError ? 'Try again' : 'Back to cars'}</Text>
-            </View>
+          <Text style={styles.stateTitle}>Quote unavailable</Text>
+          <Text style={styles.stateText}>
+            {fetchError ?? 'Unable to load vehicle details. Please try again.'}
+          </Text>
+          <PressableScale accessibilityLabel="Retry loading quote" accessibilityRole="button" onPress={retryFetch} style={styles.stateButton}>
+            <Text style={styles.stateButtonText}>Try again</Text>
           </PressableScale>
         </View>
       </View>
@@ -217,13 +219,16 @@ export default function BookingReviewScreen({
   }
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={styles.headerInset}>
+        <ScreenHeader onBack={() => router.back()} title="Review request" />
+      </View>
+
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.xl }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader onBack={() => router.back()} title="Request this car" />
-
         <View style={styles.vehicleRow}>
           <Image
             accessibilityLabel={vehicle.displayName}
@@ -249,15 +254,34 @@ export default function BookingReviewScreen({
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery location</Text>
-          <View style={styles.deliveryCard}>
+          <PressableScale
+            accessibilityHint="Change delivery location"
+            accessibilityLabel={`Delivery location: ${pickupLocation?.displayName ?? 'None selected'}. Tap to change.`}
+            accessibilityRole="button"
+            onPress={() => setSheetVisible(true)}
+            style={styles.deliveryCard}
+          >
             <View style={styles.deliveryIcon}>
               <Ionicons color={colors.goldStrong} name="location-outline" size={20} />
             </View>
             <View style={styles.deliveryCopy}>
-              <Text style={styles.deliveryTitle}>{pickupLocation?.displayName ?? 'Lagos Pickup Location'}</Text>
-              <Text style={styles.deliveryAddress}>{pickupLocation?.formattedAddress ?? 'Lagos, Nigeria'}</Text>
+              <Text style={styles.deliveryTitle}>
+                {pickupLocation ? pickupLocation.displayName : 'Choose delivery location'}
+              </Text>
+              <Text style={styles.deliveryAddress}>
+                {pickupLocation
+                  ? pickupLocation.formattedAddress
+                  : 'Tap to select where we should bring the car in Lagos'}
+              </Text>
+              {pickupLocation?.note ? (
+                <Text style={styles.deliveryNote}>Note: {pickupLocation.note}</Text>
+              ) : null}
             </View>
-          </View>
+            <View style={styles.deliveryChangeAction}>
+              <Text style={styles.deliveryChangeText}>{pickupLocation ? 'Change' : 'Select'}</Text>
+              <Ionicons color={colors.goldStrong} name="chevron-forward" size={14} />
+            </View>
+          </PressableScale>
           {!isServiceable ? (
             <View style={styles.warningRow}>
               <Ionicons color={colors.danger} name="alert-circle" size={16} />
@@ -335,6 +359,13 @@ export default function BookingReviewScreen({
           </View>
         </PressableScale>
       </ScrollView>
+
+      <PickupLocationSheet
+        onClose={() => setSheetVisible(false)}
+        onSelectLocation={setOverridePickupLocation}
+        selectedLocation={pickupLocation}
+        visible={sheetVisible}
+      />
     </View>
   );
 }
@@ -372,6 +403,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
   },
+  deliveryChangeAction: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 2,
+  },
+  deliveryChangeText: {
+    color: colors.goldStrong,
+    fontFamily: typography.bodyMedium,
+    fontSize: 12,
+  },
   deliveryCopy: { flex: 1, gap: 2 },
   deliveryIcon: {
     alignItems: 'center',
@@ -382,6 +423,13 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     width: 40,
+  },
+  deliveryNote: {
+    color: colors.silver,
+    fontFamily: typography.body,
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   deliveryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
   disabled: { opacity: 0.6 },

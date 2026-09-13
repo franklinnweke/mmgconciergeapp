@@ -536,6 +536,46 @@ export function isWithinLagosBBox(
   );
 }
 
+export const LAGOS_AREA_CENTROIDS = {
+  Ikoyi: { lat: 6.4531, lng: 3.4334 },
+  'Victoria Island': { lat: 6.4281, lng: 3.4219 },
+  'Banana Island': { lat: 6.4632, lng: 3.4477 },
+  'Lekki Phase 1': { lat: 6.4474, lng: 3.4738 },
+  Lekki: { lat: 6.4698, lng: 3.5852 },
+  Oniru: { lat: 6.4342, lng: 3.4435 },
+  Ikeja: { lat: 6.5944, lng: 3.3542 },
+  Maryland: { lat: 6.5721, lng: 3.3667 },
+  Ajah: { lat: 6.4674, lng: 3.5684 },
+  Yaba: { lat: 6.5095, lng: 3.3792 },
+  Surulere: { lat: 6.4975, lng: 3.3567 },
+  'Lagos Island': { lat: 6.4549, lng: 3.3886 },
+} as const;
+
+export type LagosDomainAreaLabel = keyof typeof LAGOS_AREA_CENTROIDS;
+
+/**
+ * Derives the canonical LagosAreaLabel from geographic coordinates.
+ * Returns null if the coordinates are outside the Lagos operational service envelope.
+ */
+export function deriveLagosAreaLabelFromCoordinates(
+  lat: number,
+  lng: number,
+): LagosDomainAreaLabel | null {
+  if (!isWithinLagosBBox(lat, lng)) {
+    return null;
+  }
+  let closestArea: LagosDomainAreaLabel | null = null;
+  let minDistance = Number.POSITIVE_INFINITY;
+  for (const [area, centroid] of Object.entries(LAGOS_AREA_CENTROIDS) as [LagosDomainAreaLabel, { lat: number; lng: number }][]) {
+    const dist = haversineDistanceKm(lat, lng, centroid.lat, centroid.lng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestArea = area;
+    }
+  }
+  return closestArea;
+}
+
 export type DiscoveryRankingInput = {
   distanceKm: number;
   dailyRateKobo: number;

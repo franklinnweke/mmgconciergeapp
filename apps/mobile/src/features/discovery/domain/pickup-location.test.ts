@@ -110,6 +110,7 @@ describe('PickupLocation domain model', () => {
       serviceAreaLabel: 'Ikoyi',
       latitude: 6.45,
       longitude: 3.44,
+      note: 'Gate 3, North Lobby',
     };
 
     const serialized = serializePickupLocation(loc);
@@ -122,6 +123,7 @@ describe('PickupLocation domain model', () => {
     expect(parsed?.latitude).toBe(loc.latitude);
     expect(parsed?.longitude).toBe(loc.longitude);
     expect(parsed?.source).toBe('place_search');
+    expect(parsed?.note).toBe('Gate 3, North Lobby');
   });
 
   it('fails closed on missing or invalid pickup location parameters', () => {

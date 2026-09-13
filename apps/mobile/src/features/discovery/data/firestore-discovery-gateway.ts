@@ -2,11 +2,17 @@ import { DiscoveryGateway, type VehicleSearchCriteria, type VehicleSummary } fro
 import {
   discoveryVehicleToSummary,
   getVehicleDetailsResultSchema,
+  resolvePickupPlaceDataSchema,
+  resolvePickupPlaceResultSchema,
   resolveSearchPlaceDataSchema,
   resolveSearchPlaceResultSchema,
+  searchPickupPlacesDataSchema,
+  searchPickupPlacesResultSchema,
   searchVehiclesDataSchema,
   searchVehiclesResultSchema,
+  type ResolvePickupPlaceResult,
   type ResolveSearchPlaceResult,
+  type SearchPickupPlacesResult,
 } from '@mmg/contracts/discovery';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 
@@ -78,6 +84,28 @@ export class NativeFirestoreDiscoveryGateway implements DiscoveryGateway {
       resolveSearchPlaceResultSchema,
       response.data,
       'resolveSearchPlace',
+    );
+  }
+
+  async searchPickupPlaces(data: { query: string; sessionToken?: string }): Promise<SearchPickupPlacesResult> {
+    const validated = searchPickupPlacesDataSchema.parse(data);
+    const callable = httpsCallable(this.functions, 'searchPickupPlaces');
+    const response = await callable(validated);
+    return parseCallableResult(
+      searchPickupPlacesResultSchema,
+      response.data,
+      'searchPickupPlaces',
+    );
+  }
+
+  async resolvePickupPlace(data: { placeId: string; sessionToken?: string }): Promise<ResolvePickupPlaceResult> {
+    const validated = resolvePickupPlaceDataSchema.parse(data);
+    const callable = httpsCallable(this.functions, 'resolvePickupPlace');
+    const response = await callable(validated);
+    return parseCallableResult(
+      resolvePickupPlaceResultSchema,
+      response.data,
+      'resolvePickupPlace',
     );
   }
 }

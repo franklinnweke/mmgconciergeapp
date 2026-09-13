@@ -1,4 +1,5 @@
 import { DiscoveryGateway, VehicleSearchCriteria, VehicleSummary } from '@mmg/contracts';
+import { CURATED_PICKUP_LOCATIONS } from '../domain/pickup-location';
 
 const vehicles = [
   {
@@ -115,13 +116,46 @@ export const previewDiscoveryGateway: DiscoveryGateway = {
         withinLagos: true,
       };
     }
+    if (q.includes('eko') || q.includes('victoria island') || q.includes('vi')) {
+      return {
+        placeId: 'preview-vi',
+        areaLabel: 'Victoria Island',
+        displayName: 'Eko Hotel & Suites, Victoria Island, Lagos',
+        approxLatitude: 6.4269,
+        approxLongitude: 3.4285,
+        withinLagos: true,
+      };
+    }
+    throw new Error(`Location '${query}' not found in Lagos.`);
+  },
+  async searchPickupPlaces(input: { query: string; sessionToken?: string }) {
+    const q = input.query.trim().toLowerCase();
+    const matches = CURATED_PICKUP_LOCATIONS.filter(
+      (loc) =>
+        loc.displayName.toLowerCase().includes(q) ||
+        loc.formattedAddress.toLowerCase().includes(q) ||
+        loc.serviceAreaLabel.toLowerCase().includes(q),
+    );
     return {
-      placeId: 'preview-vi',
-      areaLabel: 'Victoria Island',
-      displayName: 'Eko Hotel & Suites, Victoria Island, Lagos',
-      approxLatitude: 6.4269,
-      approxLongitude: 3.4285,
-      withinLagos: true,
+      suggestions: matches.map((m) => ({
+        placeId: m.placeId ?? `preview-${m.displayName.toLowerCase().replace(/\s+/g, '-')}`,
+        primaryText: m.displayName,
+        secondaryText: m.formattedAddress,
+      })),
     };
+  },
+  async resolvePickupPlace(input: { placeId: string; sessionToken?: string }) {
+    const curated = CURATED_PICKUP_LOCATIONS.find((loc) => loc.placeId === input.placeId);
+    if (curated) {
+      return {
+        placeId: curated.placeId ?? input.placeId,
+        displayName: curated.displayName,
+        formattedAddress: curated.formattedAddress,
+        latitude: curated.latitude,
+        longitude: curated.longitude,
+        serviceAreaLabel: curated.serviceAreaLabel,
+      };
+    }
+    throw new Error('Pickup location could not be resolved.');
   },
 };
