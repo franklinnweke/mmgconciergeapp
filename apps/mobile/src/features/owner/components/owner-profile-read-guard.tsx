@@ -44,9 +44,10 @@ export function OwnerProfileReadGuard({ children }: OwnerProfileReadGuardProps) 
     };
   }, [ownerId, retryKey]);
 
-  const readState =
-    !ownerId || readResult?.ownerId === ownerId
-      ? (readResult?.state ?? (ownerId ? 'loading' : 'error'))
+  const readState = !ownerId
+    ? 'error'
+    : readResult?.ownerId === ownerId
+      ? readResult.state
       : 'loading';
 
   const handleRetry = () => {
