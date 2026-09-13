@@ -362,8 +362,11 @@ Merge sequence:
 
 Validated native MapView pickup pin, arrival perimeter bounding, and dev deployment source checkpoint:
 
+`8333c38746febf582614a066202b297cd7ebed1b`
+
 Merge sequence:
 - PR #58 (`feat(discovery): native MapView, arrival perimeter bounding, and dev deployment`) merged into `main`.
+- Post-merge CI (`34736350429`) passed green across all jobs (Firebase Rules in 1m59s, Functions Emulator in 2m20s, Quality in 3m25s, Gate in 3s).
 
 Current state:
 - Request-first architecture: merged to `main`
