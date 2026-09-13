@@ -336,6 +336,14 @@ Merge sequence:
 - PR #54 (`fix(renter): resolve deletion transaction ordering, service envelope, hydration race, and trip presentation`) merged into `main`.
 - Post-merge CI (`34691109986`) passed green across all jobs (Firebase Rules in 1m27s, Functions Emulator in 2m10s, Quality in 2m32s, Gate in 3s).
 
+Validated real provider-backed pickup search and server authority source checkpoint merged to `main`:
+
+`1c8f1263281c5bd6e1ff1e764ec8d2d1fb87ae55`
+
+Merge sequence:
+- PR #55 (`feat(discovery): real provider-backed pickup search and server authority (WP1A.2)`) merged into `main`.
+- Post-merge CI (`34732098816`) passed green across all jobs (Firebase Rules in 1m27s, Functions Emulator in 1m44s, Quality in 3m3s, Gate in 4s).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -345,6 +353,7 @@ Current state:
 - Mobile truthfulness & fake data/dead action subtraction (WP1B): merged to `main`
 - Mobile coordinate-first pickup location model (WP1A.1): merged to `main`
 - Pickup correctness, privacy deletion, and service boundary enforcement: merged to `main`
+- Real provider-backed pickup search & server authority (WP1A.2: Google Places API (New) two-step backend with session tokens and Lagos bounding box restriction, mandatory server-authoritative pickup validation and derived service area on rental requests, operational coordinates and address in rentalRequests and private rentalRequestContacts, zero exposed coordinates in owner projection, zero Victoria Island/Eko Hotel fallbacks, interactive delivery card, pickup confirmation step with optional entrance note): merged to `main`
 - Renter commercial journey subtraction (WP2: Home, Browse, Vehicle Detail, Booking Review): merged to `main`
 - Trip and request state simplification (WP3: human vocabulary, Trips list, Trip Detail subtractions, real actions only): merged to `main`
 - Renter correctness & privacy transaction ordering (WP3 refinements: upfront reads, targeted idempotency, envelope unification, hydration race, no name gating, truthful terminal states): merged to `main`
