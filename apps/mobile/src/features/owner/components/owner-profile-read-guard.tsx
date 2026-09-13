@@ -12,31 +12,29 @@ type OwnerProfileReadGuardProps = {
   children: ReactNode;
 };
 
-type ReadState = 'loading' | 'ready' | 'error';
+type ReadResult = {
+  ownerId: string;
+  state: 'ready' | 'error';
+};
 
 export function OwnerProfileReadGuard({ children }: OwnerProfileReadGuardProps) {
   const { user } = useAuth();
   const router = useRouter();
+  const ownerId = user?.uid ?? null;
   const [retryKey, setRetryKey] = useState(0);
-  const [readState, setReadState] = useState<ReadState>(user?.uid ? 'loading' : 'error');
+  const [readResult, setReadResult] = useState<ReadResult | null>(null);
 
   useEffect(() => {
-    const ownerId = user?.uid;
-    if (!ownerId) {
-      setReadState('error');
-      return;
-    }
+    if (!ownerId) return;
 
     let active = true;
-    setReadState('loading');
-
     const unsubscribe = createOwnerVerificationRepository().subscribe(
       ownerId,
       () => {
-        if (active) setReadState('ready');
+        if (active) setReadResult({ ownerId, state: 'ready' });
       },
       () => {
-        if (active) setReadState('error');
+        if (active) setReadResult({ ownerId, state: 'error' });
       },
     );
 
@@ -44,7 +42,17 @@ export function OwnerProfileReadGuard({ children }: OwnerProfileReadGuardProps) 
       active = false;
       unsubscribe();
     };
-  }, [retryKey, user?.uid]);
+  }, [ownerId, retryKey]);
+
+  const readState =
+    !ownerId || readResult?.ownerId === ownerId
+      ? (readResult?.state ?? (ownerId ? 'loading' : 'error'))
+      : 'loading';
+
+  const handleRetry = () => {
+    setReadResult(null);
+    setRetryKey((key) => key + 1);
+  };
 
   if (readState === 'loading') {
     return (
@@ -67,7 +75,7 @@ export function OwnerProfileReadGuard({ children }: OwnerProfileReadGuardProps) 
             </Text>
             <Text style={styles.body}>Try again to refresh your application status.</Text>
 
-            <PressableScale onPress={() => setRetryKey((key) => key + 1)} style={styles.action}>
+            <PressableScale onPress={handleRetry} style={styles.action}>
               <View style={styles.primaryButton}>
                 <Text style={styles.primaryText}>RETRY</Text>
               </View>
