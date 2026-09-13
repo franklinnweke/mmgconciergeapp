@@ -164,18 +164,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     profileMutationVersion.current += 1;
     setSigningOut(true);
-    setProfileInitializing(false);
-    setProfileLoadFailed(false);
-    setProfile(null);
-    setUser(null);
 
-    const task = signOutCurrentUser().finally(() => {
-      profileMutationVersion.current += 1;
-      setAuthInitializing(false);
-      setProfileInitializing(false);
-      setSigningOut(false);
-      signOutInFlight.current = null;
-    });
+    const task = signOutCurrentUser()
+      .then(() => {
+        // Keep the authenticated identity intact while native sign-out is in
+        // flight. Authenticated screens can still be mounted for part of this
+        // transition; publishing a temporary null user lets their hooks render
+        // against an impossible half-signed-out state.
+        setProfileInitializing(false);
+        setProfileLoadFailed(false);
+        setProfile(null);
+        setUser(null);
+      })
+      .finally(() => {
+        profileMutationVersion.current += 1;
+        setAuthInitializing(false);
+        setProfileInitializing(false);
+        setSigningOut(false);
+        signOutInFlight.current = null;
+      });
 
     signOutInFlight.current = task;
     return task;
