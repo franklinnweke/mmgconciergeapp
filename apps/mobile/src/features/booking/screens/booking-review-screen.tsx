@@ -175,15 +175,26 @@ export default function BookingReviewScreen({
           ...(pickupLocation.note ? { note: pickupLocation.note } : {}),
         },
       };
-      const result = await requestGateway.createRequest(
-        data,
-        submissionKey.current.forData(data),
-      );
-      submissionKey.current.markSucceeded();
-      await refreshRentalRequests();
-      router.replace(`/trip/${result.result.requestId}` as any);
-    } catch (error: unknown) {
-      setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
+      let requestId: string;
+      try {
+        const result = await requestGateway.createRequest(
+          data,
+          submissionKey.current.forData(data),
+        );
+        submissionKey.current.markSucceeded();
+        requestId = result.result.requestId;
+      } catch (error: unknown) {
+        setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
+        return;
+      }
+
+      try {
+        await refreshRentalRequests();
+      } catch {
+        // Non-blocking: background cache update failure must not block navigation to the newly created request
+      }
+
+      router.replace(`/trip/${requestId}` as any);
     } finally {
       setSubmitting(false);
     }

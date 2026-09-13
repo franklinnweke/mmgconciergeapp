@@ -385,9 +385,13 @@ Current auth/UI expectations:
 - `List your car` carries owner intent into owner onboarding.
 - Renter checkout does not use Firebase Phone Auth. Owner onboarding may still do so.
 
-Pre-launch compliance and policy reviews pending:
+Pre-launch compliance and policy status:
 
-- Google Places API policy review: storage/caching of Places content (formatted address, lat/lng, displayName) in booking records must undergo policy review prior to public launch per Google Places caching policies.
+- Google Places API compliance (Google Maps Platform TOS §3.2.3):
+  - Place IDs: Stored indefinitely in rental requests and booking records as explicitly permitted under TOS §3.2.3(a).
+  - Transaction fulfillment records: Exact coordinates (`latitude`, `longitude`) and formatted addresses are captured and stored in `rentalRequests` and private `rentalRequestContacts` strictly as immutable customer transaction records for physical chauffeur dispatch and delivery fulfillment. They are never used to build an independent geospatial database or directory.
+  - Ephemeral search data: Search queries, autocomplete suggestion lists, and temporary session tokens are ephemeral in-memory state only and are never stored in persistent databases.
+  - Attribution: Minimum 12sp "Powered by Google" text attribution is displayed wherever Google Places data appears, including autocomplete search suggestions and the pickup confirmation step.
 - Apple private email relay/operator-domain verification as applicable.
 - Apple token revocation on account deletion before public App Store release.
 

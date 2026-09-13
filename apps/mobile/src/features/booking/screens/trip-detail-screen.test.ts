@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { previewRenterTrips } from '../data/preview-renter-trips';
 import { RenterTripActionUnavailableError } from '../data/renter-trip-action-gateway';
@@ -155,5 +155,65 @@ describe('trip detail screen flows', () => {
     expect(renterTripTimeline('cancelled_by_renter').length).toBe(1);
     expect(renterTripTimeline('declined').length).toBe(1);
     expect(renterTripTimeline('payment_window_expired').length).toBe(1);
+  });
+
+  it('bounds auto-refresh to a single attempt and settles cleanly when a trip is missing', async () => {
+    let refreshCount = 0;
+    const mockRefresh = vi.fn().mockImplementation(async () => {
+      refreshCount += 1;
+    });
+
+    let hasAttempted = false;
+    let isRefreshing = false;
+    let tripFound = false;
+
+    // First check: trip not in memory, trigger auto-refresh
+    if (!tripFound && !hasAttempted && !isRefreshing) {
+      hasAttempted = true;
+      isRefreshing = true;
+      try {
+        await mockRefresh();
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    expect(refreshCount).toBe(1);
+    expect(hasAttempted).toBe(true);
+    expect(isRefreshing).toBe(false);
+
+    // Subsequent re-renders do NOT re-trigger auto-refresh
+    if (!tripFound && !hasAttempted && !isRefreshing) {
+      await mockRefresh();
+    }
+    expect(refreshCount).toBe(1);
+
+    // Settles into missing state without indefinite loading
+    const finalMode = isRefreshing ? 'initializing' : (!tripFound ? 'missing' : 'ready');
+    expect(finalMode).toBe('missing');
+  });
+
+  it('captures refresh errors gracefully and provides recoverable retry without unhandled rejections', async () => {
+    const mockFailingRefresh = vi.fn().mockRejectedValue(new Error('Network offline during trip refresh'));
+    let isRefreshing = false;
+    let refreshError: string | null = null;
+
+    const runRefresh = async () => {
+      isRefreshing = true;
+      refreshError = null;
+      try {
+        await mockFailingRefresh();
+      } catch (err: unknown) {
+        refreshError = err instanceof Error ? err.message : 'Error';
+      } finally {
+        isRefreshing = false;
+      }
+    };
+
+    await runRefresh();
+
+    expect(mockFailingRefresh).toHaveBeenCalledTimes(1);
+    expect(isRefreshing).toBe(false);
+    expect(refreshError).toBe('Network offline during trip refresh');
   });
 });

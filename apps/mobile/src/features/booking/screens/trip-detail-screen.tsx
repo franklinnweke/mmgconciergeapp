@@ -89,12 +89,60 @@ export default function TripDetailScreen({
     [cancellationGateway],
   );
   const trip = tripOverride !== undefined ? tripOverride : trips.find((candidate) => candidate.id === tripId) ?? null;
+  const [prevTripId, setPrevTripId] = useState(tripId);
+  const [hasAttemptedRefresh, setHasAttemptedRefresh] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
+  if (prevTripId !== tripId) {
+    setPrevTripId(tripId);
+    setHasAttemptedRefresh(false);
+    setIsRefreshing(false);
+    setRefreshError(null);
+  }
 
   useEffect(() => {
-    if (tripOverride === undefined && !trip && tripId && !initializing) {
-      void refreshRentalRequests();
+    let isMounted = true;
+    if (
+      tripOverride === undefined &&
+      !trip &&
+      tripId &&
+      !initializing &&
+      !hasAttemptedRefresh &&
+      !isRefreshing
+    ) {
+      queueMicrotask(() => {
+        if (!isMounted) return;
+        setHasAttemptedRefresh(true);
+        setIsRefreshing(true);
+        setRefreshError(null);
+        void refreshRentalRequests()
+          .catch((err: unknown) => {
+            if (!isMounted) return;
+            setRefreshError(err instanceof Error ? err.message : 'Could not refresh trip details.');
+          })
+          .finally(() => {
+            if (!isMounted) return;
+            setIsRefreshing(false);
+          });
+      });
     }
-  }, [initializing, refreshRentalRequests, trip, tripId, tripOverride]);
+    return () => {
+      isMounted = false;
+    };
+  }, [hasAttemptedRefresh, initializing, isRefreshing, refreshRentalRequests, trip, tripId, tripOverride]);
+
+  const handleRetryRefresh = () => {
+    setIsRefreshing(true);
+    setRefreshError(null);
+    void refreshRentalRequests()
+      .catch((err: unknown) => {
+        setRefreshError(err instanceof Error ? err.message : 'Could not refresh trip details.');
+      })
+      .finally(() => {
+        setIsRefreshing(false);
+      });
+  };
 
   const vehicle = trip?.vehicleSnapshot ?? null;
   const vehicleImage = resolveVehicleImageSource(vehicle);
@@ -160,7 +208,7 @@ export default function TripDetailScreen({
     }
   }
 
-  if (mode === 'initializing') {
+  if (mode === 'initializing' || isRefreshing) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.stateHeader}>
@@ -168,7 +216,7 @@ export default function TripDetailScreen({
         </View>
         <View accessibilityLiveRegion="polite" style={styles.centeredContent}>
           <ActivityIndicator color={colors.goldStrong} size="small" />
-          <Text style={styles.loadingText}>Loading trip…</Text>
+          <Text style={styles.loadingText}>Loading trip details…</Text>
         </View>
       </View>
     );
@@ -187,13 +235,24 @@ export default function TripDetailScreen({
           <Text style={styles.centeredEyebrow}>Trip not found</Text>
           <Text accessibilityRole="header" style={styles.centeredTitle}>This trip is not available on this device.</Text>
           <Text style={styles.centeredBody}>
-            It may still be syncing, belong to another account, or no longer be available.
+            {refreshError
+              ? `Could not refresh trip details: ${refreshError}`
+              : 'It may still be syncing, belong to another account, or no longer be available.'}
           </Text>
-          <PressableScale accessibilityLabel="Back to trips" accessibilityRole="button" onPress={() => router.replace('/(renter)/trips')}>
-            <View style={styles.goldButton}>
-              <Text style={styles.goldButtonText}>Back to trips</Text>
-            </View>
-          </PressableScale>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+            {refreshError ? (
+              <PressableScale accessibilityLabel="Retry loading trip" accessibilityRole="button" onPress={handleRetryRefresh}>
+                <View style={styles.goldButton}>
+                  <Text style={styles.goldButtonText}>Try again</Text>
+                </View>
+              </PressableScale>
+            ) : null}
+            <PressableScale accessibilityLabel="Back to trips" accessibilityRole="button" onPress={() => router.replace('/(renter)/trips')}>
+              <View style={[styles.goldButton, refreshError ? { backgroundColor: colors.graphite, borderColor: colors.line, borderWidth: 1 } : undefined]}>
+                <Text style={[styles.goldButtonText, refreshError ? { color: colors.ivory } : undefined]}>Back to trips</Text>
+              </View>
+            </PressableScale>
+          </View>
         </View>
       </View>
     );

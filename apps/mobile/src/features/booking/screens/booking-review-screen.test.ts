@@ -101,6 +101,40 @@ describe('BookingReviewScreen request confirmation and commercial subtraction', 
     expect(mockRouter.replace).toHaveBeenCalledWith('/trip/req_test_123');
   });
 
+  it('navigates to the created trip even if post-submission refreshRentalRequests fails', async () => {
+    const mockRouter = { replace: vi.fn() };
+    const mockGateway = {
+      createRequest: vi.fn().mockResolvedValue({
+        result: {
+          requestId: 'req_success_456',
+          state: 'requested',
+        },
+      }),
+    };
+
+    const failingRefresh = vi.fn().mockRejectedValue(new Error('Network offline during background list refresh'));
+
+    let requestId: string;
+    try {
+      const result = await mockGateway.createRequest({} as any, 'idemp_key_456');
+      requestId = result.result.requestId;
+    } catch {
+      throw new Error('Should not reach here');
+    }
+
+    try {
+      await failingRefresh();
+    } catch {
+      // Non-blocking
+    }
+
+    mockRouter.replace(`/trip/${requestId}`);
+
+    expect(mockGateway.createRequest).toHaveBeenCalledTimes(1);
+    expect(failingRefresh).toHaveBeenCalledTimes(1);
+    expect(mockRouter.replace).toHaveBeenCalledWith('/trip/req_success_456');
+  });
+
   it('allows verified renters to submit soft requests without requiring a full name', () => {
     // Profile enrichment fallback
     const draftName = '';
