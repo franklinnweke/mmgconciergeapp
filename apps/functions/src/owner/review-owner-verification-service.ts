@@ -20,6 +20,7 @@ import type {
   OwnerRepository,
   OwnerVerificationRecord,
 } from './firestore-owner-repository.js';
+import type { StorageGateway } from './storage-validation.js';
 
 export type ReviewOwnerVerificationActor = {
   uid: string;
@@ -28,6 +29,7 @@ export type ReviewOwnerVerificationActor = {
 
 export type ReviewOwnerVerificationDependencies = {
   repository: OwnerRepository;
+  storageGateway?: StorageGateway;
   now?: () => Date;
   createRequestId?: () => string;
 };
@@ -93,7 +95,7 @@ export async function reviewOwnerVerification(
     idempotencyKey: command.idempotencyKey,
   });
 
-  return dependencies.repository.runTransaction(async (transaction) => {
+  const { result, pathToDelete } = await dependencies.repository.runTransaction(async (transaction) => {
     const replay = await transaction.getIdempotency(idempotencyDocumentId);
     if (replay) {
       if (replay.requestHash !== requestHash) {
@@ -102,7 +104,10 @@ export async function reviewOwnerVerification(
           'This idempotency key was already used for a different request.',
         );
       }
-      return reviewOwnerVerificationResultSchema.parse(replay.result);
+      return {
+        result: reviewOwnerVerificationResultSchema.parse(replay.result),
+        pathToDelete: null,
+      };
     }
 
     const existingVerification = await transaction.getOwnerVerification(command.data.ownerId);
@@ -132,6 +137,26 @@ export async function reviewOwnerVerification(
     const nextVerificationVersion = (existingVerification.version ?? 0) + 1;
     const nextProfileVersion = (existingProfile.version ?? 0) + 1;
 
+    const isTerminalDecision = command.data.decision === 'approve' || command.data.decision === 'reject';
+    const pathToDelete = isTerminalDecision && existingVerification.governmentId?.storagePath
+      ? existingVerification.governmentId.storagePath
+      : null;
+
+    const updatedVerificationGovId = isTerminalDecision && existingVerification.governmentId
+      ? {
+          ...existingVerification.governmentId,
+          bytesState: 'cleared' as const,
+          storagePath: null,
+        }
+      : existingVerification.governmentId;
+
+    const updatedProfileGovId = isTerminalDecision && existingProfile.governmentId
+      ? {
+          ...existingProfile.governmentId,
+          status: 'cleared' as const,
+        }
+      : existingProfile.governmentId;
+
     const updatedVerification: OwnerVerificationRecord = {
       ...existingVerification,
       status: targetStatus,
@@ -152,6 +177,7 @@ export async function reviewOwnerVerification(
             no_fraud_indicators: Boolean(command.data.checklist.no_fraud_indicators),
           }
         : null,
+      governmentId: updatedVerificationGovId,
       version: nextVerificationVersion,
       updatedAt: now.toISOString(),
     };
@@ -161,6 +187,7 @@ export async function reviewOwnerVerification(
       verificationStatus: targetStatus,
       verificationUpdatedAt: now.toISOString(),
       lastDecisionReason: command.data.reason ?? null,
+      governmentId: updatedProfileGovId,
       updatedAt: now.toISOString(),
       version: nextProfileVersion,
     };
@@ -242,6 +269,16 @@ export async function reviewOwnerVerification(
       now,
     );
 
-    return result;
+    return { result, pathToDelete };
   });
+
+  if (pathToDelete && dependencies.storageGateway?.deleteObject) {
+    try {
+      await dependencies.storageGateway.deleteObject(pathToDelete);
+    } catch {
+      // Storage deletion failure after state commit should not fail review response
+    }
+  }
+
+  return result;
 }

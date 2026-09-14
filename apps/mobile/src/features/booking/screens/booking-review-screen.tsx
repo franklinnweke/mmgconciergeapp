@@ -250,7 +250,6 @@ export default function BookingReviewScreen({
           <View style={styles.vehicleCopy}>
             <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
             <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · {vehicle.seats} passengers</Text>
-            <Text style={styles.vehicleMeta}>Chauffeur and Lagos delivery included</Text>
           </View>
         </View>
 
@@ -288,10 +287,7 @@ export default function BookingReviewScreen({
                 <Text style={styles.deliveryNote}>Note: {pickupLocation.note}</Text>
               ) : null}
             </View>
-            <View style={styles.deliveryChangeAction}>
-              <Text style={styles.deliveryChangeText}>{pickupLocation ? 'Change' : 'Select'}</Text>
-              <Ionicons color={colors.goldStrong} name="chevron-forward" size={14} />
-            </View>
+            <Text style={styles.deliveryChangeText}>{pickupLocation ? 'Change' : 'Select'}</Text>
           </PressableScale>
           {!isServiceable ? (
             <View style={styles.warningRow}>
@@ -413,11 +409,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.md,
-  },
-  deliveryChangeAction: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 2,
   },
   deliveryChangeText: {
     color: colors.goldStrong,

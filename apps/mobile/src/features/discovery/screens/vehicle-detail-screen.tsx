@@ -217,17 +217,11 @@ export default function VehicleDetailScreen({
         <View style={styles.body}>
           <View style={styles.identityBlock}>
             <Text style={styles.vehicleName}>{vehicle.displayName}</Text>
-            <Text style={styles.vehicleMeta}>{vehicle.areaLabel}</Text>
+            <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · {vehicle.seats} passengers</Text>
             <View style={styles.rateLine}>
               <Text style={styles.rate}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
               <Text style={styles.rateUnit}> / day</Text>
             </View>
-          </View>
-
-          <View style={styles.factRow}>
-            <Fact icon="people-outline" label={`${vehicle.seats} passengers`} />
-            <Fact icon="person-outline" label="Chauffeur included" />
-            <Fact icon="car-outline" label="Delivery included" />
           </View>
 
           <View style={styles.section}>
@@ -319,15 +313,6 @@ export default function VehicleDetailScreen({
   );
 }
 
-function Fact({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
-  return (
-    <View style={styles.fact}>
-      <Ionicons color={colors.muted} name={icon} size={17} />
-      <Text style={styles.factText}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   actionFlex: { flex: 1, maxWidth: 190 },
   availabilityBody: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, lineHeight: 17, marginTop: 2 },
@@ -357,9 +342,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
   },
   disabled: { opacity: 0.45 },
-  fact: { alignItems: 'center', flex: 1, gap: 5 },
-  factRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.md },
-  factText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 11, textAlign: 'center' },
   gallerySlide: { height: 310, width: SCREEN_WIDTH },
   hero: { height: 310 },
   heroHeader: { left: layout.screenGutter, position: 'absolute', right: layout.screenGutter, top: 0 },

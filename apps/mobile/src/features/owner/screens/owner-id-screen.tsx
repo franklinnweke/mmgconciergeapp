@@ -24,6 +24,7 @@ import { createOwnerVerificationGateway } from '../data/owner-verification-gatew
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
+import { validateOwnerIdCandidate } from '../domain/owner-id-preflight';
 
 const DOCUMENT_KINDS: { kind: GovernmentIdKind; label: string; description: string }[] = [
   {
@@ -126,12 +127,26 @@ export function OwnerIdScreen() {
 
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
-        setSelectedAsset({
-          uri: asset.uri,
-          fileName: asset.fileName || `id-photo-${Date.now()}.jpg`,
-          mimeType: asset.mimeType || 'image/jpeg',
-          fileSize: asset.fileSize,
-        });
+        try {
+          const validated = validateOwnerIdCandidate(
+            {
+              uri: asset.uri,
+              fileName: asset.fileName,
+              mimeType: asset.mimeType,
+              fileSize: asset.fileSize,
+            },
+            `id-photo-${Date.now()}`,
+          );
+          setErrorMessage(null);
+          setSelectedAsset({
+            uri: validated.uri,
+            fileName: validated.fileName,
+            mimeType: validated.mimeType,
+            fileSize: validated.fileSize,
+          });
+        } catch (err) {
+          setErrorMessage(err instanceof Error ? err.message : 'Invalid document file.');
+        }
       }
     } catch {
       setErrorMessage('Could not open camera. Please check device permissions.');
@@ -168,12 +183,26 @@ export function OwnerIdScreen() {
 
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
-        setSelectedAsset({
-          uri: asset.uri,
-          fileName: asset.fileName || `id-file-${Date.now()}.jpg`,
-          mimeType: asset.mimeType || 'image/jpeg',
-          fileSize: asset.fileSize,
-        });
+        try {
+          const validated = validateOwnerIdCandidate(
+            {
+              uri: asset.uri,
+              fileName: asset.fileName,
+              mimeType: asset.mimeType,
+              fileSize: asset.fileSize,
+            },
+            `id-file-${Date.now()}`,
+          );
+          setErrorMessage(null);
+          setSelectedAsset({
+            uri: validated.uri,
+            fileName: validated.fileName,
+            mimeType: validated.mimeType,
+            fileSize: validated.fileSize,
+          });
+        } catch (err) {
+          setErrorMessage(err instanceof Error ? err.message : 'Invalid document file.');
+        }
       }
     } catch {
       setErrorMessage('Could not open photo library. Please check device permissions.');
@@ -196,6 +225,7 @@ export function OwnerIdScreen() {
     setUploading(true);
     setErrorMessage(null);
     try {
+      await auth.refreshUser();
       const gateway = createOwnerVerificationGateway();
       const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       const uploadedMeta = await gateway.uploadPrivateIdDocument(
@@ -251,7 +281,7 @@ export function OwnerIdScreen() {
         <View style={styles.privacyBox}>
           <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={20} />
           <Text style={styles.privacyText}>
-            Your ID is used only for owner verification, stored privately, and never shown to renters.
+            Your ID is stored privately in encrypted storage, used solely by MMG operations for verification, and automatically deleted once your application is verified.
           </Text>
         </View>
 
@@ -278,7 +308,7 @@ export function OwnerIdScreen() {
             </Text>
             <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.cardAction}>
               <View style={styles.prerequisiteButton}>
-                <Text style={styles.prerequisiteButtonText}>RETURN TO OWNER DESK</Text>
+                <Text style={styles.prerequisiteButtonText}>Return to Owner Desk</Text>
               </View>
             </PressableScale>
           </View>
@@ -306,10 +336,10 @@ export function OwnerIdScreen() {
               <View style={styles.prerequisiteButton}>
                 <Text style={styles.prerequisiteButtonText}>
                   {!emailVerified
-                    ? 'VERIFY EMAIL'
+                    ? 'Verify email'
                     : !identityComplete
-                    ? 'COMPLETE OWNER IDENTITY'
-                    : 'LINK NIGERIAN PHONE'}
+                    ? 'Complete owner identity'
+                    : 'Link Nigerian phone'}
                 </Text>
               </View>
             </PressableScale>
@@ -375,7 +405,7 @@ export function OwnerIdScreen() {
                 {uploading ? (
                   <ActivityIndicator color={colors.black} size="small" />
                 ) : (
-                  <Text style={styles.primaryText}>SAVE DOCUMENT</Text>
+                  <Text style={styles.primaryText}>Save document</Text>
                 )}
               </View>
             </PressableScale>
@@ -410,7 +440,7 @@ const styles = StyleSheet.create({
   loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
   prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
   prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 48 },
-  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13, letterSpacing: 0.5 },
+  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
   prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
   prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
   prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
@@ -419,7 +449,7 @@ const styles = StyleSheet.create({
   previewMeta: { alignItems: 'center', backgroundColor: colors.graphiteRaised, flexDirection: 'row', justifyContent: 'space-between', padding: spacing.sm },
   primaryAction: { marginTop: spacing.xl },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   privacyBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.08)', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
   privacyText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   radio: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: 10, borderWidth: 1.5, height: 20, justifyContent: 'center', width: 20 },

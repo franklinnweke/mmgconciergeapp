@@ -172,7 +172,7 @@ export function OwnerIdentityScreen() {
           </Text>
           <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.statusAction}>
             <View style={styles.primaryButton}>
-              <Text style={styles.primaryText}>RETURN TO OWNER DESK</Text>
+              <Text style={styles.primaryText}>Return to Owner Desk</Text>
             </View>
           </PressableScale>
         </View>
@@ -302,7 +302,7 @@ export function OwnerIdentityScreen() {
             {saving ? (
               <ActivityIndicator color={colors.black} size="small" />
             ) : (
-              <Text style={styles.primaryText}>SAVE AND CONTINUE</Text>
+              <Text style={styles.primaryText}>Save and continue</Text>
             )}
           </View>
         </PressableScale>
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   pickerButton: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   pickerText: { color: colors.ivory, fontFamily: typography.body, fontSize: 14 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   readOnlyInput: { alignItems: 'center', backgroundColor: '#0D0F13', flexDirection: 'row', justifyContent: 'space-between' },
   readOnlyText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
   saveAction: { marginTop: spacing.xl },
