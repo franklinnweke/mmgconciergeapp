@@ -50,10 +50,7 @@ export function VerifyEmailScreen() {
             {busyAction === 'refresh' ? (
               <ActivityIndicator color={colors.black} />
             ) : (
-              <>
-                <Text style={styles.primaryText}>I’ve verified my email</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={18} />
-              </>
+              <Text style={styles.primaryText}>I’ve verified my email</Text>
             )}
           </View>
         </PressableScale>
@@ -113,8 +110,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
     borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
     justifyContent: 'center',
     marginTop: spacing.md,
     minHeight: 56,
