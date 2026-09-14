@@ -101,7 +101,6 @@ export function AuthRoleChoiceScreen({ onChooseRole, onSignIn }: AuthRoleChoiceS
                   <Text style={styles.choiceLabel}>{choice.label}</Text>
                   <Text style={styles.choiceDescription}>{choice.description}</Text>
                 </View>
-                <Ionicons color={colors.muted} name="chevron-forward" size={18} />
               </View>
             </PressableScale>
           ))}

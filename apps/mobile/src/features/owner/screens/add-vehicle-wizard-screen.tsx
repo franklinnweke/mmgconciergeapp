@@ -325,16 +325,7 @@ export function AddVehicleWizardScreen() {
         expectedVersion: submitExpectedVersion,
       });
 
-      Alert.alert(
-        'Listing Submitted',
-        'Your luxury vehicle and photos have been submitted to the MMG Concierge operations desk for review. You can track the listing review status directly from your Fleet desk.',
-        [
-          {
-            text: 'View Fleet',
-            onPress: () => router.replace('/(owner)/fleet' as any),
-          },
-        ],
-      );
+      router.replace('/(owner)/fleet' as any);
     } catch (err: unknown) {
       setErrorMsg(mapVehicleError(err));
     } finally {
@@ -713,7 +704,6 @@ export function AddVehicleWizardScreen() {
             {step < 6 ? (
               <PressableScale onPress={handleNext} style={styles.primaryButton}>
                 <Text style={styles.primaryButtonText}>CONTINUE</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={16} />
               </PressableScale>
             ) : (
               <PressableScale
@@ -724,10 +714,7 @@ export function AddVehicleWizardScreen() {
                 {submitting ? (
                   <ActivityIndicator color={colors.black} size="small" />
                 ) : (
-                  <>
-                    <Text style={styles.primaryButtonText}>SUBMIT FOR REVIEW</Text>
-                    <Ionicons color={colors.black} name="checkmark-circle" size={18} />
-                  </>
+                  <Text style={styles.primaryButtonText}>SUBMIT FOR REVIEW</Text>
                 )}
               </PressableScale>
             )}

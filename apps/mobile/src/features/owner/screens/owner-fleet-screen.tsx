@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 import { useOwnerFleet } from '../hooks/use-owner-fleet';
 
@@ -88,26 +88,31 @@ export function OwnerFleetScreen() {
     });
   };
 
+  const headerActions = (
+    <View style={styles.headerActions}>
+      <PressableScale
+        accessibilityLabel="Open bookings"
+        accessibilityRole="button"
+        onPress={() => router.push('/(owner)/owner-bookings' as any)}
+        style={styles.headerAction}
+      >
+        <Ionicons color={colors.ivory} name="calendar-outline" size={19} />
+      </PressableScale>
+      <PressableScale
+        accessibilityLabel="List a vehicle"
+        accessibilityRole="button"
+        onPress={handleAddVehicle}
+        style={styles.headerAction}
+      >
+        <Ionicons color={colors.ivory} name="add" size={22} />
+      </PressableScale>
+    </View>
+  );
+
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.header}>
-        <View style={styles.topRow}>
-          <BrandWordmark />
-          <PressableScale onPress={handleAddVehicle} style={styles.addButton}>
-            <Ionicons color={colors.black} name="add" size={18} />
-            <Text style={styles.addButtonText}>LIST VEHICLE</Text>
-          </PressableScale>
-          <PressableScale
-            accessibilityLabel="Open owner booking desk"
-            accessibilityRole="button"
-            onPress={() => router.push('/(owner)/owner-bookings' as any)}
-            style={styles.bookingsButton}
-          >
-            <Ionicons color={colors.gold} name="calendar-outline" size={18} />
-            <Text style={styles.bookingsButtonText}>BOOKINGS</Text>
-          </PressableScale>
-        </View>
-        <Text style={styles.title}>Fleet</Text>
+        <ScreenHeader right={headerActions} showBrand={false} title="Fleet" />
       </View>
 
       {syncError ? (
@@ -120,7 +125,7 @@ export function OwnerFleetScreen() {
       {loading && vehicles.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={colors.gold} size="large" />
-          <Text style={styles.loadingText}>Synchronizing fleet listings...</Text>
+          <Text style={styles.loadingText}>Loading fleet…</Text>
         </View>
       ) : (
         <FlatList
@@ -129,13 +134,12 @@ export function OwnerFleetScreen() {
           keyExtractor={(item) => item.vehicleId}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No Vehicles Registered</Text>
+              <Text style={styles.emptyTitle}>No vehicles yet</Text>
               <Text style={styles.emptyCopy}>
-                Add an approved chauffeured vehicle to begin managing your Lagos inventory.
+                Add a vehicle to start managing your fleet.
               </Text>
               <PressableScale onPress={handleAddVehicle} style={styles.emptyButton}>
-                <Ionicons color={colors.black} name="add-circle" size={20} />
-                <Text style={styles.emptyButtonText}>REGISTER FIRST VEHICLE</Text>
+                <Text style={styles.emptyButtonText}>Add vehicle</Text>
               </PressableScale>
             </View>
           }
@@ -232,35 +236,6 @@ export function OwnerFleetScreen() {
 }
 
 const styles = StyleSheet.create({
-  addButton: {
-    alignItems: 'center',
-    backgroundColor: colors.gold,
-    borderRadius: radii.pill ?? 999,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  addButtonText: {
-    color: colors.black,
-    fontFamily: typography.body,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  bookingsButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  bookingsButtonText: {
-    color: colors.gold,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
   badge: {
     alignItems: 'center',
     borderRadius: radii.sm,
@@ -287,50 +262,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     overflow: 'hidden',
   },
-  cardBody: {
-    padding: spacing.md,
-  },
-  cardMedia: {
-    backgroundColor: '#1E1E1E',
-    height: 160,
-    width: '100%',
-  },
-  cardTopRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  cardBody: { padding: spacing.md },
+  cardMedia: { backgroundColor: '#1E1E1E', height: 160, width: '100%' },
+  cardTopRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   emptyButton: {
     alignItems: 'center',
     backgroundColor: colors.gold,
-    borderRadius: radii.md,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  emptyButtonText: {
-    color: colors.black,
-    fontFamily: typography.body,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  emptyCopy: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: spacing.xs, textAlign: 'center' },
-  emptyState: {
-    alignItems: 'center',
+    borderRadius: radii.pill,
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xxl,
+    marginTop: spacing.lg,
+    minHeight: 48,
+    paddingHorizontal: spacing.lg,
   },
-  emptyTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display ?? typography.body,
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: spacing.md,
-  },
+  emptyButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  emptyCopy: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: spacing.xs, textAlign: 'center' },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, paddingVertical: spacing.xxl },
+  emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18 },
   errorBanner: {
     alignItems: 'center',
     backgroundColor: 'rgba(239,68,68,0.1)',
@@ -339,119 +286,43 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
+    marginHorizontal: spacing.lg,
     padding: spacing.sm,
   },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 12,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  listContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl + 40,
-  },
-  loadingContainer: {
+  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 12 },
+  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  headerAction: {
     alignItems: 'center',
-    flex: 1,
+    borderColor: colors.lineStrong,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 44,
     justifyContent: 'center',
-    paddingVertical: spacing.xxl,
+    width: 44,
   },
-  loadingText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 13,
-    marginTop: spacing.sm,
-  },
-  metaDot: {
-    color: colors.muted,
-  },
-  metaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  metaText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 12,
-  },
-  priceLabel: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
+  headerActions: { flexDirection: 'row', gap: spacing.xs },
+  listContent: { paddingBottom: spacing.xxl + 40, paddingHorizontal: spacing.lg },
+  loadingContainer: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingVertical: spacing.xxl },
+  loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
+  metaDot: { color: colors.muted },
+  metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
+  metaText: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
+  priceLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
   priceRow: {
     alignItems: 'center',
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: spacing.sm,
     paddingTop: spacing.xs,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    borderTopWidth: 1,
   },
-  priceValue: {
-    color: colors.ivory,
-    fontFamily: typography.body,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  rejectionBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(239,68,68,0.08)',
-    borderRadius: radii.sm,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    padding: spacing.xs,
-  },
-  rejectionText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 11,
-  },
-  safeArea: {
-    backgroundColor: colors.black,
-    flex: 1,
-  },
-  switchLabel: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 12,
-  },
-  switchRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display ?? typography.body,
-    fontSize: 22,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  topRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  vehicleName: {
-    color: colors.ivory,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 16,
-    fontWeight: '600',
-    marginRight: spacing.sm,
-  },
+  priceValue: { color: colors.ivory, fontFamily: typography.body, fontSize: 15, fontWeight: '700' },
+  rejectionBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: radii.sm, flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, padding: spacing.xs },
+  rejectionText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 11 },
+  safeArea: { backgroundColor: colors.black, flex: 1 },
+  switchLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
+  switchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  vehicleName: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 16, fontWeight: '600', marginRight: spacing.sm },
 });

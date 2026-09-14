@@ -22,6 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import {
   addDaysToDateOnly,
   formatLagosDateOnly,
@@ -186,35 +187,33 @@ export function OwnerVehicleAvailabilityScreen() {
     );
   };
 
+  const refreshAction = (
+    <PressableScale
+      accessibilityLabel="Refresh availability"
+      accessibilityRole="button"
+      disabled={loading}
+      onPress={() => void loadCalendar()}
+      style={styles.headerAction}
+    >
+      <Ionicons color={colors.ivory} name="refresh" size={19} />
+    </PressableScale>
+  );
+
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.header}>
-        <PressableScale
-          accessibilityLabel="Back to vehicle"
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          style={styles.iconButton}
-        >
-          <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-        </PressableScale>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>Vehicle availability</Text>
-        </View>
-        <PressableScale
-          accessibilityLabel="Refresh availability"
-          accessibilityRole="button"
-          disabled={loading}
-          onPress={() => void loadCalendar()}
-          style={styles.iconButton}
-        >
-          <Ionicons color={colors.ivory} name="refresh" size={19} />
-        </PressableScale>
+        <ScreenHeader
+          onBack={() => router.back()}
+          right={refreshAction}
+          showBrand={false}
+          title="Vehicle availability"
+        />
       </View>
 
       {loading && !calendar ? (
         <View style={styles.centerState}>
           <ActivityIndicator color={colors.goldStrong} size="large" />
-          <Text style={styles.stateText}>Loading the trusted vehicle calendar…</Text>
+          <Text style={styles.stateText}>Loading vehicle calendar…</Text>
         </View>
       ) : !calendar ? (
         <View style={styles.centerState}>
@@ -231,7 +230,7 @@ export function OwnerVehicleAvailabilityScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.intro}>
-            Block dates when this chauffeured vehicle cannot accept a Lagos journey. Existing booking holds stay private and appear only as reserved.
+            Block dates when this vehicle cannot accept a journey. Existing booking holds appear only as reserved.
           </Text>
 
           {Platform.OS === 'web' && process.env.NODE_ENV !== 'production' ? (
@@ -353,7 +352,7 @@ export function OwnerVehicleAvailabilityScreen() {
                 onPress={() => void handleCreateBlock()}
                 style={[styles.primaryButton, submitting && styles.disabledButton]}
               >
-                {submitting ? <ActivityIndicator color={colors.black} /> : <Ionicons color={colors.black} name="calendar" size={19} />}
+                {submitting ? <ActivityIndicator color={colors.black} /> : null}
                 <Text style={styles.primaryButtonText}>BLOCK SELECTED DATES</Text>
               </PressableScale>
             </View>
@@ -417,9 +416,8 @@ const styles = StyleSheet.create({
   errorBanner: { alignItems: 'center', backgroundColor: 'rgba(209,133,120,0.09)', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
   errorText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
   existingSection: { borderTopColor: colors.graphiteRaised, borderTopWidth: 1, marginTop: spacing.xl, paddingTop: spacing.xl },
-  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  headerCopy: { flex: 1 },
-  iconButton: { alignItems: 'center', backgroundColor: colors.graphite, borderRadius: radii.pill, height: 44, justifyContent: 'center', width: 44 },
+  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  headerAction: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 44, justifyContent: 'center', width: 44 },
   iconSpacer: { height: 11 },
   intro: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginBottom: spacing.lg },
   legendDot: { borderRadius: 4, height: 8, width: 8 },
@@ -452,6 +450,5 @@ const styles = StyleSheet.create({
   selectionValue: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, marginTop: 4 },
   stateText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm, textAlign: 'center' },
   stateTitle: { color: colors.ivory, fontFamily: typography.body, fontSize: 18, fontWeight: '700', marginTop: spacing.md },
-  title: { color: colors.ivory, fontFamily: typography.display ?? typography.body, fontSize: 22, fontWeight: '600', marginTop: 2 },
   weekday: { color: colors.muted, fontFamily: typography.body, fontSize: 11, fontWeight: '700' },
 });

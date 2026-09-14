@@ -24,6 +24,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
 import {
   COMMISSION_TERMS_SUMMARY,
@@ -46,11 +47,9 @@ export function OwnerIdentityScreen() {
   const [areaModalVisible, setAreaModalVisible] = useState(false);
   const [line1, setLine1] = useState('');
   const [line2, setLine2] = useState('');
-
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [commissionAccepted, setCommissionAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
-
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
@@ -58,9 +57,7 @@ export function OwnerIdentityScreen() {
 
   useEffect(() => {
     const ownerId = auth.user?.uid;
-    if (!ownerId) {
-      return;
-    }
+    if (!ownerId) return;
 
     const unsubscribe = createOwnerVerificationRepository().subscribe(
       ownerId,
@@ -85,14 +82,10 @@ export function OwnerIdentityScreen() {
       },
       () => setLoadingProfile(false),
     );
+
     return () => unsubscribe();
   }, [auth.user?.uid]);
 
-  // Frozen per mount (same pattern as the submit screen): a fresh Date.now()
-  // key per attempt defeats the backend's idempotency replay, so a
-  // lost-response retry becomes a brand-new command instead of returning the
-  // stored result. The service persists idempotency records only on success,
-  // so retrying a failed attempt under the same key still executes normally.
   const [idempotencyKey] = useState(
     () => `complete-profile-${auth.user?.uid || 'anon'}-${Date.now()}`,
   );
@@ -114,7 +107,6 @@ export function OwnerIdentityScreen() {
 
     try {
       const gateway = createOwnerVerificationGateway();
-
       const command: CompleteOwnerProfileCommand = {
         schemaVersion: 1,
         idempotencyKey,
@@ -135,7 +127,6 @@ export function OwnerIdentityScreen() {
 
       await gateway.completeOwnerProfile(command);
 
-      // Check if phone needs verification
       if (!isNigerianE164(auth.user?.phoneNumber)) {
         router.push('/(owner)/phone' as Href);
       } else {
@@ -148,12 +139,23 @@ export function OwnerIdentityScreen() {
     }
   };
 
+  const header = (
+    <View style={styles.header}>
+      <ScreenHeader
+        onBack={() => router.back()}
+        showBrand={false}
+        title="Owner profile & terms"
+      />
+    </View>
+  );
+
   if (loadingProfile) {
     return (
-      <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+      <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>
+        {header}
         <View style={styles.loadingBox}>
           <ActivityIndicator color={colors.goldStrong} size="small" />
-          <Text style={styles.loadingText}>Checking verification status...</Text>
+          <Text style={styles.loadingText}>Checking verification status…</Text>
         </View>
       </SafeAreaView>
     );
@@ -161,13 +163,14 @@ export function OwnerIdentityScreen() {
 
   if (!isOwnerApplicationEditable(profile?.verificationStatus)) {
     return (
-      <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+      <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>
+        {header}
         <View style={styles.statusBox}>
           <Text style={styles.statusTitle}>Application status managed by MMG</Text>
           <Text style={styles.statusBody}>
             Your owner application is no longer editable. Return to your Owner Desk to see its current status.
           </Text>
-          <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={{ marginTop: spacing.md }}>
+          <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.statusAction}>
             <View style={styles.primaryButton}>
               <Text style={styles.primaryText}>RETURN TO OWNER DESK</Text>
             </View>
@@ -178,40 +181,27 @@ export function OwnerIdentityScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>
+      {header}
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <PressableScale onPress={() => router.back()}>
-            <View style={styles.backButton}>
-              <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-            </View>
-          </PressableScale>
-          <View>
-            <Text style={styles.title}>Owner Profile & Terms</Text>
-          </View>
-        </View>
-
-        {errorMessage && (
+        {errorMessage ? (
           <View style={styles.errorBox}>
-            <Ionicons color="#EF4444" name="alert-circle-outline" size={18} />
+            <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Legal Name */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Full Legal Name / Registered Entity</Text>
           <TextInput
+            onChangeText={setLegalName}
             placeholder="As shown on official Nigerian ID"
             placeholderTextColor={colors.muted}
-            value={legalName}
-            onChangeText={setLegalName}
             style={styles.input}
+            value={legalName}
           />
         </View>
 
-        {/* Email (Read only) */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Email Address</Text>
           <View style={[styles.input, styles.readOnlyInput]}>
@@ -224,16 +214,15 @@ export function OwnerIdentityScreen() {
           </View>
         </View>
 
-        {!auth.user?.emailVerified && (
+        {!auth.user?.emailVerified ? (
           <View style={styles.errorBox}>
-            <Ionicons color="#EF4444" name="alert-circle-outline" size={18} />
+            <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
             <Text style={styles.errorText}>
               Verify your email address before setting up an owner identity.
             </Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Lagos Operating Area Picker */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Primary Lagos Operating Area</Text>
           <PressableScale onPress={() => setAreaModalVisible(true)}>
@@ -244,39 +233,36 @@ export function OwnerIdentityScreen() {
           </PressableScale>
         </View>
 
-        {/* Address Line 1 */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Street Address Line 1</Text>
           <TextInput
+            onChangeText={setLine1}
             placeholder="e.g. 14 Admiralty Way"
             placeholderTextColor={colors.muted}
-            value={line1}
-            onChangeText={setLine1}
             style={styles.input}
+            value={line1}
           />
         </View>
 
-        {/* Address Line 2 */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Address Line 2 (Optional)</Text>
           <TextInput
+            onChangeText={setLine2}
             placeholder="Suite, building, or unit number"
             placeholderTextColor={colors.muted}
-            value={line2}
-            onChangeText={setLine2}
             style={styles.input}
+            value={line2}
           />
         </View>
 
-        {/* City & Country (Locked) */}
         <View style={styles.rowFields}>
-          <View style={[styles.fieldGroup, { flex: 1 }]}>
+          <View style={[styles.fieldGroup, styles.flexField]}>
             <Text style={styles.label}>City</Text>
             <View style={[styles.input, styles.readOnlyInput]}>
               <Text style={styles.readOnlyText}>Lagos</Text>
             </View>
           </View>
-          <View style={[styles.fieldGroup, { flex: 1 }]}>
+          <View style={[styles.fieldGroup, styles.flexField]}>
             <Text style={styles.label}>Country</Text>
             <View style={[styles.input, styles.readOnlyInput]}>
               <Text style={styles.readOnlyText}>Nigeria (NG)</Text>
@@ -284,17 +270,12 @@ export function OwnerIdentityScreen() {
           </View>
         </View>
 
-        {/* Legal Terms Checkboxes */}
         <View style={styles.termsSection}>
           <Text style={styles.sectionTitle}>Required Host Agreements</Text>
 
-          {/* Owner Terms */}
-          <Pressable
-            onPress={() => setTermsAccepted(!termsAccepted)}
-            style={styles.termsRow}
-          >
+          <Pressable onPress={() => setTermsAccepted(!termsAccepted)} style={styles.termsRow}>
             <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
-              {termsAccepted && <Ionicons color={colors.black} name="checkmark" size={14} />}
+              {termsAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{OWNER_TERMS_SUMMARY.title}</Text>
@@ -303,13 +284,9 @@ export function OwnerIdentityScreen() {
             </View>
           </Pressable>
 
-          {/* Commission Schedule */}
-          <Pressable
-            onPress={() => setCommissionAccepted(!commissionAccepted)}
-            style={styles.termsRow}
-          >
+          <Pressable onPress={() => setCommissionAccepted(!commissionAccepted)} style={styles.termsRow}>
             <View style={[styles.checkbox, commissionAccepted && styles.checkboxActive]}>
-              {commissionAccepted && <Ionicons color={colors.black} name="checkmark" size={14} />}
+              {commissionAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{COMMISSION_TERMS_SUMMARY.title}</Text>
@@ -318,13 +295,9 @@ export function OwnerIdentityScreen() {
             </View>
           </Pressable>
 
-          {/* Privacy Notice */}
-          <Pressable
-            onPress={() => setPrivacyAccepted(!privacyAccepted)}
-            style={styles.termsRow}
-          >
+          <Pressable onPress={() => setPrivacyAccepted(!privacyAccepted)} style={styles.termsRow}>
             <View style={[styles.checkbox, privacyAccepted && styles.checkboxActive]}>
-              {privacyAccepted && <Ionicons color={colors.black} name="checkmark" size={14} />}
+              {privacyAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{PRIVACY_NOTICE_SUMMARY.title}</Text>
@@ -334,31 +307,26 @@ export function OwnerIdentityScreen() {
           </Pressable>
         </View>
 
-        {/* Primary Action Button */}
         <PressableScale
           onPress={handleSave}
-          style={[{ marginTop: spacing.xl }, (!isFormValid || saving) && { opacity: 0.5 }]}
+          style={[styles.saveAction, (!isFormValid || saving) && styles.disabledAction]}
         >
           <View style={styles.primaryButton}>
             {saving ? (
               <ActivityIndicator color={colors.black} size="small" />
             ) : (
-              <>
-                <Text style={styles.primaryText}>SAVE AND CONTINUE</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={18} />
-              </>
+              <Text style={styles.primaryText}>SAVE AND CONTINUE</Text>
             )}
           </View>
         </PressableScale>
       </ScrollView>
 
-      {/* Area Selection Modal */}
       <Modal animationType="slide" transparent visible={areaModalVisible}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Lagos Area</Text>
-              <Pressable onPress={() => setAreaModalVisible(false)}>
+              <Pressable accessibilityLabel="Close area selection" onPress={() => setAreaModalVisible(false)}>
                 <Ionicons color={colors.ivory} name="close" size={24} />
               </Pressable>
             </View>
@@ -375,7 +343,7 @@ export function OwnerIdentityScreen() {
                   <Text style={[styles.modalItemText, areaLabel === item && styles.modalItemTextActive]}>
                     {item}
                   </Text>
-                  {areaLabel === item && <Ionicons color={colors.goldStrong} name="checkmark" size={18} />}
+                  {areaLabel === item ? <Ionicons color={colors.goldStrong} name="checkmark" size={18} /> : null}
                 </Pressable>
               ))}
             </ScrollView>
@@ -387,13 +355,14 @@ export function OwnerIdentityScreen() {
 }
 
 const styles = StyleSheet.create({
-  backButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 44, justifyContent: 'center', minHeight: 44, minWidth: 44, width: 44 },
   checkbox: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: 4, borderWidth: 1.5, height: 22, justifyContent: 'center', marginTop: 2, width: 22 },
   checkboxActive: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
+  disabledAction: { opacity: 0.5 },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
+  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
   fieldGroup: { marginBottom: spacing.md },
-  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
+  flexField: { flex: 1 },
+  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
   label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
   loadingBox: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center', padding: spacing.lg },
@@ -408,22 +377,23 @@ const styles = StyleSheet.create({
   modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
   pickerButton: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   pickerText: { color: colors.ivory, fontFamily: typography.body, fontSize: 14 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
   readOnlyInput: { alignItems: 'center', backgroundColor: '#0D0F13', flexDirection: 'row', justifyContent: 'space-between' },
   readOnlyText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
   rowFields: { flexDirection: 'row', gap: spacing.md },
+  saveAction: { marginTop: spacing.xl },
   screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginBottom: spacing.md },
+  statusAction: { marginTop: spacing.md },
   statusBody: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
   statusBox: { flex: 1, justifyContent: 'center', padding: spacing.lg },
   statusTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18, marginBottom: spacing.xs },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginBottom: spacing.md },
   termsCopy: { flex: 1 },
   termsDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
   termsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
-  termsSection: { borderTopColor: colors.line, borderTopWidth: 1, marginTop: spacing.md, paddingTop: spacing.lg },
+  termsSection: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.lg },
   termsTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
   termsVersion: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.8, marginTop: 4 },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 26, letterSpacing: -0.4, marginTop: 2 },
 });

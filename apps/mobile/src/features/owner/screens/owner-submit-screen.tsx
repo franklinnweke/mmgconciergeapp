@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
@@ -56,14 +57,14 @@ export function OwnerSubmitScreen() {
     const repository = createOwnerVerificationRepository();
     const unsubscribe = repository.subscribe(
       ownerId,
-      (p) => setProfile(p),
+      (updatedProfile) => setProfile(updatedProfile),
       () => {},
     );
+
     return () => unsubscribe();
   }, [auth.user?.uid]);
 
-  const uploadId =
-    params.uploadId || draftUpload?.uploadId || profile?.governmentId?.uploadId;
+  const uploadId = params.uploadId || draftUpload?.uploadId || profile?.governmentId?.uploadId;
   const documentKind =
     params.documentKind ||
     draftUpload?.documentKind ||
@@ -94,13 +95,12 @@ export function OwnerSubmitScreen() {
       setErrorMessage('Complete every owner verification step before submitting your application.');
       return;
     }
+
     setSubmitting(true);
     setErrorMessage(null);
-
     try {
       await auth.refreshUser();
       const gateway = createOwnerVerificationGateway();
-
       const command: SubmitOwnerVerificationCommand = {
         schemaVersion: 1,
         idempotencyKey,
@@ -112,11 +112,7 @@ export function OwnerSubmitScreen() {
       };
 
       await gateway.submitOwnerVerification(command);
-
-      // Clear local draft upload upon successful submission
       await clearDraftUpload(auth.user.uid);
-
-      // Successfully submitted -> return to desk
       router.replace('/(owner)' as Href);
     } catch (err) {
       setErrorMessage(ownerCommandErrorMessage(err));
@@ -126,69 +122,55 @@ export function OwnerSubmitScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
+    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>
+      <View style={styles.header}>
+        <ScreenHeader onBack={() => router.back()} showBrand={false} title="Review & submit" />
+      </View>
+
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <PressableScale onPress={() => router.back()}>
-            <View style={styles.backButton}>
-              <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-            </View>
-          </PressableScale>
-          <View>
-            <Text style={styles.title}>Review & Submit</Text>
-          </View>
-        </View>
+        <Text style={styles.intro}>Confirm these details before sending your application to MMG for review.</Text>
 
-        <Text style={styles.intro}>
-          Verify that all information matches your official documents. Once submitted, your file is sent to the MMG operations desk for compliance review.
-        </Text>
-
-        {errorMessage && (
+        {errorMessage ? (
           <View style={styles.errorBox}>
-            <Ionicons color="#EF4444" name="alert-circle-outline" size={18} />
+            <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Summary Card */}
         <View style={styles.summaryCard}>
           <Text style={styles.cardHeader}>Application Summary</Text>
 
-          {/* Legal Name */}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Full Legal Name</Text>
-            <Text style={styles.summaryValue}>{profile?.legalName || auth.profile?.displayName || '—'}</Text>
-          </View>
-
-          {/* Email */}
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Verified Email</Text>
-            <Text style={styles.summaryValue}>{auth.user?.email || '—'}</Text>
-          </View>
-
-          {/* Phone */}
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Linked Nigerian Phone</Text>
-            <Text style={[styles.summaryValue, { color: colors.goldStrong, fontFamily: 'monospace' }]}>
-              {auth.user?.phoneNumber || '—'}
+            <Text style={styles.summaryValue}>
+              {profile?.legalName || auth.profile?.displayName || 'Not provided'}
             </Text>
           </View>
 
-          {/* Address */}
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Verified Email</Text>
+            <Text style={styles.summaryValue}>{auth.user?.email || 'Not provided'}</Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Linked Nigerian Phone</Text>
+            <Text style={[styles.summaryValue, styles.phoneValue]}>
+              {auth.user?.phoneNumber || 'Not provided'}
+            </Text>
+          </View>
+
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Lagos Address</Text>
             <Text style={styles.summaryValue}>
               {profile?.address
                 ? `${profile.address.line1}, ${profile.address.areaLabel}, Lagos`
-                : '—'}
+                : 'Not provided'}
             </Text>
           </View>
 
-          {/* Identification Document */}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>ID Document</Text>
-            <View style={{ alignItems: 'flex-end' }}>
+            <View style={styles.summaryValueStack}>
               {hasValidDocument ? (
                 <>
                   <Text style={styles.summaryValue}>
@@ -198,21 +180,18 @@ export function OwnerSubmitScreen() {
                 </>
               ) : (
                 <PressableScale onPress={() => router.push('/(owner)/id' as Href)}>
-                  <Text style={[styles.summaryValue, { color: colors.goldStrong }]}>
-                    Upload Required →
-                  </Text>
+                  <Text style={styles.summaryValueAction}>Upload required</Text>
                 </PressableScale>
               )}
             </View>
           </View>
 
-          {/* Legal Terms Acceptance */}
-          <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+          <View style={[styles.summaryRow, styles.lastSummaryRow]}>
             <Text style={styles.summaryLabel}>Legal Agreements</Text>
-            <View style={{ alignItems: 'flex-end' }}>
+            <View style={styles.summaryValueStack}>
               <View style={styles.badgeRow}>
                 <Ionicons color={colors.goldStrong} name="checkmark-circle" size={14} />
-                <Text style={styles.badgeText}>Terms Accepted</Text>
+                <Text style={styles.badgeText}>Terms accepted</Text>
               </View>
               <Text style={styles.summarySubValue}>
                 {profile?.termsAcceptedAt
@@ -228,7 +207,7 @@ export function OwnerSubmitScreen() {
             <Text style={styles.statusNoticeText}>
               This application is no longer editable. Check your Owner Desk for its current status.
             </Text>
-            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={{ marginTop: spacing.md }}>
+            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.statusAction}>
               <View style={styles.primaryButton}>
                 <Text style={styles.primaryText}>RETURN TO OWNER DESK</Text>
               </View>
@@ -237,16 +216,13 @@ export function OwnerSubmitScreen() {
         ) : (
           <PressableScale
             onPress={handleSubmit}
-            style={[{ marginTop: spacing.xl }, (!canSubmit || submitting) && { opacity: 0.5 }]}
+            style={[styles.submitAction, (!canSubmit || submitting) && styles.disabledAction]}
           >
             <View style={styles.primaryButton}>
               {submitting ? (
                 <ActivityIndicator color={colors.black} size="small" />
               ) : (
-                <>
-                  <Text style={styles.primaryText}>SUBMIT APPLICATION</Text>
-                  <Ionicons color={colors.black} name="shield-checkmark-outline" size={18} />
-                </>
+                <Text style={styles.primaryText}>SUBMIT APPLICATION</Text>
               )}
             </View>
           </PressableScale>
@@ -257,24 +233,29 @@ export function OwnerSubmitScreen() {
 }
 
 const styles = StyleSheet.create({
-  backButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 44, justifyContent: 'center', minHeight: 44, minWidth: 44, width: 44 },
   badgeRow: { alignItems: 'center', flexDirection: 'row', gap: 4 },
   badgeText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
   cardHeader: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.md, textTransform: 'uppercase' },
+  disabledAction: { opacity: 0.5 },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
-  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
+  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
+  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginBottom: spacing.lg },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
+  lastSummaryRow: { borderBottomWidth: 0 },
+  phoneValue: { color: colors.goldStrong, fontFamily: 'monospace' },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
   screen: { backgroundColor: colors.black, flex: 1 },
+  scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+  statusAction: { marginTop: spacing.md },
   statusNotice: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginTop: spacing.xl, paddingBottom: spacing.lg },
   statusNoticeText: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  submitAction: { marginTop: spacing.xl },
   summaryCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm },
   summaryLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 13 },
-  summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
+  summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: spacing.md },
   summarySubValue: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: 2 },
-  summaryValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 26, letterSpacing: -0.4, marginTop: 2 },
+  summaryValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, flexShrink: 1, textAlign: 'right' },
+  summaryValueAction: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  summaryValueStack: { alignItems: 'flex-end', flexShrink: 1 },
 });

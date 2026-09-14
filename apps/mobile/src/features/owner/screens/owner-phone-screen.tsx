@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
 import {
   createOwnerVerificationGateway,
@@ -31,14 +32,12 @@ import { ownerCommandErrorMessage } from '../domain/owner-errors';
 export function OwnerPhoneScreen() {
   const auth = useAuth();
   const router = useRouter();
-
   const [phoneInput, setPhoneInput] = useState(
     auth.user?.phoneNumber ? auth.user.phoneNumber.replace('+234', '0') : '',
   );
   const [code, setCode] = useState('');
   const [session, setSession] = useState<PhoneConfirmationSession | null>(null);
   const [countdown, setCountdown] = useState(0);
-
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(Boolean(auth.user?.uid));
   const [loading, setLoading] = useState(false);
@@ -47,9 +46,8 @@ export function OwnerPhoneScreen() {
 
   useEffect(() => {
     const ownerId = auth.user?.uid;
-    if (!ownerId) {
-      return;
-    }
+    if (!ownerId) return;
+
     const repository = createOwnerVerificationRepository();
     const unsubscribe = repository.subscribe(
       ownerId,
@@ -57,10 +55,9 @@ export function OwnerPhoneScreen() {
         setProfile(updatedProfile);
         setLoadingProfile(false);
       },
-      () => {
-        setLoadingProfile(false);
-      },
+      () => setLoadingProfile(false),
     );
+
     return () => unsubscribe();
   }, [auth.user?.uid]);
 
@@ -73,18 +70,16 @@ export function OwnerPhoneScreen() {
   );
   const prerequisitesMet = emailVerified && identityComplete;
   const applicationIsEditable = isOwnerApplicationEditable(profile?.verificationStatus);
-
   const isAlreadyLinked = isNigerianE164(auth.user?.phoneNumber);
   const normalizedPhone = normalizeNigerianPhone(phoneInput);
   const isPhoneValid = Boolean(normalizedPhone);
+  const isWeb = Platform.OS === 'web';
 
   useEffect(() => {
     if (countdown <= 0) return;
-    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    const timer = setTimeout(() => setCountdown((current) => current - 1), 1000);
     return () => clearTimeout(timer);
   }, [countdown]);
-
-  const isWeb = Platform.OS === 'web';
 
   const handleSendCode = async () => {
     if (isWeb || !normalizedPhone || loading) return;
@@ -93,16 +88,16 @@ export function OwnerPhoneScreen() {
       return;
     }
     if (!prerequisitesMet) {
-      if (!emailVerified) {
-        setErrorMessage('Verify your email address before linking your phone number.');
-      } else {
-        setErrorMessage('Complete your owner identity and accept terms before linking your phone number.');
-      }
+      setErrorMessage(
+        !emailVerified
+          ? 'Verify your email address before linking your phone number.'
+          : 'Complete your owner identity and accept terms before linking your phone number.',
+      );
       return;
     }
+
     setLoading(true);
     setErrorMessage(null);
-
     try {
       const gateway = createOwnerVerificationGateway();
       const confirmation = await gateway.requestPhoneVerification(normalizedPhone);
@@ -122,9 +117,9 @@ export function OwnerPhoneScreen() {
       setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
       return;
     }
+
     setLoading(true);
     setErrorMessage(null);
-
     try {
       const gateway = createOwnerVerificationGateway();
       await gateway.confirmPhoneVerification(session, code.trim());
@@ -138,47 +133,37 @@ export function OwnerPhoneScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <PressableScale onPress={() => router.back()}>
-            <View style={styles.backButton}>
-              <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-            </View>
-          </PressableScale>
-          <View>
-            <Text style={styles.title}>Link Nigerian Phone</Text>
-          </View>
-        </View>
+    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>
+      <View style={styles.header}>
+        <ScreenHeader onBack={() => router.back()} showBrand={false} title="Nigerian phone" />
+      </View>
 
-        {isWeb && (
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {isWeb ? (
           <View style={styles.webBanner}>
             <Ionicons color={colors.goldStrong} name="information-circle-outline" size={18} />
-            <Text style={styles.webBannerText}>
-              PHONE VERIFICATION REQUIRES THE NATIVE APP
-            </Text>
+            <Text style={styles.webBannerText}>PHONE VERIFICATION REQUIRES THE NATIVE APP</Text>
           </View>
-        )}
+        ) : null}
 
-        {errorMessage && (
+        {errorMessage ? (
           <View style={styles.errorBox}>
-            <Ionicons color="#EF4444" name="alert-circle-outline" size={18} />
+            <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
-        )}
+        ) : null}
 
-        {successNotice && (
+        {successNotice ? (
           <View style={styles.noticeBox}>
             <Ionicons color={colors.goldStrong} name="checkmark-circle-outline" size={18} />
             <Text style={styles.noticeText}>{successNotice}</Text>
           </View>
-        )}
+        ) : null}
 
         {loadingProfile ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator color={colors.goldStrong} size="small" />
-            <Text style={styles.loadingText}>Checking verification status...</Text>
+            <Text style={styles.loadingText}>Checking verification status…</Text>
           </View>
         ) : !applicationIsEditable ? (
           <View style={styles.prerequisiteCard}>
@@ -189,7 +174,7 @@ export function OwnerPhoneScreen() {
             <Text style={styles.prerequisiteBody}>
               Your owner application is no longer editable. Return to your Owner Desk to see its current status.
             </Text>
-            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={{ marginTop: spacing.md }}>
+            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.cardAction}>
               <View style={styles.prerequisiteButton}>
                 <Text style={styles.prerequisiteButtonText}>RETURN TO OWNER DESK</Text>
               </View>
@@ -199,48 +184,43 @@ export function OwnerPhoneScreen() {
           <View style={styles.prerequisiteCard}>
             <View style={styles.prerequisiteHeader}>
               <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={22} />
-              <Text style={styles.prerequisiteTitle}>Owner Identity Required</Text>
+              <Text style={styles.prerequisiteTitle}>Owner identity required</Text>
             </View>
             <Text style={styles.prerequisiteBody}>
               {!emailVerified
                 ? 'Verify your email address before linking your phone number.'
-                : 'Complete your legal name, Lagos operating address, and platform terms before verifying your phone number.'}
+                : 'Complete your legal name, Lagos address and platform terms before verifying your phone number.'}
             </Text>
             <PressableScale
               onPress={() => {
                 if (!emailVerified) router.push('/' as Href);
                 else router.push('/(owner)/identity' as Href);
               }}
-              style={{ marginTop: spacing.md }}
+              style={styles.cardAction}
             >
               <View style={styles.prerequisiteButton}>
                 <Text style={styles.prerequisiteButtonText}>
                   {!emailVerified ? 'VERIFY EMAIL' : 'COMPLETE OWNER IDENTITY'}
                 </Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={16} />
               </View>
             </PressableScale>
           </View>
         ) : isAlreadyLinked ? (
           <View style={styles.verifiedCard}>
             <Ionicons color={colors.goldStrong} name="shield-checkmark" size={28} />
-            <View>
-              <Text style={styles.verifiedTitle}>Phone Number Verified</Text>
-              <Text style={styles.verifiedPhone}>{auth.user?.phoneNumber}</Text>
-              <Text style={styles.verifiedNote}>
-                This account already has a verified phone. Contact MMG Concierge support to change it.
-              </Text>
-            </View>
-            <PressableScale onPress={() => router.push('/(owner)/id' as Href)} style={{ marginTop: spacing.md }}>
+            <Text style={styles.verifiedTitle}>Phone number verified</Text>
+            <Text style={styles.verifiedPhone}>{auth.user?.phoneNumber}</Text>
+            <Text style={styles.verifiedNote}>
+              Contact MMG Concierge support if this number needs to change.
+            </Text>
+            <PressableScale onPress={() => router.push('/(owner)/id' as Href)} style={styles.cardAction}>
               <View style={styles.primaryButton}>
                 <Text style={styles.primaryText}>CONTINUE TO ID UPLOAD</Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={18} />
               </View>
             </PressableScale>
           </View>
         ) : (
           <>
-            {/* Phone Input */}
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Nigerian Mobile Number</Text>
               <View style={styles.phoneInputRow}>
@@ -250,11 +230,11 @@ export function OwnerPhoneScreen() {
                 <TextInput
                   editable={!isWeb && !session}
                   keyboardType="phone-pad"
+                  onChangeText={setPhoneInput}
                   placeholder="0801 234 5678"
                   placeholderTextColor={colors.muted}
+                  style={[styles.input, styles.phoneInput, isWeb && styles.webDisabled]}
                   value={phoneInput}
-                  onChangeText={setPhoneInput}
-                  style={[styles.input, { flex: 1 }, isWeb && { opacity: 0.6 }]}
                 />
               </View>
             </View>
@@ -262,16 +242,13 @@ export function OwnerPhoneScreen() {
             {!session ? (
               <PressableScale
                 onPress={handleSendCode}
-                style={[{ marginTop: spacing.lg }, (isWeb || !isPhoneValid || loading) && { opacity: 0.5 }]}
+                style={[styles.primaryAction, (isWeb || !isPhoneValid || loading) && styles.disabledAction]}
               >
                 <View style={styles.primaryButton}>
                   {loading ? (
                     <ActivityIndicator color={colors.black} size="small" />
                   ) : (
-                    <>
-                      <Text style={styles.primaryText}>SEND VERIFICATION CODE</Text>
-                      <Ionicons color={colors.black} name="send-outline" size={16} />
-                    </>
+                    <Text style={styles.primaryText}>SEND VERIFICATION CODE</Text>
                   )}
                 </View>
               </PressableScale>
@@ -282,25 +259,22 @@ export function OwnerPhoneScreen() {
                   editable={!isWeb}
                   keyboardType="number-pad"
                   maxLength={6}
+                  onChangeText={setCode}
                   placeholder="123456"
                   placeholderTextColor={colors.muted}
+                  style={[styles.input, styles.codeInput, isWeb && styles.webDisabled]}
                   value={code}
-                  onChangeText={setCode}
-                  style={[styles.input, styles.codeInput, isWeb && { opacity: 0.6 }]}
                 />
 
                 <PressableScale
                   onPress={handleVerifyCode}
-                  style={[{ marginTop: spacing.md }, (isWeb || code.trim().length !== 6 || loading) && { opacity: 0.5 }]}
+                  style={[styles.verifyAction, (isWeb || code.trim().length !== 6 || loading) && styles.disabledAction]}
                 >
                   <View style={styles.primaryButton}>
                     {loading ? (
                       <ActivityIndicator color={colors.black} size="small" />
                     ) : (
-                      <>
-                        <Text style={styles.primaryText}>VERIFY AND CONTINUE</Text>
-                        <Ionicons color={colors.black} name="checkmark-circle-outline" size={18} />
-                      </>
+                      <Text style={styles.primaryText}>VERIFY AND CONTINUE</Text>
                     )}
                   </View>
                 </PressableScale>
@@ -310,7 +284,7 @@ export function OwnerPhoneScreen() {
                     <Text style={styles.countdownText}>Resend code in {countdown}s</Text>
                   ) : (
                     <PressableScale onPress={handleSendCode}>
-                      <Text style={[styles.resendText, isWeb && { opacity: 0.5 }]}>Resend SMS Code</Text>
+                      <Text style={[styles.resendText, isWeb && styles.webDisabled]}>Resend SMS Code</Text>
                     </PressableScale>
                   )}
                 </View>
@@ -324,40 +298,44 @@ export function OwnerPhoneScreen() {
 }
 
 const styles = StyleSheet.create({
-  backButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 44, justifyContent: 'center', minHeight: 44, minWidth: 44, width: 44 },
+  cardAction: { marginTop: spacing.md },
   codeInput: { fontFamily: typography.bodySemiBold, fontSize: 20, letterSpacing: 6, textAlign: 'center' },
   codeSection: { marginTop: spacing.lg },
   countdownText: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
   countryPill: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, justifyContent: 'center', paddingHorizontal: spacing.md },
   countryPillText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
+  disabledAction: { opacity: 0.5 },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
+  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
   fieldGroup: { marginBottom: spacing.md },
-  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
+  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
   label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
-  noticeBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.1)', borderColor: 'rgba(200,157,70,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  noticeText: { color: colors.goldStrong, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  phoneInputRow: { flexDirection: 'row', gap: spacing.xs },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
-  resendRow: { alignItems: 'center', marginTop: spacing.md },
-  resendText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  screen: { backgroundColor: colors.black, flex: 1 },
   loadingBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
   loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+  noticeBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.1)', borderColor: 'rgba(200,157,70,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
+  noticeText: { color: colors.goldStrong, flex: 1, fontFamily: typography.body, fontSize: 13 },
+  phoneInput: { flex: 1 },
+  phoneInputRow: { flexDirection: 'row', gap: spacing.xs },
+  primaryAction: { marginTop: spacing.lg },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
+  prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 48 },
+  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13, letterSpacing: 0.5 },
   prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
   prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
   prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 48 },
-  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13, letterSpacing: 0.5 },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 26, letterSpacing: -0.4, marginTop: 2 },
+  resendRow: { alignItems: 'center', marginTop: spacing.md },
+  resendText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  screen: { backgroundColor: colors.black, flex: 1 },
+  scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   verifiedCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: spacing.lg },
   verifiedNote: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.xs },
   verifiedPhone: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 18, marginTop: 4 },
   verifiedTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15, marginTop: spacing.xs },
+  verifyAction: { marginTop: spacing.md },
   webBanner: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.12)', borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.sm },
   webBannerText: { color: colors.goldStrong, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 11 },
+  webDisabled: { opacity: 0.6 },
 });

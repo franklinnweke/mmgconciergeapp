@@ -179,10 +179,7 @@ function TripRow({
         )}
 
         <View style={styles.tripBody}>
-          <View style={styles.tripHeading}>
-            <Text numberOfLines={1} style={styles.vehicleName}>{displayName}</Text>
-            <Ionicons color={colors.muted} name="chevron-forward" size={17} />
-          </View>
+          <Text numberOfLines={1} style={styles.vehicleName}>{displayName}</Text>
 
           <Text
             style={[
@@ -249,10 +246,9 @@ const styles = StyleSheet.create({
   syncNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   total: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
   tripBody: { flex: 1, gap: 6, justifyContent: 'center', minWidth: 0 },
-  tripHeading: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   tripList: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth },
   tripRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 118, paddingVertical: spacing.md },
   vehicleImage: { borderRadius: radii.sm, height: 84, width: 112 },
-  vehicleName: { color: colors.ivory, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 15 },
+  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
   vehiclePlaceholder: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, height: 84, justifyContent: 'center', width: 112 },
 });
