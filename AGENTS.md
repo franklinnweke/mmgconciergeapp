@@ -93,6 +93,14 @@ Never add `booking_admin`.
 
 The booking concierge desk uses capabilities rather than a new role. `bookings.manage_requests` is bounded to soft-request approval/decline and opening the payment window. It does not grant refunds, payouts, reassignment, or arbitrary paid-booking mutation.
 
+### Design doctrine and restraint rules
+1. **Content before chrome**: The vehicle, pickup location, and trip state dominate; navigation and decorative frames recede.
+2. **Hierarchy through spacing and placement before decoration**: Rely on grouping, typographic hierarchy, and layout rather than outlined card-in-card layers and badges.
+3. **Use the MMG gold deliberately, not habitually**: Gold signifies primary action, active selection, and critical status. Secondary labels, borders, and metadata stay quiet.
+4. **Use familiar mobile behaviors unless MMG genuinely needs something different**: Standardize headers, dismissals, pickers, and inputs rather than inventing bespoke controls.
+5. **Simple means exactly enough information, not the fewest elements possible**: Retain critical context (availability, cancellation consequences, payment timer); remove internal classifications and repetitive service promises.
+6. **Delight comes from confidence, responsiveness, and craft, not ornamental effects**: Smooth transitions, truthful states, and instant inline feedback beat disruptive success modals and marketing decorations.
+
 ## 3. Canonical request-first booking model
 
 The Build 30 commercial model is request-first concierge booking:
