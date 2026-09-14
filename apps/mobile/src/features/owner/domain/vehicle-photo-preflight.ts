@@ -69,7 +69,7 @@ export function validateVehiclePhotoCandidate(
   }
 
   const fileSize = candidate.fileSize;
-  if (!Number.isSafeInteger(fileSize) || !fileSize || fileSize <= 0) {
+  if (typeof fileSize !== 'number' || !Number.isSafeInteger(fileSize) || fileSize <= 0) {
     throw new VehiclePhotoValidationError(
       'missing_size',
       "MMG could not verify this photo's file size. Choose it again or select a different image.",
