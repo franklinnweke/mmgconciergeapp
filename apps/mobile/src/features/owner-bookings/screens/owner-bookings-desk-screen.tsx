@@ -176,7 +176,6 @@ export function OwnerBookingsDeskScreen() {
                       <Text style={styles.meta}>{request.startDate} to {request.endDate} · {request.serviceAreaLabel}</Text>
                       <Text style={styles.meta}>{copy.label} · {formatNairaFromKobo(price.ownerEarningsKobo)} earnings</Text>
                     </View>
-                    <Ionicons color={colors.muted} name="chevron-forward" size={18} />
                   </View>
                 </PressableScale>
               );
@@ -206,7 +205,6 @@ export function OwnerBookingsDeskScreen() {
                     <Text style={styles.meta}>{booking.startDate} to {booking.endDate}</Text>
                     <Text style={styles.meta}>{booking.state.replaceAll('_', ' ')} · {formatNairaFromKobo(booking.priceSnapshot.ownerEarningsKobo)} earnings</Text>
                   </View>
-                  <Ionicons color={colors.muted} name="chevron-forward" size={18} />
                 </View>
               </PressableScale>
             ))}
