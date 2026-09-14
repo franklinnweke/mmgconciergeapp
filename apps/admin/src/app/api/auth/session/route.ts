@@ -31,7 +31,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    console.error('[AdminSession] Staff sign-in error:', error instanceof Error ? error.message : error);
     return NextResponse.json({ error: 'Staff sign-in could not be completed.' }, { status: 401 });
   }
 }

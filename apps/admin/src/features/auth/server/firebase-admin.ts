@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { getApp, getApps, initializeApp } from 'firebase-admin/app';
+import { cert, getApp, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
@@ -17,6 +17,15 @@ export function getAdminApp() {
   return initializeApp({
     projectId: config.projectId,
     storageBucket: config.storageBucket,
+    ...(config.clientEmail && config.privateKey
+      ? {
+          credential: cert({
+            projectId: config.projectId,
+            clientEmail: config.clientEmail,
+            privateKey: config.privateKey,
+          }),
+        }
+      : {}),
   });
 }
 

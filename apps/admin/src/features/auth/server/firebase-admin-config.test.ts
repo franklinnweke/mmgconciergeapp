@@ -16,6 +16,8 @@ describe('getAdminServerConfig (fail-closed environment validation)', () => {
     delete process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
     delete process.env.MMG_FIREBASE_ENV;
     delete process.env.NEXT_PUBLIC_MMG_FIREBASE_ENV;
+    delete process.env.FIREBASE_CLIENT_EMAIL;
+    delete process.env.FIREBASE_PRIVATE_KEY;
   });
 
   it('fails closed when FIREBASE_PROJECT_ID is missing or empty', () => {
@@ -203,6 +205,41 @@ describe('getAdminServerConfig (fail-closed environment validation)', () => {
         storageBucket: 'mmg-concierge.firebasestorage.app',
         environment: 'production',
       });
+    });
+  });
+
+  describe('service-account environment credentials', () => {
+    beforeEach(() => {
+      process.env.MMG_FIREBASE_ENV = 'development';
+      process.env.FIREBASE_PROJECT_ID = 'mmg-concierge-dev';
+      process.env.FIREBASE_STORAGE_BUCKET = 'mmg-concierge-dev.firebasestorage.app';
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'mmg-concierge-dev';
+      process.env.NEXT_PUBLIC_MMG_FIREBASE_ENV = 'development';
+    });
+
+    it('rejects when FIREBASE_CLIENT_EMAIL is provided without FIREBASE_PRIVATE_KEY', () => {
+      process.env.FIREBASE_CLIENT_EMAIL = 'firebase-adminsdk@mmg-concierge-dev.iam.gserviceaccount.com';
+
+      expect(() => getAdminServerConfig()).toThrowError(
+        /Both FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY must be provided together/
+      );
+    });
+
+    it('rejects when FIREBASE_PRIVATE_KEY is provided without FIREBASE_CLIENT_EMAIL', () => {
+      process.env.FIREBASE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----\n';
+
+      expect(() => getAdminServerConfig()).toThrowError(
+        /Both FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY must be provided together/
+      );
+    });
+
+    it('correctly parses clientEmail and unescapes \\n in privateKey', () => {
+      process.env.FIREBASE_CLIENT_EMAIL = '  firebase-adminsdk@mmg-concierge-dev.iam.gserviceaccount.com  ';
+      process.env.FIREBASE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\\nMIIEvgIBADANBg\\n-----END PRIVATE KEY-----';
+
+      const config = getAdminServerConfig();
+      expect(config.clientEmail).toBe('firebase-adminsdk@mmg-concierge-dev.iam.gserviceaccount.com');
+      expect(config.privateKey).toBe('-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBg\n-----END PRIVATE KEY-----');
     });
   });
 
