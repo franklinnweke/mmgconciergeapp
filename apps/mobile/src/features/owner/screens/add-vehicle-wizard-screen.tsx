@@ -31,6 +31,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
+import {
+  validateVehiclePhotoCandidate,
+  VehiclePhotoValidationError,
+  type ValidatedVehiclePhoto,
+} from '../domain/vehicle-photo-preflight';
 
 const FEATURE_LABELS: Record<VehicleFeatureKey, string> = {
   climate_control: 'Dual-Zone Climate Control',
@@ -44,13 +49,7 @@ const FEATURE_LABELS: Record<VehicleFeatureKey, string> = {
 };
 
 type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
-
-type SelectedPhoto = {
-  uri: string;
-  fileName: string;
-  mimeType: string;
-  fileSize?: number;
-};
+type SelectedPhoto = ValidatedVehiclePhoto;
 
 function mapVehicleError(err: unknown): string {
   if (!err) return 'An unexpected error occurred. Please try again.';
@@ -146,14 +145,33 @@ export function AddVehicleWizardScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newSelected: SelectedPhoto[] = result.assets.map((asset, idx) => ({
-          uri: asset.uri,
-          fileName: asset.fileName || `vehicle-photo-${Date.now()}-${idx}.jpg`,
-          mimeType: asset.mimeType || 'image/jpeg',
-          fileSize: asset.fileSize,
-        }));
+        const selectedAt = Date.now();
+        const newSelected: SelectedPhoto[] = [];
+        const validationMessages = new Set<string>();
 
-        setPhotos((prev) => [...prev, ...newSelected].slice(0, 20));
+        result.assets.forEach((asset, idx) => {
+          try {
+            newSelected.push(validateVehiclePhotoCandidate({
+              uri: asset.uri,
+              fileName: asset.fileName,
+              mimeType: asset.mimeType,
+              fileSize: asset.fileSize,
+            }, `vehicle-photo-${selectedAt}-${idx}`));
+          } catch (error) {
+            validationMessages.add(
+              error instanceof VehiclePhotoValidationError
+                ? error.message
+                : 'One or more selected photos could not be verified.',
+            );
+          }
+        });
+
+        if (newSelected.length > 0) {
+          setPhotos((prev) => [...prev, ...newSelected].slice(0, 20));
+        }
+        if (validationMessages.size > 0) {
+          setErrorMsg([...validationMessages].join(' '));
+        }
       }
     } catch {
       setErrorMsg('Could not open photo library. Please check device permissions.');
@@ -277,15 +295,15 @@ export function AddVehicleWizardScreen() {
         const uploadSession = await gateway.createUploadSession({
           vehicleId,
           purpose: 'listing_image',
-          contentType: photo.mimeType === 'image/png' ? 'image/png' : 'image/jpeg',
-          byteSize: photo.fileSize || 1024 * 500,
+          contentType: photo.mimeType,
+          byteSize: photo.fileSize,
           originalFileName: photo.fileName,
         });
 
         await gateway.uploadVehiclePhoto(
           uploadSession.result.storagePath,
           photo.uri,
-          photo.mimeType === 'image/png' ? 'image/png' : 'image/jpeg',
+          photo.mimeType,
         );
 
         setSubmissionProgress(`Processing image ${i + 1} of ${photos.length}...`);
@@ -618,7 +636,7 @@ export function AddVehicleWizardScreen() {
                 <Text style={styles.photoPickerText}>
                   {photos.length === 0 ? 'Select Photos from Library' : 'Add More Photos'}
                 </Text>
-                <Text style={styles.photoPickerSubtext}>JPEG or PNG · Max 10MB each</Text>
+                <Text style={styles.photoPickerSubtext}>JPEG, PNG, or WebP · Max 10MB each</Text>
               </PressableScale>
 
               <Text style={styles.fieldLabel}>SELECTED PHOTOS ({photos.length} / 20)</Text>
