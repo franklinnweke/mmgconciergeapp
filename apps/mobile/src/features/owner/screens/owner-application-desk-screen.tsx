@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   previewBannerText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1 },
   primaryAction: { marginTop: spacing.xl },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   reasonBody: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
   reasonCard: { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, marginVertical: spacing.md, padding: spacing.md },
   reasonTitle: { color: '#F87171', fontFamily: typography.bodySemiBold, fontSize: 12, marginBottom: 4 },

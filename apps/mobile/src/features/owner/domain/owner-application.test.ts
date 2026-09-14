@@ -177,7 +177,7 @@ describe('owner application domain', () => {
         firstIncompleteStep: 'identity',
       });
       expect(desk.eyebrow).toBe('OWNER DESK');
-      expect(desk.primaryAction?.label).toBe('CONTINUE APPLICATION');
+      expect(desk.primaryAction?.label).toBe('Continue application');
       expect(desk.primaryAction?.route).toBe('/(owner)/identity');
     });
 
@@ -190,7 +190,7 @@ describe('owner application domain', () => {
         firstIncompleteStep: 'submit',
       });
       expect(desk.eyebrow).toBe('READY TO SUBMIT');
-      expect(desk.primaryAction?.label).toBe('REVIEW AND SUBMIT');
+      expect(desk.primaryAction?.label).toBe('Review and submit');
       expect(desk.primaryAction?.route).toBe('/(owner)/submit');
     });
 
@@ -221,7 +221,7 @@ describe('owner application domain', () => {
       );
       expect(desk.eyebrow).toBe('NOT APPROVED');
       expect(desk.body).toBe('Passport was expired.');
-      expect(desk.primaryAction?.label).toBe('UPDATE APPLICATION');
+      expect(desk.primaryAction?.label).toBe('Update application');
       expect(desk.primaryAction?.route).toBe('/(owner)/identity');
     });
 
@@ -234,7 +234,7 @@ describe('owner application domain', () => {
         firstIncompleteStep: null,
       });
       expect(desk.eyebrow).toBe('APPROVED');
-      expect(desk.primaryAction?.label).toBe('MANAGE LUXURY FLEET');
+      expect(desk.primaryAction?.label).toBe('Manage luxury fleet');
       expect(desk.primaryAction?.route).toBe('/(owner)/fleet');
       expect(desk.showChecklist).toBe(false);
     });

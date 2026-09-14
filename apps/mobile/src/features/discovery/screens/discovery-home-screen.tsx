@@ -145,10 +145,7 @@ export default function DiscoveryHomeScreen() {
         />
 
         <View style={[styles.inventoryHeading, styles.inset]}>
-          <View>
-            <Text accessibilityRole="header" style={styles.inventoryTitle}>Cars in Lagos</Text>
-            <Text style={styles.inventorySubtitle}>Chauffeur and delivery included.</Text>
-          </View>
+          <Text accessibilityRole="header" style={styles.inventoryTitle}>Cars in Lagos</Text>
           <PressableScale accessibilityRole="button" onPress={() => openFleet()}>
             <Text style={styles.viewAll}>View all</Text>
           </PressableScale>
@@ -241,8 +238,7 @@ const styles = StyleSheet.create({
   errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
   horizontalClip: { alignSelf: 'stretch', overflow: 'visible', width: '100%' },
   inset: { marginHorizontal: spacing.md },
-  inventoryHeading: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
-  inventorySubtitle: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 3 },
+  inventoryHeading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
   inventoryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
   screen: { backgroundColor: colors.black, flex: 1, maxWidth: '100%', overflow: 'hidden', width: '100%' },
   viewAll: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm, paddingVertical: spacing.xs },

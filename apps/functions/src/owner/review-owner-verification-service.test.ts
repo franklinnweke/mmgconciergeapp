@@ -63,8 +63,20 @@ class InMemoryOwnerRepository implements OwnerRepository {
   }
 }
 
+import type { StorageGateway } from './storage-validation.js';
+
+class InMemoryStorageGateway implements StorageGateway {
+  deleted: string[] = [];
+  async getObjectMetadata(): Promise<null> { return null; }
+  async readFirstBytes(): Promise<null> { return null; }
+  async deleteObject(storagePath: string): Promise<void> {
+    this.deleted.push(storagePath);
+  }
+}
+
 describe('reviewOwnerVerification service', () => {
   let repository: InMemoryOwnerRepository;
+  let storageGateway: InMemoryStorageGateway;
   const now = new Date('2026-08-15T12:00:00.000Z');
   const staffActor: ReviewOwnerVerificationActor = {
     uid: 'staff-admin-01',
@@ -73,6 +85,7 @@ describe('reviewOwnerVerification service', () => {
 
   beforeEach(() => {
     repository = new InMemoryOwnerRepository();
+    storageGateway = new InMemoryStorageGateway();
 
     repository.profiles.set('owner-one', {
       ownerId: 'owner-one',
@@ -190,6 +203,7 @@ describe('reviewOwnerVerification service', () => {
 
     const result = await reviewOwnerVerification(command, staffActor, {
       repository,
+      storageGateway,
       now: () => now,
     });
 
@@ -198,6 +212,10 @@ describe('reviewOwnerVerification service', () => {
     expect(saved?.status).toBe('approved');
     expect(saved?.reviewerUid).toBe('staff-admin-01');
     expect(saved?.reviewChecklist).toMatchObject({ identity_matches_id: true });
+    expect(saved?.governmentId?.bytesState).toBe('cleared');
+    expect(saved?.governmentId?.storagePath).toBeNull();
+    expect(repository.profiles.get('owner-one')?.governmentId?.status).toBe('cleared');
+    expect(storageGateway.deleted).toContain('private/owner-verification/owner-one/upload-01');
 
     expect(repository.adminLogs).toHaveLength(1);
     expect(repository.adminLogs[0]).toMatchObject({
@@ -227,6 +245,7 @@ describe('reviewOwnerVerification service', () => {
 
     const result = await reviewOwnerVerification(command, staffActor, {
       repository,
+      storageGateway,
       now: () => now,
     });
 
@@ -235,6 +254,10 @@ describe('reviewOwnerVerification service', () => {
     expect(saved?.status).toBe('rejected');
     expect(saved?.lastDecisionReason).toBe('National ID image is blurred and unreadable. Please re-upload.');
     expect(repository.profiles.get('owner-one')?.lastDecisionReason).toBe('National ID image is blurred and unreadable. Please re-upload.');
+    expect(saved?.governmentId?.bytesState).toBe('cleared');
+    expect(saved?.governmentId?.storagePath).toBeNull();
+    expect(repository.profiles.get('owner-one')?.governmentId?.status).toBe('cleared');
+    expect(storageGateway.deleted).toContain('private/owner-verification/owner-one/upload-01');
   });
 
   it('fails with stale_version when expectedVersion does not match current version', async () => {

@@ -22,6 +22,7 @@ export type StoredObjectMetadata = {
 export interface StorageGateway {
   getObjectMetadata(storagePath: string): Promise<StoredObjectMetadata | null>;
   readFirstBytes(storagePath: string, byteCount: number): Promise<Buffer | null>;
+  deleteObject?(storagePath: string): Promise<void>;
 }
 
 export type StorageBucket = ReturnType<ReturnType<typeof getStorage>['bucket']>;
@@ -68,6 +69,15 @@ export class AdminStorageGateway implements StorageGateway {
       return buffer;
     } catch {
       return null;
+    }
+  }
+
+  async deleteObject(storagePath: string): Promise<void> {
+    try {
+      const file = this.bucket.file(storagePath);
+      await file.delete({ ignoreNotFound: true });
+    } catch {
+      // Ignored or logged; file already gone or inaccessible
     }
   }
 }

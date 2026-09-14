@@ -15,21 +15,15 @@ describe('VehicleDetailScreen verified facts and commercial presentation', () =>
     deliveryPolicy: 'included',
   };
 
-  it('formats verified facts using real vehicle data only', () => {
-    const facts = [
-      `${mockVehicle.seats} passengers`,
-      'Chauffeur included',
-      'Delivery included',
-    ];
+  it('formats verified vehicle metadata using real vehicle data only', () => {
+    const meta = `${mockVehicle.areaLabel} · ${mockVehicle.seats} passengers`;
 
-    expect(facts).toContain('7 passengers');
-    expect(facts).toContain('Chauffeur included');
-    expect(facts).toContain('Delivery included');
+    expect(meta).toBe('Victoria Island · 7 passengers');
 
     // Non-verified or fabricated specs must not be present
-    expect(facts).not.toContain('3 large bags');
-    expect(facts).not.toContain('Automatic');
-    expect(facts).not.toContain('Dual A/C');
+    expect(meta).not.toContain('3 large bags');
+    expect(meta).not.toContain('Automatic');
+    expect(meta).not.toContain('Dual A/C');
   });
 
   it('calculates authoritative quote breakdown correctly for rental duration', () => {

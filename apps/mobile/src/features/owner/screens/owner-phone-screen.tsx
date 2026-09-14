@@ -176,7 +176,7 @@ export function OwnerPhoneScreen() {
             </Text>
             <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.cardAction}>
               <View style={styles.prerequisiteButton}>
-                <Text style={styles.prerequisiteButtonText}>RETURN TO OWNER DESK</Text>
+                <Text style={styles.prerequisiteButtonText}>Return to Owner Desk</Text>
               </View>
             </PressableScale>
           </View>
@@ -200,7 +200,7 @@ export function OwnerPhoneScreen() {
             >
               <View style={styles.prerequisiteButton}>
                 <Text style={styles.prerequisiteButtonText}>
-                  {!emailVerified ? 'VERIFY EMAIL' : 'COMPLETE OWNER IDENTITY'}
+                  {!emailVerified ? 'Verify email' : 'Complete owner identity'}
                 </Text>
               </View>
             </PressableScale>
@@ -215,7 +215,7 @@ export function OwnerPhoneScreen() {
             </Text>
             <PressableScale onPress={() => router.push('/(owner)/id' as Href)} style={styles.cardAction}>
               <View style={styles.primaryButton}>
-                <Text style={styles.primaryText}>CONTINUE TO ID UPLOAD</Text>
+                <Text style={styles.primaryText}>Continue to ID upload</Text>
               </View>
             </PressableScale>
           </View>
@@ -248,7 +248,7 @@ export function OwnerPhoneScreen() {
                   {loading ? (
                     <ActivityIndicator color={colors.black} size="small" />
                   ) : (
-                    <Text style={styles.primaryText}>SEND VERIFICATION CODE</Text>
+                    <Text style={styles.primaryText}>Send verification code</Text>
                   )}
                 </View>
               </PressableScale>
@@ -274,7 +274,7 @@ export function OwnerPhoneScreen() {
                     {loading ? (
                       <ActivityIndicator color={colors.black} size="small" />
                     ) : (
-                      <Text style={styles.primaryText}>VERIFY AND CONTINUE</Text>
+                      <Text style={styles.primaryText}>Verify and continue</Text>
                     )}
                   </View>
                 </PressableScale>
@@ -319,10 +319,10 @@ const styles = StyleSheet.create({
   phoneInputRow: { flexDirection: 'row', gap: spacing.xs },
   primaryAction: { marginTop: spacing.lg },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
   prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 48 },
-  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13, letterSpacing: 0.5 },
+  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
   prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
   prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
   prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },

@@ -209,7 +209,7 @@ export function OwnerSubmitScreen() {
             </Text>
             <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.statusAction}>
               <View style={styles.primaryButton}>
-                <Text style={styles.primaryText}>RETURN TO OWNER DESK</Text>
+                <Text style={styles.primaryText}>Return to Owner Desk</Text>
               </View>
             </PressableScale>
           </View>
@@ -222,7 +222,7 @@ export function OwnerSubmitScreen() {
               {submitting ? (
                 <ActivityIndicator color={colors.black} size="small" />
               ) : (
-                <Text style={styles.primaryText}>SUBMIT APPLICATION</Text>
+                <Text style={styles.primaryText}>Submit application</Text>
               )}
             </View>
           </PressableScale>
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   lastSummaryRow: { borderBottomWidth: 0 },
   phoneValue: { color: colors.goldStrong, fontFamily: 'monospace' },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   screen: { backgroundColor: colors.black, flex: 1 },
   scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   statusAction: { marginTop: spacing.md },

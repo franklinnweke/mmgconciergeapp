@@ -177,7 +177,7 @@ export function getDeskPresentation(
         title: 'Review and send your file.',
         body: 'All required steps are complete. Review your details and submit your application to the MMG operations desk.',
         primaryAction: {
-          label: 'REVIEW AND SUBMIT',
+          label: 'Review and submit',
           route: '/(owner)/submit',
         },
         lastDecisionReason: null,
@@ -198,7 +198,7 @@ export function getDeskPresentation(
       title: 'Prepare your application.',
       body: 'Complete your profile, verify your Nigerian phone number, and securely upload your government identification.',
       primaryAction: {
-        label: 'CONTINUE APPLICATION',
+        label: 'Continue application',
         route: stepRouteMap[completeness.firstIncompleteStep || 'identity'],
       },
       lastDecisionReason: null,
@@ -237,7 +237,7 @@ export function getDeskPresentation(
       title: 'You are verified.',
       body: 'Your owner account has been approved. You can now manage your luxury fleet and list vehicles for MMG Concierge moderation.',
       primaryAction: {
-        label: 'MANAGE LUXURY FLEET',
+        label: 'Manage luxury fleet',
         route: '/(owner)/fleet',
       },
       lastDecisionReason: null,
@@ -254,7 +254,7 @@ export function getDeskPresentation(
         lastDecisionReason ||
         'Your previous submission could not be approved. Please update your details or re-upload your document.',
       primaryAction: {
-        label: 'UPDATE APPLICATION',
+        label: 'Update application',
         route: '/(owner)/identity',
       },
       lastDecisionReason,

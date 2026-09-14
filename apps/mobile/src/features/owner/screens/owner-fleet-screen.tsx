@@ -24,51 +24,33 @@ function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) 
     case 'approved':
       if (visibility === 'active') {
         return {
-          label: 'APPROVED & LIVE',
+          label: 'Approved & live',
           color: colors.success ?? '#10B981',
-          bgColor: 'rgba(160, 185, 129, 0.12)',
-          borderColor: 'rgba(16, 185, 129, 0.3)',
-          icon: 'checkmark-circle' as const,
         };
       }
       return {
-        label: 'APPROVED (PAUSED)',
+        label: 'Approved (paused)',
         color: colors.muted,
-        bgColor: 'rgba(160, 160, 160, 0.12)',
-        borderColor: 'rgba(160, 160, 160, 0.3)',
-        icon: 'pause-circle' as const,
       };
     case 'pending_review':
       return {
-        label: 'UNDER REVIEW',
+        label: 'Under review',
         color: '#3B82F6',
-        bgColor: 'rgba(59, 130, 246, 0.12)',
-        borderColor: 'rgba(59, 130, 246, 0.3)',
-        icon: 'time' as const,
       };
     case 'draft':
       return {
-        label: 'DRAFT',
+        label: 'Draft',
         color: colors.goldStrong,
-        bgColor: 'rgba(212, 175, 55, 0.12)',
-        borderColor: 'rgba(212, 175, 55, 0.3)',
-        icon: 'document-text' as const,
       };
     case 'rejected':
       return {
-        label: 'REVISION REQUIRED',
+        label: 'Revision required',
         color: colors.danger ?? '#EF4444',
-        bgColor: 'rgba(239, 68, 68, 0.12)',
-        borderColor: 'rgba(239, 68, 68, 0.3)',
-        icon: 'alert-circle' as const,
       };
     case 'suspended':
       return {
-        label: 'SUSPENDED',
+        label: 'Suspended',
         color: colors.danger ?? '#EF4444',
-        bgColor: 'rgba(239, 68, 68, 0.12)',
-        borderColor: 'rgba(239, 68, 68, 0.3)',
-        icon: 'close-circle' as const,
       };
   }
 }
@@ -247,9 +229,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: typography.bodySemiBold,
     fontSize: 11,
-    letterSpacing: 0.4,
     marginTop: 2,
-    textTransform: 'uppercase',
   },
   vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
   vehicleTitleGroup: { flex: 1, marginRight: spacing.sm },

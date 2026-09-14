@@ -400,6 +400,7 @@ export const reviewOwnerVerification = onCall(
       const actor = requireVerificationAdmin(request.auth);
       const result = await reviewOwnerVerificationService(request.data, actor, {
         repository: ownerRepository,
+        storageGateway,
       });
       logger.info('owner.verification_decided', {
         requestId: result.requestId,

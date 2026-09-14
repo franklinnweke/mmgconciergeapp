@@ -28,23 +28,6 @@ export type PickupLocationSheetProps = {
   onClose(): void;
 };
 
-function getIconForLocation(nameOrAddress: string): keyof typeof Ionicons.glyphMap {
-  const name = nameOrAddress.toLowerCase();
-  if (name.includes('airport') || name.includes('execujet') || name.includes('terminal')) {
-    return 'airplane-outline';
-  }
-  if (name.includes('hotel') || name.includes('suites') || name.includes('wheatbaker')) {
-    return 'bed-outline';
-  }
-  if (name.includes('centre') || name.includes('civic') || name.includes('hall')) {
-    return 'business-outline';
-  }
-  if (name.includes('island') || name.includes('banana')) {
-    return 'shield-checkmark-outline';
-  }
-  return 'location-outline';
-}
-
 export function PickupLocationSheet({
   visible,
   selectedLocation,
@@ -211,20 +194,10 @@ export function PickupLocationSheet({
                   <Text accessibilityRole="header" style={styles.title}>
                     Confirm pickup location
                   </Text>
-                  <Text style={styles.subtitle}>
-                    Review delivery details and specify meeting instructions
-                  </Text>
                 </View>
 
                 {/* Resolved Location Card */}
                 <View style={styles.confirmedCard}>
-                  <View style={styles.confirmedIcon}>
-                    <Ionicons
-                      color={colors.goldStrong}
-                      name={getIconForLocation(pendingLocation.displayName)}
-                      size={22}
-                    />
-                  </View>
                   <View style={styles.confirmedCopy}>
                     <Text style={styles.confirmedTitle}>{pendingLocation.displayName}</Text>
                     <Text style={styles.confirmedAddress}>{pendingLocation.formattedAddress}</Text>
@@ -254,9 +227,6 @@ export function PickupLocationSheet({
                     style={styles.noteInput}
                     value={note}
                   />
-                  <Text style={styles.noteHelper}>
-                    Chauffeur and concierge will use this note upon arrival.
-                  </Text>
                 </View>
 
                 {/* Confirm Button */}
@@ -267,7 +237,6 @@ export function PickupLocationSheet({
                   style={styles.confirmButton}
                 >
                   <Text style={styles.confirmButtonText}>Confirm pickup location</Text>
-                  <Ionicons color={colors.black} name="checkmark" size={18} />
                 </PressableScale>
 
                 {/* Confirmation Google Attribution */}
@@ -288,9 +257,6 @@ export function PickupLocationSheet({
                   <View style={styles.headerTitleGroup}>
                     <Text accessibilityRole="header" style={styles.title}>
                       Where should we bring the car?
-                    </Text>
-                    <Text style={styles.subtitle}>
-                      Chauffeured delivery anywhere in Lagos
                     </Text>
                   </View>
                   <Pressable
@@ -331,10 +297,9 @@ export function PickupLocationSheet({
                     <Text style={styles.currentLocationSub}>
                       {currentLocStatus === 'requesting'
                         ? 'Detecting your Lagos location…'
-                        : 'We will bring the vehicle directly to you in Lagos'}
+                        : 'Find your location automatically'}
                     </Text>
                   </View>
-                  <Ionicons color={colors.muted} name="chevron-forward" size={16} />
                 </PressableScale>
 
                 {/* Choice 2: Search address or Lagos landmarks */}
@@ -362,7 +327,7 @@ export function PickupLocationSheet({
                 {/* Section Header */}
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionHeaderTitle}>
-                    {query.trim().length > 0 ? 'Matching Locations' : 'Suggested Lagos Landmarks'}
+                    {query.trim().length > 0 ? 'Matching locations' : 'Suggested Lagos landmarks'}
                   </Text>
                 </View>
 
@@ -381,7 +346,6 @@ export function PickupLocationSheet({
                     suggestions.map((item) => {
                       const active = isSelected(item);
                       const isResolving = resolvingPlaceId === item.placeId;
-                      const icon = getIconForLocation(item.primaryText);
 
                       return (
                         <PressableScale
@@ -393,18 +357,6 @@ export function PickupLocationSheet({
                           onPress={() => handleSelectSuggestion(item)}
                           style={[styles.itemRow, active && styles.itemRowActive]}
                         >
-                          <View style={[styles.itemIcon, active && styles.itemIconActive]}>
-                            {isResolving ? (
-                              <ActivityIndicator color={colors.goldStrong} size="small" />
-                            ) : (
-                              <Ionicons
-                                color={active ? colors.canvas : colors.goldStrong}
-                                name={icon}
-                                size={18}
-                              />
-                            )}
-                          </View>
-
                           <View style={styles.itemCopy}>
                             <Text numberOfLines={1} style={[styles.itemName, active && styles.itemNameActive]}>
                               {item.primaryText}
@@ -416,11 +368,11 @@ export function PickupLocationSheet({
                             ) : null}
                           </View>
 
-                          {active ? (
+                          {isResolving ? (
+                            <ActivityIndicator color={colors.goldStrong} size="small" />
+                          ) : active ? (
                             <Ionicons color={colors.goldStrong} name="checkmark-circle" size={20} />
-                          ) : (
-                            <Ionicons color={colors.muted} name="chevron-forward" size={16} />
-                          )}
+                          ) : null}
                         </PressableScale>
                       );
                     })
@@ -444,24 +396,6 @@ export function PickupLocationSheet({
 }
 
 const styles = StyleSheet.create({
-  areaBadge: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(227, 195, 101, 0.12)',
-    borderColor: colors.gold,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 4,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  areaBadgeText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
   attributionContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -503,8 +437,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
     borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
     height: 52,
     justifyContent: 'center',
     marginTop: spacing.md,
@@ -527,27 +459,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   confirmedCard: {
-    alignItems: 'flex-start',
     backgroundColor: colors.graphite,
     borderColor: colors.lineStrong,
     borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.md,
     padding: spacing.md,
   },
   confirmedCopy: {
     flex: 1,
-  },
-  confirmedIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
   },
   confirmedTitle: {
     color: colors.ivory,
@@ -637,20 +556,7 @@ const styles = StyleSheet.create({
   },
   itemCopy: {
     flex: 1,
-  },
-  itemIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
-  itemIconActive: {
-    backgroundColor: colors.goldStrong,
-    borderColor: colors.goldStrong,
+    minWidth: 0,
   },
   itemName: {
     color: colors.ivory,
@@ -670,7 +576,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     minHeight: 54,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   itemRowActive: {
     borderColor: colors.goldStrong,
@@ -689,12 +595,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     maxHeight: 340,
     paddingBottom: spacing.sm,
-  },
-  noteHelper: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    marginTop: 4,
   },
   noteInput: {
     backgroundColor: colors.graphite,
@@ -749,8 +649,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.xs,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    letterSpacing: 0.2,
   },
   sheet: {
     backgroundColor: colors.canvas,
