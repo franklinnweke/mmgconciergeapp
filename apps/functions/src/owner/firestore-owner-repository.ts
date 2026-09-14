@@ -43,7 +43,7 @@ export type OwnerVerificationRecord = {
     contentType: 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf';
     byteSize: number;
     uploadedAt: string;
-    bytesState?: 'present' | 'cleared';
+    bytesState?: 'present' | 'deletion_pending' | 'cleared';
   } | null;
   version: number;
   submittedAt?: string | null;
@@ -105,6 +105,16 @@ export type AdminAuditLogRecord = {
   createdAt: Date;
 };
 
+export type StorageDeletionOutboxRecord = {
+  ownerId: string;
+  storagePath: string;
+  uploadId: string;
+  attempts: number;
+  lastAttemptAt: string;
+  error: string;
+  status: 'pending' | 'completed' | 'failed';
+};
+
 export interface OwnerTransaction {
   getUser(userId: string): Promise<TrustedUserAccount | null>;
   getOwnerProfile(ownerId: string): Promise<OwnerProfileRecord | null>;
@@ -121,6 +131,8 @@ export interface OwnerTransaction {
 
 export interface OwnerRepository {
   runTransaction<T>(work: (transaction: OwnerTransaction) => Promise<T>): Promise<T>;
+  markGovernmentIdCleared?(ownerId: string, now: Date): Promise<void>;
+  recordStorageDeletionOutbox?(record: StorageDeletionOutboxRecord, now: Date): Promise<void>;
 }
 
 const userDocSchema = z.object({
@@ -419,5 +431,44 @@ export class FirestoreOwnerRepository implements OwnerRepository {
     return this.firestore.runTransaction((transaction) =>
       work(new FirestoreOwnerTransaction(this.firestore, transaction)),
     );
+  }
+
+  async markGovernmentIdCleared(ownerId: string, now: Date): Promise<void> {
+    const verificationRef = this.firestore.doc(`ownerVerifications/${ownerId}`);
+    const profileRef = this.firestore.doc(`ownerProfiles/${ownerId}`);
+
+    await this.firestore.runTransaction(async (t) => {
+      const vSnap = await t.get(verificationRef);
+      const pSnap = await t.get(profileRef);
+
+      if (vSnap.exists) {
+        const vData = vSnap.data();
+        if (vData?.governmentId) {
+          t.update(verificationRef, {
+            'governmentId.bytesState': 'cleared',
+            'governmentId.storagePath': null,
+            updatedAt: Timestamp.fromDate(now),
+          });
+        }
+      }
+
+      if (pSnap.exists) {
+        const pData = pSnap.data();
+        if (pData?.governmentId) {
+          t.update(profileRef, {
+            'governmentId.status': 'cleared',
+            updatedAt: Timestamp.fromDate(now),
+          });
+        }
+      }
+    });
+  }
+
+  async recordStorageDeletionOutbox(record: StorageDeletionOutboxRecord, now: Date): Promise<void> {
+    const docRef = this.firestore.collection('storageDeletionOutbox').doc();
+    await docRef.set({
+      ...record,
+      createdAt: Timestamp.fromDate(now),
+    });
   }
 }

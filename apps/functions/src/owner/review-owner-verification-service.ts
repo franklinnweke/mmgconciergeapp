@@ -95,7 +95,7 @@ export async function reviewOwnerVerification(
     idempotencyKey: command.idempotencyKey,
   });
 
-  const { result, pathToDelete } = await dependencies.repository.runTransaction(async (transaction) => {
+  const { result, pathToDelete, uploadIdToDelete } = await dependencies.repository.runTransaction(async (transaction) => {
     const replay = await transaction.getIdempotency(idempotencyDocumentId);
     if (replay) {
       if (replay.requestHash !== requestHash) {
@@ -107,6 +107,7 @@ export async function reviewOwnerVerification(
       return {
         result: reviewOwnerVerificationResultSchema.parse(replay.result),
         pathToDelete: null,
+        uploadIdToDelete: null,
       };
     }
 
@@ -141,21 +142,19 @@ export async function reviewOwnerVerification(
     const pathToDelete = isTerminalDecision && existingVerification.governmentId?.storagePath
       ? existingVerification.governmentId.storagePath
       : null;
+    const uploadIdToDelete = isTerminalDecision && existingVerification.governmentId?.uploadId
+      ? existingVerification.governmentId.uploadId
+      : null;
 
-    const updatedVerificationGovId = isTerminalDecision && existingVerification.governmentId
+    const updatedVerificationGovId = isTerminalDecision && existingVerification.governmentId && pathToDelete
       ? {
           ...existingVerification.governmentId,
-          bytesState: 'cleared' as const,
-          storagePath: null,
+          bytesState: 'deletion_pending' as const,
+          storagePath: pathToDelete,
         }
       : existingVerification.governmentId;
 
-    const updatedProfileGovId = isTerminalDecision && existingProfile.governmentId
-      ? {
-          ...existingProfile.governmentId,
-          status: 'cleared' as const,
-        }
-      : existingProfile.governmentId;
+    const updatedProfileGovId = existingProfile.governmentId;
 
     const updatedVerification: OwnerVerificationRecord = {
       ...existingVerification,
@@ -269,14 +268,30 @@ export async function reviewOwnerVerification(
       now,
     );
 
-    return { result, pathToDelete };
+    return { result, pathToDelete, uploadIdToDelete };
   });
 
   if (pathToDelete && dependencies.storageGateway?.deleteObject) {
     try {
       await dependencies.storageGateway.deleteObject(pathToDelete);
-    } catch {
-      // Storage deletion failure after state commit should not fail review response
+      if (dependencies.repository.markGovernmentIdCleared) {
+        await dependencies.repository.markGovernmentIdCleared(command.data.ownerId, now);
+      }
+    } catch (err) {
+      if (dependencies.repository.recordStorageDeletionOutbox) {
+        await dependencies.repository.recordStorageDeletionOutbox(
+          {
+            ownerId: command.data.ownerId,
+            storagePath: pathToDelete,
+            uploadId: uploadIdToDelete ?? 'unknown',
+            attempts: 1,
+            lastAttemptAt: now.toISOString(),
+            error: err instanceof Error ? err.message : String(err),
+            status: 'pending',
+          },
+          now,
+        );
+      }
     }
   }
 

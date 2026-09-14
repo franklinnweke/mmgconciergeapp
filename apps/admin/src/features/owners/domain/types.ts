@@ -27,7 +27,7 @@ export type OwnerDocumentDetail = {
   contentType: string;
   byteSize: number;
   uploadedAt: string;
-  bytesState: 'present' | 'cleared';
+  bytesState: 'present' | 'deletion_pending' | 'cleared';
   documentPreviewUrl: string | null;
 };
 

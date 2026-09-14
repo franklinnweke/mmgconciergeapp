@@ -1251,7 +1251,7 @@ export const adminVisibleOwnerVerificationSchema = z
         byteSize: z.number().int().positive(),
         originalFileName: z.string().min(1).max(120),
         uploadedAt: isoDateTimeSchema,
-        bytesState: z.enum(['present', 'cleared']),
+        bytesState: z.enum(['present', 'deletion_pending', 'cleared']),
       })
       .strict()
       .nullable(),
@@ -1269,6 +1269,19 @@ export const adminVisibleOwnerVerificationSchema = z
   })
   .strict();
 export type AdminVisibleOwnerVerification = z.infer<typeof adminVisibleOwnerVerificationSchema>;
+
+export const storageDeletionOutboxRecordSchema = z
+  .object({
+    ownerId: boundedIdSchema,
+    storagePath: z.string().min(1).max(512),
+    uploadId: boundedIdSchema,
+    attempts: z.number().int().positive(),
+    lastAttemptAt: isoDateTimeSchema,
+    error: z.string().min(1).max(1024),
+    status: z.enum(['pending', 'completed', 'failed']),
+  })
+  .strict();
+export type StorageDeletionOutboxRecord = z.infer<typeof storageDeletionOutboxRecordSchema>;
 
 /**
  * Alias of the canonical `nigerianE164Schema`, not a second definition. Owner

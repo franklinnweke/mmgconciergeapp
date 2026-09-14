@@ -31,7 +31,36 @@ class InMemoryOwnerRepository implements OwnerRepository {
   auditEvents: OwnerAuditEvent[] = [];
   notifications: NotificationOutboxRecord[] = [];
   adminLogs: AdminAuditLogRecord[] = [];
+  storageOutbox: StorageDeletionOutboxRecord[] = [];
   config: OwnerVerificationConfig | null = null;
+
+  async markGovernmentIdCleared(ownerId: string, _now: Date): Promise<void> {
+    const v = this.verifications.get(ownerId);
+    if (v?.governmentId) {
+      this.verifications.set(ownerId, {
+        ...v,
+        governmentId: {
+          ...v.governmentId,
+          bytesState: 'cleared',
+          storagePath: null,
+        },
+      });
+    }
+    const p = this.profiles.get(ownerId);
+    if (p?.governmentId) {
+      this.profiles.set(ownerId, {
+        ...p,
+        governmentId: {
+          ...p.governmentId,
+          status: 'cleared',
+        },
+      });
+    }
+  }
+
+  async recordStorageDeletionOutbox(record: StorageDeletionOutboxRecord, _now: Date): Promise<void> {
+    this.storageOutbox.push(record);
+  }
 
   async runTransaction<T>(work: (transaction: OwnerTransaction) => Promise<T>): Promise<T> {
     const transaction: OwnerTransaction = {
@@ -67,9 +96,13 @@ import type { StorageGateway } from './storage-validation.js';
 
 class InMemoryStorageGateway implements StorageGateway {
   deleted: string[] = [];
+  shouldFail = false;
   async getObjectMetadata(): Promise<null> { return null; }
   async readFirstBytes(): Promise<null> { return null; }
   async deleteObject(storagePath: string): Promise<void> {
+    if (this.shouldFail) {
+      throw new Error('Storage service error: network failure during delete');
+    }
     this.deleted.push(storagePath);
   }
 }
@@ -258,6 +291,55 @@ describe('reviewOwnerVerification service', () => {
     expect(saved?.governmentId?.storagePath).toBeNull();
     expect(repository.profiles.get('owner-one')?.governmentId?.status).toBe('cleared');
     expect(storageGateway.deleted).toContain('private/owner-verification/owner-one/upload-01');
+  });
+
+  it('marks bytesState as deletion_pending and persists retry outbox when storage deletion fails, retaining storagePath', async () => {
+    storageGateway.shouldFail = true;
+    repository.verifications.set('owner-one', {
+      ...repository.verifications.get('owner-one')!,
+      status: 'under_review',
+      version: 3,
+    });
+
+    const command: ReviewOwnerVerificationCommand = {
+      schemaVersion: 1,
+      idempotencyKey: 'idempotency-key-approve-fail-001',
+      data: {
+        ownerId: 'owner-one',
+        expectedVersion: 3,
+        decision: 'approve',
+        checklist: {
+          identity_matches_id: true,
+          document_legible: true,
+          lagos_address_plausible: true,
+          current_terms_accepted: true,
+          no_fraud_indicators: true,
+        },
+      },
+    };
+
+    const result = await reviewOwnerVerification(command, staffActor, {
+      repository,
+      storageGateway,
+      now: () => now,
+    });
+
+    expect(result.result.toStatus).toBe('approved');
+    const saved = repository.verifications.get('owner-one');
+    expect(saved?.status).toBe('approved');
+    // Crucial: NOT cleared! Retains deletion_pending and original storagePath
+    expect(saved?.governmentId?.bytesState).toBe('deletion_pending');
+    expect(saved?.governmentId?.storagePath).toBe('private/owner-verification/owner-one/upload-01');
+    expect(repository.profiles.get('owner-one')?.governmentId?.status).toBe('submitted');
+
+    // Retries queued in outbox
+    expect(repository.storageOutbox).toHaveLength(1);
+    expect(repository.storageOutbox[0]).toMatchObject({
+      ownerId: 'owner-one',
+      storagePath: 'private/owner-verification/owner-one/upload-01',
+      uploadId: 'upload-01',
+      status: 'pending',
+    });
   });
 
   it('fails with stale_version when expectedVersion does not match current version', async () => {
