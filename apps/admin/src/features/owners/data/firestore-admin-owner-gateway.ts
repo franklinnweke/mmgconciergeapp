@@ -215,7 +215,12 @@ export class FirestoreAdminOwnerGateway implements AdminOwnerGateway {
             contentType: data.governmentId.contentType || 'image/jpeg',
             byteSize: Number(data.governmentId.byteSize) || 0,
             uploadedAt: toIsoString(data.governmentId.uploadedAt),
-            bytesState: data.governmentId.bytesState === 'cleared' ? 'cleared' : 'present',
+            bytesState:
+              data.governmentId.bytesState === 'cleared'
+                ? 'cleared'
+                : data.governmentId.bytesState === 'deletion_pending'
+                  ? 'deletion_pending'
+                  : 'present',
             documentPreviewUrl,
           }
         : null,

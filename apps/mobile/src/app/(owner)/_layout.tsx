@@ -2,6 +2,7 @@ import { Redirect, Stack } from 'expo-router';
 
 import { useAuth } from '@/core/auth/auth-context';
 import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { OwnerIdUploadProvider } from '@/features/owner/domain/owner-id-upload-context';
 
 export default function OwnerLayout() {
   const { initializing, signingOut, user } = useAuth();
@@ -12,5 +13,9 @@ export default function OwnerLayout() {
     return <Redirect href="/" />;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <OwnerIdUploadProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </OwnerIdUploadProvider>
+  );
 }

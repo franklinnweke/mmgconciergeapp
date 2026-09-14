@@ -28,6 +28,7 @@ import {
   type LocalUploadedDocument,
 } from '../domain/owner-application';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
+import { useOwnerIdUpload } from '../domain/owner-id-upload-context';
 
 export function OwnerSubmitScreen() {
   const auth = useAuth();
@@ -64,13 +65,33 @@ export function OwnerSubmitScreen() {
     return () => unsubscribe();
   }, [auth.user?.uid]);
 
-  const uploadId = params.uploadId || draftUpload?.uploadId || profile?.governmentId?.uploadId;
+  const {
+    status: uploadStatus,
+    uploadedDoc,
+    candidate,
+    errorMessage: uploadError,
+    retryUpload,
+  } = useOwnerIdUpload();
+
+  const isUploading = uploadStatus === 'uploading';
+  const hasUploadError = uploadStatus === 'error';
+
+  const effectiveDraft = uploadedDoc || draftUpload;
+  const uploadId =
+    uploadedDoc?.uploadId ||
+    params.uploadId ||
+    draftUpload?.uploadId ||
+    profile?.governmentId?.uploadId;
   const documentKind =
+    uploadedDoc?.documentKind ||
+    candidate?.documentKind ||
     params.documentKind ||
     draftUpload?.documentKind ||
     profile?.governmentId?.documentKind ||
     'national_id';
   const originalFileName =
+    uploadedDoc?.originalFileName ||
+    candidate?.fileName ||
     params.originalFileName ||
     draftUpload?.originalFileName ||
     'government-identification.jpg';
@@ -79,14 +100,14 @@ export function OwnerSubmitScreen() {
   const completeness = computeApplicationCompleteness(
     profile,
     auth.user?.phoneNumber,
-    draftUpload,
+    effectiveDraft,
     Boolean(auth.user?.emailVerified),
   );
   const applicationIsEditable = isOwnerApplicationEditable(profile?.verificationStatus);
-  const canSubmit = applicationIsEditable && completeness.canSubmit && hasValidDocument;
+  const canSubmit = applicationIsEditable && completeness.canSubmit && hasValidDocument && !isUploading && !hasUploadError;
 
   const handleSubmit = async () => {
-    if (submitting || !auth.user?.uid || !uploadId) return;
+    if (submitting || isUploading || !auth.user?.uid || !uploadId) return;
     if (!applicationIsEditable) {
       setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
       return;
@@ -130,10 +151,10 @@ export function OwnerSubmitScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.intro}>Confirm these details before sending your application to MMG for review.</Text>
 
-        {errorMessage ? (
+        {(errorMessage || (hasUploadError && uploadError)) ? (
           <View style={styles.errorBox}>
             <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
-            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Text style={styles.errorText}>{errorMessage || uploadError}</Text>
           </View>
         ) : null}
 
@@ -171,7 +192,19 @@ export function OwnerSubmitScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>ID Document</Text>
             <View style={styles.summaryValueStack}>
-              {hasValidDocument ? (
+              {isUploading ? (
+                <View style={styles.uploadingRow}>
+                  <ActivityIndicator color={colors.goldStrong} size="small" />
+                  <Text style={styles.uploadingText}>Uploading identification…</Text>
+                </View>
+              ) : hasUploadError ? (
+                <View style={styles.uploadErrorStack}>
+                  <Text style={styles.uploadErrorText}>Upload failed</Text>
+                  <PressableScale onPress={() => auth.user?.uid && retryUpload(auth.user.uid)}>
+                    <Text style={styles.retryButtonText}>Retry upload</Text>
+                  </PressableScale>
+                </View>
+              ) : hasValidDocument ? (
                 <>
                   <Text style={styles.summaryValue}>
                     {documentKind.replace('_', ' ').toUpperCase()}
@@ -215,12 +248,18 @@ export function OwnerSubmitScreen() {
           </View>
         ) : (
           <PressableScale
+            disabled={!canSubmit || submitting || isUploading}
             onPress={handleSubmit}
-            style={[styles.submitAction, (!canSubmit || submitting) && styles.disabledAction]}
+            style={[styles.submitAction, (!canSubmit || submitting || isUploading) && styles.disabledAction]}
           >
             <View style={styles.primaryButton}>
               {submitting ? (
                 <ActivityIndicator color={colors.black} size="small" />
+              ) : isUploading ? (
+                <View style={styles.buttonUploadingRow}>
+                  <ActivityIndicator color={colors.black} size="small" />
+                  <Text style={styles.primaryText}>Uploading identification…</Text>
+                </View>
               ) : (
                 <Text style={styles.primaryText}>Submit application</Text>
               )}
@@ -235,6 +274,7 @@ export function OwnerSubmitScreen() {
 const styles = StyleSheet.create({
   badgeRow: { alignItems: 'center', flexDirection: 'row', gap: 4 },
   badgeText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
+  buttonUploadingRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
   cardHeader: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.md, textTransform: 'uppercase' },
   disabledAction: { opacity: 0.5 },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
@@ -245,6 +285,7 @@ const styles = StyleSheet.create({
   phoneValue: { color: colors.goldStrong, fontFamily: 'monospace' },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  retryButtonText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, marginTop: 4 },
   screen: { backgroundColor: colors.black, flex: 1 },
   scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   statusAction: { marginTop: spacing.md },
@@ -258,4 +299,8 @@ const styles = StyleSheet.create({
   summaryValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, flexShrink: 1, textAlign: 'right' },
   summaryValueAction: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
   summaryValueStack: { alignItems: 'flex-end', flexShrink: 1 },
+  uploadErrorStack: { alignItems: 'flex-end' },
+  uploadErrorText: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 13 },
+  uploadingRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  uploadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 13 },
 });

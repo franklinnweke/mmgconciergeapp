@@ -19,12 +19,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
-import { saveDraftUpload } from '../data/owner-draft-store';
-import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
-import { ownerCommandErrorMessage } from '../domain/owner-errors';
 import { validateOwnerIdCandidate } from '../domain/owner-id-preflight';
+import { useOwnerIdUpload } from '../domain/owner-id-upload-context';
 
 const DOCUMENT_KINDS: { kind: GovernmentIdKind; label: string; description: string }[] = [
   {
@@ -62,11 +60,11 @@ export function OwnerIdScreen() {
     uri: string;
     fileName: string;
     mimeType: string;
-    fileSize?: number;
+    fileSize: number;
   } | null>(null);
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(Boolean(auth.user?.uid));
-  const [uploading, setUploading] = useState(false);
+  const { startUpload } = useOwnerIdUpload();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -209,8 +207,7 @@ export function OwnerIdScreen() {
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedAsset || !auth.user?.uid || uploading) return;
+  const handleUpload = () => {
     if (!applicationIsEditable) {
       setErrorMessage('This owner application is no longer editable. Return to your Owner Desk.');
       return;
@@ -222,53 +219,17 @@ export function OwnerIdScreen() {
       return;
     }
 
-    setUploading(true);
-    setErrorMessage(null);
-    try {
-      await auth.refreshUser();
-      const gateway = createOwnerVerificationGateway();
-      const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      const uploadedMeta = await gateway.uploadPrivateIdDocument(
-        auth.user.uid,
-        uploadId,
-        selectedAsset.uri,
-        selectedAsset.mimeType,
-      );
-
-      const byteSize = uploadedMeta.byteSize > 0 ? uploadedMeta.byteSize : (selectedAsset.fileSize && selectedAsset.fileSize > 0 ? selectedAsset.fileSize : null);
-      if (!byteSize) {
-        throw new Error('Could not verify file size. Please re-select or re-take your ID photo.');
+    if (!selectedAsset) {
+      if (profile?.governmentId?.uploadId) {
+        router.push('/(owner)/submit' as Href);
       }
-
-      await saveDraftUpload(auth.user.uid, {
-        uploadId,
-        documentKind,
-        originalFileName: selectedAsset.fileName,
-        contentType: selectedAsset.mimeType,
-        byteSize,
-        uploadedAt: uploadedMeta.uploadedAt || new Date().toISOString(),
-      });
-
-      router.push({
-        pathname: '/(owner)/submit' as Href,
-        params: {
-          uploadId,
-          documentKind,
-          originalFileName: selectedAsset.fileName,
-        },
-      } as any);
-    } catch (err) {
-      const code = (err as { code?: unknown })?.code;
-      if (code === 'storage/unauthorized') {
-        setErrorMessage(
-          'Upload not permitted. Ensure your email is verified and your owner profile details are saved before uploading your ID.',
-        );
-      } else {
-        setErrorMessage(ownerCommandErrorMessage(err));
-      }
-    } finally {
-      setUploading(false);
+      return;
     }
+
+    if (!auth.user?.uid) return;
+
+    startUpload(auth.user.uid, selectedAsset, documentKind);
+    router.push('/(owner)/submit' as Href);
   };
 
   return (
@@ -281,7 +242,7 @@ export function OwnerIdScreen() {
         <View style={styles.privacyBox}>
           <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={20} />
           <Text style={styles.privacyText}>
-            Your ID is stored privately in encrypted storage, used solely by MMG operations for verification, and automatically deleted once your application is verified.
+            Your ID is stored privately in encrypted storage, used solely by MMG operations for verification, and permanently deleted from MMG servers once your application is reviewed.
           </Text>
         </View>
 
@@ -399,14 +360,13 @@ export function OwnerIdScreen() {
 
             <PressableScale
               onPress={handleUpload}
-              style={[styles.primaryAction, (!selectedAsset || uploading) && styles.disabledAction]}
+              style={[
+                styles.primaryAction,
+                (!selectedAsset && !profile?.governmentId?.uploadId) && styles.disabledAction,
+              ]}
             >
               <View style={styles.primaryButton}>
-                {uploading ? (
-                  <ActivityIndicator color={colors.black} size="small" />
-                ) : (
-                  <Text style={styles.primaryText}>Save document</Text>
-                )}
+                <Text style={styles.primaryText}>Continue to review</Text>
               </View>
             </PressableScale>
           </>
