@@ -242,7 +242,7 @@ export function OwnerIdScreen() {
         <View style={styles.privacyBox}>
           <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={20} />
           <Text style={styles.privacyText}>
-            Your ID is stored privately in encrypted storage, used solely by MMG operations for verification, and permanently deleted from MMG servers once your application is reviewed.
+            Your ID is stored privately in encrypted storage, used solely by MMG operations for verification. Deletion is triggered automatically after the final verification decision, failed deletion attempts are retried until successful, and only verification and audit metadata is retained.
           </Text>
         </View>
 

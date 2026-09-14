@@ -274,8 +274,13 @@ export async function reviewOwnerVerification(
   if (pathToDelete && dependencies.storageGateway?.deleteObject) {
     try {
       await dependencies.storageGateway.deleteObject(pathToDelete);
-      if (dependencies.repository.markGovernmentIdCleared) {
-        await dependencies.repository.markGovernmentIdCleared(command.data.ownerId, now);
+      if (dependencies.repository.markGovernmentIdCleared && uploadIdToDelete) {
+        await dependencies.repository.markGovernmentIdCleared({
+          ownerId: command.data.ownerId,
+          uploadId: uploadIdToDelete,
+          storagePath: pathToDelete,
+          now,
+        });
       }
     } catch (err) {
       if (dependencies.repository.recordStorageDeletionOutbox) {

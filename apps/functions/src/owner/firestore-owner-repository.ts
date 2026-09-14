@@ -106,13 +106,28 @@ export type AdminAuditLogRecord = {
 };
 
 export type StorageDeletionOutboxRecord = {
+  id?: string;
   ownerId: string;
   storagePath: string;
   uploadId: string;
   attempts: number;
   lastAttemptAt: string;
+  nextAttemptAt?: string;
+  completedAt?: string;
   error: string;
   status: 'pending' | 'completed' | 'failed';
+};
+
+export type MarkGovernmentIdClearedParams = {
+  ownerId: string;
+  uploadId: string;
+  storagePath: string;
+  now: Date;
+};
+
+export type MarkGovernmentIdClearedResult = {
+  cleared: boolean;
+  reason?: string;
 };
 
 export interface OwnerTransaction {
@@ -131,8 +146,14 @@ export interface OwnerTransaction {
 
 export interface OwnerRepository {
   runTransaction<T>(work: (transaction: OwnerTransaction) => Promise<T>): Promise<T>;
-  markGovernmentIdCleared?(ownerId: string, now: Date): Promise<void>;
-  recordStorageDeletionOutbox?(record: StorageDeletionOutboxRecord, now: Date): Promise<void>;
+  markGovernmentIdCleared?(params: MarkGovernmentIdClearedParams): Promise<MarkGovernmentIdClearedResult>;
+  recordStorageDeletionOutbox?(record: StorageDeletionOutboxRecord, now: Date): Promise<string>;
+  getPendingStorageDeletionOutboxRecords?(limit?: number): Promise<Array<StorageDeletionOutboxRecord & { id: string }>>;
+  updateStorageDeletionOutbox?(
+    recordId: string,
+    update: Partial<StorageDeletionOutboxRecord>,
+    now: Date,
+  ): Promise<void>;
 }
 
 const userDocSchema = z.object({
@@ -433,42 +454,115 @@ export class FirestoreOwnerRepository implements OwnerRepository {
     );
   }
 
-  async markGovernmentIdCleared(ownerId: string, now: Date): Promise<void> {
-    const verificationRef = this.firestore.doc(`ownerVerifications/${ownerId}`);
-    const profileRef = this.firestore.doc(`ownerProfiles/${ownerId}`);
+  async markGovernmentIdCleared(params: MarkGovernmentIdClearedParams): Promise<MarkGovernmentIdClearedResult> {
+    const verificationRef = this.firestore.doc(`ownerVerifications/${params.ownerId}`);
+    const profileRef = this.firestore.doc(`ownerProfiles/${params.ownerId}`);
 
-    await this.firestore.runTransaction(async (t) => {
+    return await this.firestore.runTransaction(async (t) => {
       const vSnap = await t.get(verificationRef);
       const pSnap = await t.get(profileRef);
 
-      if (vSnap.exists) {
-        const vData = vSnap.data();
-        if (vData?.governmentId) {
-          t.update(verificationRef, {
-            'governmentId.bytesState': 'cleared',
-            'governmentId.storagePath': null,
-            updatedAt: Timestamp.fromDate(now),
-          });
-        }
+      if (!vSnap.exists) {
+        return { cleared: false, reason: 'verification_not_found' };
       }
+
+      const vData = vSnap.data();
+      const currentGovId = vData?.governmentId;
+
+      // Revalidate: must match uploadId, storagePath, and be deletion_pending
+      if (
+        !currentGovId ||
+        currentGovId.uploadId !== params.uploadId ||
+        currentGovId.storagePath !== params.storagePath ||
+        currentGovId.bytesState !== 'deletion_pending'
+      ) {
+        return { cleared: false, reason: 'target_mismatch' };
+      }
+
+      t.update(verificationRef, {
+        'governmentId.bytesState': 'cleared',
+        'governmentId.storagePath': null,
+        updatedAt: Timestamp.fromDate(params.now),
+      });
 
       if (pSnap.exists) {
         const pData = pSnap.data();
-        if (pData?.governmentId) {
+        if (pData?.governmentId?.uploadId === params.uploadId) {
           t.update(profileRef, {
             'governmentId.status': 'cleared',
-            updatedAt: Timestamp.fromDate(now),
+            updatedAt: Timestamp.fromDate(params.now),
           });
         }
       }
+
+      return { cleared: true };
     });
   }
 
-  async recordStorageDeletionOutbox(record: StorageDeletionOutboxRecord, now: Date): Promise<void> {
-    const docRef = this.firestore.collection('storageDeletionOutbox').doc();
-    await docRef.set({
-      ...record,
-      createdAt: Timestamp.fromDate(now),
+  async recordStorageDeletionOutbox(record: StorageDeletionOutboxRecord, now: Date): Promise<string> {
+    const docId = `${record.ownerId}_${record.uploadId}`;
+    const docRef = this.firestore.doc(`storageDeletionOutbox/${docId}`);
+    await docRef.set(
+      {
+        ownerId: record.ownerId,
+        storagePath: record.storagePath,
+        uploadId: record.uploadId,
+        attempts: record.attempts,
+        lastAttemptAt: toTimestamp(record.lastAttemptAt, now),
+        ...(record.nextAttemptAt ? { nextAttemptAt: toTimestamp(record.nextAttemptAt, now) } : {}),
+        ...(record.completedAt ? { completedAt: toTimestamp(record.completedAt, now) } : {}),
+        error: record.error,
+        status: record.status,
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now),
+      },
+      { merge: true },
+    );
+    return docId;
+  }
+
+  async getPendingStorageDeletionOutboxRecords(
+    limit: number = 25,
+  ): Promise<Array<StorageDeletionOutboxRecord & { id: string }>> {
+    const snapshot = await this.firestore
+      .collection('storageDeletionOutbox')
+      .where('status', '==', 'pending')
+      .limit(limit)
+      .get();
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ownerId: data.ownerId,
+        storagePath: data.storagePath,
+        uploadId: data.uploadId,
+        attempts: Number(data.attempts) || 1,
+        lastAttemptAt: toIsoString(data.lastAttemptAt),
+        nextAttemptAt: data.nextAttemptAt ? toIsoString(data.nextAttemptAt) : undefined,
+        completedAt: data.completedAt ? toIsoString(data.completedAt) : undefined,
+        error: String(data.error ?? ''),
+        status: data.status as 'pending' | 'completed' | 'failed',
+      };
     });
+  }
+
+  async updateStorageDeletionOutbox(
+    recordId: string,
+    update: Partial<StorageDeletionOutboxRecord>,
+    now: Date,
+  ): Promise<void> {
+    const docRef = this.firestore.doc(`storageDeletionOutbox/${recordId}`);
+    const firestoreUpdate: Record<string, any> = {
+      updatedAt: Timestamp.fromDate(now),
+    };
+    if (update.attempts !== undefined) firestoreUpdate.attempts = update.attempts;
+    if (update.lastAttemptAt !== undefined) firestoreUpdate.lastAttemptAt = toTimestamp(update.lastAttemptAt, now);
+    if (update.nextAttemptAt !== undefined) firestoreUpdate.nextAttemptAt = toTimestamp(update.nextAttemptAt, now);
+    if (update.completedAt !== undefined) firestoreUpdate.completedAt = toTimestamp(update.completedAt, now);
+    if (update.error !== undefined) firestoreUpdate.error = update.error;
+    if (update.status !== undefined) firestoreUpdate.status = update.status;
+
+    await docRef.update(firestoreUpdate);
   }
 }

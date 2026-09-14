@@ -34,21 +34,34 @@ class InMemoryOwnerRepository implements OwnerRepository {
   storageOutbox: StorageDeletionOutboxRecord[] = [];
   config: OwnerVerificationConfig | null = null;
 
-  async markGovernmentIdCleared(ownerId: string, _now: Date): Promise<void> {
-    const v = this.verifications.get(ownerId);
-    if (v?.governmentId) {
-      this.verifications.set(ownerId, {
-        ...v,
-        governmentId: {
-          ...v.governmentId,
-          bytesState: 'cleared',
-          storagePath: null,
-        },
-      });
+  async markGovernmentIdCleared(params: {
+    ownerId: string;
+    uploadId: string;
+    storagePath: string;
+    now: Date;
+  }): Promise<{ cleared: boolean; reason?: string }> {
+    const v = this.verifications.get(params.ownerId);
+    if (!v?.governmentId) {
+      return { cleared: false, reason: 'verification_not_found' };
     }
-    const p = this.profiles.get(ownerId);
-    if (p?.governmentId) {
-      this.profiles.set(ownerId, {
+    if (
+      v.governmentId.uploadId !== params.uploadId ||
+      v.governmentId.storagePath !== params.storagePath ||
+      v.governmentId.bytesState !== 'deletion_pending'
+    ) {
+      return { cleared: false, reason: 'target_mismatch' };
+    }
+    this.verifications.set(params.ownerId, {
+      ...v,
+      governmentId: {
+        ...v.governmentId,
+        bytesState: 'cleared',
+        storagePath: null,
+      },
+    });
+    const p = this.profiles.get(params.ownerId);
+    if (p?.governmentId && p.governmentId.uploadId === params.uploadId) {
+      this.profiles.set(params.ownerId, {
         ...p,
         governmentId: {
           ...p.governmentId,
@@ -56,10 +69,12 @@ class InMemoryOwnerRepository implements OwnerRepository {
         },
       });
     }
+    return { cleared: true };
   }
 
-  async recordStorageDeletionOutbox(record: StorageDeletionOutboxRecord, _now: Date): Promise<void> {
+  async recordStorageDeletionOutbox(record: StorageDeletionOutboxRecord, _now: Date): Promise<string> {
     this.storageOutbox.push(record);
+    return 'outbox-doc-id';
   }
 
   async runTransaction<T>(work: (transaction: OwnerTransaction) => Promise<T>): Promise<T> {
@@ -404,5 +419,36 @@ describe('reviewOwnerVerification service', () => {
 
     expect(second).toEqual(first);
     expect(repository.auditEvents).toHaveLength(1);
+  });
+
+  it('safely refuses to clear government ID if document changed concurrently or does not match target (race prevention)', async () => {
+    // Current verification has a new upload 'upload-02'
+    repository.verifications.set('owner-one', {
+      ...repository.verifications.get('owner-one')!,
+      governmentId: {
+        uploadId: 'upload-02',
+        documentKind: 'national_id',
+        originalFileName: 'new-id.jpg',
+        contentType: 'image/jpeg',
+        byteSize: 1000,
+        uploadedAt: now.toISOString(),
+        storagePath: 'private/owner-verification/owner-one/upload-02',
+        bytesState: 'present',
+      },
+    });
+
+    // Attempting to clear the old upload-01
+    const clearResult = await repository.markGovernmentIdCleared({
+      ownerId: 'owner-one',
+      uploadId: 'upload-01',
+      storagePath: 'private/owner-verification/owner-one/upload-01',
+      now,
+    });
+
+    expect(clearResult).toEqual({ cleared: false, reason: 'target_mismatch' });
+    const currentVerif = repository.verifications.get('owner-one');
+    expect(currentVerif?.governmentId?.uploadId).toBe('upload-02');
+    expect(currentVerif?.governmentId?.bytesState).toBe('present');
+    expect(currentVerif?.governmentId?.storagePath).toBe('private/owner-verification/owner-one/upload-02');
   });
 });

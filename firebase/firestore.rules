@@ -207,6 +207,9 @@ service cloud.firestore {
     match /systemConfig/{configId} {
       allow read, write: if false;
     }
+    match /storageDeletionOutbox/{recordId} {
+      allow read, write: if false;
+    }
 
     match /{document=**} {
       allow read, write: if false;

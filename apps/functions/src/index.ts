@@ -32,6 +32,7 @@ import {
 } from './owner/callable-auth.js';
 import { completeOwnerProfile as completeOwnerProfileService } from './owner/complete-owner-profile-service.js';
 import { expireAbandonedOwnerVerificationUploads } from './owner/expire-abandoned-uploads.js';
+import { processStorageDeletionOutbox } from './owner/storage-deletion-scheduler.js';
 import { FirestoreOwnerRepository } from './owner/firestore-owner-repository.js';
 import { reviewOwnerVerification as reviewOwnerVerificationService } from './owner/review-owner-verification-service.js';
 import { AdminStorageGateway } from './owner/storage-validation.js';
@@ -773,5 +774,5 @@ export const requestAccountDeletion = onCall(
 // Exactly one scheduled export per job. Re-exporting the same handler under a
 // second name would register a second Cloud Scheduler job racing on the same
 // Storage deletes.
-export { expireAbandonedOwnerVerificationUploads };
+export { expireAbandonedOwnerVerificationUploads, processStorageDeletionOutbox };
 export { resolvePickupPlace, searchPickupPlaces } from './discovery/pickup-place-callables.js';

@@ -33,3 +33,4 @@ export { expireRentalRequestPaymentWindows } from './booking/rental-request-paym
 export { resolveRenterCancellations } from './booking/renter-cancellation-scheduler.js';
 export { startBookingCaseSourcing } from './booking/booking-case-callables.js';
 export { emitOwnerResponseSlaAlerts } from './booking/owner-response-sla-scheduler.js';
+export { processStorageDeletionOutbox } from './owner/storage-deletion-scheduler.js';
