@@ -4,6 +4,8 @@ export type AdminServerConfig = {
   projectId: string;
   storageBucket: string;
   environment: 'development' | 'production';
+  clientEmail?: string;
+  privateKey?: string;
 };
 
 export function getAdminServerConfig(): AdminServerConfig {
@@ -70,9 +72,20 @@ export function getAdminServerConfig(): AdminServerConfig {
     }
   }
 
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim() || undefined;
+  const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY?.trim() || undefined;
+  const privateKey = rawPrivateKey ? rawPrivateKey.replace(/\\n/g, '\n') : undefined;
+
+  if ((clientEmail && !privateKey) || (!clientEmail && privateKey)) {
+    throw new Error(
+      'Both FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY must be provided together when configuring service-account credentials via environment variables.'
+    );
+  }
+
   return {
     projectId,
     storageBucket,
     environment: rawEnv,
+    ...(clientEmail && privateKey ? { clientEmail, privateKey } : {}),
   };
 }
