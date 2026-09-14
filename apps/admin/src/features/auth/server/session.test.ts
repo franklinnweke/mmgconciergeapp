@@ -121,6 +121,7 @@ describe('staff capability model', () => {
     'bookings.manage_requests',
     'owners.read',
     'owners.review',
+    'users.read',
     'vehicles.read',
     'vehicles.review',
   ];
@@ -153,15 +154,17 @@ describe('staff capability model', () => {
     expect(staffSessionHasCapability({ roles: ['support'] }, 'bookings.read')).toBe(true);
     expect(staffSessionHasCapability({ roles: ['support'] }, 'bookings.manage_requests')).toBe(true);
     expect(staffSessionHasCapability({ roles: ['support'] }, 'owners.read')).toBe(false);
+    expect(staffSessionHasCapability({ roles: ['support'] }, 'users.read')).toBe(false);
     expect(staffSessionHasCapability({ roles: ['support'] }, 'vehicles.read')).toBe(false);
   });
 
-  it('keeps finance_admin and privacy_admin fail-closed until their desks exist', () => {
-    for (const role of ['finance_admin', 'privacy_admin'] as StaffRole[]) {
-      expect(capabilitiesForRoles([role])).toEqual([]);
-      for (const capability of ALL_CAPABILITIES) {
-        expect(staffSessionHasCapability({ roles: [role] }, capability)).toBe(false);
-      }
+  it('grants privacy_admin only platform user visibility and keeps finance_admin fail-closed', () => {
+    expect(capabilitiesForRoles(['finance_admin'])).toEqual([]);
+    expect(capabilitiesForRoles(['privacy_admin'])).toEqual(['users.read']);
+    expect(staffSessionHasCapability({ roles: ['privacy_admin'] }, 'users.read')).toBe(true);
+    for (const capability of ALL_CAPABILITIES.filter((capability) => capability !== 'users.read')) {
+      expect(staffSessionHasCapability({ roles: ['privacy_admin'] }, capability)).toBe(false);
+      expect(staffSessionHasCapability({ roles: ['finance_admin'] }, capability)).toBe(false);
     }
   });
 

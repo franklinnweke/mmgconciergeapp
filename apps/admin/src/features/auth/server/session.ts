@@ -24,6 +24,7 @@ export type StaffCapability =
   | 'bookings.manage_requests'
   | 'owners.read'
   | 'owners.review'
+  | 'users.read'
   | 'vehicles.read'
   | 'vehicles.review';
 
@@ -39,6 +40,7 @@ const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
     'bookings.manage_requests',
     'owners.read',
     'owners.review',
+    'users.read',
     'vehicles.read',
     'vehicles.review',
   ],
@@ -46,7 +48,7 @@ const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
   vehicle_admin: ['vehicles.read', 'vehicles.review'],
   finance_admin: [],
   support: ['bookings.read', 'bookings.manage_requests'],
-  privacy_admin: [],
+  privacy_admin: ['users.read'],
 };
 
 const STAFF_ROLE_PRECEDENCE: readonly StaffRole[] = [
@@ -69,6 +71,7 @@ export const STAFF_DESKS: readonly { href: string; label: string; capability: St
   { href: '/', label: 'Booking concierge desk', capability: 'bookings.read' },
   { href: '/owners', label: 'Owner verification desk', capability: 'owners.read' },
   { href: '/vehicles', label: 'Vehicle moderation desk', capability: 'vehicles.read' },
+  { href: '/users', label: 'Platform users', capability: 'users.read' },
 ];
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
