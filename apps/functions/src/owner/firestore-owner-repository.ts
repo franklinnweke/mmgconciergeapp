@@ -118,6 +118,10 @@ export type StorageDeletionOutboxRecord = {
   status: 'pending' | 'completed' | 'failed';
 };
 
+export function storageDeletionOutboxDocumentId(ownerId: string, uploadId: string): string {
+  return `${ownerId}_${uploadId}`;
+}
+
 export type MarkGovernmentIdClearedParams = {
   ownerId: string;
   uploadId: string;
@@ -141,6 +145,7 @@ export interface OwnerTransaction {
   createAuditEvent(event: OwnerAuditEvent): void;
   createNotificationOutbox(record: NotificationOutboxRecord, now: Date): void;
   createAdminAuditLog(record: AdminAuditLogRecord, now: Date): void;
+  createStorageDeletionOutbox?(record: StorageDeletionOutboxRecord, now: Date): void;
   saveIdempotency(documentId: string, record: StoredOwnerIdempotency, createdAt: Date): void;
 }
 
@@ -149,6 +154,10 @@ export interface OwnerRepository {
   markGovernmentIdCleared?(params: MarkGovernmentIdClearedParams): Promise<MarkGovernmentIdClearedResult>;
   recordStorageDeletionOutbox?(record: StorageDeletionOutboxRecord, now: Date): Promise<string>;
   getPendingStorageDeletionOutboxRecords?(limit?: number): Promise<Array<StorageDeletionOutboxRecord & { id: string }>>;
+  getDueStorageDeletionOutboxRecords?(
+    now: Date,
+    limit?: number,
+  ): Promise<Array<StorageDeletionOutboxRecord & { id: string }>>;
   updateStorageDeletionOutbox?(
     recordId: string,
     update: Partial<StorageDeletionOutboxRecord>,
@@ -437,6 +446,23 @@ class FirestoreOwnerTransaction implements OwnerTransaction {
     });
   }
 
+  createStorageDeletionOutbox(record: StorageDeletionOutboxRecord, now: Date): void {
+    const docId = storageDeletionOutboxDocumentId(record.ownerId, record.uploadId);
+    const docRef = this.firestore.doc(`storageDeletionOutbox/${docId}`);
+    this.transaction.create(docRef, {
+      ownerId: record.ownerId,
+      storagePath: record.storagePath,
+      uploadId: record.uploadId,
+      attempts: record.attempts,
+      lastAttemptAt: toTimestamp(record.lastAttemptAt, now),
+      nextAttemptAt: toTimestamp(record.nextAttemptAt ?? now.toISOString(), now),
+      error: record.error,
+      status: record.status,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+  }
+
   saveIdempotency(documentId: string, record: StoredOwnerIdempotency, createdAt: Date): void {
     this.transaction.create(this.firestore.doc(`idempotencyKeys/${documentId}`), {
       ...record,
@@ -469,7 +495,10 @@ export class FirestoreOwnerRepository implements OwnerRepository {
       const vData = vSnap.data();
       const currentGovId = vData?.governmentId;
 
-      // Revalidate: must match uploadId, storagePath, and be deletion_pending
+      // Revalidate: must match uploadId, storagePath, and be deletion_pending.
+      // Version is intentionally not incremented here. `version` is the optimistic
+      // concurrency token for owner-review decisions; asynchronous byte-retention
+      // housekeeping must not invalidate a reviewer decision version on its own.
       if (
         !currentGovId ||
         currentGovId.uploadId !== params.uploadId ||
@@ -500,7 +529,7 @@ export class FirestoreOwnerRepository implements OwnerRepository {
   }
 
   async recordStorageDeletionOutbox(record: StorageDeletionOutboxRecord, now: Date): Promise<string> {
-    const docId = `${record.ownerId}_${record.uploadId}`;
+    const docId = storageDeletionOutboxDocumentId(record.ownerId, record.uploadId);
     const docRef = this.firestore.doc(`storageDeletionOutbox/${docId}`);
     await docRef.set(
       {
@@ -538,6 +567,35 @@ export class FirestoreOwnerRepository implements OwnerRepository {
         storagePath: data.storagePath,
         uploadId: data.uploadId,
         attempts: Number(data.attempts) || 1,
+        lastAttemptAt: toIsoString(data.lastAttemptAt),
+        nextAttemptAt: data.nextAttemptAt ? toIsoString(data.nextAttemptAt) : undefined,
+        completedAt: data.completedAt ? toIsoString(data.completedAt) : undefined,
+        error: String(data.error ?? ''),
+        status: data.status as 'pending' | 'completed' | 'failed',
+      };
+    });
+  }
+
+  async getDueStorageDeletionOutboxRecords(
+    now: Date,
+    limit: number = 25,
+  ): Promise<Array<StorageDeletionOutboxRecord & { id: string }>> {
+    const snapshot = await this.firestore
+      .collection('storageDeletionOutbox')
+      .where('status', '==', 'pending')
+      .where('nextAttemptAt', '<=', Timestamp.fromDate(now))
+      .orderBy('nextAttemptAt', 'asc')
+      .limit(limit)
+      .get();
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ownerId: data.ownerId,
+        storagePath: data.storagePath,
+        uploadId: data.uploadId,
+        attempts: Number(data.attempts) || 0,
         lastAttemptAt: toIsoString(data.lastAttemptAt),
         nextAttemptAt: data.nextAttemptAt ? toIsoString(data.nextAttemptAt) : undefined,
         completedAt: data.completedAt ? toIsoString(data.completedAt) : undefined,
