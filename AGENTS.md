@@ -376,6 +376,15 @@ Merge sequence:
 - PR #58 (`feat(discovery): native MapView, arrival perimeter bounding, and dev deployment`) merged into `main`.
 - Post-merge CI (`34736350429`) passed green across all jobs (Firebase Rules in 1m59s, Functions Emulator in 2m20s, Quality in 3m25s, Gate in 3s).
 
+Validated durable government ID deletion, outbox worker, and truthful retention source checkpoint merged to `main`:
+
+`29874f4d4f1e73e23e6471f609f0519bdd41dd03`
+
+Merge sequence:
+- PR #69 (`fix(owner): non-blocking id upload, robust storage deletion lifecycle, and truthful error copy`) merged into `main` (`9d6addf0976615d7dc4c9651ef6551533c216863`).
+- PR #70 (`fix(owner): make government ID deletion durable`) merged into `main` (`29874f4d4f1e73e23e6471f609f0519bdd41dd03`).
+- Post-merge CI #183 (`34906970425`) passed green across all jobs (Firebase Rules in 1m43s, Functions Emulator in 1m50s, Quality in 3m13s, Gate in 3s).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -392,11 +401,13 @@ Current state:
 - Renter commercial journey subtraction (WP2: Home, Browse, Vehicle Detail, Booking Review): merged to `main`
 - Trip and request state simplification (WP3: human vocabulary, Trips list, Trip Detail subtractions, real actions only): merged to `main`
 - Renter correctness & privacy transaction ordering (WP3 refinements: upfront reads, targeted idempotency, envelope unification, hydration race, no name gating, truthful terminal states): merged to `main`
+- Non-blocking Owner ID upload and Review & Submit live status coordination: merged to `main`
+- Durable government ID deletion outbox (atomic review transaction creation, unbounded capped-backoff retries, due-job querying preventing starvation, race-proof target revalidation, un-swallowed storage deletion errors, and scheduled worker): merged to `main`
 - Mobile renter/owner integration: merged to `main`
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
 - Production `mmg-concierge`: untouched
-- Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes, all 19 approved Functions including `searchPickupPlaces` and `resolvePickupPlace`, and both schedulers active; `GOOGLE_PLACES_API_KEY` secret active)
+- Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes including storageDeletionOutbox, reviewOwnerVerification in africa-south1, processStorageDeletionOutbox scheduler in europe-west1, and all 19 approved Functions active)
 - Native Build Milestone: Build 31 predated native maps; native `react-native-maps@1.27.2` requires Build 32 EAS development build from `main`
 - Android native validation: in progress on Pixel 7 API 35
 
