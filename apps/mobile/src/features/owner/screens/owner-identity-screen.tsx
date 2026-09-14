@@ -10,7 +10,7 @@ import {
   type OwnerVisibleProfile,
 } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -33,11 +33,13 @@ import {
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
+import { createOwnerIdentityFormSeed } from '../domain/owner-identity-form-seed';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 
 export function OwnerIdentityScreen() {
   const auth = useAuth();
   const router = useRouter();
+  const hydratedOwnerId = useRef<string | null>(null);
 
   const [legalName, setLegalName] = useState(auth.profile?.displayName || '');
   const [areaLabel, setAreaLabel] = useState<LagosAreaLabel>('Lekki Phase 1');
@@ -64,6 +66,21 @@ export function OwnerIdentityScreen() {
       ownerId,
       (updatedProfile) => {
         setProfile(updatedProfile);
+        if (
+          updatedProfile &&
+          updatedProfile.ownerId === ownerId &&
+          hydratedOwnerId.current !== ownerId
+        ) {
+          const seed = createOwnerIdentityFormSeed(updatedProfile);
+          setLegalName(seed.legalName);
+          setAreaLabel(seed.areaLabel);
+          setLine1(seed.line1);
+          setLine2(seed.line2);
+          setTermsAccepted(seed.termsAccepted);
+          setCommissionAccepted(seed.commissionAccepted);
+          setPrivacyAccepted(seed.privacyAccepted);
+          hydratedOwnerId.current = ownerId;
+        }
         setLoadingProfile(false);
       },
       () => setLoadingProfile(false),
