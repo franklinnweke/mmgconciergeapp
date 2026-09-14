@@ -23,6 +23,7 @@ import {
 } from '../data/owner-booking-repository';
 import { createOwnerRentalRequestGateway } from '../data/owner-rental-request-gateway';
 import { groupOwnerBookings } from '../domain/owner-booking';
+import { ownerBookingsLoadPresentation } from '../domain/owner-bookings-load-state';
 import { ownerRequestStateCopy } from '../domain/owner-rental-request';
 
 export function OwnerBookingsDeskScreen() {
@@ -36,38 +37,58 @@ export function OwnerBookingsDeskScreen() {
     skippedInvalidCount: 0,
     source: 'unavailable',
   });
-  const [loading, setLoading] = useState(Boolean(user?.uid));
-  const [error, setError] = useState<string | null>(null);
+  const [requestsLoading, setRequestsLoading] = useState(Boolean(user?.uid));
+  const [bookingsLoading, setBookingsLoading] = useState(Boolean(user?.uid));
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const { loading, errors } = ownerBookingsLoadPresentation({
+    requestsLoading,
+    bookingsLoading,
+    requestsError,
+    bookingsError,
+  });
+
   const retry = () => {
-    setError(null);
-    setLoading(true);
+    setRequestsError(null);
+    setBookingsError(null);
+    setRequestsLoading(true);
+    setBookingsLoading(true);
     setRefreshKey((key) => key + 1);
   };
 
   useEffect(() => {
     if (!user?.uid) return undefined;
     let active = true;
+
     void requestGateway.listRequests()
       .then((listed) => {
-        if (active) setRequests(listed.requests);
+        if (!active) return;
+        setRequests(listed.requests);
+        setRequestsError(null);
       })
       .catch(() => {
-        if (active) setError('Rental requests could not be loaded. Check your connection and try again.');
+        if (!active) return;
+        setRequestsError('Rental requests could not be loaded. Check your connection and try again.');
+      })
+      .finally(() => {
+        if (active) setRequestsLoading(false);
       });
+
     const stop = repository.subscribe(
       user.uid,
       (next) => {
         setSnapshot(next);
-        setError(null);
-        setLoading(false);
+        setBookingsError(null);
+        setBookingsLoading(false);
       },
       () => {
-        setLoading(false);
-        setError('Bookings could not be loaded. Check your connection and try again.');
+        setBookingsLoading(false);
+        setBookingsError('Bookings could not be loaded. Check your connection and try again.');
       },
     );
+
     return () => {
       active = false;
       stop();
@@ -104,23 +125,25 @@ export function OwnerBookingsDeskScreen() {
           </View>
         ) : null}
 
-        {error ? (
+        {errors.length > 0 ? (
           <View style={styles.error}>
-            <Text style={styles.errorText}>{error}</Text>
+            {errors.map((message) => (
+              <Text key={message} style={styles.errorText}>{message}</Text>
+            ))}
             <PressableScale accessibilityRole="button" onPress={retry}>
               <Text style={styles.retryText}>Try again</Text>
             </PressableScale>
           </View>
         ) : null}
 
-        {loading && snapshot.bookings.length === 0 ? (
+        {loading && snapshot.bookings.length === 0 && requests.length === 0 ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.gold} />
             <Text style={styles.muted}>Loading bookings…</Text>
           </View>
         ) : null}
 
-        {!loading && !error && snapshot.bookings.length === 0 && requests.length === 0 ? (
+        {!loading && errors.length === 0 && snapshot.bookings.length === 0 && requests.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons color={colors.muted} name="calendar-outline" size={28} />
             <Text style={styles.emptyTitle}>No bookings yet</Text>
