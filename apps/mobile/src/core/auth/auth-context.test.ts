@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthProvider, useAuth } from './auth-context';
 
 const authMocks = vi.hoisted(() => {
   let authListener: ((user: unknown) => void) | null = null;
@@ -58,8 +59,6 @@ vi.mock('./firebase-auth', () => ({
   signOutCurrentUser: authMocks.signOutCurrentUser,
   subscribeToAuthState: authMocks.subscribeToAuthState,
 }));
-
-import { AuthProvider, useAuth } from './auth-context';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

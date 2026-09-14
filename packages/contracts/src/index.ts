@@ -1272,11 +1272,14 @@ export type AdminVisibleOwnerVerification = z.infer<typeof adminVisibleOwnerVeri
 
 export const storageDeletionOutboxRecordSchema = z
   .object({
+    id: z.string().min(1).max(256).optional(),
     ownerId: boundedIdSchema,
     storagePath: z.string().min(1).max(512),
     uploadId: boundedIdSchema,
     attempts: z.number().int().positive(),
     lastAttemptAt: isoDateTimeSchema,
+    nextAttemptAt: isoDateTimeSchema.optional(),
+    completedAt: isoDateTimeSchema.optional(),
     error: z.string().min(1).max(1024),
     status: z.enum(['pending', 'completed', 'failed']),
   })

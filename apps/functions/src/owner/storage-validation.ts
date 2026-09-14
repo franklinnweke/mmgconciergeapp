@@ -73,12 +73,8 @@ export class AdminStorageGateway implements StorageGateway {
   }
 
   async deleteObject(storagePath: string): Promise<void> {
-    try {
-      const file = this.bucket.file(storagePath);
-      await file.delete({ ignoreNotFound: true });
-    } catch {
-      // Ignored or logged; file already gone or inaccessible
-    }
+    const file = this.bucket.file(storagePath);
+    await file.delete({ ignoreNotFound: true });
   }
 }
 

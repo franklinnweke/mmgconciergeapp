@@ -15,11 +15,14 @@ import {
   requiresReviewReason,
   validateReviewReason,
 } from '@mmg/domain';
+import { logger } from 'firebase-functions';
 import type {
   OwnerProfileRecord,
   OwnerRepository,
   OwnerVerificationRecord,
 } from './firestore-owner-repository.js';
+import { storageDeletionOutboxDocumentId } from './firestore-owner-repository.js';
+import { getNextRetryAt } from './process-storage-deletion-outbox-service.js';
 import type { StorageGateway } from './storage-validation.js';
 
 export type ReviewOwnerVerificationActor = {
@@ -257,6 +260,29 @@ export async function reviewOwnerVerification(
       },
       now,
     );
+
+    // The deletion job is committed atomically with the final review decision.
+    // Immediate deletion below is only a latency optimization. If the process dies
+    // after this transaction commits, the scheduler still has a durable job to run.
+    if (pathToDelete && uploadIdToDelete) {
+      if (!transaction.createStorageDeletionOutbox) {
+        throw new Error('Storage deletion outbox transaction capability is not configured.');
+      }
+      transaction.createStorageDeletionOutbox(
+        {
+          ownerId: command.data.ownerId,
+          storagePath: pathToDelete,
+          uploadId: uploadIdToDelete,
+          attempts: 0,
+          lastAttemptAt: now.toISOString(),
+          nextAttemptAt: now.toISOString(),
+          error: '',
+          status: 'pending',
+        },
+        now,
+      );
+    }
+
     transaction.saveIdempotency(
       idempotencyDocumentId,
       {
@@ -271,26 +297,54 @@ export async function reviewOwnerVerification(
     return { result, pathToDelete, uploadIdToDelete };
   });
 
-  if (pathToDelete && dependencies.storageGateway?.deleteObject) {
+  if (pathToDelete && uploadIdToDelete && dependencies.storageGateway?.deleteObject) {
+    const outboxRecordId = storageDeletionOutboxDocumentId(command.data.ownerId, uploadIdToDelete);
     try {
       await dependencies.storageGateway.deleteObject(pathToDelete);
       if (dependencies.repository.markGovernmentIdCleared) {
-        await dependencies.repository.markGovernmentIdCleared(command.data.ownerId, now);
+        await dependencies.repository.markGovernmentIdCleared({
+          ownerId: command.data.ownerId,
+          uploadId: uploadIdToDelete,
+          storagePath: pathToDelete,
+          now,
+        });
       }
-    } catch (err) {
-      if (dependencies.repository.recordStorageDeletionOutbox) {
-        await dependencies.repository.recordStorageDeletionOutbox(
+      if (dependencies.repository.updateStorageDeletionOutbox) {
+        await dependencies.repository.updateStorageDeletionOutbox(
+          outboxRecordId,
           {
-            ownerId: command.data.ownerId,
-            storagePath: pathToDelete,
-            uploadId: uploadIdToDelete ?? 'unknown',
-            attempts: 1,
-            lastAttemptAt: now.toISOString(),
-            error: err instanceof Error ? err.message : String(err),
-            status: 'pending',
+            status: 'completed',
+            completedAt: now.toISOString(),
+            error: '',
           },
           now,
         );
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      // The business decision is already committed. Never turn an outbox update
+      // failure into a false review failure. The transaction-created pending job
+      // remains eligible for the scheduler even if this best-effort update fails.
+      try {
+        if (dependencies.repository.updateStorageDeletionOutbox) {
+          await dependencies.repository.updateStorageDeletionOutbox(
+            outboxRecordId,
+            {
+              attempts: 1,
+              lastAttemptAt: now.toISOString(),
+              nextAttemptAt: getNextRetryAt(now, 1),
+              error: errorMessage.slice(0, 1024),
+              status: 'pending',
+            },
+            now,
+          );
+        }
+      } catch (outboxErr) {
+        logger.error('storage_outbox.immediate_update_failed', {
+          ownerId: command.data.ownerId,
+          uploadId: uploadIdToDelete,
+          error: outboxErr instanceof Error ? outboxErr.message : String(outboxErr),
+        });
       }
     }
   }
