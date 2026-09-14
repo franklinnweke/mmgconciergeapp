@@ -17,10 +17,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { saveDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
-import { saveDraftUpload } from '../data/owner-draft-store';
 import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 
@@ -55,7 +56,6 @@ const DOCUMENT_KINDS: { kind: GovernmentIdKind; label: string; description: stri
 export function OwnerIdScreen() {
   const auth = useAuth();
   const router = useRouter();
-
   const [documentKind, setDocumentKind] = useState<GovernmentIdKind>('national_id');
   const [selectedAsset, setSelectedAsset] = useState<{
     uri: string;
@@ -63,7 +63,6 @@ export function OwnerIdScreen() {
     mimeType: string;
     fileSize?: number;
   } | null>(null);
-
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(Boolean(auth.user?.uid));
   const [uploading, setUploading] = useState(false);
@@ -71,9 +70,8 @@ export function OwnerIdScreen() {
 
   useEffect(() => {
     const ownerId = auth.user?.uid;
-    if (!ownerId) {
-      return;
-    }
+    if (!ownerId) return;
+
     const repository = createOwnerVerificationRepository();
     const unsubscribe = repository.subscribe(
       ownerId,
@@ -81,10 +79,9 @@ export function OwnerIdScreen() {
         setProfile(updatedProfile);
         setLoadingProfile(false);
       },
-      () => {
-        setLoadingProfile(false);
-      },
+      () => setLoadingProfile(false),
     );
+
     return () => unsubscribe();
   }, [auth.user?.uid]);
 
@@ -195,13 +192,12 @@ export function OwnerIdScreen() {
       else setErrorMessage('Verify your Nigerian phone number before uploading identification.');
       return;
     }
+
     setUploading(true);
     setErrorMessage(null);
-
     try {
       const gateway = createOwnerVerificationGateway();
       const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
       const uploadedMeta = await gateway.uploadPrivateIdDocument(
         auth.user.uid,
         uploadId,
@@ -209,19 +205,15 @@ export function OwnerIdScreen() {
         selectedAsset.mimeType,
       );
 
-      // Persist draft document so desk and submit screens have truthful access
       await saveDraftUpload(auth.user.uid, {
         uploadId,
         documentKind,
         originalFileName: selectedAsset.fileName,
         contentType: selectedAsset.mimeType,
-        // Real measured bytes only — never a fabricated fallback size. 0
-        // reads as "not measured" rather than inventing a plausible number.
         byteSize: uploadedMeta.byteSize || selectedAsset.fileSize || 0,
         uploadedAt: uploadedMeta.uploadedAt || new Date().toISOString(),
       });
 
-      // Navigate to review & submit screen
       router.push({
         pathname: '/(owner)/submit' as Href,
         params: {
@@ -245,39 +237,30 @@ export function OwnerIdScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <PressableScale onPress={() => router.back()}>
-            <View style={styles.backButton}>
-              <Ionicons color={colors.ivory} name="arrow-back" size={20} />
-            </View>
-          </PressableScale>
-          <View>
-            <Text style={styles.title}>Government Identification</Text>
-          </View>
-        </View>
+    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>
+      <View style={styles.header}>
+        <ScreenHeader onBack={() => router.back()} showBrand={false} title="Government ID" />
+      </View>
 
-        {/* Privacy Notice Box */}
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.privacyBox}>
           <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={20} />
           <Text style={styles.privacyText}>
-            MMG Concierge uses the camera or photo library only to capture your government-issued ID for owner verification. The image is stored privately in a secure vault. Renters never see it.
+            Your ID is used only for owner verification, stored privately, and never shown to renters.
           </Text>
         </View>
 
-        {errorMessage && (
+        {errorMessage ? (
           <View style={styles.errorBox}>
-            <Ionicons color="#EF4444" name="alert-circle-outline" size={18} />
+            <Ionicons color={colors.danger} name="alert-circle-outline" size={18} />
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
-        )}
+        ) : null}
 
         {loadingProfile ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator color={colors.goldStrong} size="small" />
-            <Text style={styles.loadingText}>Checking verification status...</Text>
+            <Text style={styles.loadingText}>Checking verification status…</Text>
           </View>
         ) : !applicationIsEditable ? (
           <View style={styles.prerequisiteCard}>
@@ -288,7 +271,7 @@ export function OwnerIdScreen() {
             <Text style={styles.prerequisiteBody}>
               Your owner application is no longer editable. Return to your Owner Desk to see its current status.
             </Text>
-            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={{ marginTop: spacing.md }}>
+            <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.cardAction}>
               <View style={styles.prerequisiteButton}>
                 <Text style={styles.prerequisiteButtonText}>RETURN TO OWNER DESK</Text>
               </View>
@@ -298,7 +281,7 @@ export function OwnerIdScreen() {
           <View style={styles.prerequisiteCard}>
             <View style={styles.prerequisiteHeader}>
               <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={22} />
-              <Text style={styles.prerequisiteTitle}>Prerequisites Required</Text>
+              <Text style={styles.prerequisiteTitle}>Prerequisites required</Text>
             </View>
             <Text style={styles.prerequisiteBody}>
               {!emailVerified
@@ -313,7 +296,7 @@ export function OwnerIdScreen() {
                 else if (!identityComplete) router.push('/(owner)/identity' as Href);
                 else router.push('/(owner)/phone' as Href);
               }}
-              style={{ marginTop: spacing.md }}
+              style={styles.cardAction}
             >
               <View style={styles.prerequisiteButton}>
                 <Text style={styles.prerequisiteButtonText}>
@@ -323,13 +306,11 @@ export function OwnerIdScreen() {
                     ? 'COMPLETE OWNER IDENTITY'
                     : 'LINK NIGERIAN PHONE'}
                 </Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={16} />
               </View>
             </PressableScale>
           </View>
         ) : (
           <>
-            {/* Document Kind Selector */}
             <Text style={styles.sectionTitle}>Select Document Type</Text>
             <View style={styles.kindsList}>
               {DOCUMENT_KINDS.map((item) => {
@@ -341,7 +322,7 @@ export function OwnerIdScreen() {
                     style={[styles.kindRow, isSelected && styles.kindRowActive]}
                   >
                     <View style={[styles.radio, isSelected && styles.radioActive]}>
-                      {isSelected && <View style={styles.radioDot} />}
+                      {isSelected ? <View style={styles.radioDot} /> : null}
                     </View>
                     <View style={styles.kindCopy}>
                       <Text style={[styles.kindLabel, isSelected && styles.kindLabelActive]}>{item.label}</Text>
@@ -352,16 +333,10 @@ export function OwnerIdScreen() {
               })}
             </View>
 
-            {/* Capture / Select Controls */}
-            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Document Photo</Text>
-
+            <Text style={styles.documentPhotoTitle}>Document Photo</Text>
             {selectedAsset ? (
               <View style={styles.previewContainer}>
-                <Image
-                  contentFit="contain"
-                  source={{ uri: selectedAsset.uri }}
-                  style={styles.previewImage}
-                />
+                <Image contentFit="contain" source={{ uri: selectedAsset.uri }} style={styles.previewImage} />
                 <View style={styles.previewMeta}>
                   <Text style={styles.fileName}>{selectedAsset.fileName}</Text>
                   <PressableScale onPress={() => setSelectedAsset(null)}>
@@ -371,14 +346,14 @@ export function OwnerIdScreen() {
               </View>
             ) : (
               <View style={styles.captureRow}>
-                <PressableScale onPress={handleTakePhoto} style={{ flex: 1 }}>
+                <PressableScale onPress={handleTakePhoto} style={styles.captureAction}>
                   <View style={styles.captureButton}>
                     <Ionicons color={colors.goldStrong} name="camera-outline" size={24} />
                     <Text style={styles.captureButtonText}>Take Photo</Text>
                   </View>
                 </PressableScale>
 
-                <PressableScale onPress={handlePickLibrary} style={{ flex: 1 }}>
+                <PressableScale onPress={handlePickLibrary} style={styles.captureAction}>
                   <View style={styles.captureButton}>
                     <Ionicons color={colors.goldStrong} name="images-outline" size={24} />
                     <Text style={styles.captureButtonText}>Choose File</Text>
@@ -387,19 +362,15 @@ export function OwnerIdScreen() {
               </View>
             )}
 
-            {/* Primary Upload Button */}
             <PressableScale
               onPress={handleUpload}
-              style={[{ marginTop: spacing.xl }, (!selectedAsset || uploading) && { opacity: 0.5 }]}
+              style={[styles.primaryAction, (!selectedAsset || uploading) && styles.disabledAction]}
             >
               <View style={styles.primaryButton}>
                 {uploading ? (
                   <ActivityIndicator color={colors.black} size="small" />
                 ) : (
-                  <>
-                    <Text style={styles.primaryText}>SAVE DOCUMENT</Text>
-                    <Ionicons color={colors.black} name="arrow-forward" size={18} />
-                  </>
+                  <Text style={styles.primaryText}>SAVE DOCUMENT</Text>
                 )}
               </View>
             </PressableScale>
@@ -411,15 +382,18 @@ export function OwnerIdScreen() {
 }
 
 const styles = StyleSheet.create({
-  backButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 44, justifyContent: 'center', minHeight: 44, minWidth: 44, width: 44 },
+  captureAction: { flex: 1 },
   captureButton: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 110, padding: spacing.md },
   captureButtonText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
   captureRow: { flexDirection: 'row', gap: spacing.md },
+  cardAction: { marginTop: spacing.md },
   changeText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
+  disabledAction: { opacity: 0.5 },
+  documentPhotoTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, marginBottom: spacing.sm, marginTop: spacing.lg },
   errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: '#EF4444', flex: 1, fontFamily: typography.body, fontSize: 13 },
+  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
   fileName: { color: colors.ivory, fontFamily: typography.body, fontSize: 12 },
-  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm },
+  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   kindCopy: { flex: 1 },
   kindDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: 2 },
   kindLabel: { color: colors.silver, fontFamily: typography.bodySemiBold, fontSize: 13 },
@@ -427,26 +401,26 @@ const styles = StyleSheet.create({
   kindRow: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xs, padding: spacing.md },
   kindRowActive: { borderColor: colors.goldStrong },
   kindsList: { marginBottom: spacing.sm },
-  previewContainer: { backgroundColor: '#090A0C', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, overflow: 'hidden' },
-  previewImage: { height: 200, width: '100%' },
-  previewMeta: { alignItems: 'center', backgroundColor: colors.graphiteRaised, flexDirection: 'row', justifyContent: 'space-between', padding: spacing.sm },
   loadingBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
   loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+  prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 48 },
+  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13, letterSpacing: 0.5 },
   prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
   prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
   prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 48 },
-  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13, letterSpacing: 0.5 },
+  previewContainer: { backgroundColor: '#090A0C', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, overflow: 'hidden' },
+  previewImage: { height: 200, width: '100%' },
+  previewMeta: { alignItems: 'center', backgroundColor: colors.graphiteRaised, flexDirection: 'row', justifyContent: 'space-between', padding: spacing.sm },
+  primaryAction: { marginTop: spacing.xl },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
+  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
   privacyBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.08)', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
   privacyText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
   radio: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: 10, borderWidth: 1.5, height: 20, justifyContent: 'center', width: 20 },
   radioActive: { borderColor: colors.goldStrong },
   radioDot: { backgroundColor: colors.goldStrong, borderRadius: 5, height: 10, width: 10 },
   screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, marginBottom: spacing.sm },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 26, letterSpacing: -0.4, marginTop: 2 },
 });
