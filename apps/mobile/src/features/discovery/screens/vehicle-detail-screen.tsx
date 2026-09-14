@@ -288,17 +288,6 @@ export default function VehicleDetailScreen({
               ) : null}
             </View>
           </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Estimated total</Text>
-            <QuoteRow label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${journey.durationDays} ${journey.durationDays === 1 ? 'day' : 'days'}`} value={formatNairaFromKobo(quote.rentalKobo)} />
-            <QuoteRow label="Service and protection" value={formatNairaFromKobo(quote.serviceFeeKobo)} />
-            <QuoteRow label="Chauffeur and Lagos delivery" value="Included" />
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
-            </View>
-          </View>
         </View>
       </ScrollView>
 
@@ -335,15 +324,6 @@ function Fact({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: st
     <View style={styles.fact}>
       <Ionicons color={colors.muted} name={icon} size={17} />
       <Text style={styles.factText}>{label}</Text>
-    </View>
-  );
-}
-
-function QuoteRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.quoteRow}>
-      <Text style={styles.quoteLabel}>{label}</Text>
-      <Text style={styles.quoteValue}>{value}</Text>
     </View>
   );
 }
@@ -389,9 +369,6 @@ const styles = StyleSheet.create({
   journeyRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.sm },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: layout.primaryButtonHeight, paddingHorizontal: spacing.lg },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
-  quoteLabel: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: fontSizes.sm },
-  quoteRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: 5 },
-  quoteValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm, textAlign: 'right' },
   rate: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 24 },
   rateLine: { alignItems: 'baseline', flexDirection: 'row', marginTop: spacing.xs },
   rateUnit: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm },
@@ -409,9 +386,6 @@ const styles = StyleSheet.create({
   stickyBar: { alignItems: 'center', backgroundColor: 'rgba(10,10,10,0.98)', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, bottom: 0, flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', left: 0, paddingHorizontal: layout.screenGutter, paddingTop: spacing.sm, position: 'absolute', right: 0 },
   stickyLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
   stickyValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base, marginTop: 2 },
-  totalLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
-  totalRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.md },
-  totalValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
   vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm },
   vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 26, letterSpacing: -0.5 },
 });

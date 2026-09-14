@@ -255,23 +255,13 @@ export function OwnerIdentityScreen() {
           />
         </View>
 
-        <View style={styles.rowFields}>
-          <View style={[styles.fieldGroup, styles.flexField]}>
-            <Text style={styles.label}>City</Text>
-            <View style={[styles.input, styles.readOnlyInput]}>
-              <Text style={styles.readOnlyText}>Lagos</Text>
-            </View>
-          </View>
-          <View style={[styles.fieldGroup, styles.flexField]}>
-            <Text style={styles.label}>Country</Text>
-            <View style={[styles.input, styles.readOnlyInput]}>
-              <Text style={styles.readOnlyText}>Nigeria (NG)</Text>
-            </View>
-          </View>
+        <View style={styles.locationHelper}>
+          <Ionicons color={colors.muted} name="location-outline" size={14} />
+          <Text style={styles.locationHelperText}>All vehicle listings and operations are based in Lagos, Nigeria.</Text>
         </View>
 
         <View style={styles.termsSection}>
-          <Text style={styles.sectionTitle}>Required Host Agreements</Text>
+          <Text style={styles.sectionTitle}>Agreements</Text>
 
           <Pressable onPress={() => setTermsAccepted(!termsAccepted)} style={styles.termsRow}>
             <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
@@ -280,7 +270,6 @@ export function OwnerIdentityScreen() {
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{OWNER_TERMS_SUMMARY.title}</Text>
               <Text style={styles.termsDescription}>{OWNER_TERMS_SUMMARY.summary}</Text>
-              <Text style={styles.termsVersion}>Version: {OWNER_TERMS_SUMMARY.version}</Text>
             </View>
           </Pressable>
 
@@ -291,7 +280,6 @@ export function OwnerIdentityScreen() {
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{COMMISSION_TERMS_SUMMARY.title}</Text>
               <Text style={styles.termsDescription}>{COMMISSION_TERMS_SUMMARY.summary}</Text>
-              <Text style={styles.termsVersion}>Version: {COMMISSION_TERMS_SUMMARY.version}</Text>
             </View>
           </Pressable>
 
@@ -302,7 +290,6 @@ export function OwnerIdentityScreen() {
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{PRIVACY_NOTICE_SUMMARY.title}</Text>
               <Text style={styles.termsDescription}>{PRIVACY_NOTICE_SUMMARY.summary}</Text>
-              <Text style={styles.termsVersion}>Version: {PRIVACY_NOTICE_SUMMARY.version}</Text>
             </View>
           </Pressable>
         </View>
@@ -367,6 +354,8 @@ const styles = StyleSheet.create({
   label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
   loadingBox: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center', padding: spacing.lg },
   loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+  locationHelper: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, marginTop: spacing.xs },
+  locationHelperText: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
   modalContent: { backgroundColor: '#14181F', borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '60%', padding: spacing.lg },
   modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   modalItem: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
@@ -381,7 +370,6 @@ const styles = StyleSheet.create({
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14, letterSpacing: 0.5 },
   readOnlyInput: { alignItems: 'center', backgroundColor: '#0D0F13', flexDirection: 'row', justifyContent: 'space-between' },
   readOnlyText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  rowFields: { flexDirection: 'row', gap: spacing.md },
   saveAction: { marginTop: spacing.xl },
   screen: { backgroundColor: colors.black, flex: 1 },
   scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
@@ -395,5 +383,4 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
   termsSection: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.lg },
   termsTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  termsVersion: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.8, marginTop: 4 },
 });

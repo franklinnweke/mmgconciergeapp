@@ -205,12 +205,17 @@ export function OwnerIdScreen() {
         selectedAsset.mimeType,
       );
 
+      const byteSize = uploadedMeta.byteSize > 0 ? uploadedMeta.byteSize : (selectedAsset.fileSize && selectedAsset.fileSize > 0 ? selectedAsset.fileSize : null);
+      if (!byteSize) {
+        throw new Error('Could not verify file size. Please re-select or re-take your ID photo.');
+      }
+
       await saveDraftUpload(auth.user.uid, {
         uploadId,
         documentKind,
         originalFileName: selectedAsset.fileName,
         contentType: selectedAsset.mimeType,
-        byteSize: uploadedMeta.byteSize || selectedAsset.fileSize || 0,
+        byteSize,
         uploadedAt: uploadedMeta.uploadedAt || new Date().toISOString(),
       });
 

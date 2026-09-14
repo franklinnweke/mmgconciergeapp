@@ -228,12 +228,6 @@ export function PickupLocationSheet({
                   <View style={styles.confirmedCopy}>
                     <Text style={styles.confirmedTitle}>{pendingLocation.displayName}</Text>
                     <Text style={styles.confirmedAddress}>{pendingLocation.formattedAddress}</Text>
-                    <View style={styles.areaBadge}>
-                      <Ionicons color={colors.goldStrong} name="shield-checkmark" size={12} />
-                      <Text style={styles.areaBadgeText}>
-                        {pendingLocation.serviceAreaLabel} · Chauffeured delivery included
-                      </Text>
-                    </View>
                   </View>
                 </View>
 

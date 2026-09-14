@@ -164,17 +164,16 @@ export function OwnerFleetScreen() {
                     })}
                     style={StyleSheet.absoluteFill}
                   />
-                  <View style={[styles.badge, { backgroundColor: badge.bgColor, borderColor: badge.borderColor }]}>
-                    <Ionicons color={badge.color} name={badge.icon} size={12} />
-                    <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                  </View>
                 </View>
 
                 <View style={styles.cardBody}>
                   <View style={styles.cardTopRow}>
-                    <Text numberOfLines={2} style={styles.vehicleName}>
-                      {item.displayName}
-                    </Text>
+                    <View style={styles.vehicleTitleGroup}>
+                      <Text numberOfLines={1} style={styles.vehicleName}>
+                        {item.displayName}
+                      </Text>
+                      <Text style={[styles.statusText, { color: badge.color }]}>{badge.label}</Text>
+                    </View>
                     {item.moderationStatus === 'approved' ? (
                       <View style={styles.switchRow}>
                         <Text style={styles.switchLabel}>
@@ -192,12 +191,10 @@ export function OwnerFleetScreen() {
                   </View>
 
                   <View style={styles.metaRow}>
-                    <Ionicons color={colors.gold} name="location-outline" size={13} />
                     <Text style={styles.metaText}>{item.areaLabel ?? 'Lagos'}</Text>
                     {item.seats ? (
                       <>
                         <Text style={styles.metaDot}>·</Text>
-                        <Ionicons color={colors.gold} name="people-outline" size={13} />
                         <Text style={styles.metaText}>{item.seats} seats</Text>
                       </>
                     ) : null}
@@ -210,7 +207,7 @@ export function OwnerFleetScreen() {
                   </View>
 
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>DAILY RATE</Text>
+                    <Text style={styles.priceLabel}>Daily rate</Text>
                     <Text style={styles.priceValue}>
                       {item.ownerDailyRateKobo ? formatNairaFromKobo(item.ownerDailyRateKobo) : 'Not set'}
                     </Text>
@@ -236,24 +233,6 @@ export function OwnerFleetScreen() {
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    alignItems: 'center',
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 4,
-    left: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    position: 'absolute',
-    top: spacing.sm,
-  },
-  badgeText: {
-    fontFamily: typography.body,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
   card: {
     backgroundColor: colors.graphiteRaised,
     borderColor: colors.line,
@@ -264,7 +243,16 @@ const styles = StyleSheet.create({
   },
   cardBody: { padding: spacing.md },
   cardMedia: { backgroundColor: '#1E1E1E', height: 160, width: '100%' },
-  cardTopRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  cardTopRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
+  statusText: {
+    fontFamily: typography.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+  vehicleTitleGroup: { flex: 1, marginRight: spacing.sm },
   emptyButton: {
     alignItems: 'center',
     backgroundColor: colors.gold,
@@ -324,5 +312,4 @@ const styles = StyleSheet.create({
   safeArea: { backgroundColor: colors.black, flex: 1 },
   switchLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
   switchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  vehicleName: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 16, fontWeight: '600', marginRight: spacing.sm },
 });
