@@ -6,14 +6,12 @@ export type ProcessStorageDeletionOutboxDependencies = {
   repository: OwnerRepository;
   storageGateway: StorageGateway;
   now?: () => Date;
-  maxAttempts?: number;
 };
 
 export type ProcessStorageDeletionOutboxResult = {
   processedCount: number;
   completedCount: number;
-  failedCount: number;
-  skippedBackoffCount: number;
+  retryScheduledCount: number;
 };
 
 /**
@@ -23,6 +21,10 @@ export type ProcessStorageDeletionOutboxResult = {
  * 3rd retry: 15 mins
  * 4th retry: 30 mins
  * 5th+ retry: 60 mins
+ *
+ * Retries are intentionally unbounded. Government-ID retention is a deletion
+ * obligation, so repeated infrastructure failures must never make a record
+ * permanently ineligible for cleanup.
  */
 export function getBackoffDelayMs(attempts: number): number {
   switch (attempts) {
@@ -39,67 +41,64 @@ export function getBackoffDelayMs(attempts: number): number {
   }
 }
 
+export function getNextRetryAt(now: Date, attempts: number): string {
+  return new Date(now.getTime() + getBackoffDelayMs(attempts)).toISOString();
+}
+
 export async function processStorageDeletionOutboxService(
   dependencies: ProcessStorageDeletionOutboxDependencies,
 ): Promise<ProcessStorageDeletionOutboxResult> {
   const now = (dependencies.now ?? (() => new Date()))();
-  const maxAttempts = dependencies.maxAttempts ?? 10;
   const repository = dependencies.repository;
   const storageGateway = dependencies.storageGateway;
 
-  if (!repository.getPendingStorageDeletionOutboxRecords || !repository.updateStorageDeletionOutbox) {
-    return { processedCount: 0, completedCount: 0, failedCount: 0, skippedBackoffCount: 0 };
+  if (
+    !repository.getDueStorageDeletionOutboxRecords ||
+    !repository.updateStorageDeletionOutbox ||
+    !repository.markGovernmentIdCleared
+  ) {
+    throw new Error('Storage deletion outbox repository capabilities are not configured.');
+  }
+  if (!storageGateway.deleteObject) {
+    throw new Error('Storage deletion gateway is not configured.');
   }
 
-  const records = await repository.getPendingStorageDeletionOutboxRecords(25);
+  const records = await repository.getDueStorageDeletionOutboxRecords(now, 25);
   let processedCount = 0;
   let completedCount = 0;
-  let failedCount = 0;
-  let skippedBackoffCount = 0;
+  let retryScheduledCount = 0;
 
   for (const record of records) {
     processedCount += 1;
 
-    // Backoff check: if record was attempted recently, verify whether backoff delay has passed
-    const lastAttempt = new Date(record.lastAttemptAt);
-    if (!isNaN(lastAttempt.getTime()) && record.attempts >= 1) {
-      const minDelay = getBackoffDelayMs(record.attempts);
-      const elapsed = now.getTime() - lastAttempt.getTime();
-      if (elapsed < minDelay) {
-        skippedBackoffCount += 1;
-        continue;
-      }
-    }
-
     try {
-      // 1. Attempt Cloud Storage deletion (404 handled gracefully by deleteObject)
-      if (storageGateway.deleteObject) {
-        await storageGateway.deleteObject(record.storagePath);
-      }
+      // 1. Delete the exact object. AdminStorageGateway treats not-found as success.
+      await storageGateway.deleteObject(record.storagePath);
 
-      // 2. Transactionally revalidate and mark document cleared
-      if (repository.markGovernmentIdCleared) {
-        const clearedResult = await repository.markGovernmentIdCleared({
+      // 2. Revalidate the exact upload target before clearing Firestore metadata.
+      // If the owner record has moved on to another upload, the old bytes are still
+      // gone and the outbox item can safely complete without touching the new upload.
+      const clearedResult = await repository.markGovernmentIdCleared({
+        ownerId: record.ownerId,
+        uploadId: record.uploadId,
+        storagePath: record.storagePath,
+        now,
+      });
+      if (!clearedResult.cleared) {
+        logger.info('storage_outbox.document_not_cleared_safely', {
           ownerId: record.ownerId,
           uploadId: record.uploadId,
-          storagePath: record.storagePath,
-          now,
+          reason: clearedResult.reason,
         });
-        if (!clearedResult.cleared) {
-          logger.info('storage_outbox.document_not_cleared_safely', {
-            ownerId: record.ownerId,
-            uploadId: record.uploadId,
-            reason: clearedResult.reason,
-          });
-        }
       }
 
-      // 3. Mark outbox record completed
+      // 3. Complete the durable outbox record only after the storage operation.
       await repository.updateStorageDeletionOutbox(
         record.id,
         {
           status: 'completed',
           completedAt: now.toISOString(),
+          error: '',
         },
         now,
       );
@@ -112,40 +111,37 @@ export async function processStorageDeletionOutboxService(
       });
     } catch (err) {
       const nextAttempts = record.attempts + 1;
-      const isTerminalFailure = nextAttempts >= maxAttempts;
       const errorMessage = err instanceof Error ? err.message : String(err);
+      const nextAttemptAt = getNextRetryAt(now, nextAttempts);
 
       await repository.updateStorageDeletionOutbox(
         record.id,
         {
           attempts: nextAttempts,
           lastAttemptAt: now.toISOString(),
+          nextAttemptAt,
           error: errorMessage.slice(0, 1024),
-          status: isTerminalFailure ? 'failed' : 'pending',
+          status: 'pending',
         },
         now,
       );
+      retryScheduledCount += 1;
 
-      if (isTerminalFailure) {
-        failedCount += 1;
-        logger.error('storage_outbox.terminal_failure', {
-          recordId: record.id,
-          ownerId: record.ownerId,
-          uploadId: record.uploadId,
-          attempts: nextAttempts,
-          error: errorMessage,
-        });
+      const context = {
+        recordId: record.id,
+        ownerId: record.ownerId,
+        uploadId: record.uploadId,
+        attempts: nextAttempts,
+        nextAttemptAt,
+        error: errorMessage,
+      };
+      if (nextAttempts >= 10) {
+        logger.error('storage_outbox.repeated_failure', context);
       } else {
-        logger.warn('storage_outbox.retry_failed', {
-          recordId: record.id,
-          ownerId: record.ownerId,
-          uploadId: record.uploadId,
-          attempts: nextAttempts,
-          error: errorMessage,
-        });
+        logger.warn('storage_outbox.retry_failed', context);
       }
     }
   }
 
-  return { processedCount, completedCount, failedCount, skippedBackoffCount };
+  return { processedCount, completedCount, retryScheduledCount };
 }
