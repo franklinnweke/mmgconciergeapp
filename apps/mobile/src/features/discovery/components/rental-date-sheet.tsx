@@ -163,7 +163,7 @@ export function RentalDateSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject },
+  backdrop: { ...StyleSheet.absoluteFill },
   dateChip: {
     alignItems: 'center',
     borderColor: colors.line,
