@@ -43,7 +43,12 @@ export function PickupLocationSheet({
   const [resolveError, setResolveError] = useState<string | null>(null);
 
   const { suggestions, isLoading: searching, error: searchError, resolvePlace } = usePlaceSearch(query);
-  const { requestCurrentLocation, status: currentLocStatus, errorMessage: currentLocError, reset: resetCurrentLoc } = useCurrentLocation();
+  const {
+    requestCurrentLocation,
+    status: currentLocStatus,
+    errorMessage: currentLocError,
+    reset: resetCurrentLoc,
+  } = useCurrentLocation();
 
   const handleDismiss = () => {
     setQuery('');
@@ -57,12 +62,22 @@ export function PickupLocationSheet({
 
   const handleConfirm = () => {
     if (!pendingLocation) return;
-    const finalLocation: PickupLocation = {
+    onSelectLocation({
       ...pendingLocation,
       ...(note.trim() ? { note: note.trim() } : {}),
-    };
-    onSelectLocation(finalLocation);
+    });
     handleDismiss();
+  };
+
+  const isSelected = (loc: PickupLocation | PlaceSuggestion) => {
+    if (!selectedLocation) return false;
+    if (selectedLocation.placeId && loc.placeId) {
+      return selectedLocation.placeId === loc.placeId;
+    }
+    return (
+      selectedLocation.displayName.toLowerCase() === loc.displayName.toLowerCase() ||
+      selectedLocation.formattedAddress.toLowerCase() === loc.formattedAddress.toLowerCase()
+    );
   };
 
   const handleSelectSuggestion = async (item: PlaceSuggestion) => {
@@ -76,12 +91,12 @@ export function PickupLocationSheet({
 
     setResolvingPlaceId(item.placeId);
     try {
-      const loc = await resolvePlace(item);
-      setPendingLocation(loc);
-      setInitialCoords({ latitude: loc.latitude, longitude: loc.longitude });
-      setNote(isSelected(loc) ? (selectedLocation?.note ?? '') : '');
-    } catch (err: unknown) {
-      setResolveError(err instanceof Error ? err.message : 'Could not resolve pickup location.');
+      const location = await resolvePlace(item);
+      setPendingLocation(location);
+      setInitialCoords({ latitude: location.latitude, longitude: location.longitude });
+      setNote(isSelected(location) ? (selectedLocation?.note ?? '') : '');
+    } catch (error) {
+      setResolveError(error instanceof Error ? error.message : 'Could not resolve pickup location.');
     } finally {
       setResolvingPlaceId(null);
     }
@@ -90,11 +105,10 @@ export function PickupLocationSheet({
   const handleCurrentLocationPress = async () => {
     setResolveError(null);
     const result = await requestCurrentLocation();
-    if (result.success) {
-      setPendingLocation(result.location);
-      setInitialCoords({ latitude: result.location.latitude, longitude: result.location.longitude });
-      setNote(selectedLocation?.note ?? '');
-    }
+    if (!result.success) return;
+    setPendingLocation(result.location);
+    setInitialCoords({ latitude: result.location.latitude, longitude: result.location.longitude });
+    setNote(selectedLocation?.note ?? '');
   };
 
   const handlePinCoordinateChange = (coords: { latitude: number; longitude: number }) => {
@@ -121,18 +135,8 @@ export function PickupLocationSheet({
     });
   };
 
-  const isSelected = (loc: PickupLocation | PlaceSuggestion) => {
-    if (!selectedLocation) return false;
-    if (selectedLocation.placeId && loc.placeId) {
-      return selectedLocation.placeId === loc.placeId;
-    }
-    return (
-      selectedLocation.displayName.toLowerCase() === loc.displayName.toLowerCase() ||
-      selectedLocation.formattedAddress.toLowerCase() === loc.formattedAddress.toLowerCase()
-    );
-  };
-
-  const bannerError = currentLocError || searchError || resolveError;
+  const bannerMessage = currentLocError || searchError || resolveError;
+  const serviceAreaNotice = currentLocStatus === 'outside_lagos' && Boolean(currentLocError);
 
   return (
     <Modal
@@ -157,7 +161,6 @@ export function PickupLocationSheet({
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
             <View style={styles.handle} />
 
-            {/* If pendingLocation is set, show Confirmation Step */}
             {pendingLocation ? (
               <ScrollView
                 bounces={false}
@@ -165,21 +168,18 @@ export function PickupLocationSheet({
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-                {/* Confirmation Header */}
                 <View style={styles.header}>
                   <PressableScale
-                    accessibilityLabel="Back to search"
+                    accessibilityLabel="Back to pickup search"
                     accessibilityRole="button"
                     onPress={() => {
                       setPendingLocation(null);
                       setInitialCoords(null);
                     }}
-                    style={styles.backButton}
+                    style={styles.changeButton}
                   >
-                    <Ionicons color={colors.ivory} name="arrow-back" size={18} />
-                    <Text style={styles.backButtonText}>Change</Text>
+                    <Text style={styles.changeButtonText}>Change</Text>
                   </PressableScale>
-
                   <Pressable
                     accessibilityLabel="Close location selection"
                     accessibilityRole="button"
@@ -191,20 +191,15 @@ export function PickupLocationSheet({
                 </View>
 
                 <View style={styles.confirmHeaderCopy}>
-                  <Text accessibilityRole="header" style={styles.title}>
-                    Confirm pickup location
-                  </Text>
+                  <Text accessibilityRole="header" style={styles.title}>Confirm pickup location</Text>
+                  <Text style={styles.subtitle}>Review the address and adjust the map only if needed.</Text>
                 </View>
 
-                {/* Resolved Location Card */}
                 <View style={styles.confirmedCard}>
-                  <View style={styles.confirmedCopy}>
-                    <Text style={styles.confirmedTitle}>{pendingLocation.displayName}</Text>
-                    <Text style={styles.confirmedAddress}>{pendingLocation.formattedAddress}</Text>
-                  </View>
+                  <Text style={styles.confirmedTitle}>{pendingLocation.displayName}</Text>
+                  <Text style={styles.confirmedAddress}>{pendingLocation.formattedAddress}</Text>
                 </View>
 
-                {/* Interactive Map Pin for Arrival Gate/Lobby */}
                 <PickupPinMap
                   initialLatitude={initialCoords?.latitude}
                   initialLongitude={initialCoords?.longitude}
@@ -214,9 +209,8 @@ export function PickupLocationSheet({
                   onReset={handleResetPin}
                 />
 
-                {/* Optional Note Input */}
                 <View style={styles.noteSection}>
-                  <Text style={styles.noteLabel}>Entrance / meeting point note (optional)</Text>
+                  <Text style={styles.noteLabel}>Entrance or meeting point note (optional)</Text>
                   <TextInput
                     accessibilityLabel="Entrance or meeting point note"
                     autoCapitalize="sentences"
@@ -229,7 +223,6 @@ export function PickupLocationSheet({
                   />
                 </View>
 
-                {/* Confirm Button */}
                 <PressableScale
                   accessibilityLabel="Confirm pickup location"
                   accessibilityRole="button"
@@ -239,25 +232,17 @@ export function PickupLocationSheet({
                   <Text style={styles.confirmButtonText}>Confirm pickup location</Text>
                 </PressableScale>
 
-                {/* Confirmation Google Attribution */}
                 {pendingLocation.source === 'place_search' || pendingLocation.source === 'pin_adjusted' ? (
-                  <View
-                    accessibilityLabel="Powered by Google"
-                    style={styles.attributionContainer}
-                  >
+                  <View accessibilityLabel="Powered by Google" style={styles.attributionContainer}>
                     <Text style={styles.attributionText}>Powered by Google</Text>
                   </View>
                 ) : null}
               </ScrollView>
             ) : (
-              /* Search and Selection View */
               <View>
-                {/* Header */}
                 <View style={styles.header}>
                   <View style={styles.headerTitleGroup}>
-                    <Text accessibilityRole="header" style={styles.title}>
-                      Where should we bring the car?
-                    </Text>
+                    <Text accessibilityRole="header" style={styles.title}>Where should we bring the car?</Text>
                   </View>
                   <Pressable
                     accessibilityLabel="Close location selection"
@@ -269,15 +254,19 @@ export function PickupLocationSheet({
                   </Pressable>
                 </View>
 
-                {/* Error Banner */}
-                {bannerError ? (
-                  <View style={styles.errorBox}>
-                    <Ionicons color={colors.danger} name="alert-circle" size={16} />
-                    <Text style={styles.errorText}>{bannerError}</Text>
+                {bannerMessage ? (
+                  <View style={serviceAreaNotice ? styles.serviceAreaNotice : styles.errorBox}>
+                    <Ionicons
+                      color={serviceAreaNotice ? colors.goldStrong : colors.danger}
+                      name={serviceAreaNotice ? 'information-circle-outline' : 'alert-circle-outline'}
+                      size={17}
+                    />
+                    <Text style={serviceAreaNotice ? styles.serviceAreaNoticeText : styles.errorText}>
+                      {bannerMessage}
+                    </Text>
                   </View>
                 ) : null}
 
-                {/* Choice 1: Use my current location */}
                 <PressableScale
                   accessibilityLabel="Use my current location"
                   accessibilityRole="button"
@@ -285,24 +274,21 @@ export function PickupLocationSheet({
                   onPress={handleCurrentLocationPress}
                   style={styles.currentLocationRow}
                 >
-                  <View style={styles.currentLocationIconBox}>
+                  <View style={styles.currentLocationIcon}>
                     {currentLocStatus === 'requesting' ? (
                       <ActivityIndicator color={colors.goldStrong} size="small" />
                     ) : (
-                      <Ionicons color={colors.goldStrong} name="navigate-circle-outline" size={22} />
+                      <Ionicons color={colors.goldStrong} name="navigate-outline" size={20} />
                     )}
                   </View>
                   <View style={styles.currentLocationCopy}>
                     <Text style={styles.currentLocationTitle}>Use my current location</Text>
                     <Text style={styles.currentLocationSub}>
-                      {currentLocStatus === 'requesting'
-                        ? 'Detecting your Lagos location…'
-                        : 'Find your location automatically'}
+                      {currentLocStatus === 'requesting' ? 'Finding your location…' : 'Find your pickup automatically'}
                     </Text>
                   </View>
                 </PressableScale>
 
-                {/* Choice 2: Search address or Lagos landmarks */}
                 <View style={styles.searchContainer}>
                   <Ionicons color={colors.muted} name="search-outline" size={18} style={styles.searchIcon} />
                   <TextInput
@@ -316,22 +302,20 @@ export function PickupLocationSheet({
                     value={query}
                   />
                   {searching ? (
-                    <ActivityIndicator color={colors.goldStrong} size="small" style={{ marginLeft: spacing.xs }} />
+                    <ActivityIndicator color={colors.goldStrong} size="small" style={styles.searchBusy} />
                   ) : query ? (
-                    <Pressable onPress={() => setQuery('')} style={{ padding: 4 }}>
+                    <Pressable accessibilityLabel="Clear search" onPress={() => setQuery('')} style={styles.clearSearch}>
                       <Ionicons color={colors.muted} name="close-circle" size={16} />
                     </Pressable>
                   ) : null}
                 </View>
 
-                {/* Section Header */}
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionHeaderTitle}>
                     {query.trim().length > 0 ? 'Matching locations' : 'Suggested Lagos landmarks'}
                   </Text>
                 </View>
 
-                {/* Suggestions List */}
                 <ScrollView
                   contentContainerStyle={styles.list}
                   keyboardShouldPersistTaps="handled"
@@ -339,17 +323,15 @@ export function PickupLocationSheet({
                 >
                   {suggestions.length === 0 ? (
                     <View style={styles.emptyResultsBox}>
-                      <Ionicons color={colors.muted} name="location-outline" size={24} />
                       <Text style={styles.emptyResultsText}>No Lagos landmarks match this search.</Text>
                     </View>
                   ) : (
                     suggestions.map((item) => {
                       const active = isSelected(item);
                       const isResolving = resolvingPlaceId === item.placeId;
-
                       return (
                         <PressableScale
-                          accessibilityHint="Selects this delivery location"
+                          accessibilityHint="Selects this pickup location"
                           accessibilityLabel={`${item.primaryText}, ${item.secondaryText ?? ''}${active ? ', selected' : ''}`}
                           accessibilityRole="button"
                           disabled={isResolving}
@@ -358,16 +340,13 @@ export function PickupLocationSheet({
                           style={[styles.itemRow, active && styles.itemRowActive]}
                         >
                           <View style={styles.itemCopy}>
-                            <Text numberOfLines={1} style={[styles.itemName, active && styles.itemNameActive]}>
+                            <Text numberOfLines={2} style={[styles.itemName, active && styles.itemNameActive]}>
                               {item.primaryText}
                             </Text>
                             {item.secondaryText ? (
-                              <Text numberOfLines={1} style={styles.itemSub}>
-                                {item.secondaryText}
-                              </Text>
+                              <Text numberOfLines={2} style={styles.itemSub}>{item.secondaryText}</Text>
                             ) : null}
                           </View>
-
                           {isResolving ? (
                             <ActivityIndicator color={colors.goldStrong} size="small" />
                           ) : active ? (
@@ -377,11 +356,8 @@ export function PickupLocationSheet({
                       );
                     })
                   )}
-                  {suggestions.length > 0 && (query.trim().length >= 2 || suggestions.some((s) => !s.isCurated)) ? (
-                    <View
-                      accessibilityLabel="Powered by Google"
-                      style={styles.attributionContainer}
-                    >
+                  {suggestions.length > 0 && (query.trim().length >= 2 || suggestions.some((item) => !item.isCurated)) ? (
+                    <View accessibilityLabel="Powered by Google" style={styles.attributionContainer}>
                       <Text style={styles.attributionText}>Powered by Google</Text>
                     </View>
                   ) : null}
@@ -407,21 +383,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.2,
   },
-  backButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    height: 32,
-    paddingHorizontal: spacing.sm,
+  changeButton: {
+    minHeight: 32,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
   },
-  backButtonText: {
-    color: colors.ivory,
-    fontFamily: typography.bodyMedium,
+  changeButtonText: {
+    color: colors.goldStrong,
+    fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.xs,
+  },
+  clearSearch: {
+    flexShrink: 0,
+    padding: spacing.xs,
   },
   closeButton: {
     alignItems: 'center',
@@ -429,6 +403,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
+    flexShrink: 0,
     height: 32,
     justifyContent: 'center',
     width: 32,
@@ -456,17 +431,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: fontSizes.xs,
-    marginTop: 2,
+    lineHeight: 18,
+    marginTop: 3,
   },
   confirmedCard: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: spacing.md,
-  },
-  confirmedCopy: {
-    flex: 1,
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.xs,
   },
   confirmedTitle: {
     color: colors.ivory,
@@ -475,32 +447,31 @@ const styles = StyleSheet.create({
   },
   currentLocationCopy: {
     flex: 1,
+    minWidth: 0,
   },
-  currentLocationIconBox: {
+  currentLocationIcon: {
     alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderRadius: radii.pill,
-    height: 36,
+    flexShrink: 0,
+    height: 28,
     justifyContent: 'center',
-    width: 36,
+    width: 28,
   },
   currentLocationRow: {
     alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
     marginBottom: spacing.md,
-    minHeight: 56,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    minHeight: 58,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   currentLocationSub: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: fontSizes.xs,
+    lineHeight: 17,
     marginTop: 2,
   },
   currentLocationTitle: {
@@ -509,32 +480,32 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
   },
   emptyResultsBox: {
-    alignItems: 'center',
-    gap: spacing.xs,
     paddingVertical: spacing.xl,
   },
   emptyResultsText: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: fontSizes.xs,
+    textAlign: 'center',
   },
   errorBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(239,68,68,0.08)',
     borderColor: colors.danger,
     borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
     marginBottom: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    padding: spacing.md,
   },
   errorText: {
     color: colors.danger,
     flex: 1,
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.xs,
+    lineHeight: 18,
+    minWidth: 0,
   },
   handle: {
     alignSelf: 'center',
@@ -552,6 +523,7 @@ const styles = StyleSheet.create({
   },
   headerTitleGroup: {
     flex: 1,
+    minWidth: 0,
     paddingRight: spacing.sm,
   },
   itemCopy: {
@@ -562,29 +534,29 @@ const styles = StyleSheet.create({
     color: colors.ivory,
     fontFamily: typography.bodySemiBold,
     fontSize: fontSizes.sm,
+    lineHeight: 19,
   },
   itemNameActive: {
     color: colors.goldStrong,
   },
   itemRow: {
     alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 54,
-    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    minHeight: 56,
+    paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
   },
   itemRowActive: {
-    borderColor: colors.goldStrong,
+    borderBottomColor: colors.goldStrong,
   },
   itemSub: {
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: fontSizes.xs,
+    lineHeight: 17,
     marginTop: 2,
   },
   keyboardContainer: {
@@ -592,7 +564,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   list: {
-    gap: spacing.xs,
     maxHeight: 340,
     paddingBottom: spacing.sm,
   },
@@ -621,6 +592,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
+  searchBusy: {
+    flexShrink: 0,
+    marginLeft: spacing.xs,
+  },
   searchContainer: {
     alignItems: 'center',
     backgroundColor: colors.graphite,
@@ -632,6 +607,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   searchIcon: {
+    flexShrink: 0,
     marginRight: spacing.sm,
   },
   searchInput: {
@@ -640,6 +616,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.body,
     fontSize: fontSizes.sm,
     height: 44,
+    minWidth: 0,
   },
   sectionHeaderRow: {
     marginBottom: spacing.xs,
@@ -650,6 +627,25 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyMedium,
     fontSize: fontSizes.xs,
     letterSpacing: 0.2,
+  },
+  serviceAreaNotice: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.graphite,
+    borderColor: colors.lineStrong,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+  },
+  serviceAreaNoticeText: {
+    color: colors.silver,
+    flex: 1,
+    fontFamily: typography.bodyMedium,
+    fontSize: fontSizes.xs,
+    lineHeight: 18,
+    minWidth: 0,
   },
   sheet: {
     backgroundColor: colors.canvas,
@@ -665,7 +661,8 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontFamily: typography.body,
     fontSize: fontSizes.xs,
-    marginTop: 2,
+    lineHeight: 18,
+    marginTop: 3,
   },
   title: {
     color: colors.ivory,
