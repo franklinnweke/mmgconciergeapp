@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
+import { Image } from 'expo-image';
 import { type Href, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -99,7 +100,16 @@ export default function DiscoveryHomeScreen() {
                 style={styles.avatarPress}
               >
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
+                  {user?.photoURL ? (
+                    <Image
+                      accessibilityLabel={`${firstName || 'Renter'} profile photo`}
+                      contentFit="cover"
+                      source={{ uri: user.photoURL }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
+                  )}
                 </View>
               </PressableScale>
             )}
@@ -212,7 +222,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     height: 40,
     justifyContent: 'center',
+    overflow: 'hidden',
     width: 40,
+  },
+  avatarImage: {
+    height: '100%',
+    width: '100%',
   },
   avatarPress: { flexShrink: 0, height: 40, width: 40 },
   avatarText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
