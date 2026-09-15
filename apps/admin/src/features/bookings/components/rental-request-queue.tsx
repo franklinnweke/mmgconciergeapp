@@ -1,7 +1,8 @@
 'use client';
 
+import { Check, Copy, Phone } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { formatNairaFromKobo } from '@mmg/domain';
 
@@ -29,8 +30,9 @@ function formatTimestamp(value: string) {
 
 function stateTone(state: AdminRentalRequestRecord['state']) {
   if (state === 'confirmed') return 'green';
+  if (state === 'ready_for_payment') return 'gold';
   if (state === 'needs_attention' || state === 'declined') return 'red';
-  return 'gold';
+  return 'muted';
 }
 
 function canApprove(state: AdminRentalRequestRecord['state']) {
@@ -45,6 +47,30 @@ function canOpenPayment(state: AdminRentalRequestRecord['state']) {
   return state === 'approved';
 }
 
+function PaymentWindowCountdown({ expiresAt }: { expiresAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const expiry = Date.parse(expiresAt);
+  const remaining = Number.isFinite(expiry) ? Math.max(0, expiry - now) : 0;
+  const totalSeconds = Math.floor(remaining / 1_000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const urgent = remaining > 0 && remaining <= 5 * 60 * 1_000;
+
+  return (
+    <div className={`admin-countdown${urgent ? ' urgent' : ''}`} aria-live="polite">
+      {remaining <= 0
+        ? 'Payment window ended'
+        : `Payment window closes in ${minutes}m ${seconds.toString().padStart(2, '0')}s`}
+    </div>
+  );
+}
+
 export function RentalRequestQueue({
   requests,
   canManage,
@@ -55,6 +81,17 @@ export function RentalRequestQueue({
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null);
+
+  const copyPhone = async (requestId: string, phone: string) => {
+    try {
+      await navigator.clipboard.writeText(phone);
+      setCopiedRequestId(requestId);
+      window.setTimeout(() => setCopiedRequestId((current) => current === requestId ? null : current), 1_500);
+    } catch {
+      setError('The phone number could not be copied. You can still tap it to call.');
+    }
+  };
 
   const execute = async (
     request: AdminRentalRequestRecord,
@@ -127,6 +164,7 @@ export function RentalRequestQueue({
               <tr><td className="admin-empty" colSpan={6}>No concierge rental requests yet.</td></tr>
             ) : requests.map((item) => {
               const busy = busyId === item.requestId;
+              const copied = copiedRequestId === item.requestId;
               return (
                 <tr key={item.requestId}>
                   <td>
@@ -140,7 +178,24 @@ export function RentalRequestQueue({
                     <div className="admin-secondary">Owner {item.ownerReference}</div>
                   </td>
                   <td>
-                    <div className="admin-primary">{item.contactPhone ?? 'Contact unavailable'}</div>
+                    {item.contactPhone ? (
+                      <div className="admin-contact-actions">
+                        <a className="admin-phone-link" href={`tel:${item.contactPhone}`}>
+                          <Phone size={14} />
+                          <span>{item.contactPhone}</span>
+                        </a>
+                        <button
+                          aria-label={`Copy renter phone ${item.contactPhone}`}
+                          className="admin-copy-button"
+                          onClick={() => void copyPhone(item.requestId, item.contactPhone!)}
+                          title="Copy phone"
+                          type="button"
+                        >
+                          {copied ? <Check size={14} /> : <Copy size={14} />}
+                          <span>{copied ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    ) : <div className="admin-primary">Contact unavailable</div>}
                     <div className="admin-secondary">Renter {item.renterReference}</div>
                     <div className="admin-secondary">Private concierge PII</div>
                   </td>
@@ -150,8 +205,10 @@ export function RentalRequestQueue({
                   </td>
                   <td>
                     <span className={`admin-status ${stateTone(item.state)}`}>{item.state.replaceAll('_', ' ')}</span>
-                    {item.holdExpiresAt ? (
-                      <div className="admin-secondary">Window ends {formatTimestamp(item.holdExpiresAt)}</div>
+                    {item.state === 'ready_for_payment' && item.holdExpiresAt ? (
+                      <PaymentWindowCountdown expiresAt={item.holdExpiresAt} />
+                    ) : item.holdExpiresAt ? (
+                      <div className="admin-secondary">Window ended {formatTimestamp(item.holdExpiresAt)}</div>
                     ) : null}
                   </td>
                   <td>

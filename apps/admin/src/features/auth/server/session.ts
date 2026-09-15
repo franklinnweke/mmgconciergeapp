@@ -22,6 +22,7 @@ export type StaffRole =
 export type StaffCapability =
   | 'bookings.read'
   | 'bookings.manage_requests'
+  | 'payments.read'
   | 'owners.read'
   | 'owners.review'
   | 'users.read'
@@ -38,6 +39,7 @@ const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
   super_admin: [
     'bookings.read',
     'bookings.manage_requests',
+    'payments.read',
     'owners.read',
     'owners.review',
     'users.read',
@@ -46,7 +48,7 @@ const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
   ],
   verification_admin: ['owners.read', 'owners.review'],
   vehicle_admin: ['vehicles.read', 'vehicles.review'],
-  finance_admin: [],
+  finance_admin: ['payments.read'],
   support: ['bookings.read', 'bookings.manage_requests'],
   privacy_admin: ['users.read'],
 };
@@ -68,7 +70,8 @@ export type StaffSession = {
 };
 
 export const STAFF_DESKS: readonly { href: string; label: string; capability: StaffCapability }[] = [
-  { href: '/', label: 'Booking concierge desk', capability: 'bookings.read' },
+  { href: '/bookings', label: 'Booking concierge desk', capability: 'bookings.read' },
+  { href: '/payments', label: 'Payments desk', capability: 'payments.read' },
   { href: '/owners', label: 'Owner verification desk', capability: 'owners.read' },
   { href: '/vehicles', label: 'Vehicle moderation desk', capability: 'vehicles.read' },
   { href: '/users', label: 'Platform users', capability: 'users.read' },
