@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -53,12 +53,6 @@ export function RentalDateSheet({
   const [draftStart, setDraftStart] = useState(initialJourney.startDate);
   const [draftDuration, setDraftDuration] = useState(initialJourney.durationDays);
   const today = todayLagosDateOnly();
-
-  useEffect(() => {
-    if (!visible) return;
-    setDraftStart(initialJourney.startDate);
-    setDraftDuration(initialJourney.durationDays);
-  }, [initialJourney, visible]);
 
   const dateOptions = useMemo<DateOption[]>(() => {
     const options = Array.from({ length: 30 }, (_, offset) => {
