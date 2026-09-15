@@ -55,7 +55,9 @@ describe('rental journey continuity', () => {
     expect(fleet).toContain('endDate: routeEndDate');
     expect(fleet).toContain('...selectedJourneyDates');
     expect(vehicle).toContain('resolveRentalJourney(propStartDate, propEndDate)');
-    expect(vehicle).toContain('endDate: journey.endDate, startDate: journey.startDate');
+    expect(vehicle).toContain('endDate: journey.endDate,');
+    expect(vehicle).toContain('startDate: journey.startDate,');
+    expect(vehicle).toContain('pickup: serializePickupLocation(selectedPickup)');
     expect(review).toContain('resolveRentalJourney(startDate, endDate)');
   });
 });

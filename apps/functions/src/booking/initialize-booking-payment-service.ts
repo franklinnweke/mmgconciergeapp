@@ -10,6 +10,8 @@ import {
 import { BookingCommandError } from './errors.js';
 import type { PaymentGateway } from './payment-gateway.js';
 
+export const PAYMENT_CHECKOUT_CALLBACK_URL = 'mmgconcierge://checkout/complete';
+
 export type CheckoutRenter = {
   uid: string;
   email: string;
@@ -62,6 +64,11 @@ export interface BookingPaymentInitializationRepository {
 export type InitializeBookingPaymentDependencies = {
   repository: BookingPaymentInitializationRepository;
   paymentGateway: PaymentGateway;
+  /**
+   * Trusted server-owned callback used only to return the hosted checkout UX
+   * to the app. Reconciliation/webhooks remain the authority for payment.
+   */
+  callbackUrl?: string;
   now?: () => Date;
   createRequestId?: () => string;
 };
@@ -139,6 +146,7 @@ export async function initializeBookingPayment(
       email: reservation.email,
       amountKobo: reservation.amountKobo,
       currency: reservation.currency,
+      callbackUrl: dependencies.callbackUrl ?? PAYMENT_CHECKOUT_CALLBACK_URL,
       metadata: { intentId: reservation.intentId },
     });
   } catch (error) {

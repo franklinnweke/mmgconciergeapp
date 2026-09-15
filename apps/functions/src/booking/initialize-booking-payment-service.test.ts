@@ -6,6 +6,7 @@ import { BookingCommandError } from './errors.js';
 import {
   buildPaymentIdentity,
   initializeBookingPayment,
+  PAYMENT_CHECKOUT_CALLBACK_URL,
   type BookingPaymentInitializationRepository,
   type CheckoutRenter,
   type PaymentInitializationReservation,
@@ -15,7 +16,6 @@ import type { PaymentGateway } from './payment-gateway.js';
 const actor: CheckoutRenter = {
   uid: 'renter-123',
   email: 'renter@example.com',
-  phoneNumber: '+2348012345678',
 };
 
 const command = {
@@ -92,7 +92,7 @@ describe('buildPaymentIdentity', () => {
 });
 
 describe('initializeBookingPayment', () => {
-  it('uses only server-reserved email, amount, currency and reference for Paystack', async () => {
+  it('uses only server-reserved payment values and the server-owned return URL for Paystack', async () => {
     const reservation = readyReservation();
     const { repository, completeResult } = repositoryWithReservation(reservation);
     const gateway = successfulGateway();
@@ -111,6 +111,7 @@ describe('initializeBookingPayment', () => {
       email: actor.email,
       amountKobo: 12_500_000,
       currency: 'NGN',
+      callbackUrl: PAYMENT_CHECKOUT_CALLBACK_URL,
       metadata: { intentId: 'intent-123' },
     });
     expect(repository.completeInitialization).toHaveBeenCalledTimes(1);
@@ -193,6 +194,7 @@ describe('initializeBookingPayment', () => {
             amountKobo: 1,
             currency: 'USD',
             reference: 'attacker-reference',
+            callbackUrl: 'https://attacker.example/callback',
           },
         },
         actor,

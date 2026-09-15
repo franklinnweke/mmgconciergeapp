@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
@@ -49,7 +48,6 @@ export function LiveJourneyCard({ onPress, trip }: LiveJourneyCardProps) {
             {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
           </Text>
         </View>
-        <Ionicons color={colors.goldStrong} name="chevron-forward" size={18} />
       </View>
     </PressableScale>
   );
@@ -70,7 +68,7 @@ const styles = StyleSheet.create({
   cardAttention: {
     borderColor: 'rgba(209,133,120,0.45)',
   },
-  copy: { flex: 1 },
+  copy: { flex: 1, minWidth: 0 },
   dates: {
     color: colors.muted,
     fontFamily: typography.body,

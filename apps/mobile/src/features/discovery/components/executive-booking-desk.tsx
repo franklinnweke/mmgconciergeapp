@@ -40,7 +40,6 @@ type DateOption = {
   secondary: string;
 };
 
-
 function dateOptionCopy(dateOnly: string, offset: number): Omit<DateOption, 'date' | 'offset'> {
   const date = new Date(`${dateOnly}T12:00:00+01:00`);
   const primary =
@@ -116,16 +115,16 @@ export function ExecutiveBookingDesk({
         >
           <View style={styles.summaryRow}>
             <View style={styles.summaryIcon}>
-              <Ionicons color={colors.goldStrong} name="location-outline" size={20} />
+              <Ionicons color={colors.goldStrong} name="location-outline" size={22} />
             </View>
             <View style={styles.summaryCopy}>
               <Text style={styles.summaryLabel}>Pickup</Text>
-              <Text numberOfLines={1} style={styles.summaryValue}>
-                {pickup ? pickup.displayName : 'Where should we bring the car?'}
-              </Text>
-              <Text numberOfLines={1} style={styles.summaryMeta}>
-                {pickup ? pickup.formattedAddress : 'Select delivery landmark or use current location'}
-              </Text>
+              {pickup ? (
+                <>
+                  <Text numberOfLines={1} style={styles.summaryValue}>{pickup.displayName}</Text>
+                  <Text numberOfLines={1} style={styles.summaryMeta}>{pickup.formattedAddress}</Text>
+                </>
+              ) : null}
             </View>
             <Text style={styles.editText}>{pickup ? 'Edit' : 'Select'}</Text>
           </View>
@@ -140,7 +139,7 @@ export function ExecutiveBookingDesk({
         >
           <View style={styles.summaryRow}>
             <View style={styles.summaryIcon}>
-              <Ionicons color={colors.goldStrong} name="calendar-outline" size={20} />
+              <Ionicons color={colors.goldStrong} name="calendar-outline" size={22} />
             </View>
             <View style={styles.summaryCopy}>
               <Text style={styles.summaryLabel}>Dates</Text>
@@ -248,7 +247,7 @@ const styles = StyleSheet.create({
   },
   durationGrid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   durationText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
-  editText: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: fontSizes.xs },
+  editText: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
   exploreButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
@@ -262,7 +261,7 @@ const styles = StyleSheet.create({
   rangeLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
   rangeSummary: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: 3, marginTop: spacing.lg, paddingTop: spacing.md },
   rangeValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
-  rule: { backgroundColor: colors.line, height: StyleSheet.hairlineWidth, marginLeft: 52 },
+  rule: { backgroundColor: 'rgba(250,247,239,0.22)', height: 1 },
   sheet: {
     backgroundColor: colors.black,
     borderTopLeftRadius: radii.lg,
@@ -275,10 +274,23 @@ const styles = StyleSheet.create({
   sheetSubtitle: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 4, maxWidth: 270 },
   sheetTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xl },
   summaryCopy: { flex: 1, gap: 2, minWidth: 0 },
-  summaryIcon: { alignItems: 'center', height: 42, justifyContent: 'center', width: 34 },
-  summaryLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
-  summaryMeta: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
-  summaryRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 64, paddingHorizontal: spacing.md },
-  summaryShell: { borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  summaryValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
+  summaryIcon: { alignItems: 'center', height: 46, justifyContent: 'center', width: 36 },
+  summaryLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
+  summaryMeta: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 1 },
+  summaryRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 78,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  summaryShell: {
+    backgroundColor: colors.graphite,
+    borderColor: 'rgba(250,247,239,0.28)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  summaryValue: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm, marginTop: 1 },
 });

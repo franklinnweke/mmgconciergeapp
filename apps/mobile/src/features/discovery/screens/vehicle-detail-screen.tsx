@@ -23,11 +23,11 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
 
-import {
-  formatLagosDateOnly,
-} from '../data/lagos-destinations';
-import { currentAvailability, resolveRentalJourney, type Availability } from '../data/rental-journey';
+import { PickupLocationSheet } from '../components/pickup-location-sheet';
+import { RentalDateSheet } from '../components/rental-date-sheet';
 import { createDiscoveryGateway } from '../data/firestore-discovery-gateway';
+import { formatLagosDateOnly } from '../data/lagos-destinations';
+import { currentAvailability, resolveRentalJourney, type Availability } from '../data/rental-journey';
 import { resolveVehicleImageSource, vehicleImages } from '../data/vehicle-images';
 import {
   createVehicleCalendarGateway,
@@ -37,6 +37,7 @@ import { vehicleCalendarErrorMessage } from '../data/vehicle-calendar-gateway-co
 import {
   parsePickupLocation,
   serializePickupLocation,
+  type PickupLocation,
 } from '../domain/pickup-location';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -63,8 +64,21 @@ export default function VehicleDetailScreen({
     () => injectedCalendarGateway ?? createVehicleCalendarGateway(),
     [injectedCalendarGateway],
   );
-  const journey = useMemo(() => resolveRentalJourney(propStartDate, propEndDate), [propEndDate, propStartDate]);
-  const pickupLocation = useMemo(() => parsePickupLocation(pickup), [pickup]);
+  const routeJourney = useMemo(
+    () => resolveRentalJourney(propStartDate, propEndDate),
+    [propEndDate, propStartDate],
+  );
+  const routePickup = useMemo(() => parsePickupLocation(pickup), [pickup]);
+
+  const [selectedStartDate, setSelectedStartDate] = useState(routeJourney.startDate);
+  const [selectedEndDate, setSelectedEndDate] = useState(routeJourney.endDate);
+  const [selectedPickup, setSelectedPickup] = useState<PickupLocation | null>(routePickup);
+  const [datesOpen, setDatesOpen] = useState(false);
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const journey = useMemo(
+    () => resolveRentalJourney(selectedStartDate, selectedEndDate),
+    [selectedEndDate, selectedStartDate],
+  );
 
   const [vehicle, setVehicle] = useState<VehicleSummary | null>(null);
   const [loading, setLoading] = useState(Boolean(vehicleId));
@@ -117,10 +131,18 @@ export default function VehicleDetailScreen({
       if (!active) return;
       const fullyAvailable = result.days.length === journey.durationDays
         && result.days.every((day) => day.available);
-      setAvailabilityResult({ key: availabilityKey, gateway: calendarGateway, value: { error: null, status: fullyAvailable ? 'available' : 'unavailable' } });
+      setAvailabilityResult({
+        key: availabilityKey,
+        gateway: calendarGateway,
+        value: { error: null, status: fullyAvailable ? 'available' : 'unavailable' },
+      });
     }).catch((error: unknown) => {
       if (!active) return;
-      setAvailabilityResult({ key: availabilityKey, gateway: calendarGateway, value: { error: vehicleCalendarErrorMessage(error), status: 'error' } });
+      setAvailabilityResult({
+        key: availabilityKey,
+        gateway: calendarGateway,
+        value: { error: vehicleCalendarErrorMessage(error), status: 'error' },
+      });
     });
     return () => { active = false; };
   }, [availabilityKey, calendarGateway, journey.durationDays, journey.endDate, journey.startDate, vehicleId]);
@@ -187,6 +209,35 @@ export default function VehicleDetailScreen({
     </View>
   ) : null;
 
+  const primaryAction = () => {
+    if (availability.status === 'unavailable') {
+      setDatesOpen(true);
+      return;
+    }
+    if (availability.status === 'error') {
+      setAvailabilityReloadKey((key) => key + 1);
+      return;
+    }
+    if (availability.status !== 'available') return;
+    router.push({
+      pathname: '/booking/review',
+      params: {
+        endDate: journey.endDate,
+        startDate: journey.startDate,
+        ...(selectedPickup ? { pickup: serializePickupLocation(selectedPickup) } : {}),
+        vehicleId: vehicle.id,
+      },
+    });
+  };
+
+  const primaryLabel = availability.status === 'available'
+    ? 'Request this car'
+    : availability.status === 'unavailable'
+      ? 'Change dates'
+      : availability.status === 'error'
+        ? 'Retry availability'
+        : 'Checking dates';
+
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 112 }]} showsVerticalScrollIndicator={false}>
@@ -225,33 +276,59 @@ export default function VehicleDetailScreen({
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your dates</Text>
-            <View style={styles.journeyRow}>
-              <View style={styles.journeyPoint}>
-                <Text style={styles.rowLabel}>Pickup</Text>
-                <Text style={styles.rowValue}>{formatLagosDateOnly(journey.startDate)}</Text>
+            <PressableScale
+              accessibilityLabel={`Rental dates, ${formatLagosDateOnly(journey.startDate)} to ${formatLagosDateOnly(journey.endDate)}. Change dates`}
+              accessibilityRole="button"
+              onPress={() => setDatesOpen(true)}
+            >
+              <View style={styles.tripControl}>
+                <View style={styles.controlHeader}>
+                  <Text style={styles.sectionTitle}>Your dates</Text>
+                  <Text style={styles.editText}>Edit</Text>
+                </View>
+                <View style={styles.journeyRow}>
+                  <View style={styles.journeyPoint}>
+                    <Text style={styles.rowLabel}>Pickup</Text>
+                    <Text style={styles.rowValue}>{formatLagosDateOnly(journey.startDate)}</Text>
+                  </View>
+                  <Ionicons color={colors.muted} name="arrow-forward" size={16} />
+                  <View style={[styles.journeyPoint, styles.journeyPointEnd]}>
+                    <Text style={styles.rowLabel}>Return</Text>
+                    <Text style={styles.rowValue}>{formatLagosDateOnly(journey.endDate)}</Text>
+                  </View>
+                </View>
               </View>
-              <Ionicons color={colors.muted} name="arrow-forward" size={16} />
-              <View style={[styles.journeyPoint, styles.journeyPointEnd]}>
-                <Text style={styles.rowLabel}>Return</Text>
-                <Text style={styles.rowValue}>{formatLagosDateOnly(journey.endDate)}</Text>
-              </View>
-            </View>
+            </PressableScale>
 
-            <View style={styles.deliveryBadge}>
-              <Ionicons color={colors.goldStrong} name="location-outline" size={15} />
-              <Text numberOfLines={1} style={styles.deliveryBadgeText}>
-                Delivery to {pickupLocation?.displayName ?? 'Lagos'}
-              </Text>
-            </View>
+            <PressableScale
+              accessibilityLabel={selectedPickup ? `Pickup location ${selectedPickup.displayName}. Change location` : 'Choose pickup location'}
+              accessibilityRole="button"
+              onPress={() => setPickupOpen(true)}
+            >
+              <View style={styles.deliveryRow}>
+                <View style={styles.deliveryIcon}>
+                  <Ionicons color={colors.goldStrong} name="location-outline" size={18} />
+                </View>
+                <View style={styles.deliveryCopy}>
+                  <Text style={styles.rowLabel}>Pickup location</Text>
+                  <Text numberOfLines={2} style={styles.deliveryValue}>
+                    {selectedPickup?.displayName ?? 'Lagos'}
+                  </Text>
+                  {selectedPickup?.formattedAddress ? (
+                    <Text numberOfLines={2} style={styles.deliveryMeta}>{selectedPickup.formattedAddress}</Text>
+                  ) : null}
+                </View>
+                <Text style={styles.editText}>{selectedPickup ? 'Edit' : 'Select'}</Text>
+              </View>
+            </PressableScale>
 
             <View accessibilityLiveRegion="polite" style={styles.availabilityRow}>
               {availability.status === 'loading' ? (
                 <ActivityIndicator color={colors.goldStrong} size="small" />
               ) : (
                 <Ionicons
-                  color={availability.status === 'available' ? colors.success : colors.danger}
-                  name={availability.status === 'available' ? 'checkmark-circle' : 'alert-circle'}
+                  color={availability.status === 'available' ? colors.success : availability.status === 'unavailable' ? colors.muted : colors.danger}
+                  name={availability.status === 'available' ? 'checkmark-circle' : availability.status === 'unavailable' ? 'calendar-outline' : 'alert-circle'}
                   size={18}
                 />
               )}
@@ -269,7 +346,7 @@ export default function VehicleDetailScreen({
                   {availability.status === 'available'
                     ? 'Sending a request does not lock these dates or take payment.'
                     : availability.status === 'unavailable'
-                      ? 'Go back and choose different dates.'
+                      ? 'Change the dates above and we will check this vehicle again.'
                       : availability.status === 'error'
                         ? vehicleCalendarErrorMessage(availability.error)
                         : 'No dates are reserved yet.'}
@@ -285,27 +362,40 @@ export default function VehicleDetailScreen({
         </View>
       </ScrollView>
 
+      {datesOpen ? (
+        <RentalDateSheet
+          endDate={journey.endDate}
+          onApply={(startDate, endDate) => {
+            setSelectedStartDate(startDate);
+            setSelectedEndDate(endDate);
+            setAvailabilityReloadKey((key) => key + 1);
+          }}
+          onClose={() => setDatesOpen(false)}
+          startDate={journey.startDate}
+          visible
+        />
+      ) : null}
+      <PickupLocationSheet
+        onClose={() => setPickupOpen(false)}
+        onSelectLocation={setSelectedPickup}
+        selectedLocation={selectedPickup}
+        visible={pickupOpen}
+      />
+
       <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-        <View>
+        <View style={styles.stickyCopy}>
           <Text style={styles.stickyLabel}>Estimated total</Text>
           <Text style={styles.stickyValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
         </View>
         <PressableScale
           accessibilityRole="button"
-          disabled={availability.status !== 'available'}
+          disabled={availability.status === 'loading'}
           haptic
-          onPress={() => router.push({
-            pathname: '/booking/review',
-            params: {
-              endDate: journey.endDate, startDate: journey.startDate,
-              ...(pickupLocation ? { pickup: serializePickupLocation(pickupLocation) } : {}),
-              vehicleId: vehicle.id,
-            },
-          })}
-          style={[styles.actionFlex, availability.status !== 'available' && styles.disabled]}
+          onPress={primaryAction}
+          style={[styles.actionFlex, availability.status === 'loading' && styles.disabled]}
         >
           <View style={styles.primaryButton}>
-            <Text style={styles.primaryText}>{availability.status === 'available' ? 'Request this car' : 'Check dates'}</Text>
+            <Text style={styles.primaryText}>{primaryLabel}</Text>
           </View>
         </PressableScale>
       </View>
@@ -316,37 +406,26 @@ export default function VehicleDetailScreen({
 const styles = StyleSheet.create({
   actionFlex: { flex: 1, maxWidth: 190 },
   availabilityBody: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, lineHeight: 17, marginTop: 2 },
-  availabilityCopy: { flex: 1 },
+  availabilityCopy: { flex: 1, minWidth: 0 },
   availabilityRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, minHeight: 62, paddingTop: spacing.sm },
   availabilityTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
   body: { gap: spacing.xl, paddingHorizontal: layout.screenGutter, paddingTop: spacing.lg },
   content: { backgroundColor: colors.black },
+  controlHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   counterPill: { backgroundColor: 'rgba(4,4,4,0.68)', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
   counterText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs },
-  deliveryBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-  },
-  deliveryBadgeText: {
-    color: colors.ivory,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
+  deliveryCopy: { flex: 1, minWidth: 0 },
+  deliveryIcon: { alignItems: 'center', flex: 0, height: 32, justifyContent: 'center', width: 28 },
+  deliveryMeta: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, lineHeight: 17, marginTop: 2 },
+  deliveryRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, minHeight: 68, paddingVertical: spacing.sm },
+  deliveryValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm, lineHeight: 19, marginTop: 2 },
   disabled: { opacity: 0.45 },
+  editText: { color: colors.goldStrong, flex: 0, fontFamily: typography.bodyMedium, fontSize: fontSizes.xs },
   gallerySlide: { height: 310, width: SCREEN_WIDTH },
   hero: { height: 310 },
   heroHeader: { left: layout.screenGutter, position: 'absolute', right: layout.screenGutter, top: 0 },
   identityBlock: { gap: 4 },
-  journeyPoint: { flex: 1, gap: 4 },
+  journeyPoint: { flex: 1, gap: 4, minWidth: 0 },
   journeyPointEnd: { alignItems: 'flex-end' },
   journeyRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.sm },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: layout.primaryButtonHeight, paddingHorizontal: spacing.lg },
@@ -358,7 +437,7 @@ const styles = StyleSheet.create({
   rowValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
   screen: { backgroundColor: colors.black, flex: 1 },
   section: { gap: spacing.xs },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg, marginBottom: spacing.xs },
+  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
   stateButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.pill, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
   stateButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
   stateCenter: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', paddingHorizontal: spacing.xl },
@@ -366,8 +445,10 @@ const styles = StyleSheet.create({
   stateText: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm, lineHeight: 20, textAlign: 'center' },
   stateTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
   stickyBar: { alignItems: 'center', backgroundColor: 'rgba(10,10,10,0.98)', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, bottom: 0, flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', left: 0, paddingHorizontal: layout.screenGutter, paddingTop: spacing.sm, position: 'absolute', right: 0 },
+  stickyCopy: { flexShrink: 1, minWidth: 0 },
   stickyLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
   stickyValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base, marginTop: 2 },
+  tripControl: { paddingBottom: spacing.xs },
   vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm },
   vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 26, letterSpacing: -0.5 },
 });

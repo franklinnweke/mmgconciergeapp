@@ -1,11 +1,19 @@
 'use client';
 
-import { Car, LayoutList, LogOut, ShieldCheck, Users } from 'lucide-react';
+import {
+  Car,
+  CreditCard,
+  LayoutDashboard,
+  LayoutList,
+  LogOut,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-export type AdminSection = 'bookings' | 'vehicles' | 'owners' | 'users';
+export type AdminSection = 'dashboard' | 'bookings' | 'payments' | 'vehicles' | 'owners' | 'users';
 
 type AdminOperationsShellProps = {
   activeSection: AdminSection;
@@ -23,7 +31,9 @@ const NAV_ITEMS: Array<{
   id: AdminSection;
   label: string;
 }> = [
-  { href: '/', icon: LayoutList, id: 'bookings', label: 'Bookings' },
+  { href: '/', icon: LayoutDashboard, id: 'dashboard', label: 'Dashboard' },
+  { href: '/bookings', icon: LayoutList, id: 'bookings', label: 'Bookings' },
+  { href: '/payments', icon: CreditCard, id: 'payments', label: 'Payments' },
   { href: '/vehicles', icon: Car, id: 'vehicles', label: 'Vehicles' },
   { href: '/owners', icon: ShieldCheck, id: 'owners', label: 'Owners' },
   { href: '/users', icon: Users, id: 'users', label: 'Users' },
