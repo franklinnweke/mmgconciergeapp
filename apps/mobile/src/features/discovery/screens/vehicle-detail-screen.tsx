@@ -95,15 +95,6 @@ export default function VehicleDetailScreen({
     availabilityKey,
   );
 
-  useEffect(() => {
-    setSelectedStartDate(routeJourney.startDate);
-    setSelectedEndDate(routeJourney.endDate);
-  }, [routeJourney.endDate, routeJourney.startDate]);
-
-  useEffect(() => {
-    setSelectedPickup(routePickup);
-  }, [routePickup]);
-
   const retryFetch = useCallback(() => {
     setFetchError(null);
     setLoading(true);
@@ -371,17 +362,19 @@ export default function VehicleDetailScreen({
         </View>
       </ScrollView>
 
-      <RentalDateSheet
-        endDate={journey.endDate}
-        onApply={(startDate, endDate) => {
-          setSelectedStartDate(startDate);
-          setSelectedEndDate(endDate);
-          setAvailabilityReloadKey((key) => key + 1);
-        }}
-        onClose={() => setDatesOpen(false)}
-        startDate={journey.startDate}
-        visible={datesOpen}
-      />
+      {datesOpen ? (
+        <RentalDateSheet
+          endDate={journey.endDate}
+          onApply={(startDate, endDate) => {
+            setSelectedStartDate(startDate);
+            setSelectedEndDate(endDate);
+            setAvailabilityReloadKey((key) => key + 1);
+          }}
+          onClose={() => setDatesOpen(false)}
+          startDate={journey.startDate}
+          visible
+        />
+      ) : null}
       <PickupLocationSheet
         onClose={() => setPickupOpen(false)}
         onSelectLocation={setSelectedPickup}
