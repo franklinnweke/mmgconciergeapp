@@ -34,3 +34,4 @@ export { resolveRenterCancellations } from './booking/renter-cancellation-schedu
 export { startBookingCaseSourcing } from './booking/booking-case-callables.js';
 export { emitOwnerResponseSlaAlerts } from './booking/owner-response-sla-scheduler.js';
 export { processStorageDeletionOutbox } from './owner/storage-deletion-scheduler.js';
+export { updateVehicleDraft } from './vehicle/owner-vehicle-callables.js';

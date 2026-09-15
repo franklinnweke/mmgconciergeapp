@@ -105,7 +105,6 @@ export async function submitVehicleForReview(
       throw new CommandError('NOT_FOUND', 'Vehicle private details not found.');
     }
 
-    // ── Completeness validation ──
     const hasBasicSpecs =
       Boolean(vehicle.make) &&
       Boolean(vehicle.model) &&
@@ -146,11 +145,15 @@ export async function submitVehicleForReview(
           privateDoc.exactLongitude >= LAGOS_BBOX.minLongitude &&
           privateDoc.exactLongitude <= LAGOS_BBOX.maxLongitude;
 
+    // Rejected image records are moderation history, not candidates for the next
+    // submission. A corrected listing may add replacement images while keeping
+    // the rejected records private and auditable.
     const images = await transaction.getVehicleImages(command.data.vehicleId);
+    const candidateImages = images.filter((image) => image.status !== 'rejected');
     const hasValidImages =
-      images.length >= 1 &&
-      images.length <= 20 &&
-      images.every((img) => img.status === 'processed');
+      candidateImages.length >= 1 &&
+      candidateImages.length <= 20 &&
+      candidateImages.every((image) => image.status === 'processed');
 
     if (
       !hasBasicSpecs ||
@@ -173,6 +176,7 @@ export async function submitVehicleForReview(
     const updatedVehicle: VehicleRecord = {
       ...vehicle,
       moderationStatus: 'pending_review',
+      lastDecisionReason: null,
       updatedAt: now.toISOString(),
       version: nextVersion,
     };
