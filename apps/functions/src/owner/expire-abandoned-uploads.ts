@@ -498,7 +498,8 @@ export const expireAbandonedOwnerVerificationUploads = onSchedule(
   {
     schedule: 'every 24 hours',
     timeZone: 'Africa/Lagos',
-    region: 'africa-south1',
+    // Cloud Scheduler is not available in africa-south1; europe-west1 is used for scheduling.
+    region: 'europe-west1',
     memory: '512MiB',
     timeoutSeconds: 540,
   },
