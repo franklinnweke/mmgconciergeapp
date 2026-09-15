@@ -10,7 +10,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from 'react';
-import { ActivityIndicator, AppState, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
@@ -26,6 +26,8 @@ import {
 } from '../domain/renter-checkout-state';
 
 type CheckoutUiState = 'ready' | 'opening' | RenterCheckoutState;
+
+const PAYMENT_CALLBACK_URL = 'mmgconcierge://checkout/complete';
 
 type RenterPaymentCheckoutProps = {
   holdExpiresAt: string;
@@ -131,18 +133,17 @@ export function RenterPaymentCheckout({
       assertApprovedCheckoutUrl(authorizationUrl);
 
       checkoutWasOpened.current = true;
-      await WebBrowser.openBrowserAsync(authorizationUrl, {
+      await WebBrowser.openAuthSessionAsync(authorizationUrl, PAYMENT_CALLBACK_URL, {
         dismissButtonStyle: 'close',
         showTitle: true,
       });
 
-      // iOS resolves when the browser closes. Android may resolve immediately,
-      // so the AppState listener handles the foreground return there.
-      if (Platform.OS === 'ios') {
+      // The callback only returns control to MMG. It is not payment proof.
+      // AppState may have reconciled first on some devices, so avoid a second
+      // request when that foreground fallback already consumed this checkout.
+      if (checkoutWasOpened.current) {
         checkoutWasOpened.current = false;
         await checkPayment();
-      } else {
-        setState('checking');
       }
     } catch (error) {
       checkoutWasOpened.current = false;
@@ -242,7 +243,7 @@ export function RenterPaymentCheckout({
         </Text>
         <Text style={styles.bodyText}>
           {state === 'opening'
-            ? 'Complete payment in the Paystack window, then return to MMG.'
+            ? 'Complete payment in Paystack. MMG will return here automatically, then verify the transaction.'
             : 'MMG will only show payment received after the server verifies the Paystack transaction.'}
         </Text>
         {state !== 'opening' ? (
@@ -261,8 +262,8 @@ export function RenterPaymentCheckout({
       </View>
       <Text style={styles.bodyText}>
         {mode === 'request_first'
-          ? 'Complete payment within 30 minutes to reserve your vehicle. Returning from the browser does not confirm your booking until MMG verifies it.'
-          : 'Your held total is server-authoritative. Returning from the browser does not confirm payment until MMG verifies it.'}
+          ? 'Complete payment within 30 minutes to reserve your vehicle. MMG confirms the booking only after the server verifies Paystack.'
+          : 'Your held total is server-authoritative. MMG confirms payment only after server verification.'}
       </Text>
       <ActionButton label="Pay securely" onPress={() => void openCheckout()} />
       {mode === 'request_first' && onReleaseDates ? (
