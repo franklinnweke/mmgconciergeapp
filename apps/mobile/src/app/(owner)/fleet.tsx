@@ -1,1 +1,1 @@
-export { OwnerFleetScreen as default } from '@/features/owner/screens/owner-fleet-screen';
+export { OwnerFleetV2Screen as default } from '@/features/owner/screens/owner-fleet-v2-screen';

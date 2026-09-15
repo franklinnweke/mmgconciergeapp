@@ -1,1 +1,1 @@
-export { OwnerApplicationDeskScreen as default } from '@/features/owner/screens/owner-application-desk-screen';
+export { OwnerDeskPortalScreen as default } from '@/features/owner/screens/owner-desk-portal-screen';

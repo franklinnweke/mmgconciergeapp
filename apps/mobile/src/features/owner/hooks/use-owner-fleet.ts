@@ -15,9 +15,7 @@ export function useOwnerFleet(gateway: OwnerFleetGateway = createOwnerFleetGatew
   const uid = user?.uid;
 
   useEffect(() => {
-    if (!uid) {
-      return;
-    }
+    if (!uid) return;
 
     const unsubscribe = gateway.subscribeOwnerVehicles(
       uid,
@@ -36,8 +34,8 @@ export function useOwnerFleet(gateway: OwnerFleetGateway = createOwnerFleetGatew
   }, [gateway, uid]);
 
   const toggleVisibility = useCallback(
-    async (vehicle: OwnerVisibleVehicle) => {
-      if (actionInProgress) return;
+    async (vehicle: OwnerVisibleVehicle): Promise<boolean> => {
+      if (actionInProgress) return false;
       const targetVisibility: VehicleVisibility = vehicle.visibility === 'active' ? 'paused' : 'active';
       setActionInProgress(vehicle.vehicleId);
       setSyncError(null);
@@ -48,10 +46,10 @@ export function useOwnerFleet(gateway: OwnerFleetGateway = createOwnerFleetGatew
           expectedVersion: vehicle.version,
           visibility: targetVisibility,
         });
+        return true;
       } catch (err: unknown) {
-        const message = safeProviderError(err, 'Failed to update vehicle visibility.');
-        setSyncError(message);
-        throw err;
+        setSyncError(safeProviderError(err, 'Failed to update vehicle visibility.'));
+        return false;
       } finally {
         setActionInProgress(null);
       }
