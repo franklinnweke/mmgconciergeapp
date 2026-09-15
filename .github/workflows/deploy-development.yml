@@ -123,6 +123,7 @@ jobs:
           --project mmg-concierge-dev
           --only functions,firestore,storage
           --non-interactive
+          --force
 
       - name: Record deployment boundary
         if: steps.changes.outputs.deploy == 'true' && vars.MMG_DEV_CD_ENABLED == 'true'
