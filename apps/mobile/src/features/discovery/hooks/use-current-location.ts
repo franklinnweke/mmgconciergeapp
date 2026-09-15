@@ -28,7 +28,6 @@ export function useCurrentLocation() {
     setErrorMessage(null);
 
     try {
-      // 1. Explicit on-demand foreground location permission
       const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
       let finalStatus = existingStatus;
 
@@ -44,31 +43,27 @@ export function useCurrentLocation() {
         return { success: false, reason: 'denied', message: msg };
       }
 
-      // 2. Fetch current coordinates
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
       const { latitude, longitude } = position.coords;
 
-      // 3. Lagos bounding box validation
       if (!isWithinLagosBBox(latitude, longitude)) {
-        const msg = 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.';
+        const msg = 'Your current location is outside our Lagos service area. Search for a Lagos pickup location instead.';
         setStatus('outside_lagos');
         setErrorMessage(msg);
         return { success: false, reason: 'outside_lagos', message: msg };
       }
 
-      // 4. Derive canonical service area from nearest Lagos centroid
       const serviceAreaLabel = deriveLagosAreaLabel({ lat: latitude, lng: longitude });
       if (!serviceAreaLabel) {
-        const msg = 'MMG could not resolve a serviceable Lagos area for this location.';
+        const msg = 'This location is outside our Lagos service area. Search for a Lagos pickup location instead.';
         setStatus('outside_lagos');
         setErrorMessage(msg);
         return { success: false, reason: 'outside_lagos', message: msg };
       }
 
-      // 5. Reverse geocode to resolve human-readable address
       let displayName = 'Current Location';
       let formattedAddress = `${serviceAreaLabel}, Lagos`;
 
@@ -91,7 +86,7 @@ export function useCurrentLocation() {
           }
         }
       } catch {
-        // Geocode network failure falls back cleanly to coordinate/area label
+        // Geocode network failure falls back cleanly to coordinate/area label.
       }
 
       const location: PickupLocation = {

@@ -59,6 +59,7 @@ export function RenterPaymentCheckout({
   const gateway = useMemo(() => createPaymentCheckoutGateway(), []);
   const keys = useRef(new PaymentCheckoutSubmissionKeys());
   const checkoutWasOpened = useRef(false);
+  const hasAutoReturned = useRef(false);
   const [state, setState] = useState<CheckoutUiState>('ready');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmingRelease, setConfirmingRelease] = useState(false);
@@ -74,12 +75,22 @@ export function RenterPaymentCheckout({
       );
       const nextState = resolveRenterCheckoutState(reconciliation, { holdExpiresAt });
       setState(nextState);
+
       if (
         nextState === 'payment_received' ||
         nextState === 'booking_confirmed' ||
         nextState === 'paid_conflict'
       ) {
         keys.current.reset(intentId);
+      }
+
+      if (
+        mode === 'request_first' &&
+        (nextState === 'booking_confirmed' || nextState === 'payment_received') &&
+        !hasAutoReturned.current
+      ) {
+        hasAutoReturned.current = true;
+        onViewTrips();
       }
     } catch (error) {
       setState('checking');
@@ -90,7 +101,7 @@ export function RenterPaymentCheckout({
         ),
       );
     }
-  }, [gateway, holdExpiresAt, intentId]);
+  }, [gateway, holdExpiresAt, intentId, mode, onViewTrips]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -103,6 +114,7 @@ export function RenterPaymentCheckout({
 
   const openCheckout = useCallback(async () => {
     setErrorMessage(null);
+    hasAutoReturned.current = false;
     if (isExpired(holdExpiresAt)) {
       setState('expired_hold');
       return;
