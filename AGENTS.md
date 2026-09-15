@@ -385,6 +385,21 @@ Merge sequence:
 - PR #70 (`fix(owner): make government ID deletion durable`) merged into `main` (`29874f4d4f1e73e23e6471f609f0519bdd41dd03`).
 - Post-merge CI #183 (`34906970425`) passed green across all jobs (Firebase Rules in 1m43s, Functions Emulator in 1m50s, Quality in 3m13s, Gate in 3s).
 
+Validated Build 35 TestFlight source checkpoint merged to `main`:
+
+`3ee70afff047bb160f47fe721a0fe06544ff1cbf` (parent `29874f4d4f1e73e23e6471f609f0519bdd41dd03`)
+
+Build 35 was created from the exact checkpoint above:
+
+- build number: `35`
+- EAS build ID: `1f741d3b-adc8-417b-b3b4-42558c2c545e`
+- submission ID: `aa60892f-4f81-48cd-8687-ceed3461d0d8`
+- App Store Connect App ID: `6801330614`
+- development Firebase config selected (`mmg-concierge-dev`)
+- profile: `testflight-development`
+- production APNs entitlement enabled (`MMG_APNS_ENV=production`)
+- resolution included: Non-blocking owner ID upload and review-submission coordination, guaranteed atomic 3-phase government ID storage deletion lifecycle with unbounded capped-backoff outbox worker, starvation prevention via due-job indexing, race-proof upload target revalidation, un-swallowed storage deletion errors, and truthful privacy retention disclosures.
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -408,7 +423,7 @@ Current state:
 - Main CI: green
 - Production `mmg-concierge`: untouched
 - Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes including storageDeletionOutbox, reviewOwnerVerification in africa-south1, processStorageDeletionOutbox scheduler in europe-west1, and all 19 approved Functions active)
-- Native Build Milestone: Build 31 predated native maps; native `react-native-maps@1.27.2` requires Build 32 EAS development build from `main`
+- Native Build Milestone: Build 35 active on TestFlight (submitted to Apple Connect, processing)
 - Android native validation: in progress on Pixel 7 API 35
 
 Do not call the release complete until Admin is deployed by the VPS/Admin agent and end-to-end human acceptance has been completed on the physical device.
