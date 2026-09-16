@@ -27,11 +27,13 @@ service firebase.storage {
         && profile.data.verificationStatus in allowedStates;
     }
 
-    function vehicleOwnedByAuth(vehicleId) {
+    function editableVehicleOwnedByAuth(vehicleId) {
       let vehicle = firestore.get(/databases/(default)/documents/vehicles/$(vehicleId));
       return vehicle != null
         && vehicle.data != null
-        && vehicle.data.ownerId == request.auth.uid;
+        && vehicle.data.ownerId == request.auth.uid
+        && vehicle.data.visibility != 'deleted'
+        && vehicle.data.moderationStatus in ['draft', 'rejected'];
     }
 
     function allowedIdImage() {
@@ -83,7 +85,7 @@ service firebase.storage {
       allow read: if false;
       allow create: if pathUidIsAuth(ownerId)
         && ownerCapability(['approved'])
-        && vehicleOwnedByAuth(vehicleId)
+        && editableVehicleOwnedByAuth(vehicleId)
         && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
         && vehicleId.matches('^[A-Za-z0-9_-]{1,128}$')
         && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
@@ -98,7 +100,7 @@ service firebase.storage {
       allow read: if false;
       allow create: if pathUidIsAuth(ownerId)
         && ownerCapability(['approved'])
-        && vehicleOwnedByAuth(vehicleId)
+        && editableVehicleOwnedByAuth(vehicleId)
         && ownerId.matches('^[A-Za-z0-9_-]{1,128}$')
         && vehicleId.matches('^[A-Za-z0-9_-]{1,128}$')
         && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
