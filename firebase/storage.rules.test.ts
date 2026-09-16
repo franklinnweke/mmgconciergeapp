@@ -351,6 +351,40 @@ describeWithEmulator('private owner-verification Storage rules', () => {
     ));
   });
 
+  it('V1b: allows Build 35 metadata-less vehicle image/document uploads (contentType only) while rejecting contradictory metadata', async () => {
+    await seedUserAccount('owner-one', 'owner');
+    await seedVehicle('vehicle-one', 'owner-one');
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
+
+    // Build 35 uploadVehiclePhoto sends only contentType (no customMetadata)
+    await assertSucceeds(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-one/upload-vehicle-b35'),
+      Buffer.from('vehicle-image'),
+      {
+        contentType: 'image/jpeg',
+      },
+    ));
+
+    // Vehicle document with only contentType
+    await assertSucceeds(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-documents/owner-one/vehicle-one/upload-doc-b35'),
+      Buffer.from('vehicle-document'),
+      {
+        contentType: 'application/pdf',
+      },
+    ));
+
+    // Contradictory purpose must still fail
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-one/upload-vehicle-bad-purpose'),
+      Buffer.from('vehicle-image'),
+      {
+        contentType: 'image/jpeg',
+        customMetadata: { ownerId: 'owner-one', purpose: 'wrong_purpose' },
+      },
+    ));
+  });
+
   it('V2: denies vehicle uploads for cross-owner, missing-vehicle, renter, and malformed-metadata paths', async () => {
     await seedUserAccount('owner-one', 'owner');
     await seedUserAccount('owner-two', 'owner');

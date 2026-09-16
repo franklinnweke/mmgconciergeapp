@@ -51,6 +51,16 @@ service firebase.storage {
         && request.resource.metadata.renterId == renterId;
     }
 
+    // Backwards-compatible with Build 35 which sends only contentType.
+    // Rejects contradictory metadata if present.
+    function validVehicleUploadMetadata(ownerId, expectedPurpose) {
+      return request.resource.metadata == null
+        || (
+          (!('ownerId' in request.resource.metadata) || request.resource.metadata.ownerId == ownerId)
+          && (!('purpose' in request.resource.metadata) || request.resource.metadata.purpose == expectedPurpose)
+        );
+    }
+
     match /private/owner-verification/{ownerId}/{uploadId} {
       allow read: if false;
       allow create: if pathUidIsAuth(ownerId)
@@ -88,8 +98,7 @@ service firebase.storage {
         && vehicleId.matches('^[A-Za-z0-9_-]{1,128}$')
         && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
         && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp']
-        && request.resource.metadata.ownerId == ownerId
-        && request.resource.metadata.purpose == 'vehicle_image'
+        && validVehicleUploadMetadata(ownerId, 'vehicle_image')
         && request.resource.size <= 10 * 1024 * 1024;
       allow update, delete: if false;
     }
@@ -103,8 +112,7 @@ service firebase.storage {
         && vehicleId.matches('^[A-Za-z0-9_-]{1,128}$')
         && uploadId.matches('^[A-Za-z0-9_-]{8,128}$')
         && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-        && request.resource.metadata.ownerId == ownerId
-        && request.resource.metadata.purpose == 'vehicle_document'
+        && validVehicleUploadMetadata(ownerId, 'vehicle_document')
         && request.resource.size <= 10 * 1024 * 1024;
       allow update, delete: if false;
     }
