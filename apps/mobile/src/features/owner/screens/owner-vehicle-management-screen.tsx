@@ -147,9 +147,9 @@ export function OwnerVehicleManagementScreen() {
           {editable ? (
             <PressableScale
               onPress={() => router.push({
-                pathname: '/(owner)/add-vehicle' as Href,
+                pathname: '/(owner)/add-vehicle',
                 params: { vehicleId: vehicle.vehicleId },
-              })}
+              } as Href)}
             >
               <View style={styles.primaryButton}>
                 <Text style={styles.primaryText}>{vehicle.moderationStatus === 'rejected' ? 'Fix and resubmit listing' : 'Continue listing'}</Text>
@@ -160,7 +160,7 @@ export function OwnerVehicleManagementScreen() {
 
         {vehicle.moderationStatus === 'approved' ? (
           <PressableScale
-            onPress={() => router.push({ pathname: '/(owner)/fleet/[id]/availability' as Href, params: { id: vehicle.vehicleId } })}
+            onPress={() => router.push({ pathname: '/(owner)/fleet/[id]/availability', params: { id: vehicle.vehicleId } } as Href)}
             style={styles.actionRow}
           >
             <Ionicons color={colors.goldStrong} name="calendar-outline" size={21} />
