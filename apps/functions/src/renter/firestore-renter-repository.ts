@@ -1,4 +1,7 @@
-import type { RenterProfileRecord } from '@mmg/contracts';
+import {
+  renterProfileRecordSchema,
+  type RenterProfileRecord,
+} from '@mmg/contracts';
 import {
   FieldValue,
   getFirestore,
@@ -15,17 +18,58 @@ import type {
   StoredRenterIdempotency,
 } from './renter-repository.js';
 
-function toIsoString(value: unknown): string {
+function toIsoString(value: unknown, fieldName: string): string {
   if (value instanceof Timestamp) {
     return value.toDate().toISOString();
   }
   if (value instanceof Date) {
-    return value.toISOString();
+    if (!Number.isNaN(value.getTime())) return value.toISOString();
   }
   if (typeof value === 'string') {
-    return value;
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
   }
-  return new Date().toISOString();
+  if (value && typeof value === 'object') {
+    const toDate = (value as { toDate?: unknown }).toDate;
+    if (typeof toDate === 'function') {
+      const parsed = (toDate as () => Date)();
+      if (parsed instanceof Date && !Number.isNaN(parsed.getTime())) return parsed.toISOString();
+    }
+  }
+  throw new Error(`Renter profile ${fieldName} timestamp is invalid.`);
+}
+
+export function parseRenterProfileDocument(
+  renterId: string,
+  data: Record<string, unknown>,
+): RenterProfileRecord {
+  const normalized = {
+    renterId: data.renterId,
+    fullName: data.fullName,
+    email: data.email,
+    phone: data.phone,
+    defaultDeliveryAddress: data.defaultDeliveryAddress,
+    acceptedRenterTermsVersion: data.acceptedRenterTermsVersion,
+    acceptedPrivacyNoticeVersion: data.acceptedPrivacyNoticeVersion,
+    accountStatus: data.accountStatus,
+    deletionReason: data.deletionReason ?? null,
+    deletionRequestedAt:
+      data.deletionRequestedAt === null || data.deletionRequestedAt === undefined
+        ? null
+        : toIsoString(data.deletionRequestedAt, 'deletionRequestedAt'),
+    profileVersion: data.profileVersion,
+    createdAt: toIsoString(data.createdAt, 'createdAt'),
+    updatedAt: toIsoString(data.updatedAt, 'updatedAt'),
+  };
+
+  const parsed = renterProfileRecordSchema.safeParse(normalized);
+  if (!parsed.success) {
+    throw new Error('Renter profile record is malformed.');
+  }
+  if (parsed.data.renterId !== renterId) {
+    throw new Error('Renter profile identity does not match its document path.');
+  }
+  return parsed.data;
 }
 
 class FirestoreRenterTransaction implements RenterTransaction {
@@ -40,25 +84,7 @@ class FirestoreRenterTransaction implements RenterTransaction {
     if (!snapshot.exists) return null;
     const data = snapshot.data();
     if (!data) return null;
-
-    return {
-      renterId: data.renterId ?? renterId,
-      fullName: data.fullName ?? '',
-      email: data.email ?? '',
-      phone: data.phone ?? '',
-      defaultDeliveryAddress: data.defaultDeliveryAddress ?? {
-        streetAddress: '',
-        areaLabel: 'Victoria Island',
-      },
-      acceptedRenterTermsVersion: data.acceptedRenterTermsVersion ?? '2026-03-01',
-      acceptedPrivacyNoticeVersion: data.acceptedPrivacyNoticeVersion ?? '2026-03-01',
-      accountStatus: data.accountStatus ?? 'active',
-      deletionReason: data.deletionReason ?? null,
-      deletionRequestedAt: data.deletionRequestedAt ? toIsoString(data.deletionRequestedAt) : null,
-      profileVersion: typeof data.profileVersion === 'number' ? data.profileVersion : 1,
-      createdAt: toIsoString(data.createdAt),
-      updatedAt: toIsoString(data.updatedAt),
-    };
+    return parseRenterProfileDocument(renterId, data);
   }
 
   setRenterProfile(renterId: string, record: RenterProfileRecord, now: Date): void {
@@ -96,7 +122,6 @@ class FirestoreRenterTransaction implements RenterTransaction {
   }
 
   async purgeRenterPrivacyData(renterId: string): Promise<RenterPrivacyPurgeSummary> {
-    // 1. ALL READS FIRST (Firestore transactions require all reads before writes)
     const contactsSnap = await this.transaction.get(
       this.firestore.collection('rentalRequestContacts').where('renterId', '==', renterId),
     );
@@ -107,12 +132,10 @@ class FirestoreRenterTransaction implements RenterTransaction {
       this.firestore.collection('idempotencyKeys').where('actorId', '==', renterId),
     );
 
-    // Target ONLY createRentalRequest idempotency keys containing location PII
     const relevantIdempotencyDocs = idempotencySnap.docs.filter(
       (doc) => doc.data()?.commandName === 'createRentalRequest',
     );
 
-    // 2. ALL WRITES SECOND
     for (const doc of contactsSnap.docs) {
       this.transaction.delete(doc.ref);
     }
@@ -192,24 +215,6 @@ export class FirestoreRenterRepository implements RenterRepository {
     if (!snapshot.exists) return null;
     const data = snapshot.data();
     if (!data) return null;
-
-    return {
-      renterId: data.renterId ?? renterId,
-      fullName: data.fullName ?? '',
-      email: data.email ?? '',
-      phone: data.phone ?? '',
-      defaultDeliveryAddress: data.defaultDeliveryAddress ?? {
-        streetAddress: '',
-        areaLabel: 'Victoria Island',
-      },
-      acceptedRenterTermsVersion: data.acceptedRenterTermsVersion ?? '2026-03-01',
-      acceptedPrivacyNoticeVersion: data.acceptedPrivacyNoticeVersion ?? '2026-03-01',
-      accountStatus: data.accountStatus ?? 'active',
-      deletionReason: data.deletionReason ?? null,
-      deletionRequestedAt: data.deletionRequestedAt ? toIsoString(data.deletionRequestedAt) : null,
-      profileVersion: typeof data.profileVersion === 'number' ? data.profileVersion : 1,
-      createdAt: toIsoString(data.createdAt),
-      updatedAt: toIsoString(data.updatedAt),
-    };
+    return parseRenterProfileDocument(renterId, data);
   }
 }
