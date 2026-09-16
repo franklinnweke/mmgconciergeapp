@@ -8,6 +8,7 @@ import {
   resolveIdentityDestination,
   preserveAuthIntent,
 } from '@/core/auth/account-profile-domain';
+import { useSessionIntent } from '@/core/auth/session-intent';
 import { AccountSetupScreen } from '@/features/auth/screens/account-setup-screen';
 import { AccountProfileErrorScreen } from '@/features/auth/screens/account-profile-error-screen';
 import { AuthEntryScreen } from '@/features/auth/screens/auth-entry-screen';
@@ -17,6 +18,7 @@ import { VerifyEmailScreen } from '@/features/auth/screens/verify-email-screen';
 
 export default function IndexRoute() {
   const { initializing, profile, profileLoadFailed, signingOut, user } = useAuth();
+  const { loading: sessionIntentLoading, mode: sessionMode } = useSessionIntent();
   const [authIntent, setAuthIntent] = useState<AccountType | 'sign-in' | null>(null);
 
   const userId = user?.uid ?? null;
@@ -27,7 +29,7 @@ export default function IndexRoute() {
   }
 
   if (signingOut) return <AuthLoadingScreen message="Signing out" />;
-  if (initializing) return <AuthLoadingScreen />;
+  if (initializing || (user && sessionIntentLoading)) return <AuthLoadingScreen />;
   if (profileLoadFailed) return <AccountProfileErrorScreen />;
   const destination = resolveIdentityDestination({
     emailVerified: user?.emailVerified ?? false,
@@ -56,7 +58,8 @@ export default function IndexRoute() {
   if (destination === 'account-setup') return <AccountSetupScreen />;
   if (destination === 'verify-email') return <VerifyEmailScreen />;
 
-  const authenticatedDestination = resolveAuthenticatedIntentDestination(authIntent);
+  const explicitMode = authIntent === 'owner' || authIntent === 'renter' ? authIntent : null;
+  const authenticatedDestination = resolveAuthenticatedIntentDestination(explicitMode ?? sessionMode);
   if (authenticatedDestination === 'owner') {
     return <Redirect href={'/(owner)' as Href} />;
   }
