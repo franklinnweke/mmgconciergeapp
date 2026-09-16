@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import { ownerCommandErrorMessage } from '@/features/owner/domain/owner-errors';
 import { createOwnerBookingGateway } from '../data/owner-booking-gateway';
 import { createOwnerBookingRepository } from '../data/owner-booking-repository';
@@ -28,6 +29,12 @@ import {
 
 function formatCommission(basisPoints: number) {
   return `${(basisPoints / 100).toFixed(basisPoints % 100 === 0 ? 0 : 2)}%`;
+}
+
+function rangeLabel(startDate: string, endDate: string) {
+  const lastRentalDate = addDaysToDateOnly(endDate, -1);
+  if (lastRentalDate === startDate) return formatLagosDateOnly(startDate);
+  return `${formatLagosDateOnly(startDate)} to ${formatLagosDateOnly(lastRentalDate)}`;
 }
 
 export function OwnerBookingDetailScreen() {
@@ -153,7 +160,7 @@ export function OwnerBookingDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.intro}>
           <Text style={styles.title}>{booking.vehicleSnapshot.displayName}</Text>
-          <Text style={styles.muted}>{booking.startDate} to {booking.endDate}</Text>
+          <Text style={styles.muted}>{rangeLabel(booking.startDate, booking.endDate)}</Text>
         </View>
 
         <View style={styles.section}>
