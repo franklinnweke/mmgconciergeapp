@@ -81,3 +81,38 @@ export function ownerCommandErrorMessage(error: unknown): string {
 
   return 'Something went wrong. Please try again.';
 }
+
+export function mapVehicleListingError(err: unknown): string {
+  if (!err) return 'An unexpected error occurred. Please try again.';
+  const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+
+  if (lower.includes('not_approved_owner') || lower.includes('must be approved')) {
+    return 'Your owner verification must be approved before you can list a vehicle.';
+  }
+  if (lower.includes('image_dimensions') || lower.includes('pixels') || lower.includes('resolution')) {
+    return message;
+  }
+  if (lower.includes('listing_incomplete') || lower.includes('no images') || lower.includes('usable photo')) {
+    return 'Please add and upload at least one vehicle photo before submitting for review.';
+  }
+  if (lower.includes('terms_stale')) {
+    return 'Your owner agreement is outdated. Please review and accept the latest owner terms.';
+  }
+  if (lower.includes('stale') || lower.includes('modified') || lower.includes('refresh') || lower.includes('version')) {
+    return 'The vehicle record was updated during submission. Please refresh and try again.';
+  }
+  if (lower.includes('idempotency_conflict')) {
+    return 'A submission with this request is already in progress. Please refresh.';
+  }
+  if (lower.includes('failed_precondition')) {
+    return 'Vehicle listing cannot be submitted in its current state. Please verify all details.';
+  }
+  if (lower.includes('unauthenticated')) {
+    return 'Please sign in to list your vehicle.';
+  }
+  if (lower.includes('permission') || lower.includes('forbidden')) {
+    return 'You do not have authorization to perform this action.';
+  }
+  return 'Failed to submit vehicle listing. Please check the vehicle details and try again.';
+}
