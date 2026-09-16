@@ -124,7 +124,9 @@ export function ExecutiveBookingDesk({
                   <Text numberOfLines={1} style={styles.summaryValue}>{pickup.displayName}</Text>
                   <Text numberOfLines={1} style={styles.summaryMeta}>{pickup.formattedAddress}</Text>
                 </>
-              ) : null}
+              ) : (
+                <Text numberOfLines={1} style={styles.summaryMeta}>Where should we bring the car?</Text>
+              )}
             </View>
             <Text style={styles.editText}>{pickup ? 'Edit' : 'Select'}</Text>
           </View>

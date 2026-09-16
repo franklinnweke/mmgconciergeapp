@@ -10,6 +10,8 @@ import {
   ViewStyle,
 } from 'react-native';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 type PressableScaleProps = PropsWithChildren<
   Omit<PressableProps, 'style'> & {
     haptic?: boolean;
@@ -52,7 +54,18 @@ export function PressableScale({
   }
 
   return (
-    <Animated.View
+    <AnimatedPressable
+      {...props}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       style={[
         style,
         { transform: [{ scale }] },
@@ -61,21 +74,7 @@ export function PressableScale({
           : null,
       ]}
     >
-      <Pressable
-        {...props}
-        onBlur={(event) => {
-          setFocused(false);
-          onBlur?.(event);
-        }}
-        onFocus={(event) => {
-          setFocused(true);
-          onFocus?.(event);
-        }}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-      >
-        {children}
-      </Pressable>
-    </Animated.View>
+      {children}
+    </AnimatedPressable>
   );
 }

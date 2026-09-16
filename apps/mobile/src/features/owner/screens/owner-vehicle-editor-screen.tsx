@@ -74,6 +74,9 @@ function friendlyVehicleError(error: unknown): string {
   if (message.includes('must be approved') || message.includes('not_approved_owner')) {
     return 'Your owner verification must be approved before you can manage vehicle listings.';
   }
+  if (message.includes('image_dimensions') || message.includes('pixels') || message.includes('resolution')) {
+    return error instanceof Error ? error.message : 'Photo resolution is too low. Vehicle photos must be at least 1280×720 pixels.';
+  }
   if (message.includes('stale') || message.includes('modified') || message.includes('version')) {
     return 'This listing changed while you were editing it. Reopen it from Fleet and try again.';
   }
@@ -386,6 +389,8 @@ export function OwnerVehicleEditorScreen() {
             fileName: asset.fileName,
             mimeType: asset.mimeType,
             fileSize: asset.fileSize,
+            width: asset.width,
+            height: asset.height,
           }, `vehicle-photo-${Date.now()}-${index}`));
         } catch (caught) {
           messages.add(caught instanceof VehiclePhotoValidationError ? caught.message : 'A selected photo could not be used.');

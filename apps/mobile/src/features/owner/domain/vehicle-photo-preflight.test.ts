@@ -58,4 +58,51 @@ describe('vehicle photo preflight', () => {
       fileSize: MAX_UPLOAD_BYTES + 1,
     }, 'vehicle-photo-5')).toThrow(/larger than/i);
   });
+
+  it('accepts photos meeting the minimum resolution requirements', () => {
+    const photo = validateVehiclePhotoCandidate({
+      uri: 'file:///cam.jpg',
+      fileName: 'cam.jpg',
+      mimeType: 'image/jpeg',
+      fileSize: 1_500_000,
+      width: 1920,
+      height: 1080,
+    }, 'vehicle-photo-6');
+
+    expect(photo.width).toBe(1920);
+    expect(photo.height).toBe(1080);
+  });
+
+  it('rejects an undersized photo (e.g. 1024x768) with clear resolution guidance', () => {
+    expect(() => validateVehiclePhotoCandidate({
+      uri: 'file:///undersized.jpg',
+      fileName: 'undersized.jpg',
+      mimeType: 'image/jpeg',
+      fileSize: 370_000,
+      width: 1024,
+      height: 768,
+    }, 'vehicle-photo-7')).toThrowError(/Photo resolution is too low \(1024×768\).*must be at least 1280×720/i);
+  });
+
+  it('rejects an image with height below minimum (e.g. 1920x600)', () => {
+    expect(() => validateVehiclePhotoCandidate({
+      uri: 'file:///banner.jpg',
+      fileName: 'banner.jpg',
+      mimeType: 'image/jpeg',
+      fileSize: 400_000,
+      width: 1920,
+      height: 600,
+    }, 'vehicle-photo-8')).toThrowError(/must be at least 1280×720/i);
+  });
+
+  it('rejects an image with edge exceeding MAX_IMAGE_EDGE', () => {
+    expect(() => validateVehiclePhotoCandidate({
+      uri: 'file:///huge.jpg',
+      fileName: 'huge.jpg',
+      mimeType: 'image/jpeg',
+      fileSize: 5_000_000,
+      width: 9000,
+      height: 6000,
+    }, 'vehicle-photo-9')).toThrowError(/exceed the maximum allowed size of 8000/i);
+  });
 });
