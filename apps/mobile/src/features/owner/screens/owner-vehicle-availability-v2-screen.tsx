@@ -80,7 +80,32 @@ export function OwnerVehicleAvailabilityV2Screen() {
     }
   }, [gateway, id, today, windowEndDate]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    if (!id) {
+      queueMicrotask(() => {
+        if (!active) return;
+        setError('Vehicle reference is missing.');
+        setLoading(false);
+      });
+      return () => { active = false; };
+    }
+
+    void gateway.getCalendar({ vehicleId: id, windowStartDate: today, windowEndDate })
+      .then((next) => {
+        if (!active) return;
+        setCalendar(next);
+        setError(null);
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(safeMessage(caught));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [gateway, id, today, windowEndDate]);
 
   const chooseDate = (date: string) => {
     if (!calendar || busy) return;
