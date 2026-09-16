@@ -52,8 +52,8 @@ export function parseOwnerProfileDocument(
       : null;
 
   const normalized = {
-    ownerId: docId,
-    legalName: typeof raw.legalName === 'string' ? raw.legalName : raw.displayName,
+    ownerId: raw.ownerId,
+    legalName: raw.legalName,
     displayName: raw.displayName || raw.legalName || 'Owner',
     address: raw.address,
     verificationStatus: raw.verificationStatus,
@@ -68,18 +68,21 @@ export function parseOwnerProfileDocument(
           uploadId: governmentIdRaw.uploadId,
           documentKind: governmentIdRaw.documentKind,
           contentType: governmentIdRaw.contentType,
-          byteSize: Number(governmentIdRaw.byteSize),
+          byteSize: governmentIdRaw.byteSize,
           uploadedAt: normalizeFirestoreTimestamp(governmentIdRaw.uploadedAt),
           status: governmentIdRaw.status,
         }
       : null,
     createdAt: normalizeFirestoreTimestamp(raw.createdAt),
     updatedAt: normalizeFirestoreTimestamp(raw.updatedAt),
-    version: Number(raw.version) || 1,
+    version: raw.version,
   };
 
-  // Uses strict schema validation - throws if invalid
-  return ownerVisibleProfileSchema.parse(normalized);
+  const parsed = ownerVisibleProfileSchema.parse(normalized);
+  if (parsed.ownerId !== docId) {
+    throw new Error('Owner profile identity does not match its document path.');
+  }
+  return parsed;
 }
 
 export function createOwnerVerificationRepository(): OwnerVerificationRepository {
