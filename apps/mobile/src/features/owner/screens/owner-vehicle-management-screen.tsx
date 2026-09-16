@@ -175,7 +175,6 @@ export function OwnerVehicleManagementScreen() {
               <Text style={styles.actionTitle}>Manage availability</Text>
               <Text style={styles.muted}>Block dates or review reserved journey dates.</Text>
             </View>
-            <Ionicons color={colors.muted} name="chevron-forward" size={18} />
           </PressableScale>
         ) : null}
 
