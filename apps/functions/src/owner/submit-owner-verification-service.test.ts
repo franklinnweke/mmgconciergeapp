@@ -360,6 +360,58 @@ describe('submitOwnerVerification service', () => {
     expect(repository.idempotency.size).toBe(0);
   });
 
+  it('rejects stale commission terms or privacy notice before creating submission side effects', async () => {
+    repository.profiles.get('owner-one')!.commissionTermsVersion = 'owner-commission-outdated';
+    repository.verifications.get('owner-one')!.commissionTermsVersion = 'owner-commission-outdated';
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
+
+    // Reset commission terms and test privacy notice
+    repository.profiles.get('owner-one')!.commissionTermsVersion = CURRENT_COMMISSION_TERMS_VERSION;
+    repository.verifications.get('owner-one')!.commissionTermsVersion = CURRENT_COMMISSION_TERMS_VERSION;
+    repository.profiles.get('owner-one')!.privacyNoticeVersion = 'privacy-notice-outdated';
+    repository.verifications.get('owner-one')!.privacyNoticeVersion = 'privacy-notice-outdated';
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
+  });
+
+  it('rejects submission when dynamic config specifies newer terms', async () => {
+    repository.config = {
+      ownerTermsVersion: 'owner-terms-2026-10-01',
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+    };
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
+  });
+
   it('denies submission when Nigerian phone is unlinked on Auth token', async () => {
     const authWithoutPhone = {
       uid: 'owner-one',

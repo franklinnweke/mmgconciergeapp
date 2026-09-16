@@ -10,6 +10,7 @@ import {
   computeApplicationCompleteness,
   getDeskPresentation,
   getStepLockReason,
+  hasCurrentOwnerAgreements,
   isOwnerApplicationEditable,
   isNigerianE164,
   normalizeNigerianPhone,
@@ -17,6 +18,60 @@ import {
 import { ownerCommandErrorMessage } from './owner-errors.js';
 
 describe('owner application domain', () => {
+  describe('hasCurrentOwnerAgreements', () => {
+    const validProfile: OwnerVisibleProfile = {
+      ownerId: 'owner-1',
+      legalName: 'Alhaji Musa Danjuma',
+      displayName: 'Alhaji Musa Danjuma',
+      address: {
+        line1: '14 Admiralty Way',
+        areaLabel: 'Lekki Phase 1',
+        city: 'Lagos',
+        country: 'NG',
+      },
+      verificationStatus: 'draft',
+      verificationUpdatedAt: '2026-09-16T12:00:00.000Z',
+      lastDecisionReason: null,
+      ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+      termsAcceptedAt: '2026-09-16T12:00:00.000Z',
+      governmentId: null,
+      createdAt: '2026-09-16T12:00:00.000Z',
+      updatedAt: '2026-09-16T12:00:00.000Z',
+      version: 1,
+    };
+
+    it('returns true when termsAcceptedAt is present and all versions match current', () => {
+      expect(hasCurrentOwnerAgreements(validProfile)).toBe(true);
+    });
+
+    it('returns false when profile is null or undefined', () => {
+      expect(hasCurrentOwnerAgreements(null)).toBe(false);
+      expect(hasCurrentOwnerAgreements(undefined)).toBe(false);
+    });
+
+    it('returns false when termsAcceptedAt is null or undefined', () => {
+      expect(hasCurrentOwnerAgreements({ ...validProfile, termsAcceptedAt: null as unknown as string })).toBe(false);
+      expect(hasCurrentOwnerAgreements({ ...validProfile, termsAcceptedAt: undefined as unknown as string })).toBe(false);
+    });
+
+    it('returns false when ownerTermsVersion is stale or null', () => {
+      expect(hasCurrentOwnerAgreements({ ...validProfile, ownerTermsVersion: 'owner-terms-2026-08-15' })).toBe(false);
+      expect(hasCurrentOwnerAgreements({ ...validProfile, ownerTermsVersion: null as unknown as string })).toBe(false);
+    });
+
+    it('returns false when commissionTermsVersion is stale or null', () => {
+      expect(hasCurrentOwnerAgreements({ ...validProfile, commissionTermsVersion: 'owner-commission-2026-08-15' })).toBe(false);
+      expect(hasCurrentOwnerAgreements({ ...validProfile, commissionTermsVersion: null as unknown as string })).toBe(false);
+    });
+
+    it('returns false when privacyNoticeVersion is stale or null', () => {
+      expect(hasCurrentOwnerAgreements({ ...validProfile, privacyNoticeVersion: 'privacy-notice-2026-08-15' })).toBe(false);
+      expect(hasCurrentOwnerAgreements({ ...validProfile, privacyNoticeVersion: null as unknown as string })).toBe(false);
+    });
+  });
+
   it('allows edits only for draft and rejected owner applications', () => {
     expect(isOwnerApplicationEditable(undefined)).toBe(true);
     expect(isOwnerApplicationEditable('draft')).toBe(true);
@@ -189,12 +244,49 @@ describe('owner application domain', () => {
     it('provides clear lock reasons for locked steps', () => {
       const noIdentity = computeApplicationCompleteness(null, null, null, true);
       expect(getStepLockReason('identity', noIdentity)).toBeNull();
-      expect(getStepLockReason('phone', noIdentity)).toBe('Complete owner identity first.');
-      expect(getStepLockReason('id', noIdentity)).toBe('Complete owner identity first.');
+      expect(getStepLockReason('phone', noIdentity)).toBe(
+        'Complete owner identity and accept current agreements first.',
+      );
+      expect(getStepLockReason('id', noIdentity)).toBe(
+        'Complete owner identity and accept current agreements first.',
+      );
 
       const unverifiedPhone = computeApplicationCompleteness(mockProfile, null, null, true);
       expect(getStepLockReason('phone', unverifiedPhone)).toBeNull();
       expect(getStepLockReason('id', unverifiedPhone)).toBe('Verify your Nigerian phone number first.');
+    });
+
+    it('marks identity incomplete and locks phone/id/submit when agreements are stale', () => {
+      const staleProfile: OwnerVisibleProfile = {
+        ...mockProfile,
+        ownerTermsVersion: 'owner-terms-2026-08-15',
+      };
+      const completeness = computeApplicationCompleteness(
+        staleProfile,
+        '+2348012345678',
+        uploadedDocument,
+        true,
+      );
+      expect(completeness.identityComplete).toBe(false);
+      expect(completeness.phoneUnlocked).toBe(false);
+      expect(completeness.idUnlocked).toBe(false);
+      expect(completeness.canSubmit).toBe(false);
+      expect(completeness.firstIncompleteStep).toBe('identity');
+    });
+
+    it('marks identity incomplete when termsAcceptedAt is missing', () => {
+      const unacceptedProfile: OwnerVisibleProfile = {
+        ...mockProfile,
+        termsAcceptedAt: null as unknown as string,
+      };
+      const completeness = computeApplicationCompleteness(
+        unacceptedProfile,
+        '+2348012345678',
+        uploadedDocument,
+        true,
+      );
+      expect(completeness.identityComplete).toBe(false);
+      expect(completeness.canSubmit).toBe(false);
     });
   });
 
