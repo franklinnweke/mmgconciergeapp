@@ -1,9 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import {
-  CURRENT_COMMISSION_TERMS_VERSION,
-  CURRENT_OWNER_TERMS_VERSION,
-  CURRENT_PRIVACY_NOTICE_VERSION,
   type GovernmentIdKind,
   type OwnerVisibleProfile,
   type SubmitOwnerVerificationCommand,
@@ -19,7 +16,12 @@ import { useAuth } from '@/core/auth/auth-context';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
-import { computeApplicationCompleteness, isOwnerApplicationEditable, type LocalUploadedDocument } from '../domain/owner-application';
+import {
+  computeApplicationCompleteness,
+  hasCurrentOwnerAgreements,
+  isOwnerApplicationEditable,
+  type LocalUploadedDocument,
+} from '../domain/owner-application';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 import { useOwnerIdUpload } from '../domain/owner-id-upload-context';
 
@@ -83,12 +85,7 @@ export function OwnerSubmitV2Screen() {
   const uploadFailed = upload.status === 'error';
   const editable = !profileLoadError && isOwnerApplicationEditable(profile?.verificationStatus);
   const completeness = computeApplicationCompleteness(profile, auth.user?.phoneNumber, effectiveDraft, Boolean(auth.user?.emailVerified));
-  const agreementsCurrent = Boolean(
-    profile &&
-    profile.ownerTermsVersion === CURRENT_OWNER_TERMS_VERSION &&
-    profile.commissionTermsVersion === CURRENT_COMMISSION_TERMS_VERSION &&
-    profile.privacyNoticeVersion === CURRENT_PRIVACY_NOTICE_VERSION,
-  );
+  const agreementsCurrent = hasCurrentOwnerAgreements(profile);
   const canSubmit = !profileLoading && !profileLoadError && editable && completeness.canSubmit && Boolean(uploadId) && agreementsCurrent && !uploading && !uploadFailed;
 
   const submit = async () => {

@@ -23,6 +23,7 @@ import {
 } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import {
+  hasCurrentOwnerAgreements,
   isNigerianE164,
   isOwnerApplicationEditable,
   normalizeNigerianPhone,
@@ -62,11 +63,12 @@ export function OwnerPhoneScreen() {
   }, [auth.user?.uid]);
 
   const emailVerified = Boolean(auth.user?.emailVerified);
+  const agreementsCurrent = hasCurrentOwnerAgreements(profile);
   const identityComplete = Boolean(
     profile?.legalName &&
       profile?.address?.line1 &&
       profile?.address?.areaLabel &&
-      profile?.termsAcceptedAt,
+      agreementsCurrent,
   );
   const prerequisitesMet = emailVerified && identityComplete;
   const applicationIsEditable = isOwnerApplicationEditable(profile?.verificationStatus);
@@ -91,7 +93,9 @@ export function OwnerPhoneScreen() {
       setErrorMessage(
         !emailVerified
           ? 'Verify your email address before linking your phone number.'
-          : 'Complete your owner identity and accept terms before linking your phone number.',
+          : !agreementsCurrent
+            ? 'Review and accept current owner agreements before linking your phone number.'
+            : 'Complete your owner identity and accept terms before linking your phone number.',
       );
       return;
     }
@@ -189,7 +193,9 @@ export function OwnerPhoneScreen() {
             <Text style={styles.prerequisiteBody}>
               {!emailVerified
                 ? 'Verify your email address before linking your phone number.'
-                : 'Complete your legal name, Lagos address and platform terms before verifying your phone number.'}
+                : !agreementsCurrent
+                  ? 'Review and accept current owner agreements before linking your phone number.'
+                  : 'Complete your legal name, Lagos address and platform terms before verifying your phone number.'}
             </Text>
             <PressableScale
               onPress={() => {

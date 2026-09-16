@@ -12,7 +12,11 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
-import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
+import {
+  hasCurrentOwnerAgreements,
+  isNigerianE164,
+  isOwnerApplicationEditable,
+} from '../domain/owner-application';
 import { validateOwnerIdCandidate } from '../domain/owner-id-preflight';
 import { useOwnerIdUpload } from '../domain/owner-id-upload-context';
 
@@ -53,7 +57,13 @@ export function OwnerIdV2Screen() {
   }, [auth.user?.uid, retryKey]);
 
   const emailVerified = Boolean(auth.user?.emailVerified);
-  const identityComplete = Boolean(profile?.legalName && profile.address?.line1 && profile.address?.areaLabel && profile.termsAcceptedAt);
+  const agreementsCurrent = hasCurrentOwnerAgreements(profile);
+  const identityComplete = Boolean(
+    profile?.legalName &&
+      profile.address?.line1 &&
+      profile.address?.areaLabel &&
+      agreementsCurrent,
+  );
   const phoneComplete = isNigerianE164(auth.user?.phoneNumber);
   const prerequisitesMet = emailVerified && identityComplete && phoneComplete;
   const editable = isOwnerApplicationEditable(profile?.verificationStatus);

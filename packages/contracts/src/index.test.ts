@@ -388,9 +388,9 @@ describe('renter-visible trusted records', () => {
 
 describe('owner verification contracts and schemas', () => {
   it('validates locked constants and enums', () => {
-    expect(CURRENT_OWNER_TERMS_VERSION).toBe('owner-terms-2026-08-01');
-    expect(CURRENT_COMMISSION_TERMS_VERSION).toBe('owner-commission-2026-08-01');
-    expect(CURRENT_PRIVACY_NOTICE_VERSION).toBe('privacy-notice-2026-08-01');
+    expect(CURRENT_OWNER_TERMS_VERSION).toBe('owner-terms-2026-09-16');
+    expect(CURRENT_COMMISSION_TERMS_VERSION).toBe('owner-commission-2026-09-16');
+    expect(CURRENT_PRIVACY_NOTICE_VERSION).toBe('privacy-notice-2026-09-16');
     expect(OWNER_VERIFICATION_STATES).toEqual([
       'draft',
       'submitted',

@@ -1,8 +1,12 @@
-import type {
-  GovernmentIdKind,
-  OwnerVerificationStatus,
-  OwnerVisibleProfile,
+import {
+  CURRENT_COMMISSION_TERMS_VERSION,
+  CURRENT_OWNER_TERMS_VERSION,
+  CURRENT_PRIVACY_NOTICE_VERSION,
+  type GovernmentIdKind,
+  type OwnerVerificationStatus,
+  type OwnerVisibleProfile,
 } from '@mmg/contracts';
+import { isCurrentTerms } from '@mmg/domain';
 
 export type LocalUploadedDocument = {
   uploadId: string;
@@ -47,6 +51,27 @@ export function isOwnerApplicationEditable(
   return !status || status === 'draft' || status === 'rejected';
 }
 
+export function hasCurrentOwnerAgreements(
+  profile: Pick<
+    OwnerVisibleProfile,
+    'termsAcceptedAt' | 'ownerTermsVersion' | 'commissionTermsVersion' | 'privacyNoticeVersion'
+  > | null | undefined,
+): boolean {
+  if (!profile?.termsAcceptedAt) return false;
+  return isCurrentTerms(
+    {
+      ownerTermsVersion: profile.ownerTermsVersion ?? '',
+      commissionTermsVersion: profile.commissionTermsVersion ?? '',
+      privacyNoticeVersion: profile.privacyNoticeVersion ?? '',
+    },
+    {
+      ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+    },
+  );
+}
+
 type DeskCompleteness = Pick<
   StepCompleteness,
   'canSubmit' | 'firstIncompleteStep'
@@ -86,7 +111,7 @@ export function getStepLockReason(
         return 'Verify your email address before linking a phone number.';
       }
       if (!completeness.identityComplete) {
-        return 'Complete owner identity first.';
+        return 'Complete owner identity and accept current agreements first.';
       }
       return null;
     case 'id':
@@ -94,7 +119,7 @@ export function getStepLockReason(
         return 'Verify your email address before uploading identification.';
       }
       if (!completeness.identityComplete) {
-        return 'Complete owner identity first.';
+        return 'Complete owner identity and accept current agreements first.';
       }
       if (!completeness.phoneComplete) {
         return 'Verify your Nigerian phone number first.';
@@ -114,11 +139,12 @@ export function computeApplicationCompleteness(
   localUploadedDoc: LocalUploadedDocument | null,
   emailVerified: boolean = false,
 ): StepCompleteness {
+  const agreementsCurrent = hasCurrentOwnerAgreements(profile);
   const identityComplete = Boolean(
     profile?.legalName &&
       profile?.address?.line1 &&
       profile?.address?.areaLabel &&
-      profile?.termsAcceptedAt,
+      agreementsCurrent,
   );
 
   const phoneComplete = isNigerianE164(userPhone);

@@ -444,9 +444,9 @@ describe('owner verification state machine and transitions', () => {
 
 describe('isCurrentTerms', () => {
   const current = {
-    ownerTermsVersion: 'owner-terms-2026-08-01',
-    commissionTermsVersion: 'owner-commission-2026-08-01',
-    privacyNoticeVersion: 'privacy-notice-2026-08-01',
+    ownerTermsVersion: 'owner-terms-2026-09-16',
+    commissionTermsVersion: 'owner-commission-2026-09-16',
+    privacyNoticeVersion: 'privacy-notice-2026-09-16',
   };
 
   it('returns true when all versions match', () => {
