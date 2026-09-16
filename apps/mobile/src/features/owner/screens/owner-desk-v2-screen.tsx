@@ -69,8 +69,8 @@ export function OwnerDeskV2Screen() {
   const rejectedIdWasCleared = status === 'rejected' && profile?.governmentId?.status === 'cleared';
 
   const headerRight = (
-    <PressableScale accessibilityLabel="Back to renting" onPress={() => router.replace('/(renter)' as Href)} style={styles.headerAction}>
-      <Ionicons color={colors.ivory} name="storefront-outline" size={18} />
+    <PressableScale accessibilityLabel="Back to renter home" accessibilityRole="button" onPress={() => router.replace('/(renter)' as Href)}>
+      <Text style={styles.headerLink}>Renter home</Text>
     </PressableScale>
   );
 
@@ -174,13 +174,15 @@ function StepRow({ complete, label, detail, locked, lockReason, onPress }: { com
   return (
     <PressableScale accessibilityState={{ disabled: locked }} disabled={locked} onPress={onPress}>
       <View style={[styles.step, locked && styles.stepLocked]}>
-        <View style={[styles.stepIcon, complete && styles.stepIconComplete]}>
-          <Ionicons color={complete ? colors.black : locked ? colors.muted : colors.goldStrong} name={complete ? 'checkmark' : locked ? 'lock-closed-outline' : 'arrow-forward'} size={17} />
-        </View>
         <View style={styles.stepCopy}>
           <Text style={styles.stepTitle}>{label}</Text>
           <Text style={styles.muted}>{locked ? lockReason : detail}</Text>
         </View>
+        {locked ? (
+          <Ionicons accessibilityLabel="Locked" color={colors.muted} name="lock-closed-outline" size={17} />
+        ) : (
+          <Text style={styles.stepAction}>{complete ? 'Edit' : 'Continue'}</Text>
+        )}
       </View>
     </PressableScale>
   );
@@ -195,7 +197,7 @@ const styles = StyleSheet.create({
   feedback: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs, paddingVertical: spacing.md },
   feedbackTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
   header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  headerAction: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 40, justifyContent: 'center', width: 40 },
+  headerLink: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.sm },
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 52 },
@@ -205,9 +207,8 @@ const styles = StyleSheet.create({
   secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
   signOut: { alignItems: 'center', minHeight: 44, justifyContent: 'center' },
   step: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 72, paddingVertical: spacing.sm },
-  stepCopy: { flex: 1, gap: 3 },
-  stepIcon: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 36, justifyContent: 'center', width: 36 },
-  stepIconComplete: { backgroundColor: colors.ivory, borderColor: colors.ivory },
+  stepAction: { color: colors.goldStrong, flexShrink: 0, fontFamily: typography.bodySemiBold, fontSize: 12 },
+  stepCopy: { flex: 1, gap: 3, minWidth: 0 },
   stepLocked: { opacity: 0.6 },
   stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
   steps: { gap: 0 },
