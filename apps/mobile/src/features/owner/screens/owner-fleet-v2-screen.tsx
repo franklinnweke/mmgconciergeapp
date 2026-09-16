@@ -26,22 +26,27 @@ export function OwnerFleetV2Screen() {
   const { actionInProgress, loading, syncError, toggleVisibility, vehicles } = useOwnerFleet();
 
   const right = (
-    <View style={styles.headerActions}>
-      <PressableScale accessibilityLabel="Back to renting" accessibilityRole="button" onPress={() => router.replace('/(renter)' as Href)} style={styles.headerAction}>
-        <Ionicons color={colors.ivory} name="storefront-outline" size={18} />
+    <PressableScale accessibilityLabel="List another vehicle" accessibilityRole="button" onPress={() => router.push('/(owner)/add-vehicle' as Href)}>
+      <Text style={styles.headerLink}>Add vehicle</Text>
+    </PressableScale>
+  );
+
+  const listHeader = (
+    <View style={styles.utilityRow}>
+      <PressableScale accessibilityRole="button" onPress={() => router.replace('/(renter)' as Href)}>
+        <Text style={styles.utilityLink}>Renter home</Text>
       </PressableScale>
-      <PressableScale accessibilityLabel="Open requests and bookings" accessibilityRole="button" onPress={() => router.push('/(owner)/owner-bookings' as Href)} style={styles.headerAction}>
-        <Ionicons color={colors.ivory} name="calendar-outline" size={19} />
-      </PressableScale>
-      <PressableScale accessibilityLabel="List another vehicle" accessibilityRole="button" onPress={() => router.push('/(owner)/add-vehicle' as Href)} style={styles.headerAction}>
-        <Ionicons color={colors.ivory} name="add" size={21} />
+      <PressableScale accessibilityRole="button" onPress={() => router.push('/(owner)/owner-bookings' as Href)}>
+        <Text style={styles.utilityLink}>Requests & bookings</Text>
       </PressableScale>
     </View>
   );
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.screen}>
-      <View style={styles.header}><ScreenHeader right={right} showBrand={false} title="Fleet" /></View>
+      <View style={styles.header}>
+        <ScreenHeader onBack={() => router.replace('/(owner)' as Href)} right={right} showBrand={false} title="Fleet" />
+      </View>
 
       {syncError ? (
         <View accessibilityLiveRegion="polite" style={styles.errorBanner}>
@@ -60,6 +65,7 @@ export function OwnerFleetV2Screen() {
           contentContainerStyle={styles.list}
           data={vehicles}
           keyExtractor={(item) => item.vehicleId}
+          ListHeaderComponent={listHeader}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No vehicles yet</Text>
@@ -139,8 +145,7 @@ const styles = StyleSheet.create({
   errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
   feedback: { color: colors.danger, fontFamily: typography.body, fontSize: 12, lineHeight: 17, marginTop: spacing.xs },
   header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  headerAction: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 40, justifyContent: 'center', width: 40 },
-  headerActions: { flexDirection: 'row', gap: spacing.xs },
+  headerLink: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   list: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   media: { backgroundColor: colors.graphiteRaised, borderRadius: radii.md, height: 164, overflow: 'hidden' },
   meta: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 2 },
@@ -152,6 +157,8 @@ const styles = StyleSheet.create({
   rateRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm },
   screen: { backgroundColor: colors.black, flex: 1 },
   status: { fontFamily: typography.bodySemiBold, fontSize: 12 },
+  utilityLink: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, paddingVertical: spacing.sm },
+  utilityRow: { flexDirection: 'row', gap: spacing.lg, paddingBottom: spacing.md },
   visibilityRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.md },
   visibilityTitle: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
 });
