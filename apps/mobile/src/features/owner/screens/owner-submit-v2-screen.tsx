@@ -36,6 +36,9 @@ export function OwnerSubmitV2Screen() {
   const router = useRouter();
   const upload = useOwnerIdUpload();
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(Boolean(auth.user?.uid));
+  const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [draft, setDraft] = useState<LocalUploadedDocument | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +47,19 @@ export function OwnerSubmitV2Screen() {
   useEffect(() => {
     if (!auth.user?.uid) return undefined;
     void getDraftUpload(auth.user.uid).then(setDraft);
-    return createOwnerVerificationRepository().subscribe(auth.user.uid, setProfile, () => {});
-  }, [auth.user?.uid]);
+    return createOwnerVerificationRepository().subscribe(
+      auth.user.uid,
+      (next) => {
+        setProfile(next);
+        setProfileLoadError(null);
+        setProfileLoading(false);
+      },
+      () => {
+        setProfileLoadError('We could not load your owner application. Try again.');
+        setProfileLoading(false);
+      },
+    );
+  }, [auth.user?.uid, retryKey]);
 
   const effectiveDraft = upload.uploadedDoc || draft;
   const existingProfileDocument =
@@ -57,7 +71,7 @@ export function OwnerSubmitV2Screen() {
   const originalFileName = upload.uploadedDoc?.originalFileName || upload.candidate?.fileName || draft?.originalFileName || 'government-identification.jpg';
   const uploading = upload.status === 'uploading';
   const uploadFailed = upload.status === 'error';
-  const editable = isOwnerApplicationEditable(profile?.verificationStatus);
+  const editable = !profileLoadError && isOwnerApplicationEditable(profile?.verificationStatus);
   const completeness = computeApplicationCompleteness(profile, auth.user?.phoneNumber, effectiveDraft, Boolean(auth.user?.emailVerified));
   const agreementsCurrent = Boolean(
     profile &&
@@ -65,7 +79,7 @@ export function OwnerSubmitV2Screen() {
     profile.commissionTermsVersion === CURRENT_COMMISSION_TERMS_VERSION &&
     profile.privacyNoticeVersion === CURRENT_PRIVACY_NOTICE_VERSION,
   );
-  const canSubmit = editable && completeness.canSubmit && Boolean(uploadId) && agreementsCurrent && !uploading && !uploadFailed;
+  const canSubmit = !profileLoading && !profileLoadError && editable && completeness.canSubmit && Boolean(uploadId) && agreementsCurrent && !uploading && !uploadFailed;
 
   const submit = async () => {
     if (!auth.user?.uid || !uploadId || !canSubmit || submitting) return;
@@ -92,6 +106,28 @@ export function OwnerSubmitV2Screen() {
   const address = profile?.address
     ? [profile.address.line1, profile.address.line2, profile.address.areaLabel, 'Lagos'].filter(Boolean).join(', ')
     : 'Not provided';
+
+  if (profileLoading) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.header}><ScreenHeader onBack={() => router.back()} showBrand={false} title="Review & submit" /></View>
+        <View style={styles.center}><ActivityIndicator color={colors.goldStrong} /><Text style={styles.muted}>Loading owner application…</Text></View>
+      </SafeAreaView>
+    );
+  }
+
+  if (profileLoadError) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.header}><ScreenHeader onBack={() => router.back()} showBrand={false} title="Review & submit" /></View>
+        <View style={styles.center}>
+          <Text accessibilityLiveRegion="polite" style={styles.error}>{profileLoadError}</Text>
+          <PressableScale onPress={() => { setProfileLoading(true); setProfileLoadError(null); setRetryKey((value) => value + 1); }}><Text style={styles.link}>Try again</Text></PressableScale>
+          <PressableScale onPress={() => router.replace('/(owner)' as Href)}><Text style={styles.link}>Return to Owner Desk</Text></PressableScale>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -150,6 +186,7 @@ function SummaryRow({ label, value, onEdit }: { label: string; value: string; on
 }
 
 const styles = StyleSheet.create({
+  center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
   content: { gap: 0, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   disabled: { opacity: 0.5 },
   error: { color: colors.danger, fontFamily: typography.body, fontSize: 13, lineHeight: 19, paddingVertical: spacing.sm },
