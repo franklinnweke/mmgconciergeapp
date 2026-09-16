@@ -208,7 +208,6 @@ describe('submitOwnerVerification service', () => {
       contentType: 'image/jpeg',
       status: 'submitted',
     });
-    // storagePath is never exposed on owner profile
     expect((savedProfile?.governmentId as Record<string, unknown>).storagePath).toBeUndefined();
 
     expect(repository.auditEvents).toHaveLength(1);
@@ -267,6 +266,28 @@ describe('submitOwnerVerification service', () => {
     const savedVerification = repository.verifications.get('owner-one');
     expect(savedVerification?.previousDecisionReason).toBe('Previous document was blurred');
     expect(savedVerification?.lastDecisionReason).toBeNull();
+  });
+
+  it('rejects stale accepted owner terms before creating submission side effects', async () => {
+    repository.profiles.get('owner-one')!.ownerTermsVersion = 'owner-terms-outdated';
+    repository.verifications.get('owner-one')!.ownerTermsVersion = 'owner-terms-outdated';
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
+
+    expect(repository.profiles.get('owner-one')!.verificationStatus).toBe('draft');
+    expect(repository.verifications.get('owner-one')!.status).toBe('draft');
+    expect(repository.auditEvents).toHaveLength(0);
+    expect(repository.notifications).toHaveLength(0);
+    expect(repository.idempotency.size).toBe(0);
   });
 
   it('denies submission when Nigerian phone is unlinked on Auth token', async () => {
