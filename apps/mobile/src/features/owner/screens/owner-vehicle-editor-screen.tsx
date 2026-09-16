@@ -357,6 +357,7 @@ export function OwnerVehicleEditorScreen() {
   };
 
   const pickPhotos = async () => {
+    if (busy) return;
     setError(null);
     const remaining = Math.max(0, 20 - usableImageCount - photos.length);
     if (remaining === 0) {
@@ -398,6 +399,7 @@ export function OwnerVehicleEditorScreen() {
   };
 
   const goBack = () => {
+    if (busy) return;
     setError(null);
     if (step > 1) {
       const previous = (step - 1) as OwnerVehicleEditorStep;
@@ -408,7 +410,14 @@ export function OwnerVehicleEditorScreen() {
     }
   };
 
+  const editStep = (nextStep: OwnerVehicleEditorStep) => {
+    if (busy) return;
+    setStep(nextStep);
+    void persistStep(nextStep);
+  };
+
   const toggleFeature = (feature: VehicleFeatureKey) => {
+    if (busy) return;
     setFeatures((current) => current.includes(feature)
       ? current.filter((item) => item !== feature)
       : [...current, feature]);
@@ -476,7 +485,7 @@ export function OwnerVehicleEditorScreen() {
               <Text style={styles.title}>Garage and registration</Text>
               <Text style={styles.subtitle}>The exact garage address and plate stay private from renters.</Text>
               <Text style={styles.label}>Lagos operating area</Text>
-              <PressableScale onPress={() => setAreaModalVisible(true)}>
+              <PressableScale disabled={busy} onPress={() => setAreaModalVisible(true)}>
                 <View style={styles.selector}>
                   <Text style={styles.selectorText}>{areaLabel}</Text>
                   <Ionicons color={colors.muted} name="chevron-down" size={18} />
@@ -494,6 +503,7 @@ export function OwnerVehicleEditorScreen() {
               <View style={styles.moneyInput}>
                 <Text style={styles.moneyPrefix}>₦</Text>
                 <TextInput
+                  editable={!busy}
                   keyboardType="number-pad"
                   onChangeText={(value) => setDailyRateNaira(value.replace(/\D/g, ''))}
                   placeholder="350000"
@@ -514,7 +524,7 @@ export function OwnerVehicleEditorScreen() {
                 {(Object.keys(FEATURE_LABELS) as VehicleFeatureKey[]).map((feature) => {
                   const selected = features.includes(feature);
                   return (
-                    <PressableScale key={feature} onPress={() => toggleFeature(feature)} style={[styles.feature, selected && styles.featureSelected]}>
+                    <PressableScale disabled={busy} key={feature} onPress={() => toggleFeature(feature)} style={[styles.feature, selected && styles.featureSelected]}>
                       <Text style={[styles.featureText, selected && styles.featureTextSelected]}>{FEATURE_LABELS[feature]}</Text>
                     </PressableScale>
                   );
@@ -522,6 +532,7 @@ export function OwnerVehicleEditorScreen() {
               </View>
               <Text style={styles.label}>Description</Text>
               <TextInput
+                editable={!busy}
                 maxLength={2000}
                 multiline
                 onChangeText={setDescription}
@@ -546,7 +557,7 @@ export function OwnerVehicleEditorScreen() {
                 <Text style={styles.muted}>Usable photos: {usableImageCount}</Text>
                 {rejectedImageCount > 0 ? <Text style={styles.muted}>Previous review photos: {rejectedImageCount}</Text> : null}
               </View>
-              <PressableScale onPress={() => void pickPhotos()} style={styles.photoPicker}>
+              <PressableScale disabled={busy} onPress={() => void pickPhotos()} style={styles.photoPicker}>
                 <Ionicons color={colors.goldStrong} name="images-outline" size={22} />
                 <Text style={styles.photoPickerText}>{photos.length ? 'Add more photos' : 'Choose photos'}</Text>
                 <Text style={styles.helper}>JPEG, PNG or WebP · up to 10 MB each</Text>
@@ -556,7 +567,7 @@ export function OwnerVehicleEditorScreen() {
                   {photos.map((photo, index) => (
                     <View key={`${photo.uri}-${index}`} style={styles.photoTile}>
                       <Image contentFit="cover" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} />
-                      <PressableScale accessibilityLabel={`Remove photo ${index + 1}`} onPress={() => setPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))} style={styles.removePhoto}>
+                      <PressableScale accessibilityLabel={`Remove photo ${index + 1}`} disabled={busy} onPress={() => setPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))} style={styles.removePhoto}>
                         <Ionicons color={colors.ivory} name="close" size={14} />
                       </PressableScale>
                     </View>
@@ -570,12 +581,12 @@ export function OwnerVehicleEditorScreen() {
             <View style={styles.section}>
               <Text style={styles.title}>Review listing</Text>
               <Text style={styles.subtitle}>Check the details before sending this vehicle to MMG moderation.</Text>
-              <SummaryRow label="Vehicle" value={`${year} ${make} ${model}`} onEdit={() => setStep(1)} />
-              <SummaryRow label="Garage area" value={areaLabel} onEdit={() => setStep(2)} />
-              <SummaryRow label="Registration" value={normalizedPlate(plate)} onEdit={() => setStep(2)} />
-              <SummaryRow label="Daily rate" value={`${formatNairaFromKobo(rateKobo)} / day`} onEdit={() => setStep(3)} />
-              <SummaryRow label="Description" value={description} onEdit={() => setStep(4)} />
-              <SummaryRow label="Photos" value={`${usableImageCount} ready for review`} onEdit={() => setStep(5)} />
+              <SummaryRow label="Vehicle" value={`${year} ${make} ${model}`} onEdit={() => editStep(1)} disabled={busy} />
+              <SummaryRow label="Garage area" value={areaLabel} onEdit={() => editStep(2)} disabled={busy} />
+              <SummaryRow label="Registration" value={normalizedPlate(plate)} onEdit={() => editStep(2)} disabled={busy} />
+              <SummaryRow label="Daily rate" value={`${formatNairaFromKobo(rateKobo)} / day`} onEdit={() => editStep(3)} disabled={busy} />
+              <SummaryRow label="Description" value={description} onEdit={() => editStep(4)} disabled={busy} />
+              <SummaryRow label="Photos" value={`${usableImageCount} ready for review`} onEdit={() => editStep(5)} disabled={busy} />
               {isCorrection ? <Text style={styles.helper}>Submitting updates this same vehicle record. It does not create a duplicate listing.</Text> : null}
             </View>
           ) : null}
@@ -599,25 +610,24 @@ export function OwnerVehicleEditorScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal animationType="slide" onRequestClose={() => setAreaModalVisible(false)} transparent visible={areaModalVisible}>
-        <Pressable onPress={() => setAreaModalVisible(false)} style={styles.modalBackdrop}>
+      <Modal animationType="slide" onRequestClose={() => { if (!busy) setAreaModalVisible(false); }} transparent visible={areaModalVisible}>
+        <Pressable disabled={busy} onPress={() => setAreaModalVisible(false)} style={styles.modalBackdrop}>
           <Pressable onPress={(event) => event.stopPropagation()} style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Lagos operating area</Text>
-              <Pressable accessibilityLabel="Close area selection" onPress={() => setAreaModalVisible(false)}><Ionicons color={colors.ivory} name="close" size={24} /></Pressable>
-            </View>
-            <ScrollView>
-              {LAGOS_AREA_LABELS.map((area) => (
-                <Pressable
-                  key={area}
-                  onPress={() => { setAreaLabel(area); setAreaModalVisible(false); }}
-                  style={styles.areaRow}
-                >
-                  <Text style={[styles.areaText, area === areaLabel && styles.areaTextSelected]}>{area}</Text>
-                  {area === areaLabel ? <Ionicons color={colors.goldStrong} name="checkmark" size={18} /> : null}
-                </Pressable>
-              ))}
-            </ScrollView>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Choose operating area</Text>
+            {LAGOS_AREA_LABELS.map((area) => (
+              <Pressable
+                disabled={busy}
+                key={area}
+                onPress={() => {
+                  setAreaLabel(area);
+                  setAreaModalVisible(false);
+                }}
+                style={[styles.modalOption, area === areaLabel && styles.modalOptionSelected]}
+              >
+                <Text style={[styles.modalOptionText, area === areaLabel && styles.modalOptionTextSelected]}>{area}</Text>
+              </Pressable>
+            ))}
           </Pressable>
         </Pressable>
       </Modal>
@@ -625,41 +635,27 @@ export function OwnerVehicleEditorScreen() {
   );
 }
 
-function Field(props: {
+type FieldProps = {
   label: string;
   value: string;
-  onChangeText(value: string): void;
+  onChangeText: (value: string) => void;
   placeholder: string;
   keyboardType?: 'default' | 'number-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-}) {
+};
+
+function Field({ label, ...props }: FieldProps) {
   return (
-    <View>
-      <Text style={styles.label}>{props.label}</Text>
-      <TextInput
-        autoCapitalize={props.autoCapitalize}
-        keyboardType={props.keyboardType}
-        onChangeText={props.onChangeText}
-        placeholder={props.placeholder}
-        placeholderTextColor={colors.muted}
-        style={styles.input}
-        value={props.value}
-      />
+    <View style={styles.field}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput {...props} placeholderTextColor={colors.muted} style={styles.input} />
     </View>
   );
 }
 
-function ChoiceRow({
-  options,
-  selected,
-  onSelect,
-}: {
-  options: readonly (readonly [string, string])[];
-  selected: string;
-  onSelect(value: string): void;
-}) {
+function ChoiceRow({ options, selected, onSelect }: { options: readonly (readonly [string, string])[]; selected: string; onSelect(value: string): void }) {
   return (
-    <View style={styles.choiceWrap}>
+    <View style={styles.choiceRow}>
       {options.map(([value, label]) => {
         const active = selected === value;
         return (
@@ -672,73 +668,70 @@ function ChoiceRow({
   );
 }
 
-function SummaryRow({ label, value, onEdit }: { label: string; value: string; onEdit(): void }) {
+function SummaryRow({ label, value, onEdit, disabled = false }: { label: string; value: string; onEdit(): void; disabled?: boolean }) {
   return (
     <View style={styles.summaryRow}>
-      <View style={styles.summaryCopy}>
-        <Text style={styles.summaryLabel}>{label}</Text>
-        <Text numberOfLines={3} style={styles.summaryValue}>{value || 'Not provided'}</Text>
-      </View>
-      <PressableScale accessibilityLabel={`Edit ${label}`} onPress={onEdit}><Text style={styles.editText}>Edit</Text></PressableScale>
+      <View style={styles.flex}><Text style={styles.label}>{label}</Text><Text numberOfLines={2} style={styles.summaryValue}>{value}</Text></View>
+      <PressableScale disabled={disabled} onPress={onEdit}><Text style={styles.editText}>Edit</Text></PressableScale>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  areaRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
-  areaText: { color: colors.silver, fontFamily: typography.body, fontSize: 15 },
-  areaTextSelected: { color: colors.ivory, fontFamily: typography.bodySemiBold },
   center: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
-  choice: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, minHeight: 44, paddingHorizontal: spacing.md, justifyContent: 'center' },
+  choice: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flex: 1, minHeight: 42, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  choiceRow: { flexDirection: 'row', gap: spacing.sm },
   choiceSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
-  choiceText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 13 },
+  choiceText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
   choiceTextSelected: { color: colors.black },
-  choiceWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  disabled: { opacity: 0.6 },
-  editText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.sm },
+  disabled: { opacity: 0.55 },
+  editText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
   error: { color: colors.danger, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
-  feature: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.md },
+  feature: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   featureSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
   featureText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
   featureTextSelected: { color: colors.black },
-  featureWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  featureWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  field: { gap: 6 },
   flex: { flex: 1 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  header: { gap: spacing.xs, paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   helper: { color: colors.muted, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
-  input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
-  label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs, marginTop: spacing.sm },
-  modalBackdrop: { backgroundColor: 'rgba(0,0,0,0.66)', flex: 1, justifyContent: 'flex-end' },
-  modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
-  modalSheet: { backgroundColor: colors.black, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '65%', padding: spacing.lg },
-  modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18 },
-  moneyField: { color: colors.ivory, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 22, minHeight: 54 },
-  moneyInput: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm },
-  moneyPrefix: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 22 },
-  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
-  notice: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md },
-  noticeText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
-  photoFacts: { gap: 3 },
+  input: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
+  modalBackdrop: { backgroundColor: 'rgba(0,0,0,0.62)', flex: 1, justifyContent: 'flex-end' },
+  modalHandle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 3, marginBottom: spacing.md, width: 36 },
+  modalOption: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  modalOptionSelected: { backgroundColor: 'rgba(255,255,255,0.04)' },
+  modalOptionText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 14 },
+  modalOptionTextSelected: { color: colors.ivory, fontFamily: typography.bodySemiBold },
+  modalSheet: { backgroundColor: colors.graphite, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18, marginBottom: spacing.sm },
+  moneyField: { color: colors.ivory, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 22, paddingVertical: spacing.sm },
+  moneyInput: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
+  moneyPrefix: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 22 },
+  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+  notice: { alignItems: 'flex-start', backgroundColor: 'rgba(227,195,101,0.08)', flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+  noticeText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+  photoFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  photoPicker: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.md, borderStyle: 'dashed', borderWidth: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 116, padding: spacing.md },
+  photoPicker: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.lg, borderStyle: 'dashed', borderWidth: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 128, padding: spacing.lg },
   photoPickerText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  photoTile: { backgroundColor: colors.graphiteRaised, borderRadius: radii.sm, height: 96, overflow: 'hidden', position: 'relative', width: '31%' },
+  photoTile: { backgroundColor: colors.graphite, borderRadius: radii.md, height: 100, overflow: 'hidden', width: '30%' },
   primaryAction: { marginTop: spacing.sm },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 52 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   progressRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  removePhoto: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.72)', borderRadius: radii.pill, height: 28, justifyContent: 'center', position: 'absolute', right: 5, top: 5, width: 28 },
+  removePhoto: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.68)', borderRadius: radii.pill, height: 26, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 26 },
   screen: { backgroundColor: colors.black, flex: 1 },
-  section: { gap: spacing.sm },
-  selector: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 50 },
-  selectorText: { color: colors.ivory, fontFamily: typography.body, fontSize: 14 },
-  stepText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11, marginLeft: 52, marginTop: 2 },
-  subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 19, marginBottom: spacing.xs },
-  summaryCopy: { flex: 1, gap: 3 },
-  summaryLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
-  summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, minHeight: 64, paddingVertical: spacing.sm },
-  summaryValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14, lineHeight: 19 },
-  textArea: { minHeight: 120, paddingTop: spacing.md, textAlignVertical: 'top' },
-  title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 24 },
-  twoColumns: { flexDirection: 'row', gap: spacing.md },
+  section: { gap: spacing.md },
+  selector: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.md },
+  selectorText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
+  stepText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' },
+  subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 64, paddingVertical: spacing.sm },
+  summaryValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, lineHeight: 18 },
+  textArea: { minHeight: 120, textAlignVertical: 'top' },
+  title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 22 },
+  twoColumns: { flexDirection: 'row', gap: spacing.sm },
 });
