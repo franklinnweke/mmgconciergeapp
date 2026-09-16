@@ -48,25 +48,32 @@ export function OwnerVehicleManagementScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
-      const next = await gateway.getOwnerVehicle(id);
-      setVehicle(next);
-      setError(next ? null : 'This vehicle could not be found.');
-    } catch (caught) {
-      setError(safeMessage(caught));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    void load();
-    // gateway is memoized for the life of this screen.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+    let active = true;
+    if (!id) {
+      queueMicrotask(() => {
+        if (!active) return;
+        setError('This vehicle could not be found.');
+        setLoading(false);
+      });
+      return () => { active = false; };
+    }
+
+    void gateway.getOwnerVehicle(id)
+      .then((next) => {
+        if (!active) return;
+        setVehicle(next);
+        setError(next ? null : 'This vehicle could not be found.');
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(safeMessage(caught));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [gateway, id]);
 
   const toggleVisibility = async () => {
     if (!vehicle || busy) return;
