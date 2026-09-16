@@ -85,6 +85,13 @@ export async function createVehicleUploadSession(
       throw new CommandError('FAILED_PRECONDITION', 'Cannot upload to a deleted vehicle listing.');
     }
 
+    if (!['draft', 'rejected'].includes(vehicle.moderationStatus)) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Vehicle uploads are only allowed while a listing is a draft or requires changes.',
+      );
+    }
+
     let storagePath: string;
 
     if (command.data.purpose === 'listing_image') {
