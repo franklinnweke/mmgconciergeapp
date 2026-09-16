@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import {
   createOwnerBookingRepository,
   type OwnerBookingSnapshot,
@@ -25,6 +26,12 @@ import { createOwnerRentalRequestGateway } from '../data/owner-rental-request-ga
 import { groupOwnerBookings } from '../domain/owner-booking';
 import { ownerBookingsLoadPresentation } from '../domain/owner-bookings-load-state';
 import { ownerRequestStateCopy } from '../domain/owner-rental-request';
+
+function rangeLabel(startDate: string, endDate: string) {
+  const lastRentalDate = addDaysToDateOnly(endDate, -1);
+  if (lastRentalDate === startDate) return formatLagosDateOnly(startDate);
+  return `${formatLagosDateOnly(startDate)} to ${formatLagosDateOnly(lastRentalDate)}`;
+}
 
 export function OwnerBookingsDeskScreen() {
   const router = useRouter();
@@ -173,7 +180,7 @@ export function OwnerBookingsDeskScreen() {
                   <View style={styles.row}>
                     <View style={styles.rowBody}>
                       <Text style={styles.vehicle}>{request.vehicleSnapshot.displayName}</Text>
-                      <Text style={styles.meta}>{request.startDate} to {request.endDate} · {request.serviceAreaLabel}</Text>
+                      <Text style={styles.meta}>{rangeLabel(request.startDate, request.endDate)} · {request.serviceAreaLabel}</Text>
                       <Text style={styles.meta}>{copy.label} · {formatNairaFromKobo(price.ownerEarningsKobo)} earnings</Text>
                     </View>
                   </View>
@@ -202,7 +209,7 @@ export function OwnerBookingsDeskScreen() {
                 <View style={styles.row}>
                   <View style={styles.rowBody}>
                     <Text style={styles.vehicle}>{booking.vehicleSnapshot.displayName}</Text>
-                    <Text style={styles.meta}>{booking.startDate} to {booking.endDate}</Text>
+                    <Text style={styles.meta}>{rangeLabel(booking.startDate, booking.endDate)}</Text>
                     <Text style={styles.meta}>{booking.state.replaceAll('_', ' ')} · {formatNairaFromKobo(booking.priceSnapshot.ownerEarningsKobo)} earnings</Text>
                   </View>
                 </View>
