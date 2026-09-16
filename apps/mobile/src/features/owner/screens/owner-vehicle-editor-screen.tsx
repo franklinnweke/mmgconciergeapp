@@ -188,7 +188,7 @@ export function OwnerVehicleEditorScreen() {
       step: nextStep,
       updatedAt: new Date().toISOString(),
     });
-  }, [user?.uid, vehicleId]);
+  }, [user, vehicleId]);
 
   const runUpdate = useCallback(async (
     data: Omit<Parameters<typeof editorGateway.updateDraft>[0], 'vehicleId' | 'expectedVersion'>,
