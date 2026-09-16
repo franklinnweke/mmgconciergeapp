@@ -64,6 +64,15 @@ function generateIdempotencyKey(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 }
 
+function ownerIdFromVehicleUploadPath(storagePath: string): string {
+  const match = /^private\/vehicle-uploads\/([^/]+)\/[^/]+\/[^/]+$/.exec(storagePath);
+  const ownerId = match?.[1];
+  if (!ownerId) {
+    throw new Error('Vehicle upload path is invalid.');
+  }
+  return ownerId;
+}
+
 export class NativeOwnerFleetGateway implements OwnerFleetGateway {
   private get functions() {
     return getFunctions(undefined, 'africa-south1');
@@ -196,7 +205,13 @@ export class NativeOwnerFleetGateway implements OwnerFleetGateway {
   async uploadVehiclePhoto(storagePath: string, fileUri: string, contentType: string): Promise<void> {
     const storageInstance = getStorage();
     const fileRef = ref(storageInstance, storagePath);
-    await putFile(fileRef, fileUri, { contentType });
+    await putFile(fileRef, fileUri, {
+      contentType,
+      customMetadata: {
+        ownerId: ownerIdFromVehicleUploadPath(storagePath),
+        purpose: 'vehicle_image',
+      },
+    });
   }
 
   async finalizeImage(data: FinalizeVehicleImageData): Promise<FinalizeVehicleImageResult> {
