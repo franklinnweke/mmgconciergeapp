@@ -126,6 +126,17 @@ export async function updateVehicleDraft(
       throw new CommandError('NOT_FOUND', 'Vehicle private details not found.');
     }
 
+    if (
+      command.data.areaLabel !== undefined &&
+      command.data.baseAddress !== undefined &&
+      command.data.areaLabel !== command.data.baseAddress.areaLabel
+    ) {
+      throw new CommandError(
+        'INVALID_ARGUMENT',
+        'Vehicle area must match the garage address area.',
+      );
+    }
+
     const specs = command.data.specs;
     const make = specs?.make ?? vehicle.make;
     const model = specs?.model ?? vehicle.model;
@@ -147,6 +158,12 @@ export async function updateVehicleDraft(
           command.data.exactBase.longitude,
         )
       : null;
+    const locationChanged =
+      command.data.areaLabel !== undefined ||
+      command.data.baseAddress !== undefined ||
+      command.data.exactBase !== undefined;
+    const nextAreaLabel =
+      command.data.areaLabel ?? command.data.baseAddress?.areaLabel ?? vehicle.areaLabel;
 
     const images = await transaction.getVehicleImages(command.data.vehicleId);
     const reuseRejectedImages =
@@ -182,9 +199,9 @@ export async function updateVehicleDraft(
       description,
       features,
       ownerDailyRateKobo: command.data.ownerDailyRateKobo ?? vehicle.ownerDailyRateKobo,
-      areaLabel: command.data.areaLabel ?? vehicle.areaLabel,
-      approxLatitude: roundedBase?.lat ?? vehicle.approxLatitude,
-      approxLongitude: roundedBase?.lng ?? vehicle.approxLongitude,
+      areaLabel: nextAreaLabel,
+      approxLatitude: roundedBase?.lat ?? (locationChanged ? null : vehicle.approxLatitude),
+      approxLongitude: roundedBase?.lng ?? (locationChanged ? null : vehicle.approxLongitude),
       visibility: 'paused',
       discoverable: false,
       pendingRevisionId: null,
@@ -198,9 +215,11 @@ export async function updateVehicleDraft(
       ...privateDoc,
       plate: command.data.plate ?? privateDoc.plate,
       baseAddress: command.data.baseAddress ?? privateDoc.baseAddress,
-      exactLatitude: command.data.exactBase?.latitude ?? privateDoc.exactLatitude,
-      exactLongitude: command.data.exactBase?.longitude ?? privateDoc.exactLongitude,
-      placeId: command.data.exactBase?.placeId ?? privateDoc.placeId,
+      exactLatitude: command.data.exactBase?.latitude ?? (locationChanged ? null : privateDoc.exactLatitude),
+      exactLongitude: command.data.exactBase?.longitude ?? (locationChanged ? null : privateDoc.exactLongitude),
+      placeId: command.data.exactBase
+        ? (command.data.exactBase.placeId ?? null)
+        : (locationChanged ? null : privateDoc.placeId),
       updatedAt: now.toISOString(),
     };
 

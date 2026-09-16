@@ -71,8 +71,8 @@ function setup(options?: {
     chauffeurPolicy: 'included',
     deliveryPolicy: 'included',
     areaLabel: 'Ikoyi',
-    approxLatitude: null,
-    approxLongitude: null,
+    approxLatitude: 6.454,
+    approxLongitude: 3.434,
     moderationStatus: options?.moderationStatus ?? 'rejected',
     visibility: 'paused',
     discoverable: false,
@@ -89,9 +89,9 @@ function setup(options?: {
     ownerId: vehicle.ownerId,
     plate: 'ABC-123XY',
     baseAddress: { line1: '1 Old Road', city: 'Lagos', country: 'NG', areaLabel: 'Ikoyi' },
-    exactLatitude: null,
-    exactLongitude: null,
-    placeId: null,
+    exactLatitude: 6.4538,
+    exactLongitude: 3.4337,
+    placeId: 'old-place-id',
     documentPaths: [],
     createdAt: '2026-09-01T00:00:00.000Z',
     updatedAt: '2026-09-01T00:00:00.000Z',
@@ -183,14 +183,53 @@ describe('updateVehicleDraft', () => {
       displayName: 'Lexus LX 600 2025',
       ownerDailyRateKobo: 200_000_00,
       areaLabel: 'Victoria Island',
+      approxLatitude: null,
+      approxLongitude: null,
       version: 4,
       visibility: 'paused',
       discoverable: false,
     });
-    expect(state().privateRecord.plate).toBe('AAA-123BB');
+    expect(state().privateRecord).toMatchObject({
+      plate: 'AAA-123BB',
+      exactLatitude: null,
+      exactLongitude: null,
+      placeId: null,
+    });
     expect(state().images[0]?.status).toBe('processed');
     expect(state().vehicle.primaryImagePath).toBe('private/card.jpg');
     expect(state().audits[0]?.eventType).toBe('vehicle.draft_updated');
+  });
+
+  it('preserves coordinates when a non-location update is applied', async () => {
+    const { repository, state } = setup();
+    await updateVehicleDraft(
+      command({ areaLabel: undefined, baseAddress: undefined }),
+      'owner-1',
+      { repository, now: () => now },
+    );
+
+    expect(state().vehicle.approxLatitude).toBe(6.454);
+    expect(state().vehicle.approxLongitude).toBe(3.434);
+    expect(state().privateRecord.exactLatitude).toBe(6.4538);
+    expect(state().privateRecord.exactLongitude).toBe(3.4337);
+    expect(state().privateRecord.placeId).toBe('old-place-id');
+  });
+
+  it('rejects inconsistent public and private Lagos area labels', async () => {
+    const { repository } = setup();
+    await expect(updateVehicleDraft(
+      command({
+        areaLabel: 'Ikoyi',
+        baseAddress: {
+          line1: '12 Marina Road',
+          areaLabel: 'Victoria Island',
+          city: 'Lagos',
+          country: 'NG',
+        },
+      }),
+      'owner-1',
+      { repository, now: () => now },
+    )).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
   });
 
   it('keeps rejected images excluded when the owner is replacing photos', async () => {
