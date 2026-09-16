@@ -72,6 +72,15 @@ describe('owner application domain', () => {
       version: 1,
     };
 
+    const uploadedDocument = {
+      uploadId: 'upload-123',
+      documentKind: 'national_id' as const,
+      originalFileName: 'nin.jpg',
+      contentType: 'image/jpeg',
+      byteSize: 1024,
+      uploadedAt: '2026-08-15T12:00:00.000Z',
+    };
+
     it('returns identity incomplete when profile is null', () => {
       const completeness = computeApplicationCompleteness(null, null, null, true);
       expect(completeness.identityComplete).toBe(false);
@@ -83,14 +92,7 @@ describe('owner application domain', () => {
       const completeness = computeApplicationCompleteness(
         mockProfile,
         '+2348012345678',
-        {
-          uploadId: 'upload-123',
-          documentKind: 'national_id',
-          originalFileName: 'nin.jpg',
-          contentType: 'image/jpeg',
-          byteSize: 1024,
-          uploadedAt: '2026-08-15T12:00:00.000Z',
-        },
+        uploadedDocument,
       );
 
       expect(completeness.emailVerified).toBe(false);
@@ -114,40 +116,69 @@ describe('owner application domain', () => {
     });
 
     it('returns canSubmit true when all steps are completed', () => {
-      const completeness = computeApplicationCompleteness(mockProfile, '+2348012345678', {
-        uploadId: 'upload-123',
-        documentKind: 'national_id',
-        originalFileName: 'nin.jpg',
-        contentType: 'image/jpeg',
-        byteSize: 1024,
-        uploadedAt: '2026-08-15T12:00:00.000Z',
-      }, true);
+      const completeness = computeApplicationCompleteness(
+        mockProfile,
+        '+2348012345678',
+        uploadedDocument,
+        true,
+      );
       expect(completeness.canSubmit).toBe(true);
       expect(completeness.firstIncompleteStep).toBe('submit');
       expect(completeness.submitUnlocked).toBe(true);
     });
 
+    it('requires a fresh local ID upload after owner verification is rejected', () => {
+      const rejectedProfile: OwnerVisibleProfile = {
+        ...mockProfile,
+        verificationStatus: 'rejected',
+        governmentId: {
+          uploadId: 'old-rejected-upload',
+          documentKind: 'national_id',
+          contentType: 'image/jpeg',
+          byteSize: 1024,
+          uploadedAt: '2026-08-15T12:00:00.000Z',
+          status: 'rejected',
+        },
+      };
+
+      const withoutReplacement = computeApplicationCompleteness(
+        rejectedProfile,
+        '+2348012345678',
+        null,
+        true,
+      );
+      expect(withoutReplacement.idUploaded).toBe(false);
+      expect(withoutReplacement.canSubmit).toBe(false);
+      expect(withoutReplacement.firstIncompleteStep).toBe('id');
+
+      const withReplacement = computeApplicationCompleteness(
+        rejectedProfile,
+        '+2348012345678',
+        uploadedDocument,
+        true,
+      );
+      expect(withReplacement.idUploaded).toBe(true);
+      expect(withReplacement.canSubmit).toBe(true);
+      expect(withReplacement.firstIncompleteStep).toBe('submit');
+    });
+
     it('enforces sequential prerequisite unlocking', () => {
-      // 1. Unverified email blocks all steps
       const unverified = computeApplicationCompleteness(mockProfile, '+2348012345678', null, false);
       expect(unverified.identityUnlocked).toBe(false);
       expect(unverified.phoneUnlocked).toBe(false);
       expect(unverified.idUnlocked).toBe(false);
       expect(unverified.canSubmit).toBe(false);
 
-      // 2. Incomplete identity locks phone and ID
       const noIdentity = computeApplicationCompleteness(null, null, null, true);
       expect(noIdentity.identityUnlocked).toBe(true);
       expect(noIdentity.phoneUnlocked).toBe(false);
       expect(noIdentity.idUnlocked).toBe(false);
 
-      // 3. Complete identity unlocks phone, but ID remains locked until phone is verified
       const unverifiedPhone = computeApplicationCompleteness(mockProfile, null, null, true);
       expect(unverifiedPhone.identityUnlocked).toBe(true);
       expect(unverifiedPhone.phoneUnlocked).toBe(true);
       expect(unverifiedPhone.idUnlocked).toBe(false);
 
-      // 4. Complete identity + phone unlocks ID upload
       const readyForId = computeApplicationCompleteness(mockProfile, '+2348012345678', null, true);
       expect(readyForId.identityUnlocked).toBe(true);
       expect(readyForId.phoneUnlocked).toBe(true);

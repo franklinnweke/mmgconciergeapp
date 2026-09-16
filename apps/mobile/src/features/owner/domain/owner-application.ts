@@ -122,10 +122,13 @@ export function computeApplicationCompleteness(
   );
 
   const phoneComplete = isNigerianE164(userPhone);
-
+  // A rejected application cannot reuse the prior identity document: rejection
+  // schedules the private bytes for deletion and the server requires a fresh upload.
+  const persistedIdCanBeReused = profile?.verificationStatus !== 'rejected';
   const idUploaded = Boolean(
     localUploadedDoc ||
-      (profile?.governmentId &&
+      (persistedIdCanBeReused &&
+        profile?.governmentId &&
         profile.governmentId.uploadId &&
         profile.governmentId.status !== 'cleared'),
   );

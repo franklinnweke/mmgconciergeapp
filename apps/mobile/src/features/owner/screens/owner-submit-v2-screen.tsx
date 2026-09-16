@@ -61,14 +61,24 @@ export function OwnerSubmitV2Screen() {
     );
   }, [auth.user?.uid, retryKey]);
 
-  const effectiveDraft = upload.uploadedDoc || draft;
+  const rejectedUploadId =
+    profile?.verificationStatus === 'rejected'
+      ? profile.governmentId?.uploadId ?? null
+      : null;
+  const candidateDraft = upload.uploadedDoc || draft;
+  const effectiveDraft =
+    candidateDraft && candidateDraft.uploadId !== rejectedUploadId
+      ? candidateDraft
+      : null;
   const existingProfileDocument =
-    profile?.governmentId && profile.governmentId.status !== 'cleared'
+    profile?.verificationStatus !== 'rejected' &&
+    profile?.governmentId &&
+    profile.governmentId.status !== 'cleared'
       ? profile.governmentId
       : null;
-  const uploadId = upload.uploadedDoc?.uploadId || draft?.uploadId || existingProfileDocument?.uploadId;
-  const documentKind = upload.uploadedDoc?.documentKind || upload.candidate?.documentKind || draft?.documentKind || existingProfileDocument?.documentKind || 'national_id';
-  const originalFileName = upload.uploadedDoc?.originalFileName || upload.candidate?.fileName || draft?.originalFileName || 'government-identification.jpg';
+  const uploadId = effectiveDraft?.uploadId || existingProfileDocument?.uploadId;
+  const documentKind = effectiveDraft?.documentKind || upload.candidate?.documentKind || existingProfileDocument?.documentKind || 'national_id';
+  const originalFileName = effectiveDraft?.originalFileName || upload.candidate?.fileName || 'government-identification.jpg';
   const uploading = upload.status === 'uploading';
   const uploadFailed = upload.status === 'error';
   const editable = !profileLoadError && isOwnerApplicationEditable(profile?.verificationStatus);
@@ -150,7 +160,11 @@ export function OwnerSubmitV2Screen() {
               <><Text style={styles.error}>Upload failed</Text><PressableScale onPress={() => auth.user?.uid && upload.retryUpload(auth.user.uid)}><Text style={styles.link}>Retry upload</Text></PressableScale></>
             ) : uploadId ? (
               <><Text style={styles.value}>{DOCUMENT_LABELS[documentKind]}</Text><Text numberOfLines={1} style={styles.muted}>{originalFileName}</Text></>
-            ) : <Text style={styles.error}>Upload required</Text>}
+            ) : (
+              <Text style={styles.error}>
+                {profile?.verificationStatus === 'rejected' ? 'Replacement upload required' : 'Upload required'}
+              </Text>
+            )}
           </View>
           <PressableScale onPress={() => router.push('/(owner)/id' as Href)}><Text style={styles.link}>Edit</Text></PressableScale>
         </View>
