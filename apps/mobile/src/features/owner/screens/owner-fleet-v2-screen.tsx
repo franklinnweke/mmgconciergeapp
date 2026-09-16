@@ -69,7 +69,7 @@ export function OwnerFleetV2Screen() {
               </PressableScale>
             </View>
           }
-          renderItem={({ item }) => <VehicleRow item={item} busy={actionInProgress === item.vehicleId} onOpen={() => router.push({ pathname: '/(owner)/fleet/[id]' as Href, params: { id: item.vehicleId } })} onToggle={() => void toggleVisibility(item)} />}
+          renderItem={({ item }) => <VehicleRow item={item} busy={actionInProgress === item.vehicleId} onOpen={() => router.push({ pathname: '/(owner)/fleet/[id]', params: { id: item.vehicleId } } as Href)} onToggle={() => void toggleVisibility(item)} />}
           showsVerticalScrollIndicator={false}
         />
       )}
