@@ -137,7 +137,7 @@ describe('owner application domain', () => {
           contentType: 'image/jpeg',
           byteSize: 1024,
           uploadedAt: '2026-08-15T12:00:00.000Z',
-          status: 'rejected',
+          status: 'submitted',
         },
       };
 
