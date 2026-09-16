@@ -162,6 +162,18 @@ export async function submitOwnerVerification(
       );
     }
 
+    if (
+      existingVerification.status === 'rejected' &&
+      (existingVerification.governmentId?.uploadId === command.data.uploadId ||
+        existingProfile.governmentId?.uploadId === command.data.uploadId)
+    ) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Upload a replacement identity document before resubmitting your owner application.',
+        { reason: 'upload_invalid' },
+      );
+    }
+
     const nextVerificationVersion = (existingVerification.version ?? 0) + 1;
     const nextProfileVersion = (existingProfile.version ?? 0) + 1;
 
