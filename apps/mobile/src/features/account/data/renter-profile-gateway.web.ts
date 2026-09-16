@@ -7,7 +7,9 @@ import {
   RequestAccountDeletionData,
   RequestAccountDeletionResult,
   completeRenterProfileCommandSchema,
+  completeRenterProfileResultSchema,
   requestAccountDeletionCommandSchema,
+  requestAccountDeletionResultSchema,
 } from '@mmg/contracts';
 import {
   doc,
@@ -21,7 +23,9 @@ import {
   type Functions,
 } from 'firebase/functions';
 
+import { parseCallableResult } from '@/core/firebase/parse-callable-result';
 import { RenterProfileGateway } from './renter-profile-gateway';
+import { parseRenterProfileDocument } from './renter-profile-record';
 
 export const PREVIEW_RENTER_PROFILE: RenterProfileRecord = {
   renterId: 'preview-renter',
@@ -67,25 +71,9 @@ export class WebRenterProfileGateway implements RenterProfileGateway {
     const docRef = doc(this.firestore, 'renterProfiles', renterId);
     const snap = await getDoc(docRef);
     if (!snap.exists()) return null;
-    const d = snap.data();
-    return {
-      renterId: d.renterId ?? renterId,
-      fullName: d.fullName ?? '',
-      email: d.email ?? '',
-      phone: d.phone ?? '',
-      defaultDeliveryAddress: d.defaultDeliveryAddress ?? {
-        streetAddress: '',
-        areaLabel: 'Victoria Island',
-      },
-      acceptedRenterTermsVersion: d.acceptedRenterTermsVersion ?? '2026-03-01',
-      acceptedPrivacyNoticeVersion: d.acceptedPrivacyNoticeVersion ?? '2026-03-01',
-      accountStatus: d.accountStatus ?? 'active',
-      deletionReason: d.deletionReason ?? null,
-      deletionRequestedAt: d.deletionRequestedAt?.toDate?.()?.toISOString?.() ?? d.deletionRequestedAt ?? null,
-      profileVersion: typeof d.profileVersion === 'number' ? d.profileVersion : 1,
-      createdAt: d.createdAt?.toDate?.()?.toISOString?.() ?? d.createdAt ?? new Date().toISOString(),
-      updatedAt: d.updatedAt?.toDate?.()?.toISOString?.() ?? d.updatedAt ?? new Date().toISOString(),
-    };
+    const data = snap.data();
+    if (!data) return null;
+    return parseRenterProfileDocument(renterId, data as Record<string, unknown>);
   }
 
   async completeProfile(data: CompleteRenterProfileData): Promise<CompleteRenterProfileResult> {
@@ -101,7 +89,11 @@ export class WebRenterProfileGateway implements RenterProfileGateway {
       'completeRenterProfile',
     );
     const response = await call(validated);
-    return response.data;
+    return parseCallableResult(
+      completeRenterProfileResultSchema,
+      response.data,
+      'completeRenterProfile',
+    );
   }
 
   async requestDeletion(data: RequestAccountDeletionData): Promise<RequestAccountDeletionResult> {
@@ -117,7 +109,11 @@ export class WebRenterProfileGateway implements RenterProfileGateway {
       'requestAccountDeletion',
     );
     const response = await call(validated);
-    return response.data;
+    return parseCallableResult(
+      requestAccountDeletionResultSchema,
+      response.data,
+      'requestAccountDeletion',
+    );
   }
 }
 
