@@ -16,6 +16,7 @@ function mockRepository(options?: {
   vehicleOwnerId?: string;
   isApproved?: boolean;
   moderationStatus?: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'suspended';
+  imageStatus?: VehicleImageRecord['status'];
   missingField?: 'specs' | 'description' | 'rate' | 'plate' | 'coords' | 'images';
 }): {
   repository: VehicleRepository;
@@ -92,7 +93,7 @@ function mockRepository(options?: {
             vehicleId: 'veh-01',
             ownerId,
             order: 0,
-            status: 'processed',
+            status: options?.imageStatus ?? 'processed',
             width: 1920,
             height: 1080,
             originalUploadId: 'upload-01',
@@ -215,6 +216,26 @@ describe('submitVehicleForReview service', () => {
       code: 'FAILED_PRECONDITION',
       safeDetails: { reason: 'listing_incomplete' },
     });
+  });
+
+  it('does not treat rejected historical images as candidates for resubmission', async () => {
+    const { repository, writes } = mockRepository({
+      moderationStatus: 'rejected',
+      imageStatus: 'rejected',
+    });
+
+    await expect(
+      submitVehicleForReview(validCommand('key-submit-rejected-images-1'), 'owner-1', {
+        repository,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'listing_incomplete' },
+    });
+
+    expect(writes().vehicles).toHaveLength(0);
+    expect(writes().auditEvents).toHaveLength(0);
   });
 
   it('rejects submission if expected version does not match', async () => {
