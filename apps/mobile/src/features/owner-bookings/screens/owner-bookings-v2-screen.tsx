@@ -129,13 +129,13 @@ export function OwnerBookingsV2Screen() {
           </View>
         ) : null}
 
-        <RequestSection title="Needs your response" requests={responseNeeded} onOpen={(requestId) => router.push({ pathname: '/(owner)/owner-bookings/request/[requestId]' as Href, params: { requestId } })} />
-        <RequestSection title="Rental requests" requests={otherRequests} onOpen={(requestId) => router.push({ pathname: '/(owner)/owner-bookings/request/[requestId]' as Href, params: { requestId } })} />
+        <RequestSection title="Needs your response" requests={responseNeeded} onOpen={(requestId) => router.push({ pathname: '/(owner)/owner-bookings/request/[requestId]', params: { requestId } } as Href)} />
+        <RequestSection title="Rental requests" requests={otherRequests} onOpen={(requestId) => router.push({ pathname: '/(owner)/owner-bookings/request/[requestId]', params: { requestId } } as Href)} />
 
-        <BookingSection title="Confirmed" bookings={bookingGroups.confirmed} onOpen={(bookingId) => router.push({ pathname: '/(owner)/owner-bookings/[bookingId]' as Href, params: { bookingId } })} />
-        <BookingSection title="Needs attention" bookings={bookingGroups.attention} onOpen={(bookingId) => router.push({ pathname: '/(owner)/owner-bookings/[bookingId]' as Href, params: { bookingId } })} />
-        <BookingSection title="Historical owner response" bookings={bookingGroups.awaiting} onOpen={(bookingId) => router.push({ pathname: '/(owner)/owner-bookings/[bookingId]' as Href, params: { bookingId } })} />
-        <BookingSection title="Other bookings" bookings={bookingGroups.other} onOpen={(bookingId) => router.push({ pathname: '/(owner)/owner-bookings/[bookingId]' as Href, params: { bookingId } })} />
+        <BookingSection title="Confirmed" bookings={bookingGroups.confirmed} onOpen={(bookingId) => router.push({ pathname: '/(owner)/owner-bookings/[bookingId]', params: { bookingId } } as Href)} />
+        <BookingSection title="Needs attention" bookings={bookingGroups.attention} onOpen={(bookingId) => router.push({ pathname: '/(owner)/owner-bookings/[bookingId]', params: { bookingId } } as Href)} />
+        <BookingSection title="Historical owner response" bookings={bookingGroups.awaiting} onOpen={(bookingId) => router.push({ pathname: '/(owner)/owner-bookings/[bookingId]', params: { bookingId } } as Href)} />
+        <BookingSection title="Other bookings" bookings={bookingGroups.other} onOpen={(bookingId) => router.push({ pathname: '/(owner)/owner-bookings/[bookingId]', params: { bookingId } } as Href)} />
       </ScrollView>
     </SafeAreaView>
   );
