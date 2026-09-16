@@ -77,6 +77,39 @@ export async function finalizeVehicleImage(
     return finalizeVehicleImageResultSchema.parse(earlyReplay.result);
   }
 
+  // Fail closed before expensive image work. The final transaction repeats these
+  // checks so a listing cannot change moderation state while processing and still
+  // have new owner-controlled bytes attached.
+  await dependencies.repository.runTransaction(async (transaction) => {
+    const profile = await transaction.getOwnerProfile(actorUid);
+    if (!profile || !ownerMayCreateVehicle(profile.verificationStatus)) {
+      throw new CommandError(
+        'FORBIDDEN',
+        'Your owner account must be approved before managing vehicles.',
+        { reason: 'not_approved_owner' },
+      );
+    }
+
+    const vehicle = await transaction.getVehicle(command.data.vehicleId);
+    if (!vehicle) {
+      throw new CommandError('NOT_FOUND', 'Vehicle listing not found.');
+    }
+    if (!ownerMayManageVehicle(vehicle.ownerId, actorUid)) {
+      throw new CommandError('FORBIDDEN', 'You can only manage your own vehicles.', {
+        reason: 'not_vehicle_owner',
+      });
+    }
+    if (vehicle.visibility === 'deleted') {
+      throw new CommandError('FAILED_PRECONDITION', 'Cannot add images to a deleted vehicle listing.');
+    }
+    if (!['draft', 'rejected'].includes(vehicle.moderationStatus)) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Vehicle images can only be changed while a listing is a draft or requires changes.',
+      );
+    }
+  });
+
   const imageId = command.data.uploadId;
   const storagePath = sourceUploadPath(actorUid, command.data.vehicleId, command.data.uploadId);
   const { inspected, rendered } = await processUpload(storagePath, dependencies);
@@ -141,6 +174,13 @@ export async function finalizeVehicleImage(
 
     if (vehicle.visibility === 'deleted') {
       throw new CommandError('FAILED_PRECONDITION', 'Cannot add images to a deleted vehicle listing.');
+    }
+
+    if (!['draft', 'rejected'].includes(vehicle.moderationStatus)) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Vehicle images can only be changed while a listing is a draft or requires changes.',
+      );
     }
 
     const existingImages = await transaction.getVehicleImages(command.data.vehicleId);
