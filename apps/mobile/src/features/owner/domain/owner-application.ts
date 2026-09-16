@@ -133,6 +133,55 @@ export function getStepLockReason(
   }
 }
 
+/**
+ * A rejected application cannot reuse the prior identity document: rejection
+ * schedules the private bytes for deletion and the server requires a fresh upload.
+ * Draft applications can reuse an already-uploaded document that is not cleared.
+ */
+export function canReusePersistedGovernmentId(
+  profile: Pick<OwnerVisibleProfile, 'verificationStatus' | 'governmentId'> | null | undefined,
+): boolean {
+  if (!profile || profile.verificationStatus === 'rejected') return false;
+  return Boolean(
+    profile.governmentId?.uploadId && profile.governmentId.status !== 'cleared',
+  );
+}
+
+export function computeOwnerIdScreenState({
+  profile,
+  phoneNumber,
+  emailVerified,
+  hasSelectedAsset,
+}: {
+  profile: OwnerVisibleProfile | null | undefined;
+  phoneNumber: string | null | undefined;
+  emailVerified: boolean;
+  hasSelectedAsset: boolean;
+}) {
+  const agreementsCurrent = hasCurrentOwnerAgreements(profile);
+  const identityComplete = Boolean(
+    profile?.legalName &&
+      profile?.address?.line1 &&
+      profile?.address?.areaLabel &&
+      agreementsCurrent,
+  );
+  const phoneComplete = isNigerianE164(phoneNumber);
+  const prerequisitesMet = emailVerified && identityComplete && phoneComplete;
+  const editable = isOwnerApplicationEditable(profile?.verificationStatus);
+  const hasExistingDocument = canReusePersistedGovernmentId(profile);
+  const canContinueToReview = editable && prerequisitesMet && (hasSelectedAsset || hasExistingDocument);
+
+  return {
+    agreementsCurrent,
+    identityComplete,
+    phoneComplete,
+    prerequisitesMet,
+    editable,
+    hasExistingDocument,
+    canContinueToReview,
+  };
+}
+
 export function computeApplicationCompleteness(
   profile: OwnerVisibleProfile | null,
   userPhone: string | null | undefined,
@@ -150,13 +199,8 @@ export function computeApplicationCompleteness(
   const phoneComplete = isNigerianE164(userPhone);
   // A rejected application cannot reuse the prior identity document: rejection
   // schedules the private bytes for deletion and the server requires a fresh upload.
-  const persistedIdCanBeReused = profile?.verificationStatus !== 'rejected';
   const idUploaded = Boolean(
-    localUploadedDoc ||
-      (persistedIdCanBeReused &&
-        profile?.governmentId &&
-        profile.governmentId.uploadId &&
-        profile.governmentId.status !== 'cleared'),
+    localUploadedDoc || canReusePersistedGovernmentId(profile),
   );
 
   const canSubmit = emailVerified && identityComplete && phoneComplete && idUploaded;

@@ -17,6 +17,7 @@ import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import {
+  canReusePersistedGovernmentId,
   computeApplicationCompleteness,
   hasCurrentOwnerAgreements,
   isOwnerApplicationEditable,
@@ -73,11 +74,7 @@ export function OwnerSubmitV2Screen() {
       ? candidateDraft
       : null;
   const existingProfileDocument =
-    profile?.verificationStatus !== 'rejected' &&
-    profile?.governmentId &&
-    profile.governmentId.status !== 'cleared'
-      ? profile.governmentId
-      : null;
+    canReusePersistedGovernmentId(profile) ? profile?.governmentId ?? null : null;
   const uploadId = effectiveDraft?.uploadId || existingProfileDocument?.uploadId;
   const documentKind = effectiveDraft?.documentKind || upload.candidate?.documentKind || existingProfileDocument?.documentKind || 'national_id';
   const originalFileName = effectiveDraft?.originalFileName || upload.candidate?.fileName || 'government-identification.jpg';

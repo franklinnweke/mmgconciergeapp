@@ -20,7 +20,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
-import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
+import { canReusePersistedGovernmentId, isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
 import { validateOwnerIdCandidate } from '../domain/owner-id-preflight';
 import { useOwnerIdUpload } from '../domain/owner-id-upload-context';
 
@@ -220,7 +220,7 @@ export function OwnerIdScreen() {
     }
 
     if (!selectedAsset) {
-      if (profile?.governmentId?.uploadId) {
+      if (canReusePersistedGovernmentId(profile)) {
         router.push('/(owner)/submit' as Href);
       }
       return;
@@ -362,7 +362,7 @@ export function OwnerIdScreen() {
               onPress={handleUpload}
               style={[
                 styles.primaryAction,
-                (!selectedAsset && !profile?.governmentId?.uploadId) && styles.disabledAction,
+                (!selectedAsset && !canReusePersistedGovernmentId(profile)) && styles.disabledAction,
               ]}
             >
               <View style={styles.primaryButton}>

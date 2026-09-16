@@ -12,11 +12,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
-import {
-  hasCurrentOwnerAgreements,
-  isNigerianE164,
-  isOwnerApplicationEditable,
-} from '../domain/owner-application';
+import { computeOwnerIdScreenState } from '../domain/owner-application';
 import { validateOwnerIdCandidate } from '../domain/owner-id-preflight';
 import { useOwnerIdUpload } from '../domain/owner-id-upload-context';
 
@@ -57,17 +53,18 @@ export function OwnerIdV2Screen() {
   }, [auth.user?.uid, retryKey]);
 
   const emailVerified = Boolean(auth.user?.emailVerified);
-  const agreementsCurrent = hasCurrentOwnerAgreements(profile);
-  const identityComplete = Boolean(
-    profile?.legalName &&
-      profile.address?.line1 &&
-      profile.address?.areaLabel &&
-      agreementsCurrent,
-  );
-  const phoneComplete = isNigerianE164(auth.user?.phoneNumber);
-  const prerequisitesMet = emailVerified && identityComplete && phoneComplete;
-  const editable = isOwnerApplicationEditable(profile?.verificationStatus);
-  const hasExistingDocument = Boolean(profile?.governmentId?.uploadId && profile.governmentId.status !== 'cleared');
+  const {
+    identityComplete,
+    prerequisitesMet,
+    editable,
+    hasExistingDocument,
+    canContinueToReview,
+  } = computeOwnerIdScreenState({
+    profile,
+    phoneNumber: auth.user?.phoneNumber,
+    emailVerified,
+    hasSelectedAsset: Boolean(selected),
+  });
 
   const acceptAsset = (asset: ImagePicker.ImagePickerAsset) => {
     try {
@@ -102,9 +99,9 @@ export function OwnerIdV2Screen() {
   };
 
   const continueToReview = () => {
-    if (!auth.user?.uid || !editable || !prerequisitesMet || profileLoadError) return;
+    if (!auth.user?.uid || !canContinueToReview || profileLoadError) return;
     if (selected) startUpload(auth.user.uid, selected, documentKind);
-    if (selected || hasExistingDocument) router.push('/(owner)/submit' as Href);
+    router.push('/(owner)/submit' as Href);
   };
 
   const prerequisiteAction = () => {
@@ -187,7 +184,7 @@ export function OwnerIdV2Screen() {
 
             {hasExistingDocument && !selected ? <Text style={styles.muted}>An identification upload is already attached. You can continue or choose a replacement.</Text> : null}
 
-            <PressableScale disabled={!selected && !hasExistingDocument} onPress={continueToReview} style={(!selected && !hasExistingDocument) ? styles.disabled : undefined}>
+            <PressableScale disabled={!canContinueToReview} onPress={continueToReview} style={!canContinueToReview ? styles.disabled : undefined}>
               <View style={styles.primaryButton}><Text style={styles.primaryText}>Continue to review</Text></View>
             </PressableScale>
           </>

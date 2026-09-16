@@ -7,6 +7,7 @@ import {
 } from '@mmg/contracts';
 
 import {
+  canReusePersistedGovernmentId,
   computeApplicationCompleteness,
   getDeskPresentation,
   getStepLockReason,
@@ -18,6 +19,61 @@ import {
 import { ownerCommandErrorMessage } from './owner-errors.js';
 
 describe('owner application domain', () => {
+  describe('canReusePersistedGovernmentId', () => {
+    it('returns true for draft profile with an active government ID upload', () => {
+      expect(
+        canReusePersistedGovernmentId({
+          verificationStatus: 'draft',
+          governmentId: {
+            uploadId: 'upload-valid',
+            documentKind: 'national_id',
+            contentType: 'image/jpeg',
+            byteSize: 1024,
+            uploadedAt: '2026-09-16T12:00:00.000Z',
+            status: 'uploaded',
+          },
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for rejected profile even when document is attached and deletion is pending', () => {
+      expect(
+        canReusePersistedGovernmentId({
+          verificationStatus: 'rejected',
+          governmentId: {
+            uploadId: 'upload-rejected-pending-delete',
+            documentKind: 'national_id',
+            contentType: 'image/jpeg',
+            byteSize: 1024,
+            uploadedAt: '2026-09-16T12:00:00.000Z',
+            status: 'submitted',
+          },
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when profile is null or undefined', () => {
+      expect(canReusePersistedGovernmentId(null)).toBe(false);
+      expect(canReusePersistedGovernmentId(undefined)).toBe(false);
+    });
+
+    it('returns false when governmentId is missing or cleared', () => {
+      expect(canReusePersistedGovernmentId({ verificationStatus: 'draft', governmentId: null })).toBe(false);
+      expect(
+        canReusePersistedGovernmentId({
+          verificationStatus: 'draft',
+          governmentId: {
+            uploadId: 'upload-cleared',
+            documentKind: 'national_id',
+            contentType: 'image/jpeg',
+            byteSize: 1024,
+            uploadedAt: '2026-09-16T12:00:00.000Z',
+            status: 'cleared',
+          },
+        }),
+      ).toBe(false);
+    });
+  });
   describe('hasCurrentOwnerAgreements', () => {
     const validProfile: OwnerVisibleProfile = {
       ownerId: 'owner-1',
