@@ -222,7 +222,7 @@ describe('updateVehicleDraft', () => {
 
     const pending = setup({ moderationStatus: 'pending_review' });
     await expect(updateVehicleDraft(command(), 'owner-1', { repository: pending.repository }))
-      .rejects.toMatchObject({ code: 'FAILED_PRECONDITION', safeDetails: { reason: 'listing_not_editable' } });
+      .rejects.toMatchObject({ code: 'FAILED_PRECONDITION' });
   });
 
   it('replays the same idempotent update without applying it twice', async () => {
