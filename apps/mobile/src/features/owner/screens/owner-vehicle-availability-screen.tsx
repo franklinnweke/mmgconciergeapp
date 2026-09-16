@@ -230,7 +230,7 @@ export function OwnerVehicleAvailabilityScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.intro}>
-            Block dates when this vehicle cannot accept a journey. Existing booking holds appear only as reserved.
+            Block dates when unavailable.
           </Text>
 
           {Platform.OS === 'web' && process.env.NODE_ENV !== 'production' ? (
@@ -314,7 +314,7 @@ export function OwnerVehicleAvailabilityScreen() {
           {selection.endDate ? (
             <View style={styles.composer}>
               <Text style={styles.sectionTitle}>Why is it unavailable?</Text>
-              <Text style={styles.sectionMeta}>Only you and authorized MMG operations can see this reason.</Text>
+              <Text style={styles.sectionMeta}>Only you and MMG see this.</Text>
               <View style={styles.reasonList}>
                 {REASONS.map((item) => {
                   const active = reason === item.value;
@@ -361,7 +361,7 @@ export function OwnerVehicleAvailabilityScreen() {
           <View style={styles.existingSection}>
             <Text style={styles.sectionTitle}>Your current blocks</Text>
             {calendar.ownerBlocks.length === 0 ? (
-              <Text style={styles.emptyText}>No owner-created blocks fall within this five-week window.</Text>
+              <Text style={styles.emptyText}>No blocked dates.</Text>
             ) : calendar.ownerBlocks.map((block) => (
               <View key={block.blockId} style={styles.blockRow}>
                 <View style={styles.blockDateRail} />

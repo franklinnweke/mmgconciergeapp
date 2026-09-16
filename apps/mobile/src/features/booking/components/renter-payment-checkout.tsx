@@ -176,10 +176,7 @@ export function RenterPaymentCheckout({
 
   if (state === 'booking_confirmed') {
     return (
-      <StatusCard icon="checkmark-circle" tone="success" title="Payment verified — booking secured">
-        <Text style={styles.bodyText}>
-          Your payment was verified and the chauffeur booking is confirmed.
-        </Text>
+      <StatusCard icon="checkmark-circle" tone="success" title="Booking secured">
         <ActionButton label="View trips" onPress={onViewTrips} />
       </StatusCard>
     );
@@ -198,9 +195,9 @@ export function RenterPaymentCheckout({
 
   if (state === 'paid_conflict') {
     return (
-      <StatusCard icon="alert-circle" tone="warning" title="Payment received, dates need attention">
+      <StatusCard icon="alert-circle" tone="warning" title="Dates need attention">
         <Text style={styles.bodyText}>
-          Your payment was verified, but those dates are no longer available. MMG support will contact you to resolve the booking manually.
+          Payment verified, but those dates are unavailable. We will contact you.
         </Text>
         <ActionButton label="View trips" onPress={onViewTrips} />
       </StatusCard>
@@ -209,11 +206,9 @@ export function RenterPaymentCheckout({
 
   if (state === 'expired_hold') {
     return (
-      <StatusCard icon="time-outline" tone="warning" title={mode === 'request_first' ? 'Payment window expired' : 'Checkout hold expired'}>
+      <StatusCard icon="time-outline" tone="warning" title="Payment window expired">
         <Text style={styles.bodyText}>
-          {mode === 'request_first'
-            ? 'The 30-minute payment window ended. Dates were released and no charge was taken.'
-            : 'Create a new hold before attempting payment again. No ride has been confirmed.'}
+          No charge taken. Send a new request.
         </Text>
         <ActionButton
           label={mode === 'request_first' ? 'View trips' : 'Create a new hold'}
@@ -227,9 +222,9 @@ export function RenterPaymentCheckout({
     return (
       <StatusCard icon="close-circle-outline" tone="warning" title={state === 'abandoned' ? 'Payment not completed' : 'Payment failed'}>
         <Text style={styles.bodyText}>
-          The ride is not confirmed. You can try Paystack again while the payment window is still open.
+          Try again while the window is open.
         </Text>
-        <ActionButton label="Try payment again" onPress={() => void openCheckout()} />
+        <ActionButton label="Try again" onPress={() => void openCheckout()} />
       </StatusCard>
     );
   }
@@ -239,12 +234,12 @@ export function RenterPaymentCheckout({
       <View style={styles.panel}>
         <ActivityIndicator color={colors.goldStrong} />
         <Text style={styles.panelTitle}>
-          {state === 'opening' ? 'Opening secure checkout' : 'Checking payment'}
+          {state === 'opening' ? 'Opening checkout' : 'Checking payment'}
         </Text>
         <Text style={styles.bodyText}>
           {state === 'opening'
-            ? 'Complete payment in Paystack. MMG will return here automatically, then verify the transaction.'
-            : 'MMG will only show payment received after the server verifies the Paystack transaction.'}
+            ? 'Complete payment in Paystack.'
+            : 'Verifying with Paystack.'}
         </Text>
         {state !== 'opening' ? (
           <ActionButton label="Check payment status" onPress={() => void checkPayment()} />
@@ -258,31 +253,26 @@ export function RenterPaymentCheckout({
     <View style={styles.panel}>
       <View style={styles.headingRow}>
         <Ionicons color={colors.goldStrong} name="card-outline" size={21} />
-        <Text style={styles.panelTitle}>Payment ready</Text>
+        <Text style={styles.panelTitle}>Pay now</Text>
       </View>
       <Text style={styles.bodyText}>
-        {mode === 'request_first'
-          ? 'Complete payment within 30 minutes to reserve your vehicle. MMG confirms the booking only after the server verifies Paystack.'
-          : 'Your held total is server-authoritative. MMG confirms payment only after server verification.'}
+        Pay within 30 minutes.
       </Text>
-      <ActionButton label="Pay securely" onPress={() => void openCheckout()} />
+      <ActionButton label="Pay" onPress={() => void openCheckout()} />
       {mode === 'request_first' && onReleaseDates ? (
         confirmingRelease ? (
           <View style={styles.releaseConfirmation}>
-            <Text style={styles.releaseTitle}>Release these dates?</Text>
-            <Text style={styles.releaseBody}>
-              This closes the payment window and makes the dates available again. No payment has been taken.
-            </Text>
+            <Text style={styles.releaseTitle}>Release dates? No payment taken.</Text>
             <View style={styles.releaseActions}>
               <SecondaryActionButton
                 disabled={releasingDates}
-                label="Keep payment window"
+                label="Keep"
                 onPress={() => setConfirmingRelease(false)}
               />
               <SecondaryActionButton
                 destructive
                 disabled={releasingDates}
-                label={releasingDates ? 'Releasing dates…' : 'Release dates'}
+                label={releasingDates ? 'Releasing…' : 'Release dates'}
                 onPress={() => void releaseDates()}
               />
             </View>

@@ -199,7 +199,7 @@ function TripRow({
             <Text numberOfLines={1} style={styles.area}>{areaLabel}</Text>
             <Text style={styles.total}>{formatNairaFromKobo(trip.priceSnapshot.renterTotalKobo)}</Text>
           </View>
-          {trip.source === 'legacy' ? <Text style={styles.legacyLabel}>Earlier estimate</Text> : null}
+          {trip.source === 'legacy' ? <Text style={styles.legacyLabel}>Estimate</Text> : null}
         </View>
       </View>
     </PressableScale>
@@ -211,10 +211,10 @@ function EmptyTrips({ onExplore }: { onExplore: () => void }) {
     <View style={styles.empty}>
       <Ionicons color={colors.muted} name="calendar-outline" size={28} />
       <Text style={styles.emptyTitle}>No trips yet</Text>
-      <Text style={styles.emptyBody}>Choose a car and dates when you are ready to book.</Text>
+      <Text style={styles.emptyBody}>Browse cars to send a request.</Text>
       <PressableScale accessibilityRole="button" onPress={onExplore}>
         <View style={styles.emptyAction}>
-          <Text style={styles.emptyActionText}>Find a car</Text>
+          <Text style={styles.emptyActionText}>Find cars</Text>
         </View>
       </PressableScale>
     </View>

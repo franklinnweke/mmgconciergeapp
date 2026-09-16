@@ -122,7 +122,7 @@ export function OwnerIdV2Screen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.privacy}>
           <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={18} />
-          <Text style={styles.privacyText}>Your ID stays private and is used only for owner verification. Deletion is triggered after the final verification decision, while verification and audit metadata is retained.</Text>
+          <Text style={styles.privacyText}>Your ID stays private and is deleted after verification.</Text>
         </View>
 
         {loading ? <View style={styles.center}><ActivityIndicator color={colors.goldStrong} /><Text style={styles.muted}>Checking application status…</Text></View> : null}

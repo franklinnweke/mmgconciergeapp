@@ -114,7 +114,7 @@ export function VehicleModerationInspector({
       if (typeof body.warning === 'string' && body.warning) {
         setErrorMsg(body.warning);
       } else {
-        setSuccessMsg('Approval recorded. Reloading the authoritative vehicle state.');
+        setSuccessMsg('Approval recorded.');
       }
       router.refresh();
     } catch (error) {
@@ -151,7 +151,7 @@ export function VehicleModerationInspector({
       // Owner messaging is not live: reviewVehicle records the decision and
       // reason on the listing but enqueues no notification. Do not claim a
       // dispatch that did not happen.
-      setSuccessMsg('Review decision recorded. Reloading the authoritative vehicle state.');
+        setSuccessMsg('Review decision recorded.');
       setShowRejectForm(false);
       router.refresh();
     } catch (error) {
@@ -189,7 +189,7 @@ export function VehicleModerationInspector({
       if (typeof body.warning === 'string' && body.warning) {
         setErrorMsg(body.warning);
       } else {
-        setSuccessMsg('Suspension recorded. Reloading the authoritative vehicle state.');
+        setSuccessMsg('Suspension recorded.');
       }
       setShowSuspendForm(false);
       router.refresh();
@@ -222,7 +222,7 @@ export function VehicleModerationInspector({
       if (typeof body.warning === 'string' && body.warning) {
         setErrorMsg(body.warning);
       } else {
-        setSuccessMsg('Restore recorded. Reloading the authoritative vehicle state.');
+        setSuccessMsg('Restore recorded.');
       }
       router.refresh();
     } catch (error) {

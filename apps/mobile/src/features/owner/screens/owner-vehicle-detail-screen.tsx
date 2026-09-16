@@ -142,8 +142,8 @@ export function OwnerVehicleDetailScreen() {
         <View style={styles.statusCard}>
           <View style={styles.statusRow}>
             <View>
-              <Text style={styles.statusHeading}>MODERATION STATUS</Text>
-              <Text style={styles.statusValue}>{vehicle.moderationStatus.toUpperCase().replace('_', ' ')}</Text>
+              <Text style={styles.statusHeading}>Status</Text>
+              <Text style={styles.statusValue}>{vehicle.moderationStatus === 'pending_review' ? 'Under review' : vehicle.moderationStatus === 'draft' ? 'Draft' : vehicle.moderationStatus === 'rejected' ? 'Needs changes' : vehicle.moderationStatus === 'approved' ? 'Approved' : vehicle.moderationStatus}</Text>
             </View>
             {vehicle.moderationStatus === 'approved' ? (
               <View style={styles.toggleGroup}>
@@ -163,7 +163,7 @@ export function OwnerVehicleDetailScreen() {
             <View style={styles.feedbackContainer}>
               <Ionicons color={colors.danger} name="information-circle" size={18} />
               <View style={styles.feedbackCopy}>
-                <Text style={styles.feedbackHeading}>Moderator feedback</Text>
+                <Text style={styles.feedbackHeading}>MMG feedback</Text>
                 <Text style={styles.feedbackBody}>{vehicle.lastDecisionReason}</Text>
               </View>
             </View>
@@ -182,7 +182,7 @@ export function OwnerVehicleDetailScreen() {
             </View>
             <View style={styles.availabilityCopy}>
               <Text style={styles.availabilityTitle}>Manage availability</Text>
-              <Text style={styles.availabilityBody}>Block dates or review reserved journey dates.</Text>
+              <Text style={styles.availabilityBody}>Block unavailable dates.</Text>
             </View>
           </PressableScale>
         ) : null}

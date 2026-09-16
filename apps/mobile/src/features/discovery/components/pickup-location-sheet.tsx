@@ -191,8 +191,7 @@ export function PickupLocationSheet({
                 </View>
 
                 <View style={styles.confirmHeaderCopy}>
-                  <Text accessibilityRole="header" style={styles.title}>Confirm pickup location</Text>
-                  <Text style={styles.subtitle}>Review the address and adjust the map only if needed.</Text>
+                  <Text accessibilityRole="header" style={styles.title}>Confirm pickup</Text>
                 </View>
 
                 <View style={styles.confirmedCard}>
@@ -210,13 +209,13 @@ export function PickupLocationSheet({
                 />
 
                 <View style={styles.noteSection}>
-                  <Text style={styles.noteLabel}>Entrance or meeting point note (optional)</Text>
+                  <Text style={styles.noteLabel}>Meeting note (optional)</Text>
                   <TextInput
-                    accessibilityLabel="Entrance or meeting point note"
+                    accessibilityLabel="Meeting note"
                     autoCapitalize="sentences"
                     maxLength={150}
                     onChangeText={setNote}
-                    placeholder="e.g. Gate 3, North Lobby, or call security on arrival"
+                    placeholder="Gate, lobby, landmark"
                     placeholderTextColor={colors.muted}
                     style={styles.noteInput}
                     value={note}
@@ -224,12 +223,12 @@ export function PickupLocationSheet({
                 </View>
 
                 <PressableScale
-                  accessibilityLabel="Confirm pickup location"
+                  accessibilityLabel="Confirm pickup"
                   accessibilityRole="button"
                   onPress={handleConfirm}
                   style={styles.confirmButton}
                 >
-                  <Text style={styles.confirmButtonText}>Confirm pickup location</Text>
+                  <Text style={styles.confirmButtonText}>Confirm</Text>
                 </PressableScale>
 
                 {pendingLocation.source === 'place_search' || pendingLocation.source === 'pin_adjusted' ? (
@@ -242,7 +241,7 @@ export function PickupLocationSheet({
               <View>
                 <View style={styles.header}>
                   <View style={styles.headerTitleGroup}>
-                    <Text accessibilityRole="header" style={styles.title}>Where should we bring the car?</Text>
+                    <Text accessibilityRole="header" style={styles.title}>Select pickup</Text>
                   </View>
                   <Pressable
                     accessibilityLabel="Close location selection"
@@ -283,9 +282,6 @@ export function PickupLocationSheet({
                   </View>
                   <View style={styles.currentLocationCopy}>
                     <Text style={styles.currentLocationTitle}>Use my current location</Text>
-                    <Text style={styles.currentLocationSub}>
-                      {currentLocStatus === 'requesting' ? 'Finding your location…' : 'Find your pickup automatically'}
-                    </Text>
                   </View>
                 </PressableScale>
 
@@ -296,7 +292,7 @@ export function PickupLocationSheet({
                     autoCorrect={false}
                     clearButtonMode="while-editing"
                     onChangeText={setQuery}
-                    placeholder="Search Lagos address or landmark..."
+                    placeholder="Search address or landmark"
                     placeholderTextColor={colors.muted}
                     style={styles.searchInput}
                     value={query}
@@ -312,7 +308,7 @@ export function PickupLocationSheet({
 
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionHeaderTitle}>
-                    {query.trim().length > 0 ? 'Matching locations' : 'Suggested Lagos landmarks'}
+                    {query.trim().length > 0 ? 'Results' : 'Suggestions'}
                   </Text>
                 </View>
 
@@ -323,7 +319,7 @@ export function PickupLocationSheet({
                 >
                   {suggestions.length === 0 ? (
                     <View style={styles.emptyResultsBox}>
-                      <Text style={styles.emptyResultsText}>No Lagos landmarks match this search.</Text>
+                      <Text style={styles.emptyResultsText}>No matches.</Text>
                     </View>
                   ) : (
                     suggestions.map((item) => {

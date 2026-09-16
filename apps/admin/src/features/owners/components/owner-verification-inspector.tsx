@@ -312,7 +312,7 @@ export function OwnerVerificationInspector({
               </div>
               <div className="owner-security-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#7E8695' }}>
                 <Lock size={12} />
-                <span>Zero-Client Signed URL (15m)</span>
+                <span>Private preview</span>
               </div>
             </div>
 

@@ -242,7 +242,7 @@ export function OwnerIdScreen() {
         <View style={styles.privacyBox}>
           <Ionicons color={colors.goldStrong} name="lock-closed-outline" size={20} />
           <Text style={styles.privacyText}>
-            Your ID is stored privately in encrypted storage and used solely by MMG operations for verification. Deletion is triggered automatically after the final verification decision. Only verification and audit metadata is retained.
+            Your ID stays private and is deleted after verification.
           </Text>
         </View>
 
@@ -262,10 +262,10 @@ export function OwnerIdScreen() {
           <View style={styles.prerequisiteCard}>
             <View style={styles.prerequisiteHeader}>
               <Ionicons color={colors.goldStrong} name="information-circle-outline" size={22} />
-              <Text style={styles.prerequisiteTitle}>Application status managed by MMG</Text>
+              <Text style={styles.prerequisiteTitle}>Not editable</Text>
             </View>
             <Text style={styles.prerequisiteBody}>
-              Your owner application is no longer editable. Return to your Owner Desk to see its current status.
+              Check Owner Desk for status.
             </Text>
             <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.cardAction}>
               <View style={styles.prerequisiteButton}>

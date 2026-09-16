@@ -233,11 +233,11 @@ export default function TripDetailScreen({
             <Ionicons color={colors.goldStrong} name="map-outline" size={27} />
           </View>
           <Text style={styles.centeredEyebrow}>Trip not found</Text>
-          <Text accessibilityRole="header" style={styles.centeredTitle}>This trip is not available on this device.</Text>
+          <Text accessibilityRole="header" style={styles.centeredTitle}>This trip is unavailable.</Text>
           <Text style={styles.centeredBody}>
             {refreshError
               ? `Could not refresh trip details: ${refreshError}`
-              : 'It may still be syncing, belong to another account, or no longer be available.'}
+              : 'It may be syncing or no longer available.'}
           </Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
             {refreshError ? (
@@ -304,7 +304,7 @@ export default function TripDetailScreen({
             />
             <View style={styles.heroCopy}>
               <Text accessibilityRole="header" style={styles.vehicleName}>{vehicle.displayName}</Text>
-              <Text style={styles.vehicleMeta}>{vehicle.areaLabel} · Chauffeur included</Text>
+              <Text style={styles.vehicleMeta}>{vehicle.areaLabel}</Text>
             </View>
           </View>
 
@@ -315,7 +315,7 @@ export default function TripDetailScreen({
               <View accessibilityLiveRegion="polite" style={styles.offlineNotice}>
                 <Ionicons color={colors.goldStrong} name="cloud-offline-outline" size={16} />
                 <Text style={styles.offlineNoticeText}>
-                  {syncError ?? 'Showing a cached copy. Live updates are unavailable.'}
+                  {syncError ?? 'Showing cached data.'}
                 </Text>
               </View>
             ) : null}

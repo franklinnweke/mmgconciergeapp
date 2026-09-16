@@ -156,11 +156,11 @@ export function PickupPinMap({
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.instructionText}>
-          {isMoving ? 'Positioning pickup point…' : 'Pan the map to adjust the exact pickup point'}
+          {isMoving ? 'Moving pin…' : 'Drag map to adjust pin'}
         </Text>
         {hasAdjusted && onReset ? (
           <PressableScale
-            accessibilityLabel="Reset pickup point"
+            accessibilityLabel="Reset pin"
             accessibilityRole="button"
             onPress={handleResetPress}
             style={styles.resetButton}
@@ -171,7 +171,7 @@ export function PickupPinMap({
       </View>
 
       <View
-        accessibilityLabel="Interactive map for exact chauffeur arrival location"
+        accessibilityLabel="Pickup map"
         style={styles.mapFrame}
       >
         <MapView

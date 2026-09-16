@@ -129,8 +129,8 @@ export default function BookingReviewScreen({
     if (!pickupLocation || !isServiceable || !serviceArea) {
       setErrorMessage(
         pickupLocation
-          ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
-          : 'Choose a Lagos delivery landmark or use your current location to request this car.',
+          ? 'Pickup must be in Lagos.'
+          : 'Select a Lagos pickup.',
       );
       return;
     }
@@ -184,7 +184,7 @@ export default function BookingReviewScreen({
         submissionKey.current.markSucceeded();
         requestId = result.result.requestId;
       } catch (error: unknown) {
-        setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
+        setErrorMessage(`${bookingCommandErrorMessage(error)}`);
         return;
       }
 
@@ -263,10 +263,10 @@ export default function BookingReviewScreen({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery location</Text>
+          <Text style={styles.sectionTitle}>Pickup</Text>
           <PressableScale
-            accessibilityHint="Change delivery location"
-            accessibilityLabel={`Delivery location: ${pickupLocation?.displayName ?? 'None selected'}. Tap to change.`}
+            accessibilityHint="Change pickup location"
+            accessibilityLabel={`Pickup: ${pickupLocation?.displayName ?? 'None selected'}. Tap to change.`}
             accessibilityRole="button"
             onPress={() => setSheetVisible(true)}
             style={styles.deliveryCard}
@@ -276,12 +276,12 @@ export default function BookingReviewScreen({
             </View>
             <View style={styles.deliveryCopy}>
               <Text style={styles.deliveryTitle}>
-                {pickupLocation ? pickupLocation.displayName : 'Choose delivery location'}
+                {pickupLocation ? pickupLocation.displayName : 'Select pickup'}
               </Text>
               <Text style={styles.deliveryAddress}>
                 {pickupLocation
                   ? pickupLocation.formattedAddress
-                  : 'Tap to select where we should bring the car in Lagos'}
+                  : 'Select pickup in Lagos'}
               </Text>
               {pickupLocation?.note ? (
                 <Text style={styles.deliveryNote}>Note: {pickupLocation.note}</Text>
@@ -293,9 +293,7 @@ export default function BookingReviewScreen({
             <View style={styles.warningRow}>
               <Ionicons color={colors.danger} name="alert-circle" size={16} />
               <Text style={styles.warningText}>
-                {pickupLocation
-                  ? 'MMG currently serves pickups within Lagos. Choose a Lagos pickup location instead.'
-                  : 'Choose a Lagos delivery landmark or use your current location to request this car.'}
+                Pickup must be in Lagos.
               </Text>
             </View>
           ) : null}
@@ -313,7 +311,7 @@ export default function BookingReviewScreen({
             style={styles.input}
             value={phoneInput}
           />
-          <Text style={styles.noteText}>Used by MMG to call you before opening payment.</Text>
+          <Text style={styles.noteText}>MMG calls this number before payment.</Text>
         </View>
 
         {needsProfile ? (
@@ -331,21 +329,20 @@ export default function BookingReviewScreen({
         ) : null}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Estimated total</Text>
+          <Text style={styles.sectionTitle}>Price</Text>
           <QuoteRow
             label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${journey.durationDays} ${journey.durationDays === 1 ? 'day' : 'days'}`}
             value={formatNairaFromKobo(quote.rentalKobo)}
           />
           <QuoteRow label="Service and protection" value={formatNairaFromKobo(quote.serviceFeeKobo)} />
-          <QuoteRow label="Chauffeur and Lagos delivery" value="Included" />
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Estimated total</Text>
+            <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
           </View>
         </View>
 
         <Text style={styles.reassuranceText}>
-          No payment now. MMG will contact you once your request is confirmed.
+          No payment now.
         </Text>
 
         {errorMessage ? (

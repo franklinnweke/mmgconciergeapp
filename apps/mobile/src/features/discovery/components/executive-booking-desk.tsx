@@ -125,7 +125,7 @@ export function ExecutiveBookingDesk({
                   <Text numberOfLines={1} style={styles.summaryMeta}>{pickup.formattedAddress}</Text>
                 </>
               ) : (
-                <Text numberOfLines={1} style={styles.summaryMeta}>Where should we bring the car?</Text>
+                <Text numberOfLines={1} style={styles.summaryMeta}>Select pickup</Text>
               )}
             </View>
             <Text style={styles.editText}>{pickup ? 'Edit' : 'Select'}</Text>
@@ -169,14 +169,13 @@ export function ExecutiveBookingDesk({
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={styles.sheetTitle}>Choose dates</Text>
-                <Text style={styles.sheetSubtitle}>Select rental dates</Text>
               </View>
               <PressableScale accessibilityRole="button" haptic onPress={() => setDatesOpen(false)}>
                 <Text style={styles.doneText}>Done</Text>
               </PressableScale>
             </View>
 
-            <Text style={styles.pickerLabel}>Pickup</Text>
+            <Text style={styles.pickerLabel}>Start</Text>
             <ScrollView contentContainerStyle={styles.dateRail} horizontal showsHorizontalScrollIndicator={false}>
               {dateOptions.map((option) => {
                 const selected = option.offset === startOffset;
@@ -208,7 +207,7 @@ export function ExecutiveBookingDesk({
             </View>
 
             <View style={styles.rangeSummary}>
-              <Text style={styles.rangeLabel}>Your trip</Text>
+              <Text style={styles.rangeLabel}>Trip</Text>
               <Text style={styles.rangeValue}>{formattedStart} – {formattedEnd}</Text>
             </View>
           </View>

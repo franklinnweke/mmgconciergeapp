@@ -110,7 +110,7 @@ function VehicleRow({
             <Text style={styles.rate}>{item.ownerDailyRateKobo ? formatNairaFromKobo(item.ownerDailyRateKobo) : 'Not set'}</Text>
           </View>
           {item.moderationStatus === 'rejected' && item.lastDecisionReason ? (
-            <Text numberOfLines={2} style={styles.feedback}>MMG feedback: {item.lastDecisionReason}</Text>
+            <Text numberOfLines={2} style={styles.feedback}>{item.lastDecisionReason}</Text>
           ) : null}
         </View>
       </PressableScale>
@@ -118,8 +118,7 @@ function VehicleRow({
       {item.moderationStatus === 'approved' ? (
         <View style={styles.visibilityRow}>
           <View>
-            <Text style={styles.visibilityTitle}>Renter discovery</Text>
-            <Text style={styles.muted}>{item.visibility === 'active' ? 'Visible to renters' : 'Paused'}</Text>
+            <Text style={styles.muted}>{item.visibility === 'active' ? 'Live' : 'Paused'}</Text>
           </View>
           <Switch
             accessibilityLabel={`${item.visibility === 'active' ? 'Pause' : 'Activate'} ${item.displayName}`}

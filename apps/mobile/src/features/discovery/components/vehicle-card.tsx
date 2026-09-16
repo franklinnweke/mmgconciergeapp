@@ -47,8 +47,6 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         <View style={styles.priceRow}>
           <Text style={styles.price}>{formatNairaFromKobo(vehicle.dailyRateKobo)}</Text>
           <Text style={styles.perDay}> / day</Text>
-          <View style={styles.includedSpacer} />
-          <Text style={styles.included}>Chauffeur included</Text>
         </View>
       </View>
     </PressableScale>
@@ -95,14 +93,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     height: 205,
     overflow: 'hidden',
-  },
-  included: {
-    color: colors.gold,
-    fontFamily: typography.bodyMedium,
-    fontSize: 11,
-  },
-  includedSpacer: {
-    flex: 1,
   },
   meta: {
     color: colors.muted,

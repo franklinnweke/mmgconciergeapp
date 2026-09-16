@@ -190,7 +190,7 @@ export function OwnerVehicleAvailabilityV2Screen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.intro}>Block dates when this vehicle cannot accept a journey. The 60-day view covers the full renter request horizon with room to plan ahead.</Text>
+          <Text style={styles.intro}>Block dates when unavailable.</Text>
           {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
 
           <View style={styles.sectionHeader}>
@@ -249,7 +249,7 @@ export function OwnerVehicleAvailabilityV2Screen() {
           {selection.endDate ? (
             <View style={styles.composer}>
               <Text style={styles.title}>Why is it unavailable?</Text>
-              <Text style={styles.muted}>Only you and authorized MMG operations can see this reason.</Text>
+              <Text style={styles.muted}>Only you and MMG see this.</Text>
               {REASONS.map((item) => {
                 const active = reason === item.value;
                 return (
@@ -269,7 +269,7 @@ export function OwnerVehicleAvailabilityV2Screen() {
 
           <View style={styles.blocks}>
             <Text style={styles.title}>Your current blocks</Text>
-            {!calendar.ownerBlocks.length ? <Text style={styles.muted}>No owner-created blocks in this 60-day window.</Text> : calendar.ownerBlocks.map((block) => (
+            {!calendar.ownerBlocks.length ? <Text style={styles.muted}>No blocked dates.</Text> : calendar.ownerBlocks.map((block) => (
               <View key={block.blockId} style={styles.blockRow}>
                 <View style={styles.flex}>
                   <Text style={styles.blockDates}>{formatLagosDateOnly(block.startDate)} to {formatLagosDateOnly(addDaysToDateOnly(block.endDate, -1))}</Text>

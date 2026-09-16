@@ -166,9 +166,9 @@ export function OwnerIdentityScreen() {
       <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>
         {header}
         <View style={styles.statusBox}>
-          <Text style={styles.statusTitle}>Application status managed by MMG</Text>
+          <Text style={styles.statusTitle}>Not editable</Text>
           <Text style={styles.statusBody}>
-            Your owner application is no longer editable. Return to your Owner Desk to see its current status.
+            Check Owner Desk for status.
           </Text>
           <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.statusAction}>
             <View style={styles.primaryButton}>

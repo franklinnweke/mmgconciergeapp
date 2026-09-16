@@ -87,15 +87,14 @@ export function RentalDateSheet({
           <View style={styles.handle} />
           <View style={styles.header}>
             <View style={styles.headerCopy}>
-              <Text accessibilityRole="header" style={styles.title}>Choose rental dates</Text>
-              <Text style={styles.subtitle}>Update the trip without leaving this vehicle.</Text>
+              <Text accessibilityRole="header" style={styles.title}>Choose dates</Text>
             </View>
             <PressableScale accessibilityRole="button" onPress={apply}>
               <Text style={styles.doneText}>Done</Text>
             </PressableScale>
           </View>
 
-          <Text style={styles.label}>Pickup</Text>
+          <Text style={styles.label}>Start</Text>
           <ScrollView contentContainerStyle={styles.dateRail} horizontal showsHorizontalScrollIndicator={false}>
             {dateOptions.map((option) => {
               const selected = option.date === draftStart;
@@ -145,7 +144,7 @@ export function RentalDateSheet({
           </View>
 
           <View style={styles.summary}>
-            <Text style={styles.summaryLabel}>Your trip</Text>
+            <Text style={styles.summaryLabel}>Trip</Text>
             <Text style={styles.summaryValue}>
               {formatLagosDateOnly(draftStart)} – {formatLagosDateOnly(draftEnd)}
             </Text>

@@ -144,12 +144,12 @@ export function tripStateCopy(state: RenterTripState): {
     legacy_availability_requested: {
       label: 'Request received',
       title: 'Your request is with MMG.',
-      body: 'This earlier estimate holds no dates, takes no payment, and creates no confirmation.',
+      body: 'Estimate only — no dates held.',
     },
     intent_created: {
       label: 'Dates held',
       title: 'Dates held briefly.',
-      body: 'Review the verified total before secure checkout becomes available.',
+      body: 'Review the total to continue.',
     },
     checkout_pending: {
       label: 'Payment processing',
@@ -224,17 +224,17 @@ export function tripStateCopy(state: RenterTripState): {
     completed: {
       label: 'Completed',
       title: 'Journey complete.',
-      body: 'Thank you for travelling with MMG Concierge.',
+      body: 'Thanks for riding with MMG.',
     },
     requested: {
       label: 'Request received',
       title: 'Request received — MMG is confirming.',
-      body: 'No payment has been taken and the dates are not locked. You can cancel this request.',
+      body: 'No payment taken. Dates not locked.',
     },
     approved: {
       label: 'Confirming availability',
       title: 'Your request is approved.',
-      body: 'MMG will contact you before payment is opened. No payment window yet, and you can still cancel.',
+      body: "We'll contact you before payment opens.",
     },
     ready_for_payment: {
       label: 'Payment ready',
@@ -244,7 +244,7 @@ export function tripStateCopy(state: RenterTripState): {
     cancellation_requested: {
       label: 'Cancellation requested',
       title: 'Your cancellation request is recorded.',
-      body: 'Payment processing had already started, so MMG is preserving the dates until Paystack resolves. If payment succeeds, the booking will move to refund review.',
+      body: "Payment is resolving. We will update you.",
     },
     cancelled_by_renter: {
       label: 'Cancelled',
@@ -254,17 +254,17 @@ export function tripStateCopy(state: RenterTripState): {
     declined: {
       label: 'Declined',
       title: 'This request was declined.',
-      body: 'No payment was taken and the dates were not locked.',
+      body: 'No charge taken.',
     },
     payment_window_expired: {
       label: 'Payment window expired',
       title: 'The payment window expired.',
-      body: 'Dates were released. No charge was taken. You can send a new request.',
+      body: 'No charge taken. Send a new request.',
     },
     needs_attention: {
       label: 'Needs attention',
-      title: 'MMG Concierge is resolving the booking.',
-      body: 'A payment was recorded but the booking could not be completed automatically.',
+      title: "We're resolving this.",
+      body: "Payment recorded — we will confirm next steps.",
     },
   };
   return copy[state];
@@ -307,8 +307,8 @@ export function renterTripTimeline(state: RenterTripState): readonly RenterTripT
   }
   if (state === 'cancellation_requested') {
     return [
-      item('checkout', 'Payment resolving', 'MMG will not release the hold underneath an in-flight payment.', 'complete'),
-      item('resolution', 'Cancellation pending', 'The request will resolve after Paystack reaches a safe terminal outcome.', 'current'),
+      item('checkout', 'Payment resolving', 'Protecting your payment while it resolves.', 'complete'),
+      item('resolution', 'Cancellation pending', 'Resolves after Paystack finishes.', 'current'),
     ];
   }
   if (state === 'cancelled_by_renter') {

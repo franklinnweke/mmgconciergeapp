@@ -170,7 +170,7 @@ export default function VehicleDetailScreen({
   };
 
   const stateHeader = (
-    <ScreenHeader backAccessibilityLabel="Go back" onBack={() => router.back()} title="Vehicle" />
+    <ScreenHeader backAccessibilityLabel="Go back" onBack={() => router.back()} title="" />
   );
 
   if (loading) {
@@ -192,7 +192,7 @@ export default function VehicleDetailScreen({
         <View style={styles.stateCenter}>
           <Ionicons color={fetchError ? colors.danger : colors.muted} name={fetchError ? 'cloud-offline-outline' : 'car-outline'} size={34} />
           <Text style={styles.stateTitle}>{fetchError ? 'Could not load vehicle' : 'Vehicle unavailable'}</Text>
-          <Text style={styles.stateText}>{fetchError ?? 'Choose another car from the fleet.'}</Text>
+          <Text style={styles.stateText}>{fetchError ?? 'Browse other cars.'}</Text>
           <PressableScale accessibilityRole="button" haptic onPress={fetchError ? retryFetch : () => router.back()}>
             <View style={styles.stateButton}>
               <Text style={styles.stateButtonText}>{fetchError ? 'Try again' : 'Back to cars'}</Text>
@@ -235,8 +235,8 @@ export default function VehicleDetailScreen({
     : availability.status === 'unavailable'
       ? 'Change dates'
       : availability.status === 'error'
-        ? 'Retry availability'
-        : 'Checking dates';
+        ? 'Retry'
+        : 'Checking…';
 
   return (
     <View style={styles.screen}>
@@ -283,7 +283,7 @@ export default function VehicleDetailScreen({
             >
               <View style={styles.tripControl}>
                 <View style={styles.controlHeader}>
-                  <Text style={styles.sectionTitle}>Your dates</Text>
+                  <Text style={styles.sectionTitle}>Dates</Text>
                   <Text style={styles.editText}>Edit</Text>
                 </View>
                 <View style={styles.journeyRow}>
@@ -337,19 +337,19 @@ export default function VehicleDetailScreen({
                   {availability.status === 'loading'
                     ? 'Checking availability'
                     : availability.status === 'available'
-                      ? 'Available for these dates'
+                      ? 'Available'
                       : availability.status === 'unavailable'
-                        ? 'Not available for these dates'
-                        : 'Availability check failed'}
+                        ? 'Not available'
+                        : 'Check failed'}
                 </Text>
                 <Text style={styles.availabilityBody}>
                   {availability.status === 'available'
-                    ? 'Sending a request does not lock these dates or take payment.'
+                    ? 'Request is free — no payment now.'
                     : availability.status === 'unavailable'
-                      ? 'Change the dates above and we will check this vehicle again.'
+                      ? 'Try different dates.'
                       : availability.status === 'error'
                         ? vehicleCalendarErrorMessage(availability.error)
-                        : 'No dates are reserved yet.'}
+                        : null}
                 </Text>
               </View>
               {availability.status === 'error' ? (
@@ -384,7 +384,7 @@ export default function VehicleDetailScreen({
 
       <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
         <View style={styles.stickyCopy}>
-          <Text style={styles.stickyLabel}>Estimated total</Text>
+          <Text style={styles.stickyLabel}>Total</Text>
           <Text style={styles.stickyValue}>{formatNairaFromKobo(quote.totalKobo)}</Text>
         </View>
         <PressableScale

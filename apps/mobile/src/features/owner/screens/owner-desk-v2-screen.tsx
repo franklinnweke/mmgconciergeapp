@@ -86,13 +86,13 @@ export function OwnerDeskV2Screen() {
   })();
 
   const copy = (() => {
-    if (status === 'approved') return ['APPROVED', 'You are verified.', 'Manage your fleet, availability, requests and bookings from the owner tools.'];
-    if (status === 'submitted') return ['SUBMITTED', 'Your file is with MMG.', 'MMG operations has received your owner application for review.'];
-    if (status === 'under_review') return ['UNDER REVIEW', 'MMG is reviewing your file.', 'Your identity, address and verification document are being checked by authorized operations staff.'];
-    if (status === 'rejected') return ['CHANGES REQUESTED', 'Your application needs an update.', profile?.lastDecisionReason || 'Review the feedback, correct the relevant step and submit again.'];
-    if (status === 'suspended') return ['SUSPENDED', 'Your owner access is paused.', profile?.lastDecisionReason || 'Contact MMG Concierge support for details.'];
-    if (status === 'revoked') return ['REVOKED', 'This owner account cannot continue.', profile?.lastDecisionReason || 'This owner capability has been revoked by MMG operations.'];
-    return ['OWNER DESK', completeness.canSubmit ? 'Your application is ready.' : 'Prepare your owner application.', completeness.canSubmit ? 'Review the completed details and send them to MMG.' : 'Complete identity, Nigerian phone verification and government ID.'];
+    if (status === 'approved') return ['APPROVED', 'You are verified.', 'Manage fleet, requests and bookings.'];
+    if (status === 'submitted') return ['SUBMITTED', 'Your file is with MMG.', "We'll notify you after review."];
+    if (status === 'under_review') return ['UNDER REVIEW', 'MMG is reviewing your file.', "We're verifying your identity and address."];
+    if (status === 'rejected') return ['CHANGES REQUESTED', 'Your application needs an update.', profile?.lastDecisionReason || 'See feedback below, then resubmit.'];
+    if (status === 'suspended') return ['SUSPENDED', 'Your owner access is paused.', profile?.lastDecisionReason || 'Contact support for details.'];
+    if (status === 'revoked') return ['REVOKED', 'This owner account cannot continue.', profile?.lastDecisionReason || 'Revoked by MMG.'];
+    return ['OWNER DESK', completeness.canSubmit ? 'Your application is ready.' : 'Prepare your owner application.', completeness.canSubmit ? 'Review details, then submit.' : 'Complete the 3 steps below.'];
   })();
 
   return (
@@ -124,7 +124,7 @@ export function OwnerDeskV2Screen() {
                 <StepRow
                   complete={completeness.identityComplete}
                   label="Owner identity"
-                  detail={completeness.identityComplete ? `${profile?.legalName} · ${profile?.address?.areaLabel}` : 'Legal name, Lagos address and owner agreements.'}
+                  detail={completeness.identityComplete ? `${profile?.legalName} · ${profile?.address?.areaLabel}` : 'Name, address and agreements.'}
                   locked={!completeness.identityUnlocked}
                   lockReason={getStepLockReason('identity', completeness)}
                   onPress={() => router.push('/(owner)/identity' as Href)}
@@ -132,7 +132,7 @@ export function OwnerDeskV2Screen() {
                 <StepRow
                   complete={completeness.phoneComplete}
                   label="Nigerian phone number"
-                  detail={completeness.phoneComplete ? `${auth.user?.phoneNumber} · verified` : 'Verify an active +234 mobile number.'}
+                  detail={completeness.phoneComplete ? `${auth.user?.phoneNumber} · verified` : 'Verify your Nigerian mobile number.'}
                   locked={!completeness.phoneUnlocked}
                   lockReason={getStepLockReason('phone', completeness)}
                   onPress={() => router.push('/(owner)/phone' as Href)}
