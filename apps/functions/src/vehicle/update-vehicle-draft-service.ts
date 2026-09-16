@@ -115,7 +115,6 @@ export async function updateVehicleDraft(
       throw new CommandError(
         'FAILED_PRECONDITION',
         'Only draft or rejected listings can be edited by the owner.',
-        { reason: 'listing_not_editable' },
       );
     }
     if (vehicle.visibility === 'deleted') {
