@@ -249,43 +249,50 @@ export async function finalizeVehicleImage(
 
 type ProcessedUpload = {
   inspected: InspectedImage & { sourceByteSize: number };
-  rendered: RenderedVariant[];
+  rendered: readonly RenderedVariant[];
 };
 
 async function processUpload(
   storagePath: string,
-  dependencies: Pick<FinalizeVehicleImageDependencies, 'storageGateway' | 'imageProcessor'>,
+  dependencies: FinalizeVehicleImageDependencies,
 ): Promise<ProcessedUpload> {
   const metadata = await dependencies.storageGateway.getObjectMetadata(storagePath);
   if (!metadata) {
-    throw new CommandError('NOT_FOUND', 'Uploaded vehicle image was not found.', {
-      reason: 'upload_missing',
+    throw new CommandError('NOT_FOUND', 'Uploaded image not found in storage.', {
+      reason: 'upload_invalid',
     });
   }
 
-  if (!Number.isFinite(metadata.size) || metadata.size <= 0 || metadata.size > MAX_UPLOAD_BYTES) {
-    throw new CommandError('INVALID_ARGUMENT', 'Uploaded vehicle image has an invalid size.', {
-      reason: 'upload_size',
+  if (metadata.size <= 0 || metadata.size > MAX_UPLOAD_BYTES) {
+    throw new CommandError(
+      'INVALID_ARGUMENT',
+      `Image file must be between 1 byte and ${MAX_UPLOAD_BYTES} bytes.`,
+      { reason: 'upload_invalid' },
+    );
+  }
+
+  const bytes = await dependencies.storageGateway.downloadObject(storagePath);
+  if (!bytes || bytes.byteLength === 0) {
+    throw new CommandError('INVALID_ARGUMENT', 'Could not read image bytes.', {
+      reason: 'upload_invalid',
     });
   }
 
-  const bytes = await dependencies.storageGateway.readObject(storagePath, MAX_UPLOAD_BYTES);
-  if (!bytes || bytes.length === 0) {
-    throw new CommandError('INVALID_ARGUMENT', 'Uploaded vehicle image is empty.', {
-      reason: 'upload_empty',
-    });
-  }
-  if (bytes.length !== metadata.size) {
-    throw new CommandError('FAILED_PRECONDITION', 'Uploaded vehicle image changed during processing.', {
-      reason: 'upload_changed',
-    });
+  if (bytes.byteLength > MAX_UPLOAD_BYTES) {
+    throw new CommandError(
+      'INVALID_ARGUMENT',
+      `Image file must be between 1 byte and ${MAX_UPLOAD_BYTES} bytes.`,
+      { reason: 'upload_invalid' },
+    );
   }
 
-  const sniffedContentType = sniffMagicBytes(bytes.subarray(0, Math.min(bytes.length, 16)));
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(sniffedContentType ?? '')) {
-    throw new CommandError('INVALID_ARGUMENT', 'Vehicle image bytes are not a supported JPEG, PNG, or WebP.', {
-      reason: 'upload_content_type',
-    });
+  const detectedMime = sniffMagicBytes(bytes.subarray(0, 32));
+  if (!detectedMime || detectedMime === 'application/pdf') {
+    throw new CommandError(
+      'INVALID_ARGUMENT',
+      'Only JPEG, PNG, and WebP images are permitted for vehicle listings.',
+      { reason: 'upload_invalid' },
+    );
   }
 
   const inspected = await dependencies.imageProcessor.inspect(bytes);
@@ -296,8 +303,23 @@ async function processUpload(
     rendered.push(await dependencies.imageProcessor.render(bytes, spec));
   }
 
+  assertEveryVariantRendered(rendered);
+
   return {
-    inspected: { ...inspected, sourceByteSize: bytes.length },
+    inspected: { ...inspected, sourceByteSize: bytes.byteLength },
     rendered,
   };
+}
+
+function assertEveryVariantRendered(rendered: readonly RenderedVariant[]): void {
+  const produced = new Set<VehicleImageVariant>(rendered.map((variant) => variant.variant));
+  const missing = VEHICLE_VARIANT_SPECS.filter((spec) => !produced.has(spec.variant));
+
+  if (missing.length > 0) {
+    throw new CommandError(
+      'INTERNAL',
+      'That image could not be fully processed. Please try uploading it again.',
+      { reason: 'upload_invalid' },
+    );
+  }
 }
