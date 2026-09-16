@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { colors, spacing, typography } from '@mmg/brand';
 import type { OwnerVisibleRentalRequest } from '@mmg/contracts/rental-request';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { type Href, useRouter } from 'expo-router';
@@ -94,8 +94,8 @@ export function OwnerBookingsV2Screen() {
   const bookingGroups = groupOwnerBookings(snapshot.bookings);
 
   const right = (
-    <PressableScale accessibilityLabel="Back to renting" accessibilityRole="button" onPress={() => router.replace('/(renter)' as Href)} style={styles.headerAction}>
-      <Ionicons color={colors.ivory} name="storefront-outline" size={18} />
+    <PressableScale accessibilityLabel="Back to renter home" accessibilityRole="button" onPress={() => router.replace('/(renter)' as Href)}>
+      <Text style={styles.headerLink}>Renter home</Text>
     </PressableScale>
   );
 
@@ -198,11 +198,11 @@ const styles = StyleSheet.create({
   errorText: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
   fixture: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  headerAction: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 40, justifyContent: 'center', width: 40 },
+  headerLink: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   retry: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
   row: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 82, paddingVertical: spacing.md },
-  rowCopy: { flex: 1, gap: 3 },
+  rowCopy: { flex: 1, gap: 3, minWidth: 0 },
   screen: { backgroundColor: colors.black, flex: 1 },
   section: { gap: spacing.xs },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
