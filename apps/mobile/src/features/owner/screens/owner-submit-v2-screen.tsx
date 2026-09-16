@@ -48,8 +48,12 @@ export function OwnerSubmitV2Screen() {
   }, [auth.user?.uid]);
 
   const effectiveDraft = upload.uploadedDoc || draft;
-  const uploadId = upload.uploadedDoc?.uploadId || draft?.uploadId || profile?.governmentId?.uploadId;
-  const documentKind = upload.uploadedDoc?.documentKind || upload.candidate?.documentKind || draft?.documentKind || profile?.governmentId?.documentKind || 'national_id';
+  const existingProfileDocument =
+    profile?.governmentId && profile.governmentId.status !== 'cleared'
+      ? profile.governmentId
+      : null;
+  const uploadId = upload.uploadedDoc?.uploadId || draft?.uploadId || existingProfileDocument?.uploadId;
+  const documentKind = upload.uploadedDoc?.documentKind || upload.candidate?.documentKind || draft?.documentKind || existingProfileDocument?.documentKind || 'national_id';
   const originalFileName = upload.uploadedDoc?.originalFileName || upload.candidate?.fileName || draft?.originalFileName || 'government-identification.jpg';
   const uploading = upload.status === 'uploading';
   const uploadFailed = upload.status === 'error';
