@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
-import { formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
+import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import {
   createOwnerBookingRepository,
   type OwnerBookingSnapshot,
@@ -21,7 +21,9 @@ import { ownerBookingsLoadPresentation } from '../domain/owner-bookings-load-sta
 import { ownerRequestStateCopy } from '../domain/owner-rental-request';
 
 function rangeLabel(startDate: string, endDate: string) {
-  return `${formatLagosDateOnly(startDate)} to ${formatLagosDateOnly(endDate)}`;
+  const lastRentalDate = addDaysToDateOnly(endDate, -1);
+  if (lastRentalDate === startDate) return formatLagosDateOnly(startDate);
+  return `${formatLagosDateOnly(startDate)} to ${formatLagosDateOnly(lastRentalDate)}`;
 }
 
 function bookingStateLabel(state: string) {
