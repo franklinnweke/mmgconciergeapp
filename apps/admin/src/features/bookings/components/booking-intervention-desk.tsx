@@ -70,7 +70,7 @@ export function BookingInterventionDesk({
       {requestSnapshot?.skippedInvalidCount ? (
         <div className="admin-inline-error" role="status">
           <AlertTriangle size={16} />
-          {requestSnapshot.skippedInvalidCount} malformed request/contact record{requestSnapshot.skippedInvalidCount === 1 ? '' : 's'} were partially hidden.
+          {requestSnapshot.skippedInvalidCount} record{requestSnapshot.skippedInvalidCount === 1 ? '' : 's'} could not be shown.
         </div>
       ) : null}
 
@@ -86,7 +86,7 @@ export function BookingInterventionDesk({
         {snapshot?.skippedInvalidCount ? (
           <div className="admin-inline-error" role="status" style={{ marginTop: 14 }}>
             <AlertTriangle size={16} />
-            {snapshot.skippedInvalidCount} malformed case record{snapshot.skippedInvalidCount === 1 ? '' : 's'} were hidden.
+            {snapshot.skippedInvalidCount} record{snapshot.skippedInvalidCount === 1 ? '' : 's'} could not be shown.
           </div>
         ) : null}
 
@@ -102,7 +102,7 @@ export function BookingInterventionDesk({
             </thead>
             <tbody>
               {cases.length === 0 ? (
-                <tr><td className="admin-empty" colSpan={4}>No intervention cases. Paid conflicts, owner-declined paid bookings and renter refund reviews will appear here.</td></tr>
+                <tr><td className="admin-empty" colSpan={4}>No intervention cases.</td></tr>
               ) : cases.map((item) => (
                 <tr key={item.caseId}>
                   <td>

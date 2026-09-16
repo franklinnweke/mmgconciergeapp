@@ -146,7 +146,7 @@ export function OwnerPhoneScreen() {
         {isWeb ? (
           <View style={styles.webBanner}>
             <Ionicons color={colors.goldStrong} name="information-circle-outline" size={18} />
-            <Text style={styles.webBannerText}>PHONE VERIFICATION REQUIRES THE NATIVE APP</Text>
+            <Text style={styles.webBannerText}>Phone verification needs the mobile app.</Text>
           </View>
         ) : null}
 
@@ -173,10 +173,10 @@ export function OwnerPhoneScreen() {
           <View style={styles.prerequisiteCard}>
             <View style={styles.prerequisiteHeader}>
               <Ionicons color={colors.goldStrong} name="information-circle-outline" size={22} />
-              <Text style={styles.prerequisiteTitle}>Application status managed by MMG</Text>
+              <Text style={styles.prerequisiteTitle}>Not editable</Text>
             </View>
             <Text style={styles.prerequisiteBody}>
-              Your owner application is no longer editable. Return to your Owner Desk to see its current status.
+              Check Owner Desk for status.
             </Text>
             <PressableScale onPress={() => router.replace('/(owner)' as Href)} style={styles.cardAction}>
               <View style={styles.prerequisiteButton}>

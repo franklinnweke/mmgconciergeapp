@@ -56,7 +56,7 @@ export function PaymentsDesk({
       {snapshot?.skippedInvalidCount ? (
         <div className="admin-inline-error" role="status">
           <AlertTriangle size={16} />
-          {snapshot.skippedInvalidCount} malformed payment record{snapshot.skippedInvalidCount === 1 ? '' : 's'} were hidden.
+          {snapshot.skippedInvalidCount} record{snapshot.skippedInvalidCount === 1 ? '' : 's'} could not be shown.
         </div>
       ) : null}
 
