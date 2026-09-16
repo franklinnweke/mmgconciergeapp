@@ -30,6 +30,8 @@ export function OwnerIdV2Screen() {
   const { startUpload } = useOwnerIdUpload();
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [loading, setLoading] = useState(Boolean(auth.user?.uid));
+  const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [documentKind, setDocumentKind] = useState<GovernmentIdKind>('national_id');
   const [selected, setSelected] = useState<{ uri: string; fileName: string; mimeType: string; fileSize: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,10 +40,17 @@ export function OwnerIdV2Screen() {
     if (!auth.user?.uid) return undefined;
     return createOwnerVerificationRepository().subscribe(
       auth.user.uid,
-      (next) => { setProfile(next); setLoading(false); },
-      () => setLoading(false),
+      (next) => {
+        setProfile(next);
+        setProfileLoadError(null);
+        setLoading(false);
+      },
+      () => {
+        setProfileLoadError('We could not load your owner application. Try again.');
+        setLoading(false);
+      },
     );
-  }, [auth.user?.uid]);
+  }, [auth.user?.uid, retryKey]);
 
   const emailVerified = Boolean(auth.user?.emailVerified);
   const identityComplete = Boolean(profile?.legalName && profile.address?.line1 && profile.address?.areaLabel && profile.termsAcceptedAt);
@@ -61,7 +70,7 @@ export function OwnerIdV2Screen() {
   };
 
   const takePhoto = async () => {
-    if (!prerequisitesMet || !editable) return;
+    if (!prerequisitesMet || !editable || profileLoadError) return;
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('Camera access needed', 'Allow camera access to photograph your government ID for owner verification.');
@@ -72,7 +81,7 @@ export function OwnerIdV2Screen() {
   };
 
   const choosePhoto = async () => {
-    if (!prerequisitesMet || !editable) return;
+    if (!prerequisitesMet || !editable || profileLoadError) return;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('Photo access needed', 'Allow photo-library access to choose a government ID photo.');
@@ -83,7 +92,7 @@ export function OwnerIdV2Screen() {
   };
 
   const continueToReview = () => {
-    if (!auth.user?.uid || !editable || !prerequisitesMet) return;
+    if (!auth.user?.uid || !editable || !prerequisitesMet || profileLoadError) return;
     if (selected) startUpload(auth.user.uid, selected, documentKind);
     if (selected || hasExistingDocument) router.push('/(owner)/submit' as Href);
   };
@@ -92,6 +101,12 @@ export function OwnerIdV2Screen() {
     if (!emailVerified) router.replace('/' as Href);
     else if (!identityComplete) router.push('/(owner)/identity' as Href);
     else router.push('/(owner)/phone' as Href);
+  };
+
+  const retryProfile = () => {
+    setLoading(true);
+    setProfileLoadError(null);
+    setRetryKey((value) => value + 1);
   };
 
   return (
@@ -106,7 +121,14 @@ export function OwnerIdV2Screen() {
         {loading ? <View style={styles.center}><ActivityIndicator color={colors.goldStrong} /><Text style={styles.muted}>Checking application status…</Text></View> : null}
         {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
 
-        {!loading && !editable ? (
+        {!loading && profileLoadError ? (
+          <View style={styles.blocked}>
+            <Text style={styles.title}>Owner application unavailable</Text>
+            <Text accessibilityLiveRegion="polite" style={styles.muted}>{profileLoadError}</Text>
+            <PressableScale onPress={retryProfile}><Text style={styles.link}>Try again</Text></PressableScale>
+            <PressableScale onPress={() => router.replace('/(owner)' as Href)}><Text style={styles.link}>Return to Owner Desk</Text></PressableScale>
+          </View>
+        ) : !loading && !editable ? (
           <View style={styles.blocked}>
             <Text style={styles.title}>Application is not editable</Text>
             <Text style={styles.muted}>Return to Owner Desk to see the current review status.</Text>
