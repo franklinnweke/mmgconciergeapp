@@ -21,7 +21,7 @@ import {
   httpsCallable,
 } from '@react-native-firebase/functions';
 
-import { parseCallableResult } from '@/core/firebase/parse-callable-result';
+import { parseCallableResult } from '../../../core/firebase/parse-callable-result';
 import { parseRenterProfileDocument } from './renter-profile-record';
 
 function generateIdempotencyKey(prefix: string): string {

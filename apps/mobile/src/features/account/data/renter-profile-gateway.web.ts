@@ -23,7 +23,7 @@ import {
   type Functions,
 } from 'firebase/functions';
 
-import { parseCallableResult } from '@/core/firebase/parse-callable-result';
+import { parseCallableResult } from '../../../core/firebase/parse-callable-result';
 import { RenterProfileGateway } from './renter-profile-gateway';
 import { parseRenterProfileDocument } from './renter-profile-record';
 
