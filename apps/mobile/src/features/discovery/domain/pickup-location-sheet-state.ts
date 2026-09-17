@@ -1,3 +1,5 @@
+import type { PickupLocationSource } from './pickup-location';
+
 export type PickupSheetMode = 'search_idle' | 'search_focused' | 'confirm';
 
 export type Insets = {
@@ -115,4 +117,26 @@ export function pickupSheetReducer(
     default:
       return currentMode;
   }
+}
+
+/**
+ * Determines whether a completed region change should be propagated as a user pin adjustment.
+ * Prevents programmatic camera animations (recenter, reset, clamp) from masquerading as user edits.
+ */
+export function shouldPropagateRegionChange(params: {
+  disabled?: boolean;
+  isProgrammatic: boolean;
+  isUserGesture: boolean;
+}): boolean {
+  if (params.disabled) return false;
+  if (params.isProgrammatic && !params.isUserGesture) return false;
+  return params.isUserGesture;
+}
+
+/**
+ * Resolves original source when resetting an adjusted pin.
+ * Preserves 'suggested', 'place_search', or 'current_location'.
+ */
+export function resolveResetSource(originalSource?: PickupLocationSource): PickupLocationSource {
+  return originalSource ?? 'suggested';
 }

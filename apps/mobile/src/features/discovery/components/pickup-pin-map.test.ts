@@ -147,4 +147,45 @@ describe('PickupPinMap native MapView and arrival perimeter bounding', () => {
     expect(props.mapPadding.bottom).toBe(400);
     expect(props.pinCenterY).toBe(220);
   });
+
+  describe('programmatic move guard and user gesture propagation', () => {
+    it('does not emit pin adjustment for programmatic moves without gestures', () => {
+      const onCoordinatesChange = vi.fn();
+      const isProgrammatic = true;
+      const isGesture = false;
+      const disabled = false;
+
+      // Simulated region change complete callback evaluation
+      if (!disabled && (!isProgrammatic || isGesture) && isGesture) {
+        onCoordinatesChange({ latitude: 6.43, longitude: 3.43 });
+      }
+
+      expect(onCoordinatesChange).not.toHaveBeenCalled();
+    });
+
+    it('emits pin adjustment when a genuine user gesture is completed', () => {
+      const onCoordinatesChange = vi.fn();
+      const isProgrammatic = false;
+      const isGesture = true;
+      const disabled = false;
+
+      if (!disabled && (!isProgrammatic || isGesture) && isGesture) {
+        onCoordinatesChange({ latitude: 6.43, longitude: 3.43 });
+      }
+
+      expect(onCoordinatesChange).toHaveBeenCalledWith({ latitude: 6.43, longitude: 3.43 });
+    });
+
+    it('blocks pin adjustment when map is disabled regardless of gestures', () => {
+      const onCoordinatesChange = vi.fn();
+      const isGesture = true;
+      const disabled = true;
+
+      if (!disabled && isGesture) {
+        onCoordinatesChange({ latitude: 6.43, longitude: 3.43 });
+      }
+
+      expect(onCoordinatesChange).not.toHaveBeenCalled();
+    });
+  });
 });

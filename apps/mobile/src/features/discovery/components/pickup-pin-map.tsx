@@ -18,6 +18,7 @@ import {
   clampToArrivalPerimeter,
   MAX_ARRIVAL_RADIUS_METERS,
 } from '../domain/arrival-perimeter';
+import { shouldPropagateRegionChange } from '../domain/pickup-location-sheet-state';
 
 export type PickupPinMapProps = {
   latitude: number;
@@ -86,6 +87,10 @@ export function PickupPinMap({
 }: PickupPinMapProps) {
   const mapRef = useRef<MapView>(null);
   const lastReportedCoords = useRef<{ lat: number; lng: number }>({ lat: latitude, lng: longitude });
+  const isProgrammaticMove = useRef(false);
+  const isUserInteracting = useRef(false);
+  const programmaticTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [isMoving, setIsMoving] = useState(false);
   const [pinScale] = useState(() => new Animated.Value(1));
   const [pinTranslateY] = useState(() => new Animated.Value(0));
@@ -95,12 +100,24 @@ export function PickupPinMap({
   const distanceFromCenter = calculateDistanceMeters(centerLat, centerLng, latitude, longitude);
   const hasAdjusted = distanceFromCenter > 5;
 
+  useEffect(() => {
+    return () => {
+      if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+    };
+  }, []);
+
   // Camera re-centering when target coordinates change externally
   useEffect(() => {
     const latDiff = Math.abs(latitude - lastReportedCoords.current.lat);
     const lngDiff = Math.abs(longitude - lastReportedCoords.current.lng);
     if (latDiff > 0.00005 || lngDiff > 0.00005) {
       lastReportedCoords.current = { lat: latitude, lng: longitude };
+      isProgrammaticMove.current = true;
+      isUserInteracting.current = false;
+      if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+      programmaticTimer.current = setTimeout(() => {
+        isProgrammaticMove.current = false;
+      }, 500);
       mapRef.current?.animateToRegion(
         {
           latitude,
@@ -129,14 +146,39 @@ export function PickupPinMap({
     ]).start();
   }, [pinScale, pinTranslateY]);
 
-  const handleRegionChange = useCallback(() => {
-    if (!isMoving) liftPin();
-  }, [isMoving, liftPin]);
+  const handleRegionChange = useCallback(
+    (_region?: Region, details?: { isGesture?: boolean }) => {
+      if (details?.isGesture === true) {
+        isUserInteracting.current = true;
+        isProgrammaticMove.current = false;
+        if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+      }
+      if (isProgrammaticMove.current && !isUserInteracting.current) {
+        return;
+      }
+      if (!isMoving) liftPin();
+    },
+    [isMoving, liftPin],
+  );
 
   const handleRegionChangeComplete = useCallback(
-    (region: Region) => {
+    (region: Region, details?: { isGesture?: boolean }) => {
       dropPin();
-      if (disabled) return;
+
+      const isProgrammatic = isProgrammaticMove.current;
+      const isGesture = details?.isGesture ?? isUserInteracting.current;
+
+      isProgrammaticMove.current = false;
+      isUserInteracting.current = false;
+      if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+
+      const shouldPropagate = shouldPropagateRegionChange({
+        disabled,
+        isProgrammatic,
+        isUserGesture: isGesture,
+      });
+
+      if (!shouldPropagate) return;
 
       const perimeterResult = clampToArrivalPerimeter(
         centerLat,
@@ -150,6 +192,11 @@ export function PickupPinMap({
       const finalLng = Math.min(4.3, Math.max(2.7, perimeterResult.longitude));
 
       if (perimeterResult.wasClamped && mapRef.current) {
+        isProgrammaticMove.current = true;
+        if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+        programmaticTimer.current = setTimeout(() => {
+          isProgrammaticMove.current = false;
+        }, 450);
         mapRef.current.animateToRegion(
           {
             latitude: finalLat,
@@ -171,6 +218,12 @@ export function PickupPinMap({
 
   const handleResetPress = useCallback(() => {
     if (disabled || initialLatitude === undefined || initialLongitude === undefined) return;
+    isProgrammaticMove.current = true;
+    isUserInteracting.current = false;
+    if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+    programmaticTimer.current = setTimeout(() => {
+      isProgrammaticMove.current = false;
+    }, 500);
     mapRef.current?.animateToRegion(
       {
         latitude: initialLatitude,
@@ -207,6 +260,13 @@ export function PickupPinMap({
 
       <View
         accessibilityLabel="Interactive map for exact chauffeur arrival location"
+        onTouchStart={() => {
+          if (!disabled) {
+            isUserInteracting.current = true;
+            isProgrammaticMove.current = false;
+            if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+          }
+        }}
         style={styles.mapFrame}
       >
         <MapView
@@ -218,8 +278,24 @@ export function PickupPinMap({
             longitudeDelta: 0.003,
           }}
           mapPadding={mapPadding}
+          onPanDrag={() => {
+            if (!disabled) {
+              isUserInteracting.current = true;
+              isProgrammaticMove.current = false;
+              if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+            }
+          }}
           onRegionChange={handleRegionChange}
           onRegionChangeComplete={handleRegionChangeComplete}
+          onRegionChangeStart={(_region, details) => {
+            if (!disabled) {
+              if (details?.isGesture === true) {
+                isUserInteracting.current = true;
+                isProgrammaticMove.current = false;
+                if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+              }
+            }
+          }}
           pitchEnabled={false}
           ref={mapRef}
           rotateEnabled={false}

@@ -5,6 +5,8 @@ import {
   calculateSnapHeights,
   pickupSheetReducer,
   resolveInitialMode,
+  resolveResetSource,
+  shouldPropagateRegionChange,
 } from './pickup-location-sheet-state';
 
 describe('pickup-location-sheet-state', () => {
@@ -135,6 +137,79 @@ describe('pickup-location-sheet-state', () => {
       // Tap Change -> returns to search_idle
       mode = pickupSheetReducer(mode, { type: 'CHANGE_LOCATION' });
       expect(mode).toBe('search_idle');
+    });
+  });
+
+  describe('shouldPropagateRegionChange', () => {
+    it('blocks programmatic camera animations without user gestures', () => {
+      // Recenter or reset animation running programmatically
+      expect(
+        shouldPropagateRegionChange({
+          disabled: false,
+          isProgrammatic: true,
+          isUserGesture: false,
+        }),
+      ).toBe(false);
+    });
+
+    it('blocks all region changes when disabled (e.g. in search modes)', () => {
+      expect(
+        shouldPropagateRegionChange({
+          disabled: true,
+          isProgrammatic: false,
+          isUserGesture: true,
+        }),
+      ).toBe(false);
+
+      expect(
+        shouldPropagateRegionChange({
+          disabled: true,
+          isProgrammatic: true,
+          isUserGesture: false,
+        }),
+      ).toBe(false);
+    });
+
+    it('blocks arbitrary non-gesture region changes', () => {
+      expect(
+        shouldPropagateRegionChange({
+          disabled: false,
+          isProgrammatic: false,
+          isUserGesture: false,
+        }),
+      ).toBe(false);
+    });
+
+    it('allows genuine user pan adjustments in enabled mode', () => {
+      expect(
+        shouldPropagateRegionChange({
+          disabled: false,
+          isProgrammatic: false,
+          isUserGesture: true,
+        }),
+      ).toBe(true);
+    });
+
+    it('prioritizes user interaction over programmatic move if user grabs the map', () => {
+      expect(
+        shouldPropagateRegionChange({
+          disabled: false,
+          isProgrammatic: true,
+          isUserGesture: true,
+        }),
+      ).toBe(true);
+    });
+  });
+
+  describe('resolveResetSource', () => {
+    it('restores the exact original source when defined', () => {
+      expect(resolveResetSource('suggested')).toBe('suggested');
+      expect(resolveResetSource('place_search')).toBe('place_search');
+      expect(resolveResetSource('current_location')).toBe('current_location');
+    });
+
+    it('defaults to suggested if original source was undefined', () => {
+      expect(resolveResetSource(undefined)).toBe('suggested');
     });
   });
 });

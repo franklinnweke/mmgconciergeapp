@@ -33,6 +33,7 @@ import {
   calculateSnapHeights,
   type PickupSheetMode,
   resolveInitialMode,
+  resolveResetSource,
 } from '../domain/pickup-location-sheet-state';
 import { useCurrentLocation } from '../hooks/use-current-location';
 import { usePlaceSearch, type PlaceSuggestion } from '../hooks/use-place-search';
@@ -68,6 +69,7 @@ export function PickupLocationSheet({
   const [initialCoords, setInitialCoords] = useState<{ latitude: number; longitude: number } | null>(() =>
     selectedLocation ? { latitude: selectedLocation.latitude, longitude: selectedLocation.longitude } : null,
   );
+  const [initialSource, setInitialSource] = useState<PickupLocation['source']>(() => selectedLocation?.source ?? 'suggested');
   const [note, setNote] = useState(() => selectedLocation?.note ?? '');
   const [resolvingPlaceId, setResolvingPlaceId] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
@@ -85,6 +87,15 @@ export function PickupLocationSheet({
   const snapHeights = useMemo(
     () => calculateSnapHeights(screenHeight, insets),
     [screenHeight, insets],
+  );
+
+  const snapOffsets = useMemo(
+    () => ({
+      search_focused: 0,
+      search_idle: snapHeights.search_focused - snapHeights.search_idle,
+      confirm: snapHeights.search_focused - snapHeights.confirm,
+    }),
+    [snapHeights],
   );
 
   const mapPadding = useMemo(
@@ -108,11 +119,13 @@ export function PickupLocationSheet({
       if (selectedLocation) {
         setPendingLocation(selectedLocation);
         setInitialCoords({ latitude: selectedLocation.latitude, longitude: selectedLocation.longitude });
+        setInitialSource(selectedLocation.source);
         setNote(selectedLocation.note ?? '');
         setMode('confirm');
       } else {
         setPendingLocation(null);
         setInitialCoords(null);
+        setInitialSource('suggested');
         setNote('');
         setMode('search_idle');
       }
@@ -125,15 +138,7 @@ export function PickupLocationSheet({
   const panelTranslateY = useSharedValue(0);
 
   useEffect(() => {
-    let target = 0;
-    if (mode === 'search_idle') {
-      target = snapHeights.search_focused - snapHeights.search_idle;
-    } else if (mode === 'confirm') {
-      target = snapHeights.search_focused - snapHeights.confirm;
-    } else if (mode === 'search_focused') {
-      target = 0;
-    }
-
+    const target = snapOffsets[mode];
     if (reducedMotion) {
       panelTranslateY.value = withTiming(target, { duration: 150 });
     } else {
@@ -143,7 +148,7 @@ export function PickupLocationSheet({
         mass: 0.85,
       });
     }
-  }, [mode, snapHeights, reducedMotion, panelTranslateY]);
+  }, [mode, snapOffsets, reducedMotion, panelTranslateY]);
 
   const animatedPanelStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: panelTranslateY.value }],
@@ -153,13 +158,14 @@ export function PickupLocationSheet({
     setQuery('');
     setPendingLocation(null);
     setInitialCoords(null);
+    setInitialSource('suggested');
     setNote('');
     setResolveError(null);
     resetCurrentLoc();
     onClose();
   }, [onClose, resetCurrentLoc]);
 
-  // PanResponder on the drag handle bar to snap between modes
+  // PanResponder on the handle bar to swipe-snap between sheet modes
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -217,6 +223,7 @@ export function PickupLocationSheet({
     if (item.isCurated && item.location) {
       setPendingLocation(item.location);
       setInitialCoords({ latitude: item.location.latitude, longitude: item.location.longitude });
+      setInitialSource('suggested');
       setNote(item.location.note ?? (isSelected(item.location) ? (selectedLocation?.note ?? '') : ''));
       setMode('confirm');
       return;
@@ -227,6 +234,7 @@ export function PickupLocationSheet({
       const location = await resolvePlace(item);
       setPendingLocation(location);
       setInitialCoords({ latitude: location.latitude, longitude: location.longitude });
+      setInitialSource('place_search');
       setNote(isSelected(location) ? (selectedLocation?.note ?? '') : '');
       setMode('confirm');
     } catch (error) {
@@ -243,6 +251,7 @@ export function PickupLocationSheet({
     if (!result.success) return;
     setPendingLocation(result.location);
     setInitialCoords({ latitude: result.location.latitude, longitude: result.location.longitude });
+    setInitialSource('current_location');
     setNote(selectedLocation?.note ?? '');
     setMode('confirm');
   };
@@ -266,7 +275,7 @@ export function PickupLocationSheet({
       ...pendingLocation,
       latitude: initialCoords.latitude,
       longitude: initialCoords.longitude,
-      source: pendingLocation.placeId ? 'place_search' : 'suggested',
+      source: resolveResetSource(initialSource),
       serviceAreaLabel: newArea ?? pendingLocation.serviceAreaLabel,
     });
   };
@@ -303,7 +312,7 @@ export function PickupLocationSheet({
       <GestureHandlerRootView style={styles.root}>
         {/* Full-surface interactive background map */}
         <PickupPinMap
-          disabled={false}
+          disabled={mode !== 'confirm'}
           initialLatitude={initialCoords?.latitude}
           initialLongitude={initialCoords?.longitude}
           latitude={effectiveLat}
@@ -355,8 +364,14 @@ export function PickupLocationSheet({
             animatedPanelStyle,
           ]}
         >
-          {/* Draggable Handle Bar */}
-          <View {...panResponder.panHandlers} style={styles.dragHandleZone}>
+          {/* Swipe-to-Snap Handle Bar */}
+          <View
+            {...panResponder.panHandlers}
+            accessibilityHint="Swipe to expand or collapse panel"
+            accessibilityLabel="Panel snap handle"
+            accessibilityRole="adjustable"
+            style={styles.dragHandleZone}
+          >
             <View style={styles.dragHandle} />
           </View>
 
@@ -367,6 +382,7 @@ export function PickupLocationSheet({
               contentContainerStyle={styles.confirmContentContainer}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              style={styles.panelScroll}
             >
               <View style={styles.header}>
                 <View style={styles.headerTitleGroup}>
@@ -531,10 +547,12 @@ export function PickupLocationSheet({
 
               {/* Suggestions / Landmarks list */}
               <ScrollView
+                automaticallyAdjustKeyboardInsets
                 contentContainerStyle={styles.list}
                 keyboardDismissMode="on-drag"
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
+                style={styles.panelScroll}
               >
                 {suggestions.length === 0 ? (
                   <View style={styles.emptyResultsBox}>
@@ -853,6 +871,9 @@ const styles = StyleSheet.create({
   },
   noteSection: {
     marginTop: spacing.xs,
+  },
+  panelScroll: {
+    flex: 1,
   },
   panel: {
     backgroundColor: colors.canvas,
