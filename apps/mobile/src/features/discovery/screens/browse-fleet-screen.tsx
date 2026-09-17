@@ -154,7 +154,7 @@ export default function BrowseFleetScreen() {
               accessibilityLabel="Search vehicles"
               autoCapitalize="words"
               onChangeText={setQuery}
-              placeholder="Search cars..."
+              placeholder="Search cars"
               placeholderTextColor="rgba(180,174,164,0.68)"
               returnKeyType="search"
               style={styles.searchInput}
@@ -250,9 +250,9 @@ export default function BrowseFleetScreen() {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No exact match</Text>
+              <Text style={styles.emptyTitle}>No cars found</Text>
               <Text style={styles.emptyBody}>
-                Clear your search or filters to see all available cars.
+                Clear search or filters.
               </Text>
               <PressableScale accessibilityRole="button" onPress={clearAllFilters}>
                 <View style={styles.emptyAction}>
