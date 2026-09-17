@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 
 type OwnerProfileReadGuardProps = {
@@ -18,23 +19,23 @@ type ReadResult = {
 };
 
 export function OwnerProfileReadGuard({ children }: OwnerProfileReadGuardProps) {
-  const { user } = useAuth();
+  const { signingOut, user } = useAuth();
   const router = useRouter();
   const ownerId = user?.uid ?? null;
   const [retryKey, setRetryKey] = useState(0);
   const [readResult, setReadResult] = useState<ReadResult | null>(null);
 
   useEffect(() => {
-    if (!ownerId) return;
+    if (!ownerId || signingOut) return;
 
     let active = true;
     const unsubscribe = createOwnerVerificationRepository().subscribe(
       ownerId,
       () => {
-        if (active) setReadResult({ ownerId, state: 'ready' });
+        if (active && !signingOut) setReadResult({ ownerId, state: 'ready' });
       },
       () => {
-        if (active) setReadResult({ ownerId, state: 'error' });
+        if (active && !signingOut) setReadResult({ ownerId, state: 'error' });
       },
     );
 
@@ -42,13 +43,19 @@ export function OwnerProfileReadGuard({ children }: OwnerProfileReadGuardProps) 
       active = false;
       unsubscribe();
     };
-  }, [ownerId, retryKey]);
+  }, [ownerId, retryKey, signingOut]);
 
-  const readState = !ownerId
-    ? 'error'
-    : readResult?.ownerId === ownerId
-      ? readResult.state
-      : 'loading';
+  if (signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
+
+  if (!ownerId) {
+    return null;
+  }
+
+  const readState = readResult?.ownerId === ownerId
+    ? readResult.state
+    : 'loading';
 
   const handleRetry = () => {
     setReadResult(null);

@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { AuthProvider } from '@/core/auth/auth-context';
+import { SessionIntentProvider } from '@/core/auth/session-intent';
 import { initializeNativeAppCheck } from '@/core/firebase/app-check';
 import { AppErrorBoundary, ErrorBoundary } from '@/components/error-boundary';
 import { BookingProvider } from '@/features/booking/booking-context';
@@ -70,10 +71,12 @@ export default function RootLayout() {
     <ThemeProvider value={mmgNavigationTheme}>
       <AppErrorBoundary>
         <AuthProvider>
-          <BookingProvider>
-            <StatusBar style="light" />
-            <Stack screenOptions={{ contentStyle: { backgroundColor: colors.black }, headerShown: false }} />
-          </BookingProvider>
+          <SessionIntentProvider>
+            <BookingProvider>
+              <StatusBar style="light" />
+              <Stack screenOptions={{ contentStyle: { backgroundColor: colors.black }, headerShown: false }} />
+            </BookingProvider>
+          </SessionIntentProvider>
         </AuthProvider>
       </AppErrorBoundary>
     </ThemeProvider>

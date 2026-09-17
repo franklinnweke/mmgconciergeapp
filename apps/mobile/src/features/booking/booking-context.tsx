@@ -50,7 +50,7 @@ type BookingContextValue = {
 const BookingContext = createContext<BookingContextValue | null>(null);
 
 export function BookingProvider({ children }: PropsWithChildren) {
-  const { user } = useAuth();
+  const { signingOut, user } = useAuth();
   const discoveryGateway = useMemo(() => createDiscoveryGateway(), []);
   const [storedRequests, setStoredRequests] = useState<BookingRequest[]>([]);
   const [trustedTrips, setTrustedTrips] = useState<RenterTrip[]>([]);
@@ -77,12 +77,12 @@ export function BookingProvider({ children }: PropsWithChildren) {
       setResolvedTripVehicles({});
       setLoadedUserId(null);
       setSyncError(null);
-      if (!user) {
+      if (!user || signingOut) {
         setSyncState(bookingRemoteEnabled || renterTripRemoteEnabled ? 'syncing' : 'local-only');
       }
     });
 
-    if (!user) {
+    if (!user || signingOut) {
       return () => { active = false; };
     }
 
@@ -131,7 +131,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
             setSyncState('synced');
           },
           () => {
-            if (active) {
+            if (active && !signingOut) {
               setSyncState('offline');
               setSyncError('Live trip updates are unavailable. Showing any cached journeys.');
             }
@@ -144,21 +144,21 @@ export function BookingProvider({ children }: PropsWithChildren) {
       active = false;
       createUnsubscribeBundle(...stops)();
     };
-  }, [user]);
+  }, [signingOut, user]);
 
   useEffect(() => {
-    if (!user) return undefined;
+    if (!user || signingOut) return undefined;
     const gateway = createRentalRequestGateway();
     let active = true;
 
     const load = async () => {
       try {
         const listed = await gateway.listRenterRequests();
-        if (!active) return;
+        if (!active || signingOut) return;
         setRentalRequestTrips(listed.requests.map(mapRenterVisibleRentalRequest));
         setRentalRequestUserId(user.uid);
       } catch {
-        if (active) {
+        if (active && !signingOut) {
           setSyncError((current) => current ?? 'Rental requests could not be refreshed.');
         }
       }
@@ -177,7 +177,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
       clearInterval(interval);
       subscription.remove();
     };
-  }, [user]);
+  }, [signingOut, user]);
 
   const requests = useMemo(
     () => (user && loadedUserId === user.uid ? storedRequests : []),

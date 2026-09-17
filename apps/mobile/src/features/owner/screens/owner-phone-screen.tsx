@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import {
   createOwnerVerificationGateway,
   type PhoneConfirmationSession,
@@ -47,20 +48,25 @@ export function OwnerPhoneScreen() {
 
   useEffect(() => {
     const ownerId = auth.user?.uid;
-    if (!ownerId) return;
+    if (!ownerId || auth.signingOut) return;
 
     const repository = createOwnerVerificationRepository();
     const unsubscribe = repository.subscribe(
       ownerId,
       (updatedProfile) => {
+        if (auth.signingOut) return;
         setProfile(updatedProfile);
         setLoadingProfile(false);
       },
-      () => setLoadingProfile(false),
+      () => {
+        if (!auth.signingOut) {
+          setLoadingProfile(false);
+        }
+      },
     );
 
     return () => unsubscribe();
-  }, [auth.user?.uid]);
+  }, [auth.signingOut, auth.user?.uid]);
 
   const emailVerified = Boolean(auth.user?.emailVerified);
   const agreementsCurrent = hasCurrentOwnerAgreements(profile);
@@ -135,6 +141,10 @@ export function OwnerPhoneScreen() {
       setLoading(false);
     }
   };
+
+  if (auth.signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
 
   return (
     <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>

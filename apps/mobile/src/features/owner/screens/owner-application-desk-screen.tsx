@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import {
@@ -35,7 +36,7 @@ export function OwnerApplicationDeskScreen() {
 
   useEffect(() => {
     const ownerId = auth.user?.uid;
-    if (!ownerId) return;
+    if (!ownerId || auth.signingOut) return;
 
     void getDraftUpload(ownerId).then((savedDraft) => {
       setDraftUpload(savedDraft);
@@ -45,6 +46,7 @@ export function OwnerApplicationDeskScreen() {
     const unsubscribe = repository.subscribe(
       ownerId,
       (updatedProfile) => {
+        if (auth.signingOut) return;
         setProfile(updatedProfile);
         setLoading(false);
         setSyncError(null);
@@ -59,13 +61,14 @@ export function OwnerApplicationDeskScreen() {
         }
       },
       () => {
+        if (auth.signingOut) return;
         setLoading(false);
         setSyncError('Your application status could not be loaded.');
       },
     );
 
     return () => unsubscribe();
-  }, [auth.user?.uid, retryTrigger]);
+  }, [auth.signingOut, auth.user?.uid, retryTrigger]);
 
   const completeness = useMemo(
     () => computeApplicationCompleteness(
@@ -91,6 +94,10 @@ export function OwnerApplicationDeskScreen() {
       router.push(presentation.primaryAction.route as Href);
     }
   };
+
+  if (auth.signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
 
   return (
     <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.screen}>

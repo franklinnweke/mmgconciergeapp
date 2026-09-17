@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
@@ -48,21 +49,23 @@ export function OwnerSubmitV2Screen() {
   const [idempotencyKey] = useState(() => `submit-owner-${auth.user?.uid ?? 'anon'}-${Date.now()}`);
 
   useEffect(() => {
-    if (!auth.user?.uid) return undefined;
+    if (!auth.user?.uid || auth.signingOut) return undefined;
     void getDraftUpload(auth.user.uid).then(setDraft);
     return createOwnerVerificationRepository().subscribe(
       auth.user.uid,
       (next) => {
+        if (auth.signingOut) return;
         setProfile(next);
         setProfileLoadError(null);
         setProfileLoading(false);
       },
       () => {
+        if (auth.signingOut) return;
         setProfileLoadError('We could not load your owner application. Try again.');
         setProfileLoading(false);
       },
     );
-  }, [auth.user?.uid, retryKey]);
+  }, [auth.signingOut, auth.user?.uid, retryKey]);
 
   const rejectedUploadId =
     profile?.verificationStatus === 'rejected'
@@ -110,6 +113,10 @@ export function OwnerSubmitV2Screen() {
   const address = profile?.address
     ? [profile.address.line1, profile.address.line2, profile.address.areaLabel, 'Lagos'].filter(Boolean).join(', ')
     : 'Not provided';
+
+  if (auth.signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
 
   if (profileLoading) {
     return (
