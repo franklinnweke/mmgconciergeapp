@@ -26,6 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import {
   COMMISSION_TERMS_SUMMARY,
   OWNER_TERMS_SUMMARY,
@@ -57,11 +58,12 @@ export function OwnerIdentityScreen() {
 
   useEffect(() => {
     const ownerId = auth.user?.uid;
-    if (!ownerId) return;
+    if (!ownerId || auth.signingOut) return;
 
     const unsubscribe = createOwnerVerificationRepository().subscribe(
       ownerId,
       (updatedProfile) => {
+        if (auth.signingOut) return;
         setProfile(updatedProfile);
         if (
           updatedProfile &&
@@ -80,11 +82,15 @@ export function OwnerIdentityScreen() {
         }
         setLoadingProfile(false);
       },
-      () => setLoadingProfile(false),
+      () => {
+        if (!auth.signingOut) {
+          setLoadingProfile(false);
+        }
+      },
     );
 
     return () => unsubscribe();
-  }, [auth.user?.uid]);
+  }, [auth.signingOut, auth.user?.uid]);
 
   const [idempotencyKey] = useState(
     () => `complete-profile-${auth.user?.uid || 'anon'}-${Date.now()}`,
@@ -148,6 +154,10 @@ export function OwnerIdentityScreen() {
       />
     </View>
   );
+
+  if (auth.signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
 
   if (loadingProfile) {
     return (

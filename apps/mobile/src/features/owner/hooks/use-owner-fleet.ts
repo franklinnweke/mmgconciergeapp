@@ -6,7 +6,7 @@ import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { createOwnerFleetGateway, OwnerFleetGateway } from '../data/owner-fleet-gateway';
 
 export function useOwnerFleet(gateway: OwnerFleetGateway = createOwnerFleetGateway()) {
-  const { user } = useAuth();
+  const { signingOut, user } = useAuth();
   const [vehicles, setVehicles] = useState<OwnerVisibleVehicle[]>([]);
   const [loading, setLoading] = useState(Boolean(user?.uid));
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -15,23 +15,25 @@ export function useOwnerFleet(gateway: OwnerFleetGateway = createOwnerFleetGatew
   const uid = user?.uid;
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || signingOut) return;
 
     const unsubscribe = gateway.subscribeOwnerVehicles(
       uid,
       (fetched) => {
+        if (signingOut) return;
         setVehicles(fetched);
         setLoading(false);
         setSyncError(null);
       },
       (err) => {
+        if (signingOut) return;
         setLoading(false);
         setSyncError(safeProviderError(err, 'Unable to synchronize fleet records.'));
       },
     );
 
     return () => unsubscribe();
-  }, [gateway, uid]);
+  }, [gateway, signingOut, uid]);
 
   const toggleVisibility = useCallback(
     async (vehicle: OwnerVisibleVehicle): Promise<boolean> => {

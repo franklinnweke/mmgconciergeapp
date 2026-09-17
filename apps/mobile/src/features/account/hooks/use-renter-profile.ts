@@ -10,7 +10,7 @@ import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { createRenterProfileGateway } from '../data/renter-profile-gateway';
 
 export function useRenterProfile() {
-  const { user } = useAuth();
+  const { signingOut, user } = useAuth();
   const [profileState, setProfileState] = useState<{
     profile: RenterProfileRecord | null;
     isLoading: boolean;
@@ -44,7 +44,7 @@ export function useRenterProfile() {
 
   useEffect(() => {
     let isMounted = true;
-    if (!user?.uid) {
+    if (!user?.uid || signingOut) {
       setProfileState({ profile: null, isLoading: false, errorMessage: null });
       return;
     }
@@ -52,12 +52,12 @@ export function useRenterProfile() {
     gateway
       .getRenterProfile(user.uid)
       .then((res) => {
-        if (isMounted) {
+        if (isMounted && !signingOut) {
           setProfileState({ profile: res, isLoading: false, errorMessage: null });
         }
       })
       .catch((err) => {
-        if (isMounted) {
+        if (isMounted && !signingOut) {
           setProfileState({
             profile: null,
             isLoading: false,
@@ -69,7 +69,7 @@ export function useRenterProfile() {
     return () => {
       isMounted = false;
     };
-  }, [gateway, user]);
+  }, [gateway, signingOut, user]);
 
   const saveProfile = async (data: CompleteRenterProfileData) => {
     setIsSaving(true);

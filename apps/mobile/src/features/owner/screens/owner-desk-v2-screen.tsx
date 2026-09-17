@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import {
@@ -36,12 +37,13 @@ export function OwnerDeskV2Screen() {
 
   useEffect(() => {
     const ownerId = auth.user?.uid;
-    if (!ownerId) return undefined;
+    if (!ownerId || auth.signingOut) return undefined;
     void getDraftUpload(ownerId).then(setDraftUpload);
     const repository = createOwnerVerificationRepository();
     return repository.subscribe(
       ownerId,
       (next) => {
+        if (auth.signingOut) return;
         setProfile(next);
         setError(null);
         setLoading(false);
@@ -51,11 +53,12 @@ export function OwnerDeskV2Screen() {
         }
       },
       () => {
+        if (auth.signingOut) return;
         setError('Your owner application could not be loaded.');
         setLoading(false);
       },
     );
-  }, [auth.user?.uid, retryKey]);
+  }, [auth.signingOut, auth.user?.uid, retryKey]);
 
   const completeness = useMemo(() => computeApplicationCompleteness(
     profile,
@@ -94,6 +97,8 @@ export function OwnerDeskV2Screen() {
     if (status === 'revoked') return ['REVOKED', 'This owner account cannot continue.', profile?.lastDecisionReason || 'This owner capability has been revoked by MMG operations.'];
     return ['OWNER DESK', completeness.canSubmit ? 'Your application is ready.' : 'Prepare your owner application.', completeness.canSubmit ? 'Review the completed details and send them to MMG.' : 'Complete identity, Nigerian phone verification and government ID.'];
   })();
+
+  if (auth.signingOut) return <AuthLoadingScreen message="Signing out" />;
 
   return (
     <SafeAreaView style={styles.screen}>

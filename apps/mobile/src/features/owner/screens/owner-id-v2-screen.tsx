@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import { computeOwnerIdScreenState } from '../domain/owner-application';
 import { validateOwnerIdCandidate } from '../domain/owner-id-preflight';
@@ -37,20 +38,22 @@ export function OwnerIdV2Screen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!auth.user?.uid) return undefined;
+    if (!auth.user?.uid || auth.signingOut) return undefined;
     return createOwnerVerificationRepository().subscribe(
       auth.user.uid,
       (next) => {
+        if (auth.signingOut) return;
         setProfile(next);
         setProfileLoadError(null);
         setLoading(false);
       },
       () => {
+        if (auth.signingOut) return;
         setProfileLoadError('We could not load your owner application. Try again.');
         setLoading(false);
       },
     );
-  }, [auth.user?.uid, retryKey]);
+  }, [auth.signingOut, auth.user?.uid, retryKey]);
 
   const emailVerified = Boolean(auth.user?.emailVerified);
   const {
@@ -115,6 +118,10 @@ export function OwnerIdV2Screen() {
     setProfileLoadError(null);
     setRetryKey((value) => value + 1);
   };
+
+  if (auth.signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
 
   return (
     <SafeAreaView style={styles.screen}>

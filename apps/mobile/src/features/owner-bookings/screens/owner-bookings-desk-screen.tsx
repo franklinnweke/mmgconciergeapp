@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import {
   createOwnerBookingRepository,
@@ -35,7 +36,7 @@ function rangeLabel(startDate: string, endDate: string) {
 
 export function OwnerBookingsDeskScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { signingOut, user } = useAuth();
   const repository = useMemo(() => createOwnerBookingRepository(), []);
   const requestGateway = useMemo(() => createOwnerRentalRequestGateway(), []);
   const [requests, setRequests] = useState<OwnerVisibleRentalRequest[]>([]);
@@ -66,31 +67,33 @@ export function OwnerBookingsDeskScreen() {
   };
 
   useEffect(() => {
-    if (!user?.uid) return undefined;
+    if (!user?.uid || signingOut) return undefined;
     let active = true;
 
     void requestGateway.listRequests()
       .then((listed) => {
-        if (!active) return;
+        if (!active || signingOut) return;
         setRequests(listed.requests);
         setRequestsError(null);
       })
       .catch(() => {
-        if (!active) return;
+        if (!active || signingOut) return;
         setRequestsError('Rental requests could not be loaded. Check your connection and try again.');
       })
       .finally(() => {
-        if (active) setRequestsLoading(false);
+        if (active && !signingOut) setRequestsLoading(false);
       });
 
     const stop = repository.subscribe(
       user.uid,
       (next) => {
+        if (signingOut) return;
         setSnapshot(next);
         setBookingsError(null);
         setBookingsLoading(false);
       },
       () => {
+        if (signingOut) return;
         setBookingsLoading(false);
         setBookingsError('Bookings could not be loaded. Check your connection and try again.');
       },
@@ -100,7 +103,7 @@ export function OwnerBookingsDeskScreen() {
       active = false;
       stop();
     };
-  }, [refreshKey, repository, requestGateway, user?.uid]);
+  }, [refreshKey, repository, requestGateway, signingOut, user?.uid]);
 
   const groups = groupOwnerBookings(snapshot.bookings);
   const sections = [
@@ -109,6 +112,10 @@ export function OwnerBookingsDeskScreen() {
     ['Needs attention', groups.attention],
     ['Other', groups.other],
   ] as const;
+
+  if (signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
 
   return (
     <SafeAreaView style={styles.safe}>

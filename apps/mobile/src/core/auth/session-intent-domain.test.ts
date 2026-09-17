@@ -43,4 +43,37 @@ describe('session intent routing', () => {
     expect(resolveAuthenticatedSessionMode(null, 'owner')).toBe('owner');
     expect(resolveAuthenticatedSessionMode(null, null)).toBe('renter');
   });
+
+  it('restores last working mode when the same UID logs out and logs back in', () => {
+    const userStorage: Record<string, string> = {};
+    const uid = 'returning-owner';
+
+    // 1. User is in owner mode and preference is saved
+    userStorage[sessionModeStorageKey(uid)] = 'owner';
+
+    // 2. User signs out (mode preference stays in storage under user key)
+    const storedPreferenceAfterSignOut = parseStoredSessionMode(userStorage[sessionModeStorageKey(uid)]);
+    expect(storedPreferenceAfterSignOut).toBe('owner');
+
+    // 3. User signs back in without explicit role selection
+    const restoredDestination = resolveAuthenticatedSessionMode('sign-in', storedPreferenceAfterSignOut);
+    expect(restoredDestination).toBe('owner');
+  });
+
+  it('ensures another UID cannot inherit the previous user mode', () => {
+    const userStorage: Record<string, string> = {};
+    const uidA = 'owner-uid';
+    const uidB = 'renter-uid';
+
+    // User A stores owner mode
+    userStorage[sessionModeStorageKey(uidA)] = 'owner';
+
+    // User B has no stored preference or has renter preference
+    const userBStoredPreference = parseStoredSessionMode(userStorage[sessionModeStorageKey(uidB)] ?? null);
+    expect(userBStoredPreference).toBeNull();
+
+    // User B signs in -> defaults safely to renter, never inherits User A's owner mode
+    const userBDestination = resolveAuthenticatedSessionMode('sign-in', userBStoredPreference);
+    expect(userBDestination).toBe('renter');
+  });
 });

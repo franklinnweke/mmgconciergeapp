@@ -9,6 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
+import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 import { useOwnerFleet } from '../hooks/use-owner-fleet';
 
@@ -23,6 +25,7 @@ function statusPresentation(status: VehicleModerationStatus, visibility: string)
 
 export function OwnerFleetV2Screen() {
   const router = useRouter();
+  const { signingOut } = useAuth();
   const { actionInProgress, loading, syncError, toggleVisibility, vehicles } = useOwnerFleet();
 
   const right = (
@@ -41,6 +44,10 @@ export function OwnerFleetV2Screen() {
       </PressableScale>
     </View>
   );
+
+  if (signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.screen}>

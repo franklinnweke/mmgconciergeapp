@@ -20,6 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { uploadRenterProfilePhoto } from '../data/renter-profile-photo';
 import { useRenterProfile } from '../hooks/use-renter-profile';
 
@@ -417,6 +418,10 @@ export function RenterProfileScreen() {
   const handleRequestDeletion = async (reason?: string) => {
     await requestDeletion({ confirmation: true, reason });
   };
+
+  if (signingOut) {
+    return <AuthLoadingScreen message="Signing out" />;
+  }
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
