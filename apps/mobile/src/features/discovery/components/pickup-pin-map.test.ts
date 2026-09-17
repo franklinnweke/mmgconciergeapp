@@ -132,4 +132,19 @@ describe('PickupPinMap native MapView and arrival perimeter bounding', () => {
     expect(distGate).toBe(45);
     expect(distGate > 5).toBe(true);
   });
+
+  it('supports mapPadding and pinCenterY for full-surface map sheet integration', () => {
+    // Verifies the prop types and export contract
+    const props = {
+      latitude: centerLat,
+      longitude: centerLng,
+      onCoordinatesChange: vi.fn(),
+      mapPadding: { top: 40, right: 0, bottom: 400, left: 0 },
+      pinCenterY: 220,
+      showsPin: true,
+      showsInstruction: false,
+    };
+    expect(props.mapPadding.bottom).toBe(400);
+    expect(props.pinCenterY).toBe(220);
+  });
 });

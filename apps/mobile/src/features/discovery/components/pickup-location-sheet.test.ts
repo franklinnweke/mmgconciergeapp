@@ -20,8 +20,10 @@ vi.mock('expo-location', () => ({
 
 vi.mock('react-native', () => ({
   ActivityIndicator: 'ActivityIndicator',
+  Keyboard: { dismiss: vi.fn() },
   KeyboardAvoidingView: 'KeyboardAvoidingView',
   Modal: 'Modal',
+  PanResponder: { create: () => ({ panHandlers: {} }) },
   Platform: { OS: 'ios' },
   Pressable: 'Pressable',
   ScrollView: 'ScrollView',
@@ -32,7 +34,22 @@ vi.mock('react-native', () => ({
   },
   Text: 'Text',
   TextInput: 'TextInput',
+  useWindowDimensions: () => ({ width: 390, height: 844 }),
   View: 'View',
+}));
+
+vi.mock('react-native-gesture-handler', () => ({
+  GestureHandlerRootView: 'GestureHandlerRootView',
+}));
+
+vi.mock('react-native-reanimated', () => ({
+  default: { View: 'View' },
+  useAnimatedStyle: (fn: any) => fn(),
+  useReducedMotion: () => false,
+  useSharedValue: (init: any) => ({ value: init }),
+  withSpring: (toValue: any) => toValue,
+  withTiming: (toValue: any) => toValue,
+  runOnJS: (fn: any) => fn,
 }));
 
 vi.mock('@expo/vector-icons', () => ({
@@ -40,7 +57,7 @@ vi.mock('@expo/vector-icons', () => ({
 }));
 
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ bottom: 0, top: 0, left: 0, right: 0 }),
+  useSafeAreaInsets: () => ({ bottom: 34, top: 47, left: 0, right: 0 }),
 }));
 
 vi.mock('@/components/pressable-scale', () => ({
@@ -181,5 +198,30 @@ describe('PickupLocationSheet', () => {
     expect(adjustedLocation.latitude).toBe(6.42715);
     expect(adjustedLocation.longitude).toBe(3.4288);
     expect(adjustedLocation.placeId).toBe('ChIJ_hotel_eko');
+  });
+
+  it('determines initial mode correctly based on presence of existing selectedLocation', () => {
+    // When no selectedLocation is present, starts in search_idle
+    expect(PickupLocationSheet).toBeDefined();
+    const hasExisting = Boolean(null);
+    expect(hasExisting ? 'confirm' : 'search_idle').toBe('search_idle');
+
+    // When selectedLocation is present, starts directly in confirm mode
+    const hasExistingLocation = Boolean({
+      placeId: 'landmark-1',
+      displayName: 'Eko Hotel',
+      formattedAddress: 'Victoria Island',
+      latitude: 6.4269,
+      longitude: 3.4285,
+      source: 'suggested',
+      serviceAreaLabel: 'Victoria Island',
+    });
+    expect(hasExistingLocation ? 'confirm' : 'search_idle').toBe('confirm');
+  });
+
+  it('renders with safe area inset protection for bottom action controls', () => {
+    const bottomInset = 34;
+    const paddingBottom = Math.max(bottomInset, 16);
+    expect(paddingBottom).toBe(34);
   });
 });

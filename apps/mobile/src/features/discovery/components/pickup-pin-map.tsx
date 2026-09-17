@@ -1,16 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
-import { useCallback, useRef, useState } from 'react';
+import { colors, spacing, typography } from '@mmg/brand';
+import { isWithinLagosBBox } from '@mmg/domain';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  StyleProp,
   StyleSheet,
   Text,
   View,
+  ViewStyle,
 } from 'react-native';
 import MapView, { type Region } from 'react-native-maps';
 
 import { PressableScale } from '@/components/pressable-scale';
-import { isWithinLagosBBox } from '@mmg/domain';
 import {
   calculateDistanceMeters,
   clampToArrivalPerimeter,
@@ -25,6 +27,11 @@ export type PickupPinMapProps = {
   onCoordinatesChange(coords: { latitude: number; longitude: number }): void;
   onReset?(): void;
   disabled?: boolean;
+  mapPadding?: { top: number; right: number; bottom: number; left: number };
+  pinCenterY?: number;
+  showsPin?: boolean;
+  showsInstruction?: boolean;
+  style?: StyleProp<ViewStyle>;
 };
 
 export const LUXURY_DARK_MAP_STYLE = [
@@ -71,8 +78,14 @@ export function PickupPinMap({
   onCoordinatesChange,
   onReset,
   disabled = false,
+  mapPadding,
+  pinCenterY,
+  showsPin = true,
+  showsInstruction = false,
+  style,
 }: PickupPinMapProps) {
   const mapRef = useRef<MapView>(null);
+  const lastReportedCoords = useRef<{ lat: number; lng: number }>({ lat: latitude, lng: longitude });
   const [isMoving, setIsMoving] = useState(false);
   const [pinScale] = useState(() => new Animated.Value(1));
   const [pinTranslateY] = useState(() => new Animated.Value(0));
@@ -82,11 +95,29 @@ export function PickupPinMap({
   const distanceFromCenter = calculateDistanceMeters(centerLat, centerLng, latitude, longitude);
   const hasAdjusted = distanceFromCenter > 5;
 
+  // Camera re-centering when target coordinates change externally
+  useEffect(() => {
+    const latDiff = Math.abs(latitude - lastReportedCoords.current.lat);
+    const lngDiff = Math.abs(longitude - lastReportedCoords.current.lng);
+    if (latDiff > 0.00005 || lngDiff > 0.00005) {
+      lastReportedCoords.current = { lat: latitude, lng: longitude };
+      mapRef.current?.animateToRegion(
+        {
+          latitude,
+          longitude,
+          latitudeDelta: 0.003,
+          longitudeDelta: 0.003,
+        },
+        300,
+      );
+    }
+  }, [latitude, longitude]);
+
   const liftPin = useCallback(() => {
     setIsMoving(true);
     Animated.parallel([
-      Animated.spring(pinScale, { toValue: 1.12, useNativeDriver: true }),
-      Animated.spring(pinTranslateY, { toValue: -6, useNativeDriver: true }),
+      Animated.spring(pinScale, { toValue: 1.15, useNativeDriver: true }),
+      Animated.spring(pinTranslateY, { toValue: -8, useNativeDriver: true }),
     ]).start();
   }, [pinScale, pinTranslateY]);
 
@@ -131,6 +162,7 @@ export function PickupPinMap({
       }
 
       if (isWithinLagosBBox(finalLat, finalLng)) {
+        lastReportedCoords.current = { lat: finalLat, lng: finalLng };
         onCoordinatesChange({ latitude: finalLat, longitude: finalLng });
       }
     },
@@ -148,27 +180,30 @@ export function PickupPinMap({
       },
       250,
     );
+    lastReportedCoords.current = { lat: initialLatitude, lng: initialLongitude };
     onCoordinatesChange({ latitude: initialLatitude, longitude: initialLongitude });
     onReset?.();
   }, [disabled, initialLatitude, initialLongitude, onCoordinatesChange, onReset]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.instructionText}>
-          {isMoving ? 'Positioning pickup point…' : 'Pan the map to adjust the exact pickup point'}
-        </Text>
-        {hasAdjusted && onReset ? (
-          <PressableScale
-            accessibilityLabel="Reset pickup point"
-            accessibilityRole="button"
-            onPress={handleResetPress}
-            style={styles.resetButton}
-          >
-            <Text style={styles.resetText}>Reset pin</Text>
-          </PressableScale>
-        ) : null}
-      </View>
+    <View style={[styles.container, style]}>
+      {showsInstruction ? (
+        <View style={styles.headerRow}>
+          <Text style={styles.instructionText}>
+            {isMoving ? 'Positioning pickup point…' : 'Pan the map to adjust the exact pickup point'}
+          </Text>
+          {hasAdjusted && onReset ? (
+            <PressableScale
+              accessibilityLabel="Reset pickup point"
+              accessibilityRole="button"
+              onPress={handleResetPress}
+              style={styles.resetButton}
+            >
+              <Text style={styles.resetText}>Reset pin</Text>
+            </PressableScale>
+          ) : null}
+        </View>
+      ) : null}
 
       <View
         accessibilityLabel="Interactive map for exact chauffeur arrival location"
@@ -182,6 +217,7 @@ export function PickupPinMap({
             latitudeDelta: 0.003,
             longitudeDelta: 0.003,
           }}
+          mapPadding={mapPadding}
           onRegionChange={handleRegionChange}
           onRegionChangeComplete={handleRegionChangeComplete}
           pitchEnabled={false}
@@ -196,21 +232,31 @@ export function PickupPinMap({
 
         <View pointerEvents="none" style={styles.mapScrim} />
 
-        <View pointerEvents="none" style={styles.pinAnchor}>
-          <Animated.View
-            style={[
-              styles.pinHead,
-              {
-                transform: [
-                  { translateY: pinTranslateY },
-                  { scale: pinScale },
-                ],
-              },
-            ]}
+        {showsPin ? (
+          <View
+            pointerEvents="none"
+            style={
+              pinCenterY !== undefined
+                ? [styles.pinPositionedAnchor, { top: pinCenterY }]
+                : styles.pinAnchor
+            }
           >
-            <Ionicons color={colors.goldStrong} name="location" size={30} />
-          </Animated.View>
-        </View>
+            <View style={styles.pinDot} />
+            <Animated.View
+              style={[
+                styles.pinHead,
+                {
+                  transform: [
+                    { translateY: pinTranslateY },
+                    { scale: pinScale },
+                  ],
+                },
+              ]}
+            >
+              <Ionicons color={colors.goldStrong} name="location" size={34} />
+            </Animated.View>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -218,7 +264,8 @@ export function PickupPinMap({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: spacing.xs,
+    flex: 1,
+    position: 'relative',
   },
   headerRow: {
     alignItems: 'center',
@@ -235,26 +282,37 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   mapFrame: {
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    height: 160,
-    justifyContent: 'center',
     overflow: 'hidden',
-    position: 'relative',
   },
   mapScrim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(4, 4, 4, 0.08)',
+    backgroundColor: 'rgba(4, 4, 4, 0.06)',
   },
   pinAnchor: {
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    ...StyleSheet.absoluteFill,
+  },
+  pinPositionedAnchor: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  pinDot: {
+    backgroundColor: 'rgba(212, 175, 55, 0.4)',
+    borderRadius: 3,
+    height: 6,
+    position: 'absolute',
+    top: 0,
+    width: 6,
   },
   pinHead: {
-    marginTop: -18,
+    // Aligns the tip of the 34px icon with the anchor point
+    marginTop: -32,
   },
   resetButton: {
     flexShrink: 0,
