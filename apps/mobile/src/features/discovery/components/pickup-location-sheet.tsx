@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Keyboard,
   Modal,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +13,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -89,15 +87,6 @@ export function PickupLocationSheet({
     [screenHeight, insets],
   );
 
-  const snapOffsets = useMemo(
-    () => ({
-      search_focused: 0,
-      search_idle: snapHeights.search_focused - snapHeights.search_idle,
-      confirm: snapHeights.search_focused - snapHeights.confirm,
-    }),
-    [snapHeights],
-  );
-
   const mapPadding = useMemo(
     () => calculateMapPadding(mode, snapHeights, insets),
     [mode, snapHeights, insets],
@@ -134,24 +123,24 @@ export function PickupLocationSheet({
     }
   }
 
-  // Animated translateY for bottom panel
-  const panelTranslateY = useSharedValue(0);
+  // Animate the panel's real layout height so invisible bounds never cover the map.
+  const panelHeight = useSharedValue(snapHeights[mode]);
 
   useEffect(() => {
-    const target = snapOffsets[mode];
+    const target = snapHeights[mode];
     if (reducedMotion) {
-      panelTranslateY.value = withTiming(target, { duration: 150 });
+      panelHeight.value = withTiming(target, { duration: 150 });
     } else {
-      panelTranslateY.value = withSpring(target, {
+      panelHeight.value = withSpring(target, {
         damping: 26,
         stiffness: 260,
         mass: 0.85,
       });
     }
-  }, [mode, snapOffsets, reducedMotion, panelTranslateY]);
+  }, [mode, snapHeights, reducedMotion, panelHeight]);
 
   const animatedPanelStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: panelTranslateY.value }],
+    height: panelHeight.value,
   }));
 
   const handleDismiss = useCallback(() => {
@@ -164,37 +153,6 @@ export function PickupLocationSheet({
     resetCurrentLoc();
     onClose();
   }, [onClose, resetCurrentLoc]);
-
-  // PanResponder on the handle bar to swipe-snap between sheet modes
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
-        onPanResponderRelease: (_, gestureState) => {
-          const { dy, vy } = gestureState;
-          if (mode === 'search_focused') {
-            if (dy > 30 || vy > 0.4) {
-              Keyboard.dismiss();
-              setMode('search_idle');
-            }
-          } else if (mode === 'search_idle') {
-            if (dy < -30 || vy < -0.4) {
-              setMode('search_focused');
-            } else if (dy > 80 || vy > 0.7) {
-              handleDismiss();
-            }
-          } else if (mode === 'confirm') {
-            if (dy < -30 || vy < -0.4) {
-              setMode('search_idle');
-            } else if (dy > 80 || vy > 0.7) {
-              handleDismiss();
-            }
-          }
-        },
-      }),
-    [mode, handleDismiss],
-  );
 
   const handleConfirm = () => {
     if (!pendingLocation) return;
@@ -309,10 +267,10 @@ export function PickupLocationSheet({
       transparent
       visible={visible}
     >
-      <GestureHandlerRootView style={styles.root}>
+      <View style={styles.root}>
         {/* Full-surface interactive background map */}
         <PickupPinMap
-          disabled={mode !== 'confirm'}
+          disabled={mode !== 'confirm' || !pendingLocation}
           initialLatitude={initialCoords?.latitude}
           initialLongitude={initialCoords?.longitude}
           latitude={effectiveLat}
@@ -322,7 +280,8 @@ export function PickupLocationSheet({
           onReset={handleResetPin}
           pinCenterY={pinCenterY}
           showsInstruction={false}
-          showsPin={mode === 'confirm'}
+          showsPin={Boolean(pendingLocation) && mode !== 'search_focused'}
+          showsUserLocation={currentLocStatus === 'success'}
           style={StyleSheet.absoluteFill}
         />
 
@@ -357,21 +316,11 @@ export function PickupLocationSheet({
         <Animated.View
           style={[
             styles.panel,
-            {
-              height: snapHeights.search_focused,
-              paddingBottom: Math.max(insets.bottom, spacing.md),
-            },
+            { paddingBottom: Math.max(insets.bottom, spacing.md) },
             animatedPanelStyle,
           ]}
         >
-          {/* Swipe-to-Snap Handle Bar */}
-          <View
-            {...panResponder.panHandlers}
-            accessibilityHint="Swipe to expand or collapse panel"
-            accessibilityLabel="Panel snap handle"
-            accessibilityRole="adjustable"
-            style={styles.dragHandleZone}
-          >
+          <View accessibilityElementsHidden style={styles.dragHandleZone}>
             <View style={styles.dragHandle} />
           </View>
 
@@ -396,7 +345,12 @@ export function PickupLocationSheet({
                 <PressableScale
                   accessibilityLabel="Back to pickup search"
                   accessibilityRole="button"
-                  onPress={() => setMode('search_idle')}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setQuery('');
+                    setResolveError(null);
+                    setMode('search_idle');
+                  }}
                   style={styles.changeButton}
                 >
                   <Text style={styles.changeButtonText}>Change</Text>
@@ -417,19 +371,9 @@ export function PickupLocationSheet({
                 <Text style={styles.confirmedAddress}>{pendingLocation.formattedAddress}</Text>
               </View>
 
-              <View style={styles.noteSection}>
-                <Text style={styles.noteLabel}>Entrance or meeting point note (optional)</Text>
-                <TextInput
-                  accessibilityLabel="Entrance or meeting point note"
-                  autoCapitalize="sentences"
-                  maxLength={150}
-                  onChangeText={setNote}
-                  placeholder="e.g. Gate 3, North Lobby, or call security on arrival"
-                  placeholderTextColor={colors.muted}
-                  style={styles.noteInput}
-                  value={note}
-                />
-              </View>
+              <Text style={styles.mapHint}>
+                Drag the map to fine-tune the exact arrival point.
+              </Text>
 
               <PressableScale
                 accessibilityLabel="Confirm pickup location"
@@ -440,7 +384,7 @@ export function PickupLocationSheet({
                 <Text style={styles.confirmButtonText}>Confirm pickup location</Text>
               </PressableScale>
 
-              {pendingLocation.source === 'place_search' || pendingLocation.source === 'pin_adjusted' ? (
+              {initialSource === 'place_search' ? (
                 <View accessibilityLabel="Powered by Google" style={styles.attributionContainer}>
                   <Text style={styles.attributionText}>Powered by Google</Text>
                 </View>
@@ -477,22 +421,20 @@ export function PickupLocationSheet({
                   accessibilityRole="button"
                   disabled={currentLocStatus === 'requesting'}
                   onPress={handleCurrentLocationPress}
-                  style={styles.currentLocationRow}
+                  style={styles.currentLocationAction}
                 >
-                  <View style={styles.currentLocationIcon}>
-                    {currentLocStatus === 'requesting' ? (
-                      <ActivityIndicator color={colors.goldStrong} size="small" />
-                    ) : (
-                      <Ionicons color={colors.goldStrong} name="navigate-outline" size={20} />
-                    )}
-                  </View>
-                  <View style={styles.currentLocationCopy}>
-                    <Text style={styles.currentLocationTitle}>Use my current location</Text>
-                    <Text style={styles.currentLocationSub}>
-                      {currentLocStatus === 'requesting'
-                        ? 'Finding your location…'
-                        : 'Find your pickup automatically'}
+                  <View pointerEvents="none" style={styles.currentLocationRow}>
+                    <View style={styles.currentLocationIcon}>
+                      {currentLocStatus === 'requesting' ? (
+                        <ActivityIndicator color={colors.goldStrong} size="small" />
+                      ) : (
+                        <Ionicons color={colors.goldStrong} name="navigate-outline" size={20} />
+                      )}
+                    </View>
+                    <Text numberOfLines={1} style={styles.currentLocationTitle}>
+                      {currentLocStatus === 'requesting' ? 'Finding your location…' : 'Use my current location'}
                     </Text>
+                    <Ionicons color={colors.muted} name="chevron-forward" size={16} />
                   </View>
                 </PressableScale>
               ) : null}
@@ -541,7 +483,7 @@ export function PickupLocationSheet({
 
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionHeaderTitle}>
-                  {query.trim().length > 0 ? 'Matching locations' : 'Suggested Lagos landmarks'}
+                  {mode === 'search_focused' ? (query.trim().length > 0 ? 'Matching locations' : 'Search results') : 'Quick picks'}
                 </Text>
               </View>
 
@@ -561,7 +503,7 @@ export function PickupLocationSheet({
                     </Text>
                   </View>
                 ) : (
-                  suggestions.map((item) => {
+                  (mode === 'search_focused' ? suggestions : suggestions.filter((item) => item.isCurated).slice(0, 2)).map((item) => {
                     const active = isSelected(item);
                     const isResolving = resolvingPlaceId === item.placeId;
                     return (
@@ -606,7 +548,7 @@ export function PickupLocationSheet({
             </View>
           )}
         </Animated.View>
-      </GestureHandlerRootView>
+      </View>
     </Modal>
   );
 }
@@ -706,23 +648,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 28,
   },
-  currentLocationRow: {
-    alignItems: 'center',
+  currentLocationAction: {
     borderBottomColor: colors.line,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: spacing.xs,
+    width: '100%',
+  },
+  currentLocationRow: {
+    alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.xs,
-    minHeight: 52,
+    minHeight: 44,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
-  },
-  currentLocationSub: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    lineHeight: 17,
-    marginTop: 2,
+    width: '100%',
   },
   currentLocationTitle: {
     color: colors.ivory,
@@ -835,7 +774,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 54,
+    minHeight: 48,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
   },
@@ -852,24 +791,11 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: spacing.sm,
   },
-  noteInput: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    color: colors.ivory,
+  mapHint: {
+    color: colors.muted,
     fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-  },
-  noteLabel: {
-    color: colors.silver,
-    fontFamily: typography.bodyMedium,
     fontSize: fontSizes.xs,
-    marginBottom: spacing.xs,
-  },
-  noteSection: {
+    lineHeight: 17,
     marginTop: spacing.xs,
   },
   panelScroll: {

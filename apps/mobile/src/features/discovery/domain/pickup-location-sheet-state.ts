@@ -30,27 +30,30 @@ export type SheetTransitionEvent =
 
 /**
  * Calculates deterministic snap heights for the 3 sheet modes.
- * - search_idle: ~52% viewport height (half screen map, half screen search/landmarks)
- * - search_focused: ~85% viewport height (expanded for keyboard + long results)
- * - confirm: ~44% viewport height (~56% map for fine-tuning arrival gate)
+ * - search_idle: ~36% viewport height (map-first default with only essential controls)
+ * - search_focused: ~62% viewport height (temporary expansion for keyboard + results)
+ * - confirm: ~28% viewport height (map-dominant exact pickup confirmation)
  */
 export function calculateSnapHeights(screenHeight: number, insets: Insets): SnapHeights {
   const safeTop = insets.top || 0;
 
-  // Maximum expansion: leave at least insets.top + 50px of map visible behind search
-  const maxFocusedHeight = Math.max(280, screenHeight - safeTop - 50);
-  const searchFocused = Math.min(maxFocusedHeight, Math.round(screenHeight * 0.85));
-
-  // Search idle: around 52% of the screen, ensuring at least 320px
-  const searchIdle = Math.min(
-    searchFocused - 40,
-    Math.max(320, Math.round(screenHeight * 0.52)),
+  // Search may expand, but the map should always remain a meaningful visual surface.
+  const maxFocusedHeight = Math.max(360, screenHeight - safeTop - 120);
+  const searchFocused = Math.min(
+    maxFocusedHeight,
+    Math.max(400, Math.round(screenHeight * 0.62)),
   );
 
-  // Confirm: around 44% of the screen, ensuring at least 260px and room for CTA + note
+  // Default pickup surface is map-first: controls occupy roughly the lower third.
+  const searchIdle = Math.min(
+    searchFocused - 120,
+    Math.max(250, Math.round(screenHeight * 0.36)),
+  );
+
+  // Once a location is selected, expose even more map for precise pin placement.
   const confirm = Math.min(
-    searchIdle - 20,
-    Math.max(260, Math.round(screenHeight * 0.44)),
+    searchIdle,
+    Math.max(220, Math.round(screenHeight * 0.28)),
   );
 
   return {

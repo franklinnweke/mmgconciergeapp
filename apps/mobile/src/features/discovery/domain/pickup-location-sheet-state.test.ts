@@ -17,21 +17,21 @@ describe('pickup-location-sheet-state', () => {
     it('calculates deterministic snap points maintaining proportion invariants', () => {
       const snaps = calculateSnapHeights(mockScreenHeight, mockInsets);
 
-      // search_focused occupies ~85%
-      expect(snaps.search_focused).toBe(Math.round(mockScreenHeight * 0.85)); // 717
+      // search_focused occupies ~62%
+      expect(snaps.search_focused).toBe(Math.round(mockScreenHeight * 0.62)); // 523
       expect(snaps.search_focused).toBeLessThan(mockScreenHeight - mockInsets.top);
 
-      // search_idle occupies ~52%
-      expect(snaps.search_idle).toBe(Math.round(mockScreenHeight * 0.52)); // 439
+      // search_idle occupies ~36%
+      expect(snaps.search_idle).toBe(Math.round(mockScreenHeight * 0.36)); // 304
       expect(snaps.search_idle).toBeLessThan(snaps.search_focused);
 
-      // confirm occupies ~44%
-      expect(snaps.confirm).toBe(Math.round(mockScreenHeight * 0.44)); // 371
+      // confirm occupies ~28%
+      expect(snaps.confirm).toBe(Math.round(mockScreenHeight * 0.28)); // 236
       expect(snaps.confirm).toBeLessThan(snaps.search_idle);
 
       // All snap heights are positive numbers
-      expect(snaps.confirm).toBeGreaterThan(260);
-      expect(snaps.search_idle).toBeGreaterThan(320);
+      expect(snaps.confirm).toBeGreaterThanOrEqual(220);
+      expect(snaps.search_idle).toBeGreaterThanOrEqual(250);
     });
 
     it('adapts safely to small screens (e.g. iPhone SE / 667px)', () => {
@@ -42,16 +42,16 @@ describe('pickup-location-sheet-state', () => {
       expect(snaps.search_focused).toBeLessThan(seHeight - seInsets.top);
       expect(snaps.search_idle).toBeLessThan(snaps.search_focused);
       expect(snaps.confirm).toBeLessThan(snaps.search_idle);
-      expect(snaps.confirm).toBeGreaterThanOrEqual(260);
+      expect(snaps.confirm).toBeGreaterThanOrEqual(220);
     });
 
     it('adapts safely to large screens (e.g. Pro Max / 932px)', () => {
       const maxScreenHeight = 932;
       const snaps = calculateSnapHeights(maxScreenHeight, mockInsets);
 
-      expect(snaps.search_focused).toBe(Math.round(maxScreenHeight * 0.85));
-      expect(snaps.search_idle).toBe(Math.round(maxScreenHeight * 0.52));
-      expect(snaps.confirm).toBe(Math.round(maxScreenHeight * 0.44));
+      expect(snaps.search_focused).toBe(Math.round(maxScreenHeight * 0.62));
+      expect(snaps.search_idle).toBe(Math.round(maxScreenHeight * 0.36));
+      expect(snaps.confirm).toBe(Math.round(maxScreenHeight * 0.28));
     });
   });
 

@@ -32,13 +32,14 @@ export type PickupPinMapProps = {
   pinCenterY?: number;
   showsPin?: boolean;
   showsInstruction?: boolean;
+  showsUserLocation?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
 export const LUXURY_DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#1a1a1a' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a1a' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#888888' }] },
+  { elementType: 'geometry', stylers: [{ color: '#202020' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#202020' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#b8b1a7' }] },
   {
     featureType: 'administrative.locality',
     elementType: 'labels.text.fill',
@@ -47,27 +48,27 @@ export const LUXURY_DARK_MAP_STYLE = [
   {
     featureType: 'poi',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#757575' }],
+    stylers: [{ color: '#9e968a' }],
   },
   {
     featureType: 'road',
     elementType: 'geometry',
-    stylers: [{ color: '#2c2c2c' }],
+    stylers: [{ color: '#3a3a3a' }],
   },
   {
     featureType: 'road',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#212121' }],
+    stylers: [{ color: '#292929' }],
   },
   {
     featureType: 'road',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#9e9e9e' }],
+    stylers: [{ color: '#c2bbb0' }],
   },
   {
     featureType: 'water',
     elementType: 'geometry',
-    stylers: [{ color: '#0d0d0d' }],
+    stylers: [{ color: '#101820' }],
   },
 ];
 
@@ -83,6 +84,7 @@ export function PickupPinMap({
   pinCenterY,
   showsPin = true,
   showsInstruction = false,
+  showsUserLocation = false,
   style,
 }: PickupPinMapProps) {
   const mapRef = useRef<MapView>(null);
@@ -301,7 +303,10 @@ export function PickupPinMap({
           rotateEnabled={false}
           scrollEnabled={!disabled}
           showsCompass={false}
+          showsMyLocationButton={false}
+          showsUserLocation={showsUserLocation}
           style={StyleSheet.absoluteFill}
+          toolbarEnabled={false}
           userInterfaceStyle="dark"
           zoomEnabled={!disabled}
         />
@@ -364,7 +369,7 @@ const styles = StyleSheet.create({
   },
   mapScrim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(4, 4, 4, 0.06)',
+    backgroundColor: 'rgba(4, 4, 4, 0.02)',
   },
   pinAnchor: {
     ...StyleSheet.absoluteFill,
