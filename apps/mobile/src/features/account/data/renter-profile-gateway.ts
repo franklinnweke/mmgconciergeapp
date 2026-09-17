@@ -21,7 +21,8 @@ import {
   httpsCallable,
 } from '@react-native-firebase/functions';
 
-import { parseCallableResult } from '@/core/firebase/parse-callable-result';
+import { parseCallableResult } from '../../../core/firebase/parse-callable-result';
+import { parseRenterProfileDocument } from './renter-profile-record';
 
 function generateIdempotencyKey(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
@@ -46,27 +47,9 @@ export class NativeRenterProfileGateway implements RenterProfileGateway {
     const docRef = doc(this.firestore, 'renterProfiles', renterId);
     const snap = await getDoc(docRef);
     if (!snap.exists()) return null;
-    const d = snap.data();
-    if (!d) return null;
-
-    return {
-      renterId: d.renterId ?? renterId,
-      fullName: d.fullName ?? '',
-      email: d.email ?? '',
-      phone: d.phone ?? '',
-      defaultDeliveryAddress: d.defaultDeliveryAddress ?? {
-        streetAddress: '',
-        areaLabel: 'Victoria Island',
-      },
-      acceptedRenterTermsVersion: d.acceptedRenterTermsVersion ?? '2026-03-01',
-      acceptedPrivacyNoticeVersion: d.acceptedPrivacyNoticeVersion ?? '2026-03-01',
-      accountStatus: d.accountStatus ?? 'active',
-      deletionReason: d.deletionReason ?? null,
-      deletionRequestedAt: d.deletionRequestedAt?.toDate?.()?.toISOString?.() ?? d.deletionRequestedAt ?? null,
-      profileVersion: typeof d.profileVersion === 'number' ? d.profileVersion : 1,
-      createdAt: d.createdAt?.toDate?.()?.toISOString?.() ?? d.createdAt ?? new Date().toISOString(),
-      updatedAt: d.updatedAt?.toDate?.()?.toISOString?.() ?? d.updatedAt ?? new Date().toISOString(),
-    };
+    const data = snap.data();
+    if (!data) return null;
+    return parseRenterProfileDocument(renterId, data as Record<string, unknown>);
   }
 
   async completeProfile(data: CompleteRenterProfileData): Promise<CompleteRenterProfileResult> {

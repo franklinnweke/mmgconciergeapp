@@ -22,6 +22,12 @@ class MockRenterRepository implements RenterRepository {
         this.profiles.set(id, record);
       },
       hasActiveBookings: async (id) => this.activeBookings.has(id),
+      hasActiveRentalRequests: async () => false,
+      purgeRenterPrivacyData: async () => ({
+        deletedRentalRequestContactCount: 0,
+        redactedRentalRequestLocationCount: 0,
+        deletedIdempotencyKeyCount: 0,
+      }),
       getIdempotency: async (id) => this.idempotency.get(id) ?? null,
       saveIdempotency: (id, record) => {
         this.idempotency.set(id, record);
@@ -71,7 +77,7 @@ describe('completeRenterProfileService', () => {
     expect(repo.events[0].eventType).toBe('renter_profile_completed');
   });
 
-  it('updates an existing renter profile incrementing version', async () => {
+  it('updates an existing active renter profile incrementing version', async () => {
     const repo = new MockRenterRepository();
     await completeRenterProfileService(validCommand, actor, repo);
 
@@ -87,6 +93,38 @@ describe('completeRenterProfileService', () => {
     const result = await completeRenterProfileService(updateCommand, actor, repo);
     expect(result.result.fullName).toBe('Babatunde Adeleke Jr.');
     expect(result.result.profileVersion).toBe(2);
+  });
+
+  it('does not let a profile save reactivate an account with deletion already requested', async () => {
+    const repo = new MockRenterRepository();
+    await completeRenterProfileService(validCommand, actor, repo);
+    const existing = repo.profiles.get('renter-1')!;
+    repo.profiles.set('renter-1', {
+      ...existing,
+      accountStatus: 'deletion_requested',
+      deletionReason: 'Leaving MMG',
+      deletionRequestedAt: new Date().toISOString(),
+    });
+
+    const updateCommand = {
+      ...validCommand,
+      idempotencyKey: 'idemp-renter-after-delete-003',
+      data: {
+        ...validCommand.data,
+        fullName: 'Should Not Reactivate',
+      },
+    };
+
+    await expect(
+      completeRenterProfileService(updateCommand, actor, repo),
+    ).rejects.toMatchObject({ code: 'FAILED_PRECONDITION' });
+
+    expect(repo.profiles.get('renter-1')).toMatchObject({
+      accountStatus: 'deletion_requested',
+      fullName: 'Babatunde Adeleke',
+      profileVersion: 1,
+    });
+    expect(repo.events).toHaveLength(1);
   });
 
   it('rejects stale terms acceptance', async () => {
@@ -110,7 +148,7 @@ describe('completeRenterProfileService', () => {
       ...validCommand,
       data: {
         ...validCommand.data,
-        phone: '08012345678', // Missing +234
+        phone: '08012345678',
       },
     };
 

@@ -33,7 +33,6 @@ export async function completeRenterProfileService(
   const command = parsed.data;
   const { data, idempotencyKey } = command;
 
-  // 1. Verify terms freshness
   const isTermsFresh = isCurrentRenterTerms(
     {
       renterTermsVersion: data.acceptedRenterTermsVersion,
@@ -54,7 +53,6 @@ export async function completeRenterProfileService(
   const nowIso = now.toISOString();
 
   return repository.runTransaction(async (tx) => {
-    // 2. Idempotency check
     const existingIdempotency = await tx.getIdempotency(idempotencyDocId);
     if (existingIdempotency) {
       if (existingIdempotency.requestHash !== requestHash) {
@@ -63,8 +61,13 @@ export async function completeRenterProfileService(
       return existingIdempotency.result as CompleteRenterProfileResult;
     }
 
-    // 3. Fetch existing profile
     const existing = await tx.getRenterProfile(actor.uid);
+    if (existing?.accountStatus === 'deletion_requested') {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Account deletion is already in progress. Profile changes are disabled.',
+      );
+    }
     if (existing && (existing.accountStatus === 'deleted' || existing.accountStatus === 'suspended')) {
       throw new CommandError('FORBIDDEN', 'This renter account is suspended or deleted.');
     }
