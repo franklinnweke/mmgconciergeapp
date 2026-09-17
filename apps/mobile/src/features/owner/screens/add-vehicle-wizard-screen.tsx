@@ -36,6 +36,7 @@ import {
   VehiclePhotoValidationError,
   type ValidatedVehiclePhoto,
 } from '../domain/vehicle-photo-preflight';
+import { mapVehicleListingError } from '../domain/owner-errors';
 
 const FEATURE_LABELS: Record<VehicleFeatureKey, string> = {
   climate_control: 'Dual-Zone Climate Control',
@@ -51,37 +52,7 @@ const FEATURE_LABELS: Record<VehicleFeatureKey, string> = {
 type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 type SelectedPhoto = ValidatedVehiclePhoto;
 
-function mapVehicleError(err: unknown): string {
-  if (!err) return 'An unexpected error occurred. Please try again.';
-  const message = err instanceof Error ? err.message : String(err);
-  const lower = message.toLowerCase();
-
-  if (lower.includes('not_approved_owner') || lower.includes('must be approved')) {
-    return 'Your owner verification must be approved before you can list a vehicle.';
-  }
-  if (lower.includes('listing_incomplete') || lower.includes('at least 1') || lower.includes('no images')) {
-    return 'Please add and upload at least one vehicle photo before submitting for review.';
-  }
-  if (lower.includes('terms_stale')) {
-    return 'Your owner agreement is outdated. Please review and accept the latest owner terms.';
-  }
-  if (lower.includes('stale') || lower.includes('modified by another') || lower.includes('refresh')) {
-    return 'The vehicle record was updated during submission. Please refresh and try again.';
-  }
-  if (lower.includes('idempotency_conflict')) {
-    return 'A submission with this request is already in progress. Please refresh.';
-  }
-  if (lower.includes('failed_precondition')) {
-    return 'Vehicle listing cannot be submitted in its current state. Please verify all details.';
-  }
-  if (lower.includes('unauthenticated')) {
-    return 'Please sign in to list your vehicle.';
-  }
-  if (lower.includes('permission') || lower.includes('forbidden')) {
-    return 'You do not have authorization to perform this action.';
-  }
-  return 'Failed to submit vehicle listing. Please check the vehicle details and try again.';
-}
+export const mapVehicleError = mapVehicleListingError;
 
 export function AddVehicleWizardScreen() {
   const router = useRouter();
@@ -156,6 +127,8 @@ export function AddVehicleWizardScreen() {
               fileName: asset.fileName,
               mimeType: asset.mimeType,
               fileSize: asset.fileSize,
+              width: asset.width,
+              height: asset.height,
             }, `vehicle-photo-${selectedAt}-${idx}`));
           } catch (error) {
             validationMessages.add(

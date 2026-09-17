@@ -2,12 +2,15 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import {
   CommandError,
+  CURRENT_COMMISSION_TERMS_VERSION,
+  CURRENT_OWNER_TERMS_VERSION,
+  CURRENT_PRIVACY_NOTICE_VERSION,
   submitOwnerVerificationCommandSchema,
   submitOwnerVerificationResultSchema,
   type SubmitOwnerVerificationCommand,
   type SubmitOwnerVerificationResult,
 } from '@mmg/contracts';
-import { ownerMaySubmit } from '@mmg/domain';
+import { isCurrentTerms, ownerMaySubmit } from '@mmg/domain';
 import {
   requireLinkedNigerianPhone,
   requireVerifiedEmailOwnerAuth,
@@ -95,10 +98,13 @@ export async function submitOwnerVerification(
       );
     }
 
-    if (existingProfile.ownerId !== auth.uid || existingVerification.ownerId !== auth.uid ||
+    if (!Number.isSafeInteger(existingProfile.version) || existingProfile.version < 1 ||
+      !Number.isSafeInteger(existingVerification.version) || existingVerification.version < 1 ||
+      existingProfile.ownerId !== auth.uid || existingVerification.ownerId !== auth.uid ||
       existingProfile.verificationStatus !== existingVerification.status ||
-      !Number.isSafeInteger(existingProfile.version) || existingProfile.version < 1 ||
-      !Number.isSafeInteger(existingVerification.version) || existingVerification.version < 1) {
+      existingProfile.ownerTermsVersion !== existingVerification.ownerTermsVersion ||
+      existingProfile.commissionTermsVersion !== existingVerification.commissionTermsVersion ||
+      existingProfile.privacyNoticeVersion !== existingVerification.privacyNoticeVersion) {
       throw new CommandError('FAILED_PRECONDITION', 'Owner application records are inconsistent.');
     }
 
@@ -114,11 +120,57 @@ export async function submitOwnerVerification(
       );
     }
 
+    const currentVersionSnapshot = {
+      ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+    };
+    const acceptedVersionSnapshot = {
+      ownerTermsVersion: existingProfile.ownerTermsVersion,
+      commissionTermsVersion: existingProfile.commissionTermsVersion,
+      privacyNoticeVersion: existingProfile.privacyNoticeVersion,
+    };
+    if (!isCurrentTerms(acceptedVersionSnapshot, currentVersionSnapshot)) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Your owner agreement has been updated. Please review and accept the current terms.',
+        { reason: 'terms_stale' },
+      );
+    }
+
+    const config = await transaction.getOwnerVerificationConfig();
+    if (config) {
+      const configSnapshot = {
+        ownerTermsVersion: config.termsVersion,
+        commissionTermsVersion: config.commissionTermsVersion,
+        privacyNoticeVersion: config.privacyNoticeVersion,
+      };
+      if (!isCurrentTerms(configSnapshot, currentVersionSnapshot)) {
+        throw new CommandError(
+          'FAILED_PRECONDITION',
+          'System terms configuration has been updated. Please refresh.',
+          { reason: 'terms_stale' },
+        );
+      }
+    }
+
     if (!ownerMaySubmit(existingVerification.status)) {
       throw new CommandError(
         'INVALID_STATE_TRANSITION',
         'Verification can only be submitted from draft or rejected status.',
         { reason: 'stale_version' },
+      );
+    }
+
+    if (
+      existingVerification.status === 'rejected' &&
+      (existingVerification.governmentId?.uploadId === command.data.uploadId ||
+        existingProfile.governmentId?.uploadId === command.data.uploadId)
+    ) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Upload a replacement identity document before resubmitting your owner application.',
+        { reason: 'upload_invalid' },
       );
     }
 

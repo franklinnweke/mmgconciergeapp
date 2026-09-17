@@ -63,12 +63,20 @@ describeWithEmulator('private owner-verification Storage rules', () => {
     });
   }
 
-  async function seedVehicle(vehicleId: string, ownerId: string, discoverable = false) {
+  async function seedVehicle(
+    vehicleId: string,
+    ownerId: string,
+    discoverable = false,
+    moderationStatus: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'suspended' = 'draft',
+    visibility: 'draft' | 'public' | 'unlisted' | 'archived' | 'deleted' = 'draft',
+  ) {
     await environment.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), `vehicles/${vehicleId}`), {
         vehicleId,
         ownerId,
         discoverable,
+        moderationStatus,
+        visibility,
       });
       await setDoc(doc(context.firestore(), `ownerProfiles/${ownerId}`), {
         ownerId, verificationStatus: 'approved', version: 2,
@@ -393,6 +401,89 @@ describeWithEmulator('private owner-verification Storage rules', () => {
         contentType: 'image/jpeg',
         customMetadata: { ownerId: 'owner-two', purpose: 'vehicle_image' },
       },
+    ));
+  });
+
+  it('V2b: allows vehicle uploads only for draft or rejected moderation status and non-deleted visibility', async () => {
+    await seedUserAccount('owner-one', 'owner');
+    const ownerStorage = environment.authenticatedContext('owner-one', { email_verified: true }).storage();
+
+    // draft -> ALLOW
+    await seedVehicle('vehicle-draft', 'owner-one', false, 'draft', 'draft');
+    await assertSucceeds(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-draft/upload-01'),
+      Buffer.from('vehicle-image'),
+      { contentType: 'image/jpeg', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' } },
+    ));
+    await assertSucceeds(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-documents/owner-one/vehicle-draft/upload-01'),
+      Buffer.from('vehicle-document'),
+      { contentType: 'application/pdf', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_document' } },
+    ));
+
+    // rejected -> ALLOW
+    await seedVehicle('vehicle-rejected', 'owner-one', false, 'rejected', 'unlisted');
+    await assertSucceeds(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-rejected/upload-02'),
+      Buffer.from('vehicle-image'),
+      { contentType: 'image/jpeg', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' } },
+    ));
+    await assertSucceeds(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-documents/owner-one/vehicle-rejected/upload-02'),
+      Buffer.from('vehicle-document'),
+      { contentType: 'application/pdf', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_document' } },
+    ));
+
+    // pending_review -> DENY
+    await seedVehicle('vehicle-pending', 'owner-one', false, 'pending_review', 'unlisted');
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-pending/upload-03'),
+      Buffer.from('vehicle-image'),
+      { contentType: 'image/jpeg', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' } },
+    ));
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-documents/owner-one/vehicle-pending/upload-03'),
+      Buffer.from('vehicle-document'),
+      { contentType: 'application/pdf', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_document' } },
+    ));
+
+    // approved -> DENY
+    await seedVehicle('vehicle-approved', 'owner-one', false, 'approved', 'public');
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-approved/upload-04'),
+      Buffer.from('vehicle-image'),
+      { contentType: 'image/jpeg', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' } },
+    ));
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-documents/owner-one/vehicle-approved/upload-04'),
+      Buffer.from('vehicle-document'),
+      { contentType: 'application/pdf', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_document' } },
+    ));
+
+    // suspended -> DENY
+    await seedVehicle('vehicle-suspended', 'owner-one', false, 'suspended', 'unlisted');
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-suspended/upload-05'),
+      Buffer.from('vehicle-image'),
+      { contentType: 'image/jpeg', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' } },
+    ));
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-documents/owner-one/vehicle-suspended/upload-05'),
+      Buffer.from('vehicle-document'),
+      { contentType: 'application/pdf', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_document' } },
+    ));
+
+    // deleted visibility -> DENY (even if moderationStatus is draft or rejected)
+    await seedVehicle('vehicle-deleted', 'owner-one', false, 'draft', 'deleted');
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-uploads/owner-one/vehicle-deleted/upload-06'),
+      Buffer.from('vehicle-image'),
+      { contentType: 'image/jpeg', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_image' } },
+    ));
+    await assertFails(uploadBytes(
+      ref(ownerStorage, 'private/vehicle-documents/owner-one/vehicle-deleted/upload-06'),
+      Buffer.from('vehicle-document'),
+      { contentType: 'application/pdf', customMetadata: { ownerId: 'owner-one', purpose: 'vehicle_document' } },
     ));
   });
 

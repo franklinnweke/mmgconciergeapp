@@ -1,1 +1,1 @@
-export { OwnerVehicleDetailScreen as default } from '@/features/owner/screens/owner-vehicle-detail-screen';
+export { OwnerVehicleManagementScreen as default } from '@/features/owner/screens/owner-vehicle-management-screen';

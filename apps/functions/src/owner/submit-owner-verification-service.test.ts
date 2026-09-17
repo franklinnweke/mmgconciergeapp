@@ -208,7 +208,6 @@ describe('submitOwnerVerification service', () => {
       contentType: 'image/jpeg',
       status: 'submitted',
     });
-    // storagePath is never exposed on owner profile
     expect((savedProfile?.governmentId as Record<string, unknown>).storagePath).toBeUndefined();
 
     expect(repository.auditEvents).toHaveLength(1);
@@ -248,12 +247,33 @@ describe('submitOwnerVerification service', () => {
     expect(repository.verifications.get('owner-one')!.status).toBe('draft');
   });
 
-  it('submits owner verification from rejected status and preserves previous reason', async () => {
-    repository.profiles.get('owner-one')!.verificationStatus = 'rejected';
+  it('submits owner verification from rejected status with a replacement identity upload', async () => {
+    repository.profiles.set('owner-one', {
+      ...repository.profiles.get('owner-one')!,
+      verificationStatus: 'rejected',
+      governmentId: {
+        uploadId: 'old-rejected-upload-001',
+        documentKind: 'national_id',
+        contentType: 'image/jpeg',
+        byteSize: 1024,
+        uploadedAt: now.toISOString(),
+        status: 'rejected',
+      },
+    });
     repository.verifications.set('owner-one', {
       ...repository.verifications.get('owner-one')!,
       status: 'rejected',
       lastDecisionReason: 'Previous document was blurred',
+      governmentId: {
+        uploadId: 'old-rejected-upload-001',
+        documentKind: 'national_id',
+        originalFileName: 'old-national-id.jpg',
+        storagePath: 'private/owner-verification/owner-one/old-rejected-upload-001',
+        contentType: 'image/jpeg',
+        byteSize: 1024,
+        uploadedAt: now.toISOString(),
+        bytesState: 'deletion_pending',
+      },
       version: 2,
     });
 
@@ -265,8 +285,131 @@ describe('submitOwnerVerification service', () => {
 
     expect(result.result.verificationStatus).toBe('submitted');
     const savedVerification = repository.verifications.get('owner-one');
+    expect(savedVerification?.governmentId?.uploadId).toBe('upload-id-valid-001');
     expect(savedVerification?.previousDecisionReason).toBe('Previous document was blurred');
     expect(savedVerification?.lastDecisionReason).toBeNull();
+  });
+
+  it('requires a fresh identity upload when resubmitting a rejected application', async () => {
+    repository.profiles.set('owner-one', {
+      ...repository.profiles.get('owner-one')!,
+      verificationStatus: 'rejected',
+      governmentId: {
+        uploadId: 'upload-id-valid-001',
+        documentKind: 'national_id',
+        contentType: 'image/jpeg',
+        byteSize: 1024,
+        uploadedAt: now.toISOString(),
+        status: 'rejected',
+      },
+    });
+    repository.verifications.set('owner-one', {
+      ...repository.verifications.get('owner-one')!,
+      status: 'rejected',
+      lastDecisionReason: 'Replace this identity document',
+      governmentId: {
+        uploadId: 'upload-id-valid-001',
+        documentKind: 'national_id',
+        originalFileName: 'national-id.jpg',
+        storagePath: 'private/owner-verification/owner-one/upload-id-valid-001',
+        contentType: 'image/jpeg',
+        byteSize: 1024,
+        uploadedAt: now.toISOString(),
+        bytesState: 'deletion_pending',
+      },
+      version: 2,
+    });
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'upload_invalid' },
+    });
+
+    expect(repository.profiles.get('owner-one')!.verificationStatus).toBe('rejected');
+    expect(repository.verifications.get('owner-one')!.status).toBe('rejected');
+    expect(repository.auditEvents).toHaveLength(0);
+    expect(repository.notifications).toHaveLength(0);
+    expect(repository.idempotency.size).toBe(0);
+  });
+
+  it('rejects stale accepted owner terms before creating submission side effects', async () => {
+    repository.profiles.get('owner-one')!.ownerTermsVersion = 'owner-terms-outdated';
+    repository.verifications.get('owner-one')!.ownerTermsVersion = 'owner-terms-outdated';
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
+
+    expect(repository.profiles.get('owner-one')!.verificationStatus).toBe('draft');
+    expect(repository.verifications.get('owner-one')!.status).toBe('draft');
+    expect(repository.auditEvents).toHaveLength(0);
+    expect(repository.notifications).toHaveLength(0);
+    expect(repository.idempotency.size).toBe(0);
+  });
+
+  it('rejects stale commission terms or privacy notice before creating submission side effects', async () => {
+    repository.profiles.get('owner-one')!.commissionTermsVersion = 'owner-commission-outdated';
+    repository.verifications.get('owner-one')!.commissionTermsVersion = 'owner-commission-outdated';
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
+
+    // Reset commission terms and test privacy notice
+    repository.profiles.get('owner-one')!.commissionTermsVersion = CURRENT_COMMISSION_TERMS_VERSION;
+    repository.verifications.get('owner-one')!.commissionTermsVersion = CURRENT_COMMISSION_TERMS_VERSION;
+    repository.profiles.get('owner-one')!.privacyNoticeVersion = 'privacy-notice-outdated';
+    repository.verifications.get('owner-one')!.privacyNoticeVersion = 'privacy-notice-outdated';
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
+  });
+
+  it('rejects submission when dynamic config specifies newer terms', async () => {
+    repository.config = {
+      ownerTermsVersion: 'owner-terms-2026-10-01',
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+    };
+
+    await expect(
+      submitOwnerVerification(validSubmitCommand(), validAuth, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
   });
 
   it('denies submission when Nigerian phone is unlinked on Auth token', async () => {

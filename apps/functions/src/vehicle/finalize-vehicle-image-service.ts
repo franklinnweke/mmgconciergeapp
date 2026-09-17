@@ -44,27 +44,6 @@ function stableHash(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
-/**
- * Finalizes one uploaded listing photo.
- *
- * The order of operations is load-bearing:
- *
- * 1. **Idempotency pre-check, read-only, outside the transaction.** Decoding and
- *    re-uploading three variants is the expensive part of this command. A retry
- *    from a flaky mobile connection must not repeat it. The authoritative replay
- *    check still happens inside the transaction — this one is a cheap short
- *    circuit, not the guard.
- * 2. **Validate and process the bytes, still outside the transaction.** Firestore
- *    transactions retry on contention, and re-running a multi-megabyte decode on
- *    every retry attempt would be both slow and wasteful. This mirrors the
- *    magic-byte check that owner verification already performs outside its
- *    transaction.
- * 3. **Write the objects before the transaction commits.** If the transaction
- *    then fails, the worst outcome is orphaned bytes at a path no record
- *    references. The reverse order would produce a record pointing at objects
- *    that do not exist — a listing with broken photos, which is the failure the
- *    honesty rule forbids.
- */
 export async function finalizeVehicleImage(
   untrustedCommand: unknown,
   actorUid: string,
@@ -85,7 +64,6 @@ export async function finalizeVehicleImage(
     idempotencyKey: command.idempotencyKey,
   });
 
-  // (1) Cheap replay short circuit. Skips the decode and the three uploads.
   const earlyReplay = await dependencies.repository.runTransaction((transaction) =>
     transaction.getIdempotency(idempotencyDocumentId),
   );
@@ -99,13 +77,43 @@ export async function finalizeVehicleImage(
     return finalizeVehicleImageResultSchema.parse(earlyReplay.result);
   }
 
+  // Fail closed before expensive image work. The final transaction repeats these
+  // checks so a listing cannot change moderation state while processing and still
+  // have new owner-controlled bytes attached.
+  await dependencies.repository.runTransaction(async (transaction) => {
+    const profile = await transaction.getOwnerProfile(actorUid);
+    if (!profile || !ownerMayCreateVehicle(profile.verificationStatus)) {
+      throw new CommandError(
+        'FORBIDDEN',
+        'Your owner account must be approved before managing vehicles.',
+        { reason: 'not_approved_owner' },
+      );
+    }
+
+    const vehicle = await transaction.getVehicle(command.data.vehicleId);
+    if (!vehicle) {
+      throw new CommandError('NOT_FOUND', 'Vehicle listing not found.');
+    }
+    if (!ownerMayManageVehicle(vehicle.ownerId, actorUid)) {
+      throw new CommandError('FORBIDDEN', 'You can only manage your own vehicles.', {
+        reason: 'not_vehicle_owner',
+      });
+    }
+    if (vehicle.visibility === 'deleted') {
+      throw new CommandError('FAILED_PRECONDITION', 'Cannot add images to a deleted vehicle listing.');
+    }
+    if (!['draft', 'rejected'].includes(vehicle.moderationStatus)) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Vehicle images can only be changed while a listing is a draft or requires changes.',
+      );
+    }
+  });
+
   const imageId = command.data.uploadId;
   const storagePath = sourceUploadPath(actorUid, command.data.vehicleId, command.data.uploadId);
-
-  // (2) Authoritative validation and processing.
   const { inspected, rendered } = await processUpload(storagePath, dependencies);
 
-  // (3) Persist the variant objects. Any failure throws before a record claims them.
   const variantRecords: Record<string, VehicleImageVariantRecord> = {};
   const variantPaths: Record<string, string> = {};
 
@@ -168,9 +176,17 @@ export async function finalizeVehicleImage(
       throw new CommandError('FAILED_PRECONDITION', 'Cannot add images to a deleted vehicle listing.');
     }
 
+    if (!['draft', 'rejected'].includes(vehicle.moderationStatus)) {
+      throw new CommandError(
+        'FAILED_PRECONDITION',
+        'Vehicle images can only be changed while a listing is a draft or requires changes.',
+      );
+    }
+
     const existingImages = await transaction.getVehicleImages(command.data.vehicleId);
     const isUpdate = existingImages.some((image) => image.imageId === imageId);
-    if (!isUpdate && existingImages.length >= MAX_VEHICLE_IMAGES) {
+    const activeImages = existingImages.filter((image) => image.status !== 'rejected');
+    if (!isUpdate && activeImages.length >= MAX_VEHICLE_IMAGES) {
       throw new CommandError('INVALID_ARGUMENT', `Vehicle image limit reached (maximum ${MAX_VEHICLE_IMAGES}).`, {
         reason: 'image_limit',
       });
@@ -184,8 +200,6 @@ export async function finalizeVehicleImage(
       ownerId: actorUid,
       order: command.data.order,
       status: 'processed',
-      // Measured by the decoder, orientation-corrected. Not a request field and
-      // not a placeholder.
       width: inspected.width,
       height: inspected.height,
       originalUploadId: command.data.uploadId,
@@ -198,8 +212,6 @@ export async function finalizeVehicleImage(
         metadataStripped: true,
         variants: variantRecords,
       },
-      // Re-processing an image invalidates any public copy: the private bytes it
-      // was promoted from no longer exist. Approval promotes it again.
       publicVariantPaths: null,
       promotedAt: null,
       createdAt: previous?.createdAt ?? now.toISOString(),
@@ -208,17 +220,16 @@ export async function finalizeVehicleImage(
 
     transaction.setVehicleImage(command.data.vehicleId, imageId, imageRecord, now);
 
-    // Primary is derived from the full ordered set, so re-ordering or replacing
-    // an image cannot leave the vehicle pointing at a stale or absent path.
     const allImages = [
       ...existingImages.filter((image) => image.imageId !== imageId),
       imageRecord,
     ];
+    const usableImages = allImages.filter((image) => image.status !== 'rejected');
 
     const updatedVehicle: VehicleRecord = {
       ...vehicle,
-      imageCount: allImages.length,
-      primaryImagePath: resolvePrimaryImagePath(allImages),
+      imageCount: usableImages.length,
+      primaryImagePath: resolvePrimaryImagePath(usableImages),
       updatedAt: now.toISOString(),
       version: vehicle.version + 1,
     };
@@ -241,7 +252,6 @@ export async function finalizeVehicleImage(
         sourceFormat: inspected.format,
         sourceWidth: inspected.width,
         sourceHeight: inspected.height,
-        // The privacy trail, in the append-only log as well as the record.
         sourceHadExif: inspected.hasExif,
         sourceGps: inspected.gps,
         metadataStripped: true,
@@ -282,13 +292,6 @@ type ProcessedUpload = {
   rendered: readonly RenderedVariant[];
 };
 
-/**
- * Everything that must be true of the bytes before any record is written.
- *
- * Storage rules already checked the path, owner, declared MIME, and size. None of
- * that constrains the actual content, so this re-checks size, sniffs the magic
- * bytes, decodes for true dimensions, and renders the variants.
- */
 async function processUpload(
   storagePath: string,
   dependencies: FinalizeVehicleImageDependencies,
@@ -315,8 +318,6 @@ async function processUpload(
     });
   }
 
-  // The object could have been replaced between the metadata read and the
-  // download, so the size limit is enforced against the bytes we actually hold.
   if (bytes.byteLength > MAX_UPLOAD_BYTES) {
     throw new CommandError(
       'INVALID_ARGUMENT',
@@ -350,11 +351,6 @@ async function processUpload(
   };
 }
 
-/**
- * A partial render is a failure, not a degraded success. Without this, a
- * processor returning two of three variants would produce a record whose
- * `variantPaths` silently lacked a size the client expects.
- */
 function assertEveryVariantRendered(rendered: readonly RenderedVariant[]): void {
   const produced = new Set<VehicleImageVariant>(rendered.map((variant) => variant.variant));
   const missing = VEHICLE_VARIANT_SPECS.filter((spec) => !produced.has(spec.variant));

@@ -1,4 +1,9 @@
-import { MAX_UPLOAD_BYTES } from '@mmg/contracts';
+import {
+  MAX_IMAGE_EDGE,
+  MAX_UPLOAD_BYTES,
+  MIN_IMAGE_HEIGHT,
+  MIN_IMAGE_WIDTH,
+} from '@mmg/contracts';
 
 export const SUPPORTED_VEHICLE_IMAGE_MIME_TYPES = [
   'image/jpeg',
@@ -13,6 +18,8 @@ export type VehiclePhotoCandidate = {
   fileName?: string | null;
   mimeType?: string | null;
   fileSize?: number | null;
+  width?: number | null;
+  height?: number | null;
 };
 
 export type ValidatedVehiclePhoto = {
@@ -20,12 +27,16 @@ export type ValidatedVehiclePhoto = {
   fileName: string;
   mimeType: VehiclePhotoMimeType;
   fileSize: number;
+  width?: number;
+  height?: number;
 };
 
 export type VehiclePhotoValidationCode =
   | 'unsupported_type'
   | 'missing_size'
   | 'too_large'
+  | 'too_small'
+  | 'dimension_too_large'
   | 'invalid_photo';
 
 export class VehiclePhotoValidationError extends Error {
@@ -87,10 +98,29 @@ export function validateVehiclePhotoCandidate(
     ? originalFileName
     : `${fallbackStem}.${extensionForMimeType(mimeType)}`;
 
+  const width = candidate.width;
+  const height = candidate.height;
+  if (typeof width === 'number' && typeof height === 'number') {
+    if (width < MIN_IMAGE_WIDTH || height < MIN_IMAGE_HEIGHT) {
+      throw new VehiclePhotoValidationError(
+        'too_small',
+        `Photo resolution is too low (${width}×${height}). Listing photos must be at least ${MIN_IMAGE_WIDTH}×${MIN_IMAGE_HEIGHT} pixels. Please choose an original camera photo.`,
+      );
+    }
+    if (width > MAX_IMAGE_EDGE || height > MAX_IMAGE_EDGE) {
+      throw new VehiclePhotoValidationError(
+        'dimension_too_large',
+        `Photo dimensions exceed the maximum allowed size of ${MAX_IMAGE_EDGE} pixels on an edge. Please choose a standard photo.`,
+      );
+    }
+  }
+
   return {
     uri,
     fileName,
     mimeType,
     fileSize,
+    ...(typeof width === 'number' ? { width } : {}),
+    ...(typeof height === 'number' ? { height } : {}),
   };
 }

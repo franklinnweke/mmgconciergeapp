@@ -1,1 +1,1 @@
-export { AddVehicleWizardScreen as default } from '@/features/owner/screens/add-vehicle-wizard-screen';
+export { OwnerVehicleEditorScreen as default } from '@/features/owner/screens/owner-vehicle-editor-screen';

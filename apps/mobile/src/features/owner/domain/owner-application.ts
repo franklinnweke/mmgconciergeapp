@@ -1,8 +1,12 @@
-import type {
-  GovernmentIdKind,
-  OwnerVerificationStatus,
-  OwnerVisibleProfile,
+import {
+  CURRENT_COMMISSION_TERMS_VERSION,
+  CURRENT_OWNER_TERMS_VERSION,
+  CURRENT_PRIVACY_NOTICE_VERSION,
+  type GovernmentIdKind,
+  type OwnerVerificationStatus,
+  type OwnerVisibleProfile,
 } from '@mmg/contracts';
+import { isCurrentTerms } from '@mmg/domain';
 
 export type LocalUploadedDocument = {
   uploadId: string;
@@ -47,6 +51,27 @@ export function isOwnerApplicationEditable(
   return !status || status === 'draft' || status === 'rejected';
 }
 
+export function hasCurrentOwnerAgreements(
+  profile: Pick<
+    OwnerVisibleProfile,
+    'termsAcceptedAt' | 'ownerTermsVersion' | 'commissionTermsVersion' | 'privacyNoticeVersion'
+  > | null | undefined,
+): boolean {
+  if (!profile?.termsAcceptedAt) return false;
+  return isCurrentTerms(
+    {
+      ownerTermsVersion: profile.ownerTermsVersion ?? '',
+      commissionTermsVersion: profile.commissionTermsVersion ?? '',
+      privacyNoticeVersion: profile.privacyNoticeVersion ?? '',
+    },
+    {
+      ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+    },
+  );
+}
+
 type DeskCompleteness = Pick<
   StepCompleteness,
   'canSubmit' | 'firstIncompleteStep'
@@ -86,7 +111,7 @@ export function getStepLockReason(
         return 'Verify your email address before linking a phone number.';
       }
       if (!completeness.identityComplete) {
-        return 'Complete owner identity first.';
+        return 'Complete owner identity and accept current agreements first.';
       }
       return null;
     case 'id':
@@ -94,7 +119,7 @@ export function getStepLockReason(
         return 'Verify your email address before uploading identification.';
       }
       if (!completeness.identityComplete) {
-        return 'Complete owner identity first.';
+        return 'Complete owner identity and accept current agreements first.';
       }
       if (!completeness.phoneComplete) {
         return 'Verify your Nigerian phone number first.';
@@ -108,26 +133,74 @@ export function getStepLockReason(
   }
 }
 
+/**
+ * A rejected application cannot reuse the prior identity document: rejection
+ * schedules the private bytes for deletion and the server requires a fresh upload.
+ * Draft applications can reuse an already-uploaded document that is not cleared.
+ */
+export function canReusePersistedGovernmentId(
+  profile: Pick<OwnerVisibleProfile, 'verificationStatus' | 'governmentId'> | null | undefined,
+): boolean {
+  if (!profile || profile.verificationStatus === 'rejected') return false;
+  return Boolean(
+    profile.governmentId?.uploadId && profile.governmentId.status !== 'cleared',
+  );
+}
+
+export function computeOwnerIdScreenState({
+  profile,
+  phoneNumber,
+  emailVerified,
+  hasSelectedAsset,
+}: {
+  profile: OwnerVisibleProfile | null | undefined;
+  phoneNumber: string | null | undefined;
+  emailVerified: boolean;
+  hasSelectedAsset: boolean;
+}) {
+  const agreementsCurrent = hasCurrentOwnerAgreements(profile);
+  const identityComplete = Boolean(
+    profile?.legalName &&
+      profile?.address?.line1 &&
+      profile?.address?.areaLabel &&
+      agreementsCurrent,
+  );
+  const phoneComplete = isNigerianE164(phoneNumber);
+  const prerequisitesMet = emailVerified && identityComplete && phoneComplete;
+  const editable = isOwnerApplicationEditable(profile?.verificationStatus);
+  const hasExistingDocument = canReusePersistedGovernmentId(profile);
+  const canContinueToReview = editable && prerequisitesMet && (hasSelectedAsset || hasExistingDocument);
+
+  return {
+    agreementsCurrent,
+    identityComplete,
+    phoneComplete,
+    prerequisitesMet,
+    editable,
+    hasExistingDocument,
+    canContinueToReview,
+  };
+}
+
 export function computeApplicationCompleteness(
   profile: OwnerVisibleProfile | null,
   userPhone: string | null | undefined,
   localUploadedDoc: LocalUploadedDocument | null,
   emailVerified: boolean = false,
 ): StepCompleteness {
+  const agreementsCurrent = hasCurrentOwnerAgreements(profile);
   const identityComplete = Boolean(
     profile?.legalName &&
       profile?.address?.line1 &&
       profile?.address?.areaLabel &&
-      profile?.termsAcceptedAt,
+      agreementsCurrent,
   );
 
   const phoneComplete = isNigerianE164(userPhone);
-
+  // A rejected application cannot reuse the prior identity document: rejection
+  // schedules the private bytes for deletion and the server requires a fresh upload.
   const idUploaded = Boolean(
-    localUploadedDoc ||
-      (profile?.governmentId &&
-        profile.governmentId.uploadId &&
-        profile.governmentId.status !== 'cleared'),
+    localUploadedDoc || canReusePersistedGovernmentId(profile),
   );
 
   const canSubmit = emailVerified && identityComplete && phoneComplete && idUploaded;

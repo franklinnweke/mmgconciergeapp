@@ -7,9 +7,11 @@ import {
 } from '@mmg/contracts';
 
 import {
+  canReusePersistedGovernmentId,
   computeApplicationCompleteness,
   getDeskPresentation,
   getStepLockReason,
+  hasCurrentOwnerAgreements,
   isOwnerApplicationEditable,
   isNigerianE164,
   normalizeNigerianPhone,
@@ -17,6 +19,115 @@ import {
 import { ownerCommandErrorMessage } from './owner-errors.js';
 
 describe('owner application domain', () => {
+  describe('canReusePersistedGovernmentId', () => {
+    it('returns true for draft profile with an active government ID upload', () => {
+      expect(
+        canReusePersistedGovernmentId({
+          verificationStatus: 'draft',
+          governmentId: {
+            uploadId: 'upload-valid',
+            documentKind: 'national_id',
+            contentType: 'image/jpeg',
+            byteSize: 1024,
+            uploadedAt: '2026-09-16T12:00:00.000Z',
+            status: 'uploaded',
+          },
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for rejected profile even when document is attached and deletion is pending', () => {
+      expect(
+        canReusePersistedGovernmentId({
+          verificationStatus: 'rejected',
+          governmentId: {
+            uploadId: 'upload-rejected-pending-delete',
+            documentKind: 'national_id',
+            contentType: 'image/jpeg',
+            byteSize: 1024,
+            uploadedAt: '2026-09-16T12:00:00.000Z',
+            status: 'submitted',
+          },
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when profile is null or undefined', () => {
+      expect(canReusePersistedGovernmentId(null)).toBe(false);
+      expect(canReusePersistedGovernmentId(undefined)).toBe(false);
+    });
+
+    it('returns false when governmentId is missing or cleared', () => {
+      expect(canReusePersistedGovernmentId({ verificationStatus: 'draft', governmentId: null })).toBe(false);
+      expect(
+        canReusePersistedGovernmentId({
+          verificationStatus: 'draft',
+          governmentId: {
+            uploadId: 'upload-cleared',
+            documentKind: 'national_id',
+            contentType: 'image/jpeg',
+            byteSize: 1024,
+            uploadedAt: '2026-09-16T12:00:00.000Z',
+            status: 'cleared',
+          },
+        }),
+      ).toBe(false);
+    });
+  });
+  describe('hasCurrentOwnerAgreements', () => {
+    const validProfile: OwnerVisibleProfile = {
+      ownerId: 'owner-1',
+      legalName: 'Alhaji Musa Danjuma',
+      displayName: 'Alhaji Musa Danjuma',
+      address: {
+        line1: '14 Admiralty Way',
+        areaLabel: 'Lekki Phase 1',
+        city: 'Lagos',
+        country: 'NG',
+      },
+      verificationStatus: 'draft',
+      verificationUpdatedAt: '2026-09-16T12:00:00.000Z',
+      lastDecisionReason: null,
+      ownerTermsVersion: CURRENT_OWNER_TERMS_VERSION,
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+      termsAcceptedAt: '2026-09-16T12:00:00.000Z',
+      governmentId: null,
+      createdAt: '2026-09-16T12:00:00.000Z',
+      updatedAt: '2026-09-16T12:00:00.000Z',
+      version: 1,
+    };
+
+    it('returns true when termsAcceptedAt is present and all versions match current', () => {
+      expect(hasCurrentOwnerAgreements(validProfile)).toBe(true);
+    });
+
+    it('returns false when profile is null or undefined', () => {
+      expect(hasCurrentOwnerAgreements(null)).toBe(false);
+      expect(hasCurrentOwnerAgreements(undefined)).toBe(false);
+    });
+
+    it('returns false when termsAcceptedAt is null or undefined', () => {
+      expect(hasCurrentOwnerAgreements({ ...validProfile, termsAcceptedAt: null as unknown as string })).toBe(false);
+      expect(hasCurrentOwnerAgreements({ ...validProfile, termsAcceptedAt: undefined as unknown as string })).toBe(false);
+    });
+
+    it('returns false when ownerTermsVersion is stale or null', () => {
+      expect(hasCurrentOwnerAgreements({ ...validProfile, ownerTermsVersion: 'owner-terms-2026-08-15' })).toBe(false);
+      expect(hasCurrentOwnerAgreements({ ...validProfile, ownerTermsVersion: null as unknown as string })).toBe(false);
+    });
+
+    it('returns false when commissionTermsVersion is stale or null', () => {
+      expect(hasCurrentOwnerAgreements({ ...validProfile, commissionTermsVersion: 'owner-commission-2026-08-15' })).toBe(false);
+      expect(hasCurrentOwnerAgreements({ ...validProfile, commissionTermsVersion: null as unknown as string })).toBe(false);
+    });
+
+    it('returns false when privacyNoticeVersion is stale or null', () => {
+      expect(hasCurrentOwnerAgreements({ ...validProfile, privacyNoticeVersion: 'privacy-notice-2026-08-15' })).toBe(false);
+      expect(hasCurrentOwnerAgreements({ ...validProfile, privacyNoticeVersion: null as unknown as string })).toBe(false);
+    });
+  });
+
   it('allows edits only for draft and rejected owner applications', () => {
     expect(isOwnerApplicationEditable(undefined)).toBe(true);
     expect(isOwnerApplicationEditable('draft')).toBe(true);
@@ -72,6 +183,15 @@ describe('owner application domain', () => {
       version: 1,
     };
 
+    const uploadedDocument = {
+      uploadId: 'upload-123',
+      documentKind: 'national_id' as const,
+      originalFileName: 'nin.jpg',
+      contentType: 'image/jpeg',
+      byteSize: 1024,
+      uploadedAt: '2026-08-15T12:00:00.000Z',
+    };
+
     it('returns identity incomplete when profile is null', () => {
       const completeness = computeApplicationCompleteness(null, null, null, true);
       expect(completeness.identityComplete).toBe(false);
@@ -83,14 +203,7 @@ describe('owner application domain', () => {
       const completeness = computeApplicationCompleteness(
         mockProfile,
         '+2348012345678',
-        {
-          uploadId: 'upload-123',
-          documentKind: 'national_id',
-          originalFileName: 'nin.jpg',
-          contentType: 'image/jpeg',
-          byteSize: 1024,
-          uploadedAt: '2026-08-15T12:00:00.000Z',
-        },
+        uploadedDocument,
       );
 
       expect(completeness.emailVerified).toBe(false);
@@ -114,40 +227,69 @@ describe('owner application domain', () => {
     });
 
     it('returns canSubmit true when all steps are completed', () => {
-      const completeness = computeApplicationCompleteness(mockProfile, '+2348012345678', {
-        uploadId: 'upload-123',
-        documentKind: 'national_id',
-        originalFileName: 'nin.jpg',
-        contentType: 'image/jpeg',
-        byteSize: 1024,
-        uploadedAt: '2026-08-15T12:00:00.000Z',
-      }, true);
+      const completeness = computeApplicationCompleteness(
+        mockProfile,
+        '+2348012345678',
+        uploadedDocument,
+        true,
+      );
       expect(completeness.canSubmit).toBe(true);
       expect(completeness.firstIncompleteStep).toBe('submit');
       expect(completeness.submitUnlocked).toBe(true);
     });
 
+    it('requires a fresh local ID upload after owner verification is rejected', () => {
+      const rejectedProfile: OwnerVisibleProfile = {
+        ...mockProfile,
+        verificationStatus: 'rejected',
+        governmentId: {
+          uploadId: 'old-rejected-upload',
+          documentKind: 'national_id',
+          contentType: 'image/jpeg',
+          byteSize: 1024,
+          uploadedAt: '2026-08-15T12:00:00.000Z',
+          status: 'submitted',
+        },
+      };
+
+      const withoutReplacement = computeApplicationCompleteness(
+        rejectedProfile,
+        '+2348012345678',
+        null,
+        true,
+      );
+      expect(withoutReplacement.idUploaded).toBe(false);
+      expect(withoutReplacement.canSubmit).toBe(false);
+      expect(withoutReplacement.firstIncompleteStep).toBe('id');
+
+      const withReplacement = computeApplicationCompleteness(
+        rejectedProfile,
+        '+2348012345678',
+        uploadedDocument,
+        true,
+      );
+      expect(withReplacement.idUploaded).toBe(true);
+      expect(withReplacement.canSubmit).toBe(true);
+      expect(withReplacement.firstIncompleteStep).toBe('submit');
+    });
+
     it('enforces sequential prerequisite unlocking', () => {
-      // 1. Unverified email blocks all steps
       const unverified = computeApplicationCompleteness(mockProfile, '+2348012345678', null, false);
       expect(unverified.identityUnlocked).toBe(false);
       expect(unverified.phoneUnlocked).toBe(false);
       expect(unverified.idUnlocked).toBe(false);
       expect(unverified.canSubmit).toBe(false);
 
-      // 2. Incomplete identity locks phone and ID
       const noIdentity = computeApplicationCompleteness(null, null, null, true);
       expect(noIdentity.identityUnlocked).toBe(true);
       expect(noIdentity.phoneUnlocked).toBe(false);
       expect(noIdentity.idUnlocked).toBe(false);
 
-      // 3. Complete identity unlocks phone, but ID remains locked until phone is verified
       const unverifiedPhone = computeApplicationCompleteness(mockProfile, null, null, true);
       expect(unverifiedPhone.identityUnlocked).toBe(true);
       expect(unverifiedPhone.phoneUnlocked).toBe(true);
       expect(unverifiedPhone.idUnlocked).toBe(false);
 
-      // 4. Complete identity + phone unlocks ID upload
       const readyForId = computeApplicationCompleteness(mockProfile, '+2348012345678', null, true);
       expect(readyForId.identityUnlocked).toBe(true);
       expect(readyForId.phoneUnlocked).toBe(true);
@@ -158,12 +300,49 @@ describe('owner application domain', () => {
     it('provides clear lock reasons for locked steps', () => {
       const noIdentity = computeApplicationCompleteness(null, null, null, true);
       expect(getStepLockReason('identity', noIdentity)).toBeNull();
-      expect(getStepLockReason('phone', noIdentity)).toBe('Complete owner identity first.');
-      expect(getStepLockReason('id', noIdentity)).toBe('Complete owner identity first.');
+      expect(getStepLockReason('phone', noIdentity)).toBe(
+        'Complete owner identity and accept current agreements first.',
+      );
+      expect(getStepLockReason('id', noIdentity)).toBe(
+        'Complete owner identity and accept current agreements first.',
+      );
 
       const unverifiedPhone = computeApplicationCompleteness(mockProfile, null, null, true);
       expect(getStepLockReason('phone', unverifiedPhone)).toBeNull();
       expect(getStepLockReason('id', unverifiedPhone)).toBe('Verify your Nigerian phone number first.');
+    });
+
+    it('marks identity incomplete and locks phone/id/submit when agreements are stale', () => {
+      const staleProfile: OwnerVisibleProfile = {
+        ...mockProfile,
+        ownerTermsVersion: 'owner-terms-2026-08-15',
+      };
+      const completeness = computeApplicationCompleteness(
+        staleProfile,
+        '+2348012345678',
+        uploadedDocument,
+        true,
+      );
+      expect(completeness.identityComplete).toBe(false);
+      expect(completeness.phoneUnlocked).toBe(false);
+      expect(completeness.idUnlocked).toBe(false);
+      expect(completeness.canSubmit).toBe(false);
+      expect(completeness.firstIncompleteStep).toBe('identity');
+    });
+
+    it('marks identity incomplete when termsAcceptedAt is missing', () => {
+      const unacceptedProfile: OwnerVisibleProfile = {
+        ...mockProfile,
+        termsAcceptedAt: null as unknown as string,
+      };
+      const completeness = computeApplicationCompleteness(
+        unacceptedProfile,
+        '+2348012345678',
+        uploadedDocument,
+        true,
+      );
+      expect(completeness.identityComplete).toBe(false);
+      expect(completeness.canSubmit).toBe(false);
     });
   });
 

@@ -27,6 +27,7 @@ function nativeSnapshot(options: { exists: boolean; data?: Record<string, unknow
 }
 
 const VALID_PROFILE_DOCUMENT = {
+  ownerId: 'owner-1',
   legalName: 'Chidi Musa',
   displayName: 'Chidi Musa',
   address: {
@@ -38,9 +39,9 @@ const VALID_PROFILE_DOCUMENT = {
   verificationStatus: 'draft',
   verificationUpdatedAt: '2026-08-16T09:00:00.000Z',
   lastDecisionReason: null,
-  ownerTermsVersion: 'owner-terms-2026-08-01',
-  commissionTermsVersion: 'owner-commission-2026-08-01',
-  privacyNoticeVersion: 'privacy-notice-2026-08-01',
+  ownerTermsVersion: 'owner-terms-2026-09-16',
+  commissionTermsVersion: 'owner-commission-2026-09-16',
+  privacyNoticeVersion: 'privacy-notice-2026-09-16',
   termsAcceptedAt: '2026-08-16T09:00:00.000Z',
   governmentId: null,
   createdAt: '2026-08-16T09:00:00.000Z',
@@ -91,6 +92,26 @@ describe('createOwnerVerificationRepository', () => {
       verificationStatus: 'draft',
       version: 1,
     });
+  });
+
+  it.each([
+    ['missing owner id', { ownerId: undefined }],
+    ['wrong owner id', { ownerId: 'other-owner' }],
+    ['missing legal name', { legalName: undefined }],
+    ['missing version', { version: undefined }],
+    ['zero version', { version: 0 }],
+    ['string version', { version: '1' }],
+  ])('fails closed for %s instead of inventing trusted profile state', (_label, override) => {
+    const { updates, errors } = subscribeAndEmit(
+      nativeSnapshot({
+        exists: true,
+        data: { ...VALID_PROFILE_DOCUMENT, ...override },
+      }),
+    );
+
+    expect(updates).toEqual([]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toBeInstanceOf(Error);
   });
 
   it('reports a corrupted profile document through onError', () => {

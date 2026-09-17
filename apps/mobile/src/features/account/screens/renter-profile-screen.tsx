@@ -3,6 +3,7 @@ import { colors, radii, spacing, typography } from '@mmg/brand';
 import { type LagosAreaLabel, type RenterProfileRecord } from '@mmg/contracts';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -46,6 +47,7 @@ type RenterProfileFormProps = {
   isUploadingPhoto: boolean;
   signingOut: boolean;
   onChangePhoto: () => Promise<void>;
+  onOpenOwnerDesk: () => void;
   onSave: (data: {
     fullName: string;
     phone: string;
@@ -66,6 +68,7 @@ function RenterProfileForm({
   isUploadingPhoto,
   signingOut,
   onChangePhoto,
+  onOpenOwnerDesk,
   onSave,
   onRequestDeletion,
   onSignOut,
@@ -279,6 +282,19 @@ function RenterProfileForm({
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
+
+        <PressableScale
+          accessibilityLabel="List a car"
+          accessibilityRole="button"
+          onPress={onOpenOwnerDesk}
+        >
+          <View style={styles.accountRow}>
+            <Ionicons color={colors.goldStrong} name="car-sport-outline" size={18} />
+            <Text style={styles.accountRowText}>List a car</Text>
+            <Ionicons color={colors.muted} name="chevron-forward" size={17} />
+          </View>
+        </PressableScale>
+
         <View style={styles.accountRow}>
           <Ionicons color={colors.goldStrong} name="document-text-outline" size={18} />
           <Text style={styles.accountRowText}>Renter terms & privacy notice</Text>
@@ -344,6 +360,7 @@ function RenterProfileForm({
 }
 
 export function RenterProfileScreen() {
+  const router = useRouter();
   const { refreshUser, signOut, signingOut, user } = useAuth();
   const { profile, isLoading, isSaving, errorMessage, saveProfile, requestDeletion } = useRenterProfile();
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -420,6 +437,7 @@ export function RenterProfileScreen() {
           isSaving={isSaving}
           isUploadingPhoto={isUploadingPhoto}
           onChangePhoto={handleChangePhoto}
+          onOpenOwnerDesk={() => router.push('/(owner)' as Href)}
           onRequestDeletion={handleRequestDeletion}
           onSave={handleSave}
           onSignOut={() => void signOut()}
@@ -435,7 +453,7 @@ export function RenterProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  accountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm },
+  accountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 48, paddingVertical: spacing.sm },
   accountRowText: { color: colors.ivory, flex: 1, fontFamily: typography.bodyMedium, fontSize: 14 },
   areaPill: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: 1, marginRight: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   areaPillSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },

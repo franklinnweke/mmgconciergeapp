@@ -480,9 +480,9 @@ export type CreateBookingRequestInput = Omit<
   'createdAt' | 'id' | 'status' | 'updatedAt' | 'userId'
 >;
 
-export const CURRENT_OWNER_TERMS_VERSION = 'owner-terms-2026-08-01';
-export const CURRENT_COMMISSION_TERMS_VERSION = 'owner-commission-2026-08-01';
-export const CURRENT_PRIVACY_NOTICE_VERSION = 'privacy-notice-2026-08-01';
+export const CURRENT_OWNER_TERMS_VERSION = 'owner-terms-2026-09-16';
+export const CURRENT_COMMISSION_TERMS_VERSION = 'owner-commission-2026-09-16';
+export const CURRENT_PRIVACY_NOTICE_VERSION = 'privacy-notice-2026-09-16';
 
 export const OWNER_VERIFICATION_STATES = [
   'draft',

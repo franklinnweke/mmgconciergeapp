@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
+import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
 import { ownerCommandErrorMessage } from '@/features/owner/domain/owner-errors';
 
 import { createOwnerRentalRequestGateway } from '../data/owner-rental-request-gateway';
@@ -24,6 +25,12 @@ import {
   isOwnerDeclineReasonValid,
   ownerRequestStateCopy,
 } from '../domain/owner-rental-request';
+
+function rangeLabel(startDate: string, endDate: string) {
+  const lastRentalDate = addDaysToDateOnly(endDate, -1);
+  if (lastRentalDate === startDate) return formatLagosDateOnly(startDate);
+  return `${formatLagosDateOnly(startDate)} to ${formatLagosDateOnly(lastRentalDate)}`;
+}
 
 export function OwnerRequestDetailScreen() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
@@ -134,7 +141,7 @@ export function OwnerRequestDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.intro}>
           <Text style={styles.title}>{request.vehicleSnapshot.displayName}</Text>
-          <Text style={styles.muted}>{request.startDate} to {request.endDate} · {request.serviceAreaLabel}</Text>
+          <Text style={styles.muted}>{rangeLabel(request.startDate, request.endDate)} · {request.serviceAreaLabel}</Text>
         </View>
 
         <View style={styles.section}>
