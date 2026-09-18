@@ -11,11 +11,7 @@ import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
 import { useReducedMotion } from '@/components/use-reduced-motion';
 
-// Free-use stock photography from Pexels by Safi Erneste:
- // https://www.pexels.com/photo/parked-toyota-land-cruiser-18029607/
-const heroImage = {
-  uri: 'https://images.pexels.com/photos/18029607/pexels-photo-18029607.jpeg?auto=compress&cs=tinysrgb&w=1600',
-};
+const heroImage = require('../../../../assets/images/auth-land-cruiser-black.jpg');
 
 type AuthRoleChoiceScreenProps = {
   onChooseRole(accountType: AccountType): void;
@@ -62,9 +58,9 @@ export function AuthRoleChoiceScreen({ onChooseRole, onSignIn }: AuthRoleChoiceS
     >
       <View style={[styles.hero, { height: heroHeight }]}>
         <Image
-          accessibilityLabel="Premium Toyota SUV in an urban setting"
+          accessibilityLabel="Black luxury SUV in an urban setting"
           contentFit="cover"
-          contentPosition={{ left: '50%', top: '52%' }}
+          contentPosition={{ left: '50%', top: '43%' }}
           source={heroImage}
           style={StyleSheet.absoluteFill}
         />
