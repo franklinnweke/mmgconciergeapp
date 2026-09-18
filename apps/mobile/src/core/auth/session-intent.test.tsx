@@ -145,6 +145,31 @@ describe('SessionIntentProvider lifecycle', () => {
     expect(latest?.mode).toBe('owner');
   });
 
+  it('clears active mode immediately while signingOut is true even before user is set to null', async () => {
+    await mocks.setItem('@mmg/session-mode/v1/user-A', 'owner');
+    mocks.setAuth({ signingOut: false, user: { uid: 'user-A' } });
+
+    await act(async () => {
+      renderer = create(
+        React.createElement(SessionIntentProvider, null, React.createElement(Probe)),
+      );
+    });
+    await flushAsync();
+
+    expect(latest?.mode).toBe('owner');
+
+    // Sign out initiated: signingOut becomes true, but native user is still present
+    mocks.setAuth({ signingOut: true, user: { uid: 'user-A' } });
+    await act(async () => {
+      renderer?.update(
+        React.createElement(SessionIntentProvider, null, React.createElement(Probe)),
+      );
+    });
+    await flushAsync();
+
+    expect(latest?.mode).toBeNull();
+  });
+
   it('handles storage read failure gracefully without throwing or blocking', async () => {
     mocks.getItem.mockRejectedValueOnce(new Error('disk read error'));
     mocks.setAuth({ signingOut: false, user: { uid: 'user-corrupted' } });

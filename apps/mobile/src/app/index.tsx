@@ -1,5 +1,5 @@
 import type { AccountType } from '@mmg/contracts';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Redirect, type Href } from 'expo-router';
 
 import { useAuth } from '@/core/auth/auth-context';
@@ -22,11 +22,15 @@ export default function IndexRoute() {
   const [authIntent, setAuthIntent] = useState<AccountType | 'sign-in' | null>(null);
 
   const userId = user?.uid ?? null;
-  const [previousUserId, setPreviousUserId] = useState(userId);
-  if (previousUserId !== userId) {
-    setPreviousUserId(userId);
-    setAuthIntent(preserveAuthIntent(authIntent, previousUserId, userId));
-  }
+  const previousUserId = useRef(userId);
+
+  useEffect(() => {
+    if (previousUserId.current !== userId) {
+      const prev = previousUserId.current;
+      previousUserId.current = userId;
+      setAuthIntent((current) => preserveAuthIntent(current, prev, userId));
+    }
+  }, [userId]);
 
   if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (initializing || (user && sessionIntentLoading)) return <AuthLoadingScreen />;

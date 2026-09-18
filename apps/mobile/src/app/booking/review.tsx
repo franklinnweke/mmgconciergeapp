@@ -5,7 +5,7 @@ import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import BookingReviewScreen from '@/features/booking/screens/booking-review-screen';
 
 export default function BookingReviewRoute() {
-  const { initializing, user } = useAuth();
+  const { initializing, signingOut, user } = useAuth();
   const { endDate, pickup, startDate, vehicleId } = useLocalSearchParams<{
     endDate?: string;
     pickup?: string;
@@ -13,6 +13,7 @@ export default function BookingReviewRoute() {
     vehicleId: string;
   }>();
 
+  if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (initializing) return <AuthLoadingScreen />;
   if (!user || !user.emailVerified) return <Redirect href="/" />;
 
