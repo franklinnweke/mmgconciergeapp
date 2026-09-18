@@ -31,7 +31,11 @@ type AuthEntryScreenProps = {
   onBack(): void;
 };
 
-const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.jpg');
+// Free-use stock photography from Pexels by Safi Erneste:
+ // https://www.pexels.com/photo/parked-toyota-land-cruiser-18029607/
+const heroImage = {
+  uri: 'https://images.pexels.com/photos/18029607/pexels-photo-18029607.jpeg?auto=compress&cs=tinysrgb&w=1600',
+};
 
 export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryScreenProps) {
   const insets = useSafeAreaInsets();
@@ -171,8 +175,9 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
       >
         <View style={styles.hero}>
           <Image
-            accessibilityLabel="Victoria Island traffic and modern architecture in Lagos"
+            accessibilityLabel="Premium Toyota SUV in an urban setting"
             contentFit="cover"
+            contentPosition={{ left: '50%', top: '52%' }}
             source={heroImage}
             style={StyleSheet.absoluteFill}
           />
