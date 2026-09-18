@@ -23,36 +23,27 @@ const SessionIntentContext = createContext<SessionIntentContextValue | null>(nul
 export function SessionIntentProvider({ children }: PropsWithChildren) {
   const { signingOut, user } = useAuth();
   const segments = useSegments();
-  const uid = user?.uid ?? null;
+  const uid = user && !signingOut ? user.uid : null;
   const [loadedUid, setLoadedUid] = useState<string | null>(null);
-  const [mode, setModeState] = useState<SessionMode | null>(null);
+  const [storedMode, setStoredMode] = useState<SessionMode | null>(null);
+
   const loading = Boolean(uid && loadedUid !== uid);
+  const routeMode = sessionModeFromSegments(segments);
+  const mode = uid ? (routeMode ?? (loadedUid === uid ? storedMode : null)) : null;
 
   useEffect(() => {
+    if (!uid) return undefined;
+
     let active = true;
-
-    if (!uid) {
-      queueMicrotask(() => {
-        if (!active) return;
-        setLoadedUid(null);
-        setModeState(null);
-      });
-      return () => {
-        active = false;
-      };
-    }
-
     void AsyncStorage.getItem(sessionModeStorageKey(uid))
       .then((value) => {
         if (!active) return;
-        setModeState(parseStoredSessionMode(value));
+        setStoredMode(parseStoredSessionMode(value));
         setLoadedUid(uid);
       })
       .catch(() => {
         if (!active) return;
-        // Session mode is only a navigation preference. Storage failure must
-        // never block authentication or fabricate owner authorization.
-        setModeState(null);
+        setStoredMode(null);
         setLoadedUid(uid);
       });
 
@@ -62,28 +53,17 @@ export function SessionIntentProvider({ children }: PropsWithChildren) {
   }, [uid]);
 
   useEffect(() => {
-    if (!uid || loading || signingOut) return undefined;
-    const routeMode = sessionModeFromSegments(segments);
-    if (!routeMode || routeMode === mode) return undefined;
-
-    let active = true;
-    queueMicrotask(() => {
-      if (active) setModeState(routeMode);
-    });
+    if (!uid || loading || signingOut || !routeMode) return;
     void AsyncStorage.setItem(sessionModeStorageKey(uid), routeMode).catch(() => {
       // Navigation continues even if the preference cannot be persisted.
     });
-
-    return () => {
-      active = false;
-    };
-  }, [loading, mode, segments, signingOut, uid]);
+  }, [loading, routeMode, signingOut, uid]);
 
   const value = useMemo<SessionIntentContextValue>(() => ({
     loading,
     mode,
     async setMode(nextMode) {
-      setModeState(nextMode);
+      setStoredMode(nextMode);
       if (!uid) return;
       try {
         await AsyncStorage.setItem(sessionModeStorageKey(uid), nextMode);

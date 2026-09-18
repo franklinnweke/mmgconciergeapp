@@ -5,9 +5,10 @@ import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import TripDetailScreen from '@/features/booking/screens/trip-detail-screen';
 
 export default function TripDetailRoute() {
-  const { initializing, user } = useAuth();
+  const { initializing, signingOut, user } = useAuth();
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
 
+  if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (initializing) return <AuthLoadingScreen />;
   if (!user || !user.emailVerified) return <Redirect href="/" />;
   return <TripDetailScreen tripId={tripId ?? ''} />;

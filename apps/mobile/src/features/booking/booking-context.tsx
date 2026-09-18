@@ -65,10 +65,13 @@ export function BookingProvider({ children }: PropsWithChildren) {
   );
 
   useEffect(() => {
+    if (user && !signingOut) return undefined;
+
     let active = true;
 
     queueMicrotask(() => {
       if (!active) return;
+
       setStoredRequests([]);
       setTrustedTrips([]);
       setTrustedTripsUserId(null);
@@ -77,15 +80,22 @@ export function BookingProvider({ children }: PropsWithChildren) {
       setResolvedTripVehicles({});
       setLoadedUserId(null);
       setSyncError(null);
-      if (!user || signingOut) {
-        setSyncState(bookingRemoteEnabled || renterTripRemoteEnabled ? 'syncing' : 'local-only');
-      }
+      setSyncState(
+        bookingRemoteEnabled || renterTripRemoteEnabled
+          ? 'syncing'
+          : 'local-only',
+      );
     });
 
-    if (!user || signingOut) {
-      return () => { active = false; };
-    }
+    return () => {
+      active = false;
+    };
+  }, [signingOut, user]);
 
+  useEffect(() => {
+    if (!user || signingOut) return undefined;
+
+    let active = true;
     const stops: (() => void)[] = [];
     void loadLocalBookingRequests(user.uid).then((cachedRequests) => {
       if (!active) return;
@@ -180,31 +190,38 @@ export function BookingProvider({ children }: PropsWithChildren) {
   }, [signingOut, user]);
 
   const requests = useMemo(
-    () => (user && loadedUserId === user.uid ? storedRequests : []),
-    [loadedUserId, storedRequests, user],
+    () => (user && !signingOut && loadedUserId === user.uid ? storedRequests : []),
+    [loadedUserId, signingOut, storedRequests, user],
   );
-  const initializing = Boolean(user && loadedUserId !== user.uid);
+  const initializing = Boolean(user && !signingOut && loadedUserId !== user.uid);
   const baseTrips = useMemo(
-    () => resolveVisibleRenterTrips({
-      authoritative: scopeTripsToActiveUser(user?.uid, trustedTripsUserId, trustedTrips),
-      legacy: requests.map(mapLegacyBookingRequest),
-      preview: [],
-      allowPreview: false,
-      requests: scopeTripsToActiveUser(user?.uid, rentalRequestUserId, rentalRequestTrips),
-    }),
-    [rentalRequestTrips, rentalRequestUserId, requests, trustedTrips, trustedTripsUserId, user],
+    () => {
+      if (!user || signingOut) return [];
+      return resolveVisibleRenterTrips({
+        authoritative: scopeTripsToActiveUser(user.uid, trustedTripsUserId, trustedTrips),
+        legacy: requests.map(mapLegacyBookingRequest),
+        preview: [],
+        allowPreview: false,
+        requests: scopeTripsToActiveUser(user.uid, rentalRequestUserId, rentalRequestTrips),
+      });
+    },
+    [rentalRequestTrips, rentalRequestUserId, requests, signingOut, trustedTrips, trustedTripsUserId, user],
   );
   const unresolvedVehicleIds = useMemo(
-    () => [...new Set(
-      baseTrips
-        .filter((trip) => !trip.vehicleSnapshot.imageUrl && !(trip.vehicleId in resolvedTripVehicles))
-        .map((trip) => trip.vehicleId),
-    )].sort(),
-    [baseTrips, resolvedTripVehicles],
+    () => {
+      if (!user || signingOut) return [];
+      return [...new Set(
+        baseTrips
+          .filter((trip) => !trip.vehicleSnapshot.imageUrl && !(trip.vehicleId in resolvedTripVehicles))
+          .map((trip) => trip.vehicleId),
+      )].sort();
+    },
+    [baseTrips, resolvedTripVehicles, signingOut, user],
   );
+  const unresolvedVehicleIdsKey = unresolvedVehicleIds.join(',');
 
   useEffect(() => {
-    if (!user || !unresolvedVehicleIds.length) return undefined;
+    if (!user || signingOut || !unresolvedVehicleIds.length) return undefined;
     let active = true;
 
     void Promise.all(
@@ -226,14 +243,18 @@ export function BookingProvider({ children }: PropsWithChildren) {
     return () => {
       active = false;
     };
-  }, [discoveryGateway, unresolvedVehicleIds, user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discoveryGateway, signingOut, unresolvedVehicleIdsKey, user]);
 
   const trips = useMemo(
-    () => baseTrips.map((trip) => recoverRenterTripVehicle(
-      trip,
-      resolvedTripVehicles[trip.vehicleId],
-    )),
-    [baseTrips, resolvedTripVehicles],
+    () => {
+      if (!user || signingOut) return [];
+      return baseTrips.map((trip) => recoverRenterTripVehicle(
+        trip,
+        resolvedTripVehicles[trip.vehicleId],
+      ));
+    },
+    [baseTrips, resolvedTripVehicles, signingOut, user],
   );
 
   const value = useMemo<BookingContextValue>(
@@ -244,13 +265,15 @@ export function BookingProvider({ children }: PropsWithChildren) {
       syncState,
       trips,
       async refreshRentalRequests() {
-        if (!user) return;
+        if (!user || signingOut) return;
         const listed = await createRentalRequestGateway().listRenterRequests();
         setRentalRequestTrips(listed.requests.map(mapRenterVisibleRentalRequest));
         setRentalRequestUserId(user.uid);
       },
       async requestAvailability(input) {
-        if (!user) throw new Error('Sign in before requesting vehicle availability.');
+        if (!user || signingOut) {
+          throw new Error('Sign in before requesting vehicle availability.');
+        }
 
         const now = new Date().toISOString();
         const request: BookingRequest = {
@@ -283,7 +306,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
         return request;
       },
     }),
-    [initializing, requests, syncError, syncState, trips, user],
+    [initializing, requests, signingOut, syncError, syncState, trips, user],
   );
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>;
