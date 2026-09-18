@@ -170,6 +170,45 @@ describe('SessionIntentProvider lifecycle', () => {
     expect(latest?.mode).toBeNull();
   });
 
+  it('restores stored mode cleanly when same user returns after sign-out transition', async () => {
+    // 1. User A is an owner
+    await mocks.setItem('@mmg/session-mode/v1/user-A', 'owner');
+    mocks.setAuth({ signingOut: false, user: { uid: 'user-A' } });
+
+    await act(async () => {
+      renderer = create(
+        React.createElement(SessionIntentProvider, null, React.createElement(Probe)),
+      );
+    });
+    await flushAsync();
+
+    expect(latest?.mode).toBe('owner');
+
+    // 2. Sign out in-flight: signingOut=true while user A still exists
+    mocks.setAuth({ signingOut: true, user: { uid: 'user-A' } });
+    await act(async () => {
+      renderer?.update(
+        React.createElement(SessionIntentProvider, null, React.createElement(Probe)),
+      );
+    });
+    await flushAsync();
+
+    expect(latest?.mode).toBeNull();
+
+    // 3. User A signs back in: signingOut=false with SAME user A
+    mocks.setAuth({ signingOut: false, user: { uid: 'user-A' } });
+    await act(async () => {
+      renderer?.update(
+        React.createElement(SessionIntentProvider, null, React.createElement(Probe)),
+      );
+    });
+    await flushAsync();
+
+    // Owner mode restored cleanly
+    expect(latest?.mode).toBe('owner');
+    expect(latest?.loading).toBe(false);
+  });
+
   it('handles storage read failure gracefully without throwing or blocking', async () => {
     mocks.getItem.mockRejectedValueOnce(new Error('disk read error'));
     mocks.setAuth({ signingOut: false, user: { uid: 'user-corrupted' } });

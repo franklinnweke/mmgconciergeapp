@@ -65,22 +65,35 @@ export function BookingProvider({ children }: PropsWithChildren) {
   );
 
   useEffect(() => {
-    if (!user || signingOut) {
-      if (loadedUserId !== null) {
-        queueMicrotask(() => {
-          setStoredRequests([]);
-          setTrustedTrips([]);
-          setTrustedTripsUserId(null);
-          setRentalRequestTrips([]);
-          setRentalRequestUserId(null);
-          setResolvedTripVehicles({});
-          setLoadedUserId(null);
-          setSyncError(null);
-          setSyncState(bookingRemoteEnabled || renterTripRemoteEnabled ? 'syncing' : 'local-only');
-        });
-      }
-      return undefined;
-    }
+    if (user && !signingOut) return undefined;
+
+    let active = true;
+
+    queueMicrotask(() => {
+      if (!active) return;
+
+      setStoredRequests([]);
+      setTrustedTrips([]);
+      setTrustedTripsUserId(null);
+      setRentalRequestTrips([]);
+      setRentalRequestUserId(null);
+      setResolvedTripVehicles({});
+      setLoadedUserId(null);
+      setSyncError(null);
+      setSyncState(
+        bookingRemoteEnabled || renterTripRemoteEnabled
+          ? 'syncing'
+          : 'local-only',
+      );
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [signingOut, user]);
+
+  useEffect(() => {
+    if (!user || signingOut) return undefined;
 
     let active = true;
     const stops: (() => void)[] = [];
@@ -141,7 +154,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
       active = false;
       createUnsubscribeBundle(...stops)();
     };
-  }, [loadedUserId, signingOut, user]);
+  }, [signingOut, user]);
 
   useEffect(() => {
     if (!user || signingOut) return undefined;
@@ -258,7 +271,9 @@ export function BookingProvider({ children }: PropsWithChildren) {
         setRentalRequestUserId(user.uid);
       },
       async requestAvailability(input) {
-        if (!user) throw new Error('Sign in before requesting vehicle availability.');
+        if (!user || signingOut) {
+          throw new Error('Sign in before requesting vehicle availability.');
+        }
 
         const now = new Date().toISOString();
         const request: BookingRequest = {
