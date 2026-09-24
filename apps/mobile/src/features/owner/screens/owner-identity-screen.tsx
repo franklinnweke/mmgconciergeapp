@@ -106,6 +106,42 @@ export function OwnerIdentityScreen() {
     commissionAccepted &&
     privacyAccepted;
 
+  const handleLegalNameChange = (text: string) => {
+    setLegalName(text);
+    if (errorMessage) setErrorMessage(null);
+  };
+
+  const handleAreaSelect = (area: LagosAreaLabel) => {
+    setAreaLabel(area);
+    setAreaModalVisible(false);
+    if (errorMessage) setErrorMessage(null);
+  };
+
+  const handleLine1Change = (text: string) => {
+    setLine1(text);
+    if (errorMessage) setErrorMessage(null);
+  };
+
+  const handleLine2Change = (text: string) => {
+    setLine2(text);
+    if (errorMessage) setErrorMessage(null);
+  };
+
+  const handleToggleTerms = () => {
+    setTermsAccepted((prev) => !prev);
+    if (errorMessage) setErrorMessage(null);
+  };
+
+  const handleToggleCommission = () => {
+    setCommissionAccepted((prev) => !prev);
+    if (errorMessage) setErrorMessage(null);
+  };
+
+  const handleTogglePrivacy = () => {
+    setPrivacyAccepted((prev) => !prev);
+    if (errorMessage) setErrorMessage(null);
+  };
+
   const handleSave = async () => {
     if (!isFormValid || saving) return;
     setSaving(true);
@@ -204,7 +240,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Full Legal Name / Registered Entity</Text>
           <TextInput
-            onChangeText={setLegalName}
+            onChangeText={handleLegalNameChange}
             placeholder="As shown on official Nigerian ID"
             placeholderTextColor={colors.muted}
             style={styles.input}
@@ -246,7 +282,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Street Address Line 1</Text>
           <TextInput
-            onChangeText={setLine1}
+            onChangeText={handleLine1Change}
             placeholder="e.g. 14 Admiralty Way"
             placeholderTextColor={colors.muted}
             style={styles.input}
@@ -257,7 +293,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Address Line 2 (Optional)</Text>
           <TextInput
-            onChangeText={setLine2}
+            onChangeText={handleLine2Change}
             placeholder="Suite, building, or unit number"
             placeholderTextColor={colors.muted}
             style={styles.input}
@@ -273,7 +309,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.termsSection}>
           <Text style={styles.sectionTitle}>Agreements</Text>
 
-          <Pressable onPress={() => setTermsAccepted(!termsAccepted)} style={styles.termsRow}>
+          <Pressable onPress={handleToggleTerms} style={styles.termsRow}>
             <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
               {termsAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
@@ -283,7 +319,7 @@ export function OwnerIdentityScreen() {
             </View>
           </Pressable>
 
-          <Pressable onPress={() => setCommissionAccepted(!commissionAccepted)} style={styles.termsRow}>
+          <Pressable onPress={handleToggleCommission} style={styles.termsRow}>
             <View style={[styles.checkbox, commissionAccepted && styles.checkboxActive]}>
               {commissionAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
@@ -293,7 +329,7 @@ export function OwnerIdentityScreen() {
             </View>
           </Pressable>
 
-          <Pressable onPress={() => setPrivacyAccepted(!privacyAccepted)} style={styles.termsRow}>
+          <Pressable onPress={handleTogglePrivacy} style={styles.termsRow}>
             <View style={[styles.checkbox, privacyAccepted && styles.checkboxActive]}>
               {privacyAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
@@ -331,10 +367,7 @@ export function OwnerIdentityScreen() {
               {LAGOS_AREA_LABELS.map((item) => (
                 <Pressable
                   key={item}
-                  onPress={() => {
-                    setAreaLabel(item);
-                    setAreaModalVisible(false);
-                  }}
+                  onPress={() => handleAreaSelect(item)}
                   style={styles.modalItem}
                 >
                   <Text style={[styles.modalItemText, areaLabel === item && styles.modalItemTextActive]}>
