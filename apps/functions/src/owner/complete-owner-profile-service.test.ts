@@ -450,4 +450,45 @@ describe('completeOwnerProfile service', () => {
       code: 'IDEMPOTENCY_CONFLICT',
     });
   });
+
+  it('allows completion when systemConfig matches current terms configuration', async () => {
+    repository.config = {
+      termsVersion: CURRENT_OWNER_TERMS_VERSION,
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+    };
+
+    const auth = {
+      uid: 'owner-one',
+      token: { email: 'musa@example.com', email_verified: true },
+    };
+    const deps = { repository, now: () => now, createRequestId: () => 'req-matching-config' };
+
+    await expect(
+      completeOwnerProfile(validCommand('idempotency-key-config-match'), auth, deps),
+    ).resolves.toMatchObject({
+      result: { ownerId: 'owner-one', verificationStatus: 'draft' },
+    });
+  });
+
+  it('rejects completion with terms_stale when systemConfig has updated terms', async () => {
+    repository.config = {
+      termsVersion: 'owner-terms-future-version',
+      commissionTermsVersion: CURRENT_COMMISSION_TERMS_VERSION,
+      privacyNoticeVersion: CURRENT_PRIVACY_NOTICE_VERSION,
+    };
+
+    const auth = {
+      uid: 'owner-one',
+      token: { email: 'musa@example.com', email_verified: true },
+    };
+    const deps = { repository, now: () => now, createRequestId: () => 'req-stale-config' };
+
+    await expect(
+      completeOwnerProfile(validCommand('idempotency-key-config-stale'), auth, deps),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'terms_stale' },
+    });
+  });
 });

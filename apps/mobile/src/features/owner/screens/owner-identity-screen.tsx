@@ -10,7 +10,7 @@ import {
   type OwnerVisibleProfile,
 } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -36,6 +36,10 @@ import { createOwnerVerificationGateway } from '../data/owner-verification-gatew
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import { isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
 import { createOwnerIdentityFormSeed } from '../domain/owner-identity-form-seed';
+import {
+  isOwnerIdentityFormValid,
+  ownerIdentityFormReducer,
+} from '../domain/owner-identity-form-state';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 
 export function OwnerIdentityScreen() {
@@ -43,16 +47,30 @@ export function OwnerIdentityScreen() {
   const router = useRouter();
   const hydratedOwnerId = useRef<string | null>(null);
 
-  const [legalName, setLegalName] = useState(auth.profile?.displayName || '');
-  const [areaLabel, setAreaLabel] = useState<LagosAreaLabel>('Lekki Phase 1');
+  const [formState, dispatch] = useReducer(ownerIdentityFormReducer, {
+    legalName: auth.profile?.displayName || '',
+    areaLabel: 'Lekki Phase 1',
+    line1: '',
+    line2: '',
+    termsAccepted: false,
+    commissionAccepted: false,
+    privacyAccepted: false,
+    errorMessage: null,
+  });
+
+  const {
+    legalName,
+    areaLabel,
+    line1,
+    line2,
+    termsAccepted,
+    commissionAccepted,
+    privacyAccepted,
+    errorMessage,
+  } = formState;
+
   const [areaModalVisible, setAreaModalVisible] = useState(false);
-  const [line1, setLine1] = useState('');
-  const [line2, setLine2] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [commissionAccepted, setCommissionAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(Boolean(auth.user?.uid));
 
@@ -71,13 +89,7 @@ export function OwnerIdentityScreen() {
           hydratedOwnerId.current !== ownerId
         ) {
           const seed = createOwnerIdentityFormSeed(updatedProfile);
-          setLegalName(seed.legalName);
-          setAreaLabel(seed.areaLabel);
-          setLine1(seed.line1);
-          setLine2(seed.line2);
-          setTermsAccepted(seed.termsAccepted);
-          setCommissionAccepted(seed.commissionAccepted);
-          setPrivacyAccepted(seed.privacyAccepted);
+          dispatch({ type: 'HYDRATE_FROM_SEED', seed });
           hydratedOwnerId.current = ownerId;
         }
         setLoadingProfile(false);
@@ -96,20 +108,41 @@ export function OwnerIdentityScreen() {
     () => `complete-profile-${auth.user?.uid || 'anon'}-${Date.now()}`,
   );
 
-  const isFormValid =
-    Boolean(auth.user?.emailVerified) &&
-    legalName.trim().length >= 3 &&
-    legalName.trim().length <= 120 &&
-    line1.trim().length >= 8 &&
-    line1.trim().length <= 160 &&
-    termsAccepted &&
-    commissionAccepted &&
-    privacyAccepted;
+  const isFormValid = isOwnerIdentityFormValid(formState, Boolean(auth.user?.emailVerified));
+
+  const handleLegalNameChange = (text: string) => {
+    dispatch({ type: 'SET_LEGAL_NAME', legalName: text });
+  };
+
+  const handleAreaSelect = (area: LagosAreaLabel) => {
+    dispatch({ type: 'SET_AREA_LABEL', areaLabel: area });
+    setAreaModalVisible(false);
+  };
+
+  const handleLine1Change = (text: string) => {
+    dispatch({ type: 'SET_LINE1', line1: text });
+  };
+
+  const handleLine2Change = (text: string) => {
+    dispatch({ type: 'SET_LINE2', line2: text });
+  };
+
+  const handleToggleTerms = () => {
+    dispatch({ type: 'TOGGLE_TERMS' });
+  };
+
+  const handleToggleCommission = () => {
+    dispatch({ type: 'TOGGLE_COMMISSION' });
+  };
+
+  const handleTogglePrivacy = () => {
+    dispatch({ type: 'TOGGLE_PRIVACY' });
+  };
 
   const handleSave = async () => {
     if (!isFormValid || saving) return;
     setSaving(true);
-    setErrorMessage(null);
+    dispatch({ type: 'SET_ERROR', errorMessage: null });
 
     try {
       const gateway = createOwnerVerificationGateway();
@@ -139,7 +172,7 @@ export function OwnerIdentityScreen() {
         router.push('/(owner)' as Href);
       }
     } catch (err) {
-      setErrorMessage(ownerCommandErrorMessage(err));
+      dispatch({ type: 'SET_ERROR', errorMessage: ownerCommandErrorMessage(err) });
     } finally {
       setSaving(false);
     }
@@ -204,7 +237,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Full Legal Name / Registered Entity</Text>
           <TextInput
-            onChangeText={setLegalName}
+            onChangeText={handleLegalNameChange}
             placeholder="As shown on official Nigerian ID"
             placeholderTextColor={colors.muted}
             style={styles.input}
@@ -246,7 +279,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Street Address Line 1</Text>
           <TextInput
-            onChangeText={setLine1}
+            onChangeText={handleLine1Change}
             placeholder="e.g. 14 Admiralty Way"
             placeholderTextColor={colors.muted}
             style={styles.input}
@@ -257,7 +290,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Address Line 2 (Optional)</Text>
           <TextInput
-            onChangeText={setLine2}
+            onChangeText={handleLine2Change}
             placeholder="Suite, building, or unit number"
             placeholderTextColor={colors.muted}
             style={styles.input}
@@ -273,7 +306,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.termsSection}>
           <Text style={styles.sectionTitle}>Agreements</Text>
 
-          <Pressable onPress={() => setTermsAccepted(!termsAccepted)} style={styles.termsRow}>
+          <Pressable onPress={handleToggleTerms} style={styles.termsRow}>
             <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
               {termsAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
@@ -283,7 +316,7 @@ export function OwnerIdentityScreen() {
             </View>
           </Pressable>
 
-          <Pressable onPress={() => setCommissionAccepted(!commissionAccepted)} style={styles.termsRow}>
+          <Pressable onPress={handleToggleCommission} style={styles.termsRow}>
             <View style={[styles.checkbox, commissionAccepted && styles.checkboxActive]}>
               {commissionAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
@@ -293,7 +326,7 @@ export function OwnerIdentityScreen() {
             </View>
           </Pressable>
 
-          <Pressable onPress={() => setPrivacyAccepted(!privacyAccepted)} style={styles.termsRow}>
+          <Pressable onPress={handleTogglePrivacy} style={styles.termsRow}>
             <View style={[styles.checkbox, privacyAccepted && styles.checkboxActive]}>
               {privacyAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
             </View>
@@ -331,10 +364,7 @@ export function OwnerIdentityScreen() {
               {LAGOS_AREA_LABELS.map((item) => (
                 <Pressable
                   key={item}
-                  onPress={() => {
-                    setAreaLabel(item);
-                    setAreaModalVisible(false);
-                  }}
+                  onPress={() => handleAreaSelect(item)}
                   style={styles.modalItem}
                 >
                   <Text style={[styles.modalItemText, areaLabel === item && styles.modalItemTextActive]}>
