@@ -5,9 +5,25 @@ import {
   CURRENT_PRIVACY_NOTICE_VERSION,
 } from '@mmg/contracts';
 
+import {
+  isOwnerIdentityFormValid,
+  ownerIdentityFormReducer,
+  type OwnerIdentityFormState,
+} from '../domain/owner-identity-form-state';
 import { ownerCommandErrorMessage } from '../domain/owner-errors';
 
-describe('owner-identity-screen state and error handling', () => {
+describe('owner-identity-screen production state and error handling', () => {
+  const initialValidState: OwnerIdentityFormState = {
+    legalName: 'Alhaji Musa Danjuma',
+    areaLabel: 'Lekki Phase 1',
+    line1: '14 Admiralty Way',
+    line2: 'Suite 2',
+    termsAccepted: true,
+    commissionAccepted: true,
+    privacyAccepted: true,
+    errorMessage: null,
+  };
+
   it('maps FAILED_PRECONDITION with terms_stale to helpful terms acceptance message', () => {
     const error = {
       details: {
@@ -18,75 +34,147 @@ describe('owner-identity-screen state and error handling', () => {
     expect(ownerCommandErrorMessage(error)).toBe('Accept the current owner terms to continue.');
   });
 
-  it('clears stale error state when any input or agreement is updated', () => {
-    // Model the error clearing reducer/state logic implemented in OwnerIdentityScreen
-    let errorMessage: string | null = 'Accept the current owner terms to continue.';
+  it('sets and clears errorMessage via ownerIdentityFormReducer across all input and agreement actions', () => {
+    // 1. Set an error
+    let state = ownerIdentityFormReducer(initialValidState, {
+      type: 'SET_ERROR',
+      errorMessage: 'Accept the current owner terms to continue.',
+    });
+    expect(state.errorMessage).toBe('Accept the current owner terms to continue.');
 
-    const clearError = () => {
-      if (errorMessage) errorMessage = null;
+    // 2. Modifying legalName clears error
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_LEGAL_NAME',
+      legalName: 'Alhaji Musa Danjuma Updated',
+    });
+    expect(state.errorMessage).toBeNull();
+    expect(state.legalName).toBe('Alhaji Musa Danjuma Updated');
+
+    // 3. Set error and verify SET_AREA_LABEL clears error
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_ERROR',
+      errorMessage: 'Some error',
+    });
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_AREA_LABEL',
+      areaLabel: 'Victoria Island',
+    });
+    expect(state.errorMessage).toBeNull();
+    expect(state.areaLabel).toBe('Victoria Island');
+
+    // 4. Set error and verify SET_LINE1 clears error
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_ERROR',
+      errorMessage: 'Some error',
+    });
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_LINE1',
+      line1: '18 Admiralty Way',
+    });
+    expect(state.errorMessage).toBeNull();
+    expect(state.line1).toBe('18 Admiralty Way');
+
+    // 5. Set error and verify SET_LINE2 clears error
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_ERROR',
+      errorMessage: 'Some error',
+    });
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_LINE2',
+      line2: 'Suite 4B',
+    });
+    expect(state.errorMessage).toBeNull();
+    expect(state.line2).toBe('Suite 4B');
+
+    // 6. Set error and verify TOGGLE_TERMS clears error
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_ERROR',
+      errorMessage: 'Some error',
+    });
+    state = ownerIdentityFormReducer(state, {
+      type: 'TOGGLE_TERMS',
+    });
+    expect(state.errorMessage).toBeNull();
+    expect(state.termsAccepted).toBe(false);
+
+    // 7. Set error and verify TOGGLE_COMMISSION clears error
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_ERROR',
+      errorMessage: 'Some error',
+    });
+    state = ownerIdentityFormReducer(state, {
+      type: 'TOGGLE_COMMISSION',
+    });
+    expect(state.errorMessage).toBeNull();
+    expect(state.commissionAccepted).toBe(false);
+
+    // 8. Set error and verify TOGGLE_PRIVACY clears error
+    state = ownerIdentityFormReducer(state, {
+      type: 'SET_ERROR',
+      errorMessage: 'Some error',
+    });
+    state = ownerIdentityFormReducer(state, {
+      type: 'TOGGLE_PRIVACY',
+    });
+    expect(state.errorMessage).toBeNull();
+    expect(state.privacyAccepted).toBe(false);
+  });
+
+  it('hydrates form state from seed without setting error', () => {
+    const emptyState: OwnerIdentityFormState = {
+      legalName: '',
+      areaLabel: 'Ikoyi',
+      line1: '',
+      line2: '',
+      termsAccepted: false,
+      commissionAccepted: false,
+      privacyAccepted: false,
+      errorMessage: 'Old error',
     };
 
-    const handleLegalNameChange = (_text: string) => {
-      clearError();
-    };
+    const hydrated = ownerIdentityFormReducer(emptyState, {
+      type: 'HYDRATE_FROM_SEED',
+      seed: {
+        legalName: 'Hydrated Owner Ltd',
+        areaLabel: 'Lekki Phase 1',
+        line1: '10 Admiralty Way',
+        line2: '',
+        termsAccepted: true,
+        commissionAccepted: true,
+        privacyAccepted: true,
+      },
+    });
 
-    const handleLine1Change = (_text: string) => {
-      clearError();
-    };
+    expect(hydrated.legalName).toBe('Hydrated Owner Ltd');
+    expect(hydrated.areaLabel).toBe('Lekki Phase 1');
+    expect(hydrated.line1).toBe('10 Admiralty Way');
+    expect(hydrated.termsAccepted).toBe(true);
+  });
 
-    const handleLine2Change = (_text: string) => {
-      clearError();
-    };
+  it('validates isOwnerIdentityFormValid against email verification and field constraints', () => {
+    expect(isOwnerIdentityFormValid(initialValidState, true)).toBe(true);
+    expect(isOwnerIdentityFormValid(initialValidState, false)).toBe(false);
 
-    const handleAreaSelect = (_area: string) => {
-      clearError();
-    };
+    // Short legal name (< 3 chars)
+    expect(
+      isOwnerIdentityFormValid({ ...initialValidState, legalName: 'Al' }, true),
+    ).toBe(false);
 
-    const handleToggleTerms = () => {
-      clearError();
-    };
+    // Short line1 (< 8 chars)
+    expect(
+      isOwnerIdentityFormValid({ ...initialValidState, line1: '1 St' }, true),
+    ).toBe(false);
 
-    const handleToggleCommission = () => {
-      clearError();
-    };
-
-    const handleTogglePrivacy = () => {
-      clearError();
-    };
-
-    // Updating legal name clears error
-    handleLegalNameChange('Alhaji Musa Danjuma');
-    expect(errorMessage).toBeNull();
-
-    // Reset error
-    errorMessage = 'Accept the current owner terms to continue.';
-    handleAreaSelect('Victoria Island');
-    expect(errorMessage).toBeNull();
-
-    // Reset error
-    errorMessage = 'Accept the current owner terms to continue.';
-    handleLine1Change('14 Admiralty Way');
-    expect(errorMessage).toBeNull();
-
-    // Reset error
-    errorMessage = 'Accept the current owner terms to continue.';
-    handleLine2Change('Flat 3B');
-    expect(errorMessage).toBeNull();
-
-    // Reset error
-    errorMessage = 'Accept the current owner terms to continue.';
-    handleToggleTerms();
-    expect(errorMessage).toBeNull();
-
-    // Reset error
-    errorMessage = 'Accept the current owner terms to continue.';
-    handleToggleCommission();
-    expect(errorMessage).toBeNull();
-
-    // Reset error
-    errorMessage = 'Accept the current owner terms to continue.';
-    handleTogglePrivacy();
-    expect(errorMessage).toBeNull();
+    // Missing terms acceptance
+    expect(
+      isOwnerIdentityFormValid({ ...initialValidState, termsAccepted: false }, true),
+    ).toBe(false);
+    expect(
+      isOwnerIdentityFormValid({ ...initialValidState, commissionAccepted: false }, true),
+    ).toBe(false);
+    expect(
+      isOwnerIdentityFormValid({ ...initialValidState, privacyAccepted: false }, true),
+    ).toBe(false);
   });
 
   it('validates current contract versions match required constants', () => {
