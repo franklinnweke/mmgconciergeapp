@@ -25,7 +25,10 @@ import {
 
 import { parseCallableResult } from '../../../core/firebase/parse-callable-result';
 import { RenterProfileGateway } from './renter-profile-gateway';
-import { parseRenterProfileDocument } from './renter-profile-record';
+import {
+  RenterProfileError,
+  parseRenterProfileDocument,
+} from './renter-profile-record';
 
 export const PREVIEW_RENTER_PROFILE: RenterProfileRecord = {
   renterId: 'preview-renter',
@@ -68,8 +71,36 @@ export class WebRenterProfileGateway implements RenterProfileGateway {
   }
 
   async getRenterProfile(renterId: string): Promise<RenterProfileRecord | null> {
-    const docRef = doc(this.firestore, 'renterProfiles', renterId);
-    const snap = await getDoc(docRef);
+    let snap;
+    try {
+      const docRef = doc(this.firestore, 'renterProfiles', renterId);
+      snap = await getDoc(docRef);
+    } catch (err) {
+      if (err instanceof RenterProfileError) throw err;
+      const errorObj = (err && typeof err === 'object' ? err : {}) as { code?: unknown };
+      const rawCode = String(errorObj.code ?? '');
+      const code = rawCode.split('/').pop()?.toLowerCase() ?? '';
+      if (code === 'permission-denied' || code === 'forbidden') {
+        throw new RenterProfileError(
+          'profile_permission_denied',
+          'Failed to load profile: permission denied.',
+          err,
+        );
+      }
+      if (code === 'unavailable' || code === 'network-request-failed') {
+        throw new RenterProfileError(
+          'profile_unavailable',
+          'Failed to load profile: network or service unavailable.',
+          err,
+        );
+      }
+      throw new RenterProfileError(
+        'profile_read_failed',
+        'Failed to read renter profile from database.',
+        err,
+      );
+    }
+
     if (!snap.exists()) return null;
     const data = snap.data();
     if (!data) return null;

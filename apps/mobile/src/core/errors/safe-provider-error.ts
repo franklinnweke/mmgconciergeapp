@@ -10,8 +10,12 @@ export function safeProviderError(error: unknown, fallback: string): string {
   const code = rawCode.split('/').pop()?.toLowerCase() ?? '';
   const reason = String(value.details?.reason ?? '');
 
-  if (code === 'network-request-failed' || code === 'unavailable') return 'The service is unavailable. Check your connection and try again.';
-  if (code === 'permission-denied' || code === 'forbidden') return 'You do not have access to this information.';
+  if (code === 'network-request-failed' || code === 'unavailable' || code === 'profile_unavailable') {
+    return 'The service is unavailable. Check your connection and try again.';
+  }
+  if (code === 'permission-denied' || code === 'forbidden' || code === 'profile_permission_denied') {
+    return 'You do not have access to this information.';
+  }
   if (code === 'not-found' || code === 'not_found') return 'This information is no longer available.';
   if (reason === 'dates_overlap' || code === 'vehicle_unavailable') return 'This vehicle is not available for the selected dates.';
   if (code === 'failed-precondition' || code === 'failed_precondition') return 'This request is no longer current. Refresh and try again.';

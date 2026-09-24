@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   PreviewRenterProfileGateway,
   WebRenterProfileGateway,
   createRenterProfileGateway,
 } from './renter-profile-gateway.web';
+import { RenterProfileError } from './renter-profile-record';
 
 const mockProfileData = {
   renterId: 'renter-1',
@@ -24,14 +25,12 @@ const mockProfileData = {
 };
 
 const mockHttpsCallable = vi.fn();
+const mockGetDoc = vi.fn();
 
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(),
   doc: vi.fn(),
-  getDoc: vi.fn(async () => ({
-    exists: () => true,
-    data: () => mockProfileData,
-  })),
+  getDoc: (...args: unknown[]) => mockGetDoc(...args),
 }));
 
 vi.mock('firebase/functions', () => ({
@@ -42,11 +41,98 @@ vi.mock('firebase/functions', () => ({
 describe('WebRenterProfileGateway', () => {
   const gateway = new WebRenterProfileGateway();
 
-  it('fetches renter profile from firestore', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => mockProfileData,
+    });
+  });
+
+  it('fetches renter profile from firestore when document exists', async () => {
     const profile = await gateway.getRenterProfile('renter-1');
     expect(profile).not.toBeNull();
     expect(profile!.fullName).toBe('Babatunde Adeleke');
     expect(profile!.accountStatus).toBe('active');
+  });
+
+  it('returns null without throwing when document does not exist', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => false,
+      data: () => undefined,
+    });
+
+    const profile = await gateway.getRenterProfile('renter-1');
+    expect(profile).toBeNull();
+  });
+
+  it('classifies permission-denied Firestore errors as profile_permission_denied', async () => {
+    const permError = Object.assign(new Error('Missing permission'), {
+      code: 'firestore/permission-denied',
+    });
+    mockGetDoc.mockRejectedValueOnce(permError);
+
+    let capturedErr: unknown = null;
+    try {
+      await gateway.getRenterProfile('renter-1');
+    } catch (err) {
+      capturedErr = err;
+    }
+
+    expect(capturedErr).toBeInstanceOf(RenterProfileError);
+    expect((capturedErr as RenterProfileError).diagnosticCode).toBe('profile_permission_denied');
+  });
+
+  it('classifies unavailable/network errors as profile_unavailable', async () => {
+    const networkError = Object.assign(new Error('Network offline'), {
+      code: 'unavailable',
+    });
+    mockGetDoc.mockRejectedValueOnce(networkError);
+
+    let capturedErr: unknown = null;
+    try {
+      await gateway.getRenterProfile('renter-1');
+    } catch (err) {
+      capturedErr = err;
+    }
+
+    expect(capturedErr).toBeInstanceOf(RenterProfileError);
+    expect((capturedErr as RenterProfileError).diagnosticCode).toBe('profile_unavailable');
+  });
+
+  it('classifies unknown read errors as profile_read_failed rather than profile_unavailable', async () => {
+    const unknownError = Object.assign(new Error('Internal unexpected error'), {
+      code: 'internal',
+    });
+    mockGetDoc.mockRejectedValueOnce(unknownError);
+
+    let capturedErr: unknown = null;
+    try {
+      await gateway.getRenterProfile('renter-1');
+    } catch (err) {
+      capturedErr = err;
+    }
+
+    expect(capturedErr).toBeInstanceOf(RenterProfileError);
+    expect((capturedErr as RenterProfileError).diagnosticCode).toBe('profile_read_failed');
+  });
+
+  it('classifies malformed document parse failures as profile_invalid_record', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        ...mockProfileData,
+        phone: 'invalid-phone',
+      }),
+    });
+
+    try {
+      await gateway.getRenterProfile('renter-1');
+      expect.fail('Expected getRenterProfile to throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(RenterProfileError);
+      expect((err as RenterProfileError).diagnosticCode).toBe('profile_invalid_record');
+    }
   });
 
   it('completes renter profile via cloud function', async () => {

@@ -5,63 +5,122 @@ import {
 } from '@mmg/contracts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useAuth } from '@/core/auth/auth-context';
-import { safeProviderError } from '@/core/errors/safe-provider-error';
-import { createRenterProfileGateway } from '../data/renter-profile-gateway';
+import { useAuth } from '../../../core/auth/auth-context';
+import { safeProviderError } from '../../../core/errors/safe-provider-error';
+import {
+  createRenterProfileGateway,
+  type RenterProfileGateway,
+} from '../data/renter-profile-gateway';
+import {
+  RenterProfileError,
+  type RenterProfileDiagnosticCode,
+} from '../data/renter-profile-record';
 
-export function useRenterProfile() {
+export type RenterProfileState = {
+  profile: RenterProfileRecord | null;
+  isLoading: boolean;
+  errorMessage: string | null;
+  diagnosticCode: RenterProfileDiagnosticCode | null;
+};
+
+type LoadedProfileState = {
+  renterId: string | null;
+  profile: RenterProfileRecord | null;
+  isLoading: boolean;
+  errorMessage: string | null;
+  diagnosticCode: RenterProfileDiagnosticCode | null;
+};
+
+export function useRenterProfile(customGateway?: RenterProfileGateway) {
   const { signingOut, user } = useAuth();
-  const [profileState, setProfileState] = useState<{
-    profile: RenterProfileRecord | null;
-    isLoading: boolean;
-    errorMessage: string | null;
-  }>({
+  const currentUid = user?.uid ?? null;
+
+  const [profileState, setProfileState] = useState<LoadedProfileState>(() => ({
+    renterId: currentUid,
     profile: null,
-    isLoading: true,
+    isLoading: Boolean(currentUid && !signingOut),
     errorMessage: null,
-  });
+    diagnosticCode: null,
+  }));
 
   const [isSaving, setIsSaving] = useState(false);
-  const gateway = useMemo(() => createRenterProfileGateway(), []);
+  const gateway = useMemo(() => customGateway ?? createRenterProfileGateway(), [customGateway]);
 
   const loadProfile = useCallback(async () => {
-    if (!user?.uid) {
-      setProfileState({ profile: null, isLoading: false, errorMessage: null });
+    if (!currentUid) {
+      setProfileState({
+        renterId: null,
+        profile: null,
+        isLoading: false,
+        errorMessage: null,
+        diagnosticCode: null,
+      });
       return;
     }
 
     try {
-      const res = await gateway.getRenterProfile(user.uid);
-      setProfileState({ profile: res, isLoading: false, errorMessage: null });
+      const res = await gateway.getRenterProfile(currentUid);
+      setProfileState({
+        renterId: currentUid,
+        profile: res,
+        isLoading: false,
+        errorMessage: null,
+        diagnosticCode: null,
+      });
     } catch (err) {
-      setProfileState((prev) => ({
-        ...prev,
+      const diagnosticCode =
+        err instanceof RenterProfileError ? err.diagnosticCode : 'profile_read_failed';
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.warn('[useRenterProfile] Failed to load renter profile:', {
+          diagnosticCode,
+          error: err,
+        });
+      }
+      setProfileState({
+        renterId: currentUid,
+        profile: null,
         isLoading: false,
         errorMessage: safeProviderError(err, 'Failed to load profile.'),
-      }));
+        diagnosticCode,
+      });
     }
-  }, [gateway, user]);
+  }, [currentUid, gateway]);
 
   useEffect(() => {
     let isMounted = true;
-    if (!user?.uid || signingOut) {
-      setProfileState({ profile: null, isLoading: false, errorMessage: null });
+    if (!currentUid || signingOut) {
       return;
     }
 
     gateway
-      .getRenterProfile(user.uid)
+      .getRenterProfile(currentUid)
       .then((res) => {
         if (isMounted && !signingOut) {
-          setProfileState({ profile: res, isLoading: false, errorMessage: null });
+          setProfileState({
+            renterId: currentUid,
+            profile: res,
+            isLoading: false,
+            errorMessage: null,
+            diagnosticCode: null,
+          });
         }
       })
       .catch((err) => {
         if (isMounted && !signingOut) {
+          const diagnosticCode =
+            err instanceof RenterProfileError ? err.diagnosticCode : 'profile_read_failed';
+          if (typeof __DEV__ !== 'undefined' && __DEV__) {
+            console.warn('[useRenterProfile] Failed to load renter profile on mount:', {
+              diagnosticCode,
+              error: err,
+            });
+          }
           setProfileState({
+            renterId: currentUid,
             profile: null,
             isLoading: false,
             errorMessage: safeProviderError(err, 'Failed to load profile.'),
+            diagnosticCode,
           });
         }
       });
@@ -69,7 +128,7 @@ export function useRenterProfile() {
     return () => {
       isMounted = false;
     };
-  }, [gateway, signingOut, user]);
+  }, [currentUid, gateway, signingOut]);
 
   const saveProfile = async (data: CompleteRenterProfileData) => {
     setIsSaving(true);
@@ -105,11 +164,27 @@ export function useRenterProfile() {
     }
   };
 
+  const isAnonymousOrSigningOut = !currentUid || signingOut;
+  const isMatchesActiveUser = profileState.renterId === currentUid;
+
+  const visibleProfile =
+    isAnonymousOrSigningOut || !isMatchesActiveUser ? null : profileState.profile;
+  const visibleLoading = isAnonymousOrSigningOut
+    ? false
+    : !isMatchesActiveUser
+      ? true
+      : profileState.isLoading;
+  const visibleErrorMessage =
+    isAnonymousOrSigningOut || !isMatchesActiveUser ? null : profileState.errorMessage;
+  const visibleDiagnosticCode =
+    isAnonymousOrSigningOut || !isMatchesActiveUser ? null : profileState.diagnosticCode;
+
   return {
-    profile: profileState.profile,
-    isLoading: profileState.isLoading,
+    profile: visibleProfile,
+    isLoading: visibleLoading,
     isSaving,
-    errorMessage: profileState.errorMessage,
+    errorMessage: visibleErrorMessage,
+    diagnosticCode: visibleDiagnosticCode,
     refresh: loadProfile,
     saveProfile,
     requestDeletion,
