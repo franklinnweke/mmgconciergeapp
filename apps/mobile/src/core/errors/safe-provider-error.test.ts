@@ -7,6 +7,11 @@ describe('safeProviderError', () => {
     expect(safeProviderError({ code: 'firestore/unavailable', message: 'SECRET' }, 'fallback')).toContain('unavailable');
     expect(safeProviderError({ code: 'functions/permission-denied' }, 'fallback')).toContain('access');
     expect(safeProviderError({ code: 'NOT_FOUND' }, 'fallback')).toContain('no longer available');
+    expect(safeProviderError({ code: 'profile_unavailable' }, 'fallback')).toContain('unavailable');
+    expect(safeProviderError({ code: 'profile_permission_denied' }, 'fallback')).toContain('access');
+    expect(safeProviderError({ code: 'profile_invalid_record' }, 'fallback')).toBe('fallback');
+    expect(safeProviderError({ code: 'profile_identity_mismatch' }, 'fallback')).toBe('fallback');
+    expect(safeProviderError({ code: 'profile_read_failed' }, 'fallback')).toBe('fallback');
   });
 
   it('does not treat unrelated code text as a known network error', () => {
