@@ -26,6 +26,7 @@ import {
   type GoogleSignInResult,
   type User,
 } from './firebase-auth';
+import { recordAuthPhase, recordBreadcrumb } from '../diagnostics/diagnostic-tracker';
 
 type AuthContextValue = {
   completeAccountSetup(accountType: AccountType): Promise<void>;
@@ -72,12 +73,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setUser(nextUser);
       setAuthInitializing(false);
       if (!nextUser) {
+        recordAuthPhase('unauthenticated');
+        recordBreadcrumb('auth', 'state_changed_unauthenticated');
         setProfile(null);
         setProfileLoadFailed(false);
         setProfileInitializing(false);
         return;
       }
 
+      recordAuthPhase('authenticated');
+      recordBreadcrumb('auth', 'state_changed_authenticated');
       setProfileLoadFailed(false);
       setProfileInitializing(true);
       void loadAccountProfile(nextUser.uid)
@@ -162,6 +167,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   function performSignOut(): Promise<void> {
     if (signOutInFlight.current) return signOutInFlight.current;
 
+    recordAuthPhase('signing_out');
+    recordBreadcrumb('auth', 'perform_sign_out_started');
+
     profileMutationVersion.current += 1;
     setSigningOut(true);
 
@@ -171,12 +179,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // flight. Authenticated screens can still be mounted for part of this
         // transition; publishing a temporary null user lets their hooks render
         // against an impossible half-signed-out state.
+        recordBreadcrumb('auth', 'sign_out_current_user_resolved');
         setProfileInitializing(false);
         setProfileLoadFailed(false);
         setProfile(null);
         setUser(null);
       })
       .finally(() => {
+        recordAuthPhase('unauthenticated');
+        recordBreadcrumb('auth', 'perform_sign_out_finalized');
         profileMutationVersion.current += 1;
         setAuthInitializing(false);
         setProfileInitializing(false);

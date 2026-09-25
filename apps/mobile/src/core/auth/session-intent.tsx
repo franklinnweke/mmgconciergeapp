@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSegments } from 'expo-router';
 import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 
+import { recordNavigation } from '../diagnostics/diagnostic-tracker';
 import { useAuth } from './auth-context';
 import {
   parseStoredSessionMode,
@@ -26,6 +27,10 @@ export function SessionIntentProvider({ children }: PropsWithChildren) {
   const uid = user && !signingOut ? user.uid : null;
   const [loadedUid, setLoadedUid] = useState<string | null>(null);
   const [storedMode, setStoredMode] = useState<SessionMode | null>(null);
+
+  useEffect(() => {
+    recordNavigation(segments.join('/') || '/', segments);
+  }, [segments]);
 
   const loading = Boolean(uid && loadedUid !== uid);
   const routeMode = sessionModeFromSegments(segments);

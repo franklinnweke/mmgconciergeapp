@@ -45,7 +45,10 @@ module.exports = {
   },
   extra: {
     ...baseConfig.extra,
+    easBuildCommit: process.env.EAS_BUILD_GIT_COMMIT_HASH || null,
+    easBuildProfile: process.env.EAS_BUILD_PROFILE || null,
     firebaseEnvironment,
     googleWebClientId,
   },
 };
+

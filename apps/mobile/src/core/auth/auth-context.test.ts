@@ -145,4 +145,39 @@ describe('AuthProvider sign-out transition', () => {
       renderer?.unmount();
     });
   });
+
+  it('records diagnostic phase and breadcrumbs across sign-out lifecycle', async () => {
+    await act(async () => {
+      renderer = create(
+        React.createElement(AuthProvider, null, React.createElement(Probe)),
+      );
+    });
+
+    await act(async () => {
+      authMocks.emitAuth(fakeUser);
+      await flushMicrotasks();
+    });
+
+    let signOutPromise!: Promise<void>;
+    act(() => {
+      signOutPromise = latest!.signOut();
+    });
+
+    await act(async () => {
+      authMocks.finishSignOut();
+      await signOutPromise;
+    });
+
+    const snapshot = (await import('../diagnostics/diagnostic-tracker')).getDiagnosticSnapshot();
+    expect(snapshot.authPhase).toBe('unauthenticated');
+    const messages = snapshot.breadcrumbs.map((b) => b.message);
+    expect(messages).toContain('state_changed_authenticated');
+    expect(messages).toContain('perform_sign_out_started');
+    expect(messages).toContain('sign_out_current_user_resolved');
+    expect(messages).toContain('perform_sign_out_finalized');
+
+    act(() => {
+      renderer?.unmount();
+    });
+  });
 });
