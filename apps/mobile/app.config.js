@@ -15,6 +15,7 @@ if (!googleWebClientId) {
 
 const googleMapsApiKey = googleServices.client?.[0]?.api_key?.[0]?.current_key;
 const apnsEnvironment = process.env.MMG_APNS_ENV === 'production' ? 'production' : 'development';
+const diagnosticsEnabled = process.env.MMG_DIAGNOSTICS_ENABLED === 'true';
 const backgroundModes = Array.isArray(baseConfig.ios?.infoPlist?.UIBackgroundModes)
   ? baseConfig.ios.infoPlist.UIBackgroundModes
   : [];
@@ -45,7 +46,11 @@ module.exports = {
   },
   extra: {
     ...baseConfig.extra,
+    diagnosticsEnabled,
+    easBuildCommit: process.env.EAS_BUILD_GIT_COMMIT_HASH || null,
+    easBuildProfile: process.env.EAS_BUILD_PROFILE || null,
     firebaseEnvironment,
     googleWebClientId,
   },
 };
+

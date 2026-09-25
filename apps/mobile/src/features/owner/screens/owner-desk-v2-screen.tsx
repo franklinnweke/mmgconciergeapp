@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
+import { recordBreadcrumb } from '@/core/diagnostics/diagnostic-tracker';
 import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
@@ -165,7 +166,13 @@ export function OwnerDeskV2Screen() {
               </PressableScale>
             ) : null}
 
-            <PressableScale disabled={auth.signingOut} onPress={() => void auth.signOut()}>
+            <PressableScale
+              disabled={auth.signingOut}
+              onPress={() => {
+                recordBreadcrumb('ui', 'owner_desk_sign_out_pressed');
+                void auth.signOut();
+              }}
+            >
               <View style={styles.signOut}><Text style={styles.secondaryText}>Sign out</Text></View>
             </PressableScale>
           </>

@@ -28,7 +28,9 @@
     "testflight-development": {
       "extends": "production",
       "env": {
-        "MMG_FIREBASE_ENV": "development"
+        "MMG_FIREBASE_ENV": "development",
+        "MMG_APNS_ENV": "production",
+        "MMG_DIAGNOSTICS_ENABLED": "true"
       }
     },
     "production": {
