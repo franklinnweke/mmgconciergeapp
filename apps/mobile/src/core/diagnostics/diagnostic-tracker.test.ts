@@ -170,30 +170,48 @@ describe('diagnostic-tracker', () => {
       }
     });
 
-    it('in non-__DEV__ builds, requires explicit diagnosticsEnabled flag', () => {
+    it('in non-__DEV__ builds, requires strictly firebaseEnvironment === development and diagnosticsEnabled === true', () => {
       const originalDev = (globalThis as unknown as { __DEV__?: boolean }).__DEV__;
       try {
         (globalThis as unknown as { __DEV__?: boolean }).__DEV__ = false;
 
-        // Without flag: false
+        // Missing/undefined environment + true flag: must return false (fail closed)
+        setDiagnosticExpoConfigForTesting({
+          extra: { diagnosticsEnabled: true },
+        });
+        expect(isDiagnosticModeEnabled()).toBe(false);
+
+        // Unknown environment ('staging') + true flag: must return false (fail closed)
+        setDiagnosticExpoConfigForTesting({
+          extra: { diagnosticsEnabled: true, firebaseEnvironment: 'staging' },
+        });
+        expect(isDiagnosticModeEnabled()).toBe(false);
+
+        // Preview environment + true flag: must return false (fail closed)
+        setDiagnosticExpoConfigForTesting({
+          extra: { diagnosticsEnabled: true, firebaseEnvironment: 'preview' },
+        });
+        expect(isDiagnosticModeEnabled()).toBe(false);
+
+        // Development environment without flag: false
         setDiagnosticExpoConfigForTesting({
           extra: { firebaseEnvironment: 'development' },
         });
         expect(isDiagnosticModeEnabled()).toBe(false);
 
-        // With flag false: false
+        // Development environment with flag false: false
         setDiagnosticExpoConfigForTesting({
           extra: { diagnosticsEnabled: false, firebaseEnvironment: 'development' },
         });
         expect(isDiagnosticModeEnabled()).toBe(false);
 
-        // With flag true: true
+        // Development environment with flag true: true
         setDiagnosticExpoConfigForTesting({
           extra: { diagnosticsEnabled: true, firebaseEnvironment: 'development' },
         });
         expect(isDiagnosticModeEnabled()).toBe(true);
 
-        // With flag string "true": true
+        // Development environment with flag string "true": true
         setDiagnosticExpoConfigForTesting({
           extra: { diagnosticsEnabled: 'true', firebaseEnvironment: 'development' },
         });
@@ -201,6 +219,76 @@ describe('diagnostic-tracker', () => {
       } finally {
         (globalThis as unknown as { __DEV__?: boolean }).__DEV__ = originalDev;
       }
+    });
+  });
+
+  describe('route and segment sanitization', () => {
+    it('redacts dynamic booking IDs in routes and segment arrays', () => {
+      recordNavigation('/(owner)/owner-bookings/bk_syn_1234567890', [
+        '(owner)',
+        'owner-bookings',
+        'bk_syn_1234567890',
+      ]);
+      const snapshot = getDiagnosticSnapshot();
+
+      expect(snapshot.currentRoute).toBe('/(owner)/owner-bookings/[REDACTED_ID]');
+      expect(snapshot.segments).toEqual(['(owner)', 'owner-bookings', '[REDACTED_ID]']);
+      expect(snapshot.currentRoute).not.toContain('bk_syn_1234567890');
+      expect(snapshot.segments).not.toContain('bk_syn_1234567890');
+    });
+
+    it('redacts trip, vehicle, and request dynamic IDs in routes and segments', () => {
+      recordNavigation('/trip/trip_syn_9988776655', ['trip', 'trip_syn_9988776655']);
+      const tripSnapshot = getDiagnosticSnapshot();
+      expect(tripSnapshot.currentRoute).toBe('/trip/[REDACTED_ID]');
+      expect(tripSnapshot.segments).toEqual(['trip', '[REDACTED_ID]']);
+      expect(tripSnapshot.currentRoute).not.toContain('trip_syn_9988776655');
+
+      recordNavigation('/vehicle/veh_syn_4455667788', ['vehicle', 'veh_syn_4455667788']);
+      const vehSnapshot = getDiagnosticSnapshot();
+      expect(vehSnapshot.currentRoute).toBe('/vehicle/[REDACTED_ID]');
+      expect(vehSnapshot.segments).toEqual(['vehicle', '[REDACTED_ID]']);
+      expect(vehSnapshot.currentRoute).not.toContain('veh_syn_4455667788');
+    });
+
+    it('redacts synthetic 20-character Firestore document IDs in route paths', () => {
+      recordNavigation('/trip/c0g1n23j4k5l6m7n8o9p', ['trip', 'c0g1n23j4k5l6m7n8o9p']);
+      const snapshot = getDiagnosticSnapshot();
+
+      expect(snapshot.currentRoute).toBe('/trip/[REDACTED_ID]');
+      expect(snapshot.segments).toEqual(['trip', '[REDACTED_ID]']);
+      expect(snapshot.currentRoute).not.toContain('c0g1n23j4k5l6m7n8o9p');
+      expect(snapshot.segments).not.toContain('c0g1n23j4k5l6m7n8o9p');
+    });
+
+    it('recursively sanitizes array payloads and nested objects in breadcrumb data', () => {
+      recordBreadcrumb('nav_history', 'history_snapshot', {
+        activeRoute: '/(owner)/owner-bookings/bk_syn_112233',
+        nested: {
+          recentVisits: ['trip_syn_999999', 'users/usr_syn_888888'],
+        },
+        segmentHistory: [
+          ['(owner)', 'owner-bookings', 'bk_syn_112233'],
+          ['trip', 'trip_syn_999999'],
+        ],
+      });
+
+      const snapshot = getDiagnosticSnapshot();
+      const data = snapshot.breadcrumbs[0].data as {
+        activeRoute: string;
+        nested: { recentVisits: string[] };
+        segmentHistory: string[][];
+      };
+
+      expect(data.activeRoute).toBe('/(owner)/owner-bookings/[REDACTED_ID]');
+      expect(data.nested.recentVisits).toEqual(['[REDACTED_ID]', 'users/[REDACTED_ID]']);
+      expect(data.segmentHistory[0]).toEqual(['(owner)', 'owner-bookings', '[REDACTED_ID]']);
+      expect(data.segmentHistory[1]).toEqual(['trip', '[REDACTED_ID]']);
+
+      const rawJson = JSON.stringify(data);
+      expect(rawJson).not.toContain('bk_syn_112233');
+      expect(rawJson).not.toContain('trip_syn_999999');
+      expect(rawJson).not.toContain('usr_syn_888888');
     });
   });
 

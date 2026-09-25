@@ -48,10 +48,52 @@ let currentSegments: readonly string[] = [];
 let currentAuthPhase = 'uninitialized';
 let breadcrumbBuffer: DiagnosticBreadcrumb[] = [];
 
+const DYNAMIC_ROUTE_PARENTS = new Set([
+  'bookings',
+  'fleet',
+  'owner-bookings',
+  'payments',
+  'rentalRequests',
+  'requests',
+  'trip',
+  'users',
+  'vehicle',
+]);
+
+export function sanitizeRouteSegment(segment: string, isDynamicChild?: boolean): string {
+  if (!segment) return segment;
+  if (isDynamicChild) {
+    return '[REDACTED_ID]';
+  }
+  let text = sanitizeDiagnosticText(segment);
+  text = text.replace(PREFIXED_ID_REGEX, '[REDACTED_ID]');
+  if (/^[a-zA-Z0-9_-]{16,}$/.test(text) && /[0-9]/.test(text) && /[a-zA-Z]/.test(text)) {
+    return '[REDACTED_ID]';
+  }
+  return text;
+}
+
+export function sanitizeSegments(segments: readonly string[]): readonly string[] {
+  return segments.map((seg, index) => {
+    const prev = index > 0 ? segments[index - 1] : undefined;
+    const isDynamicChild = Boolean(prev && DYNAMIC_ROUTE_PARENTS.has(prev));
+    return sanitizeRouteSegment(seg, isDynamicChild);
+  });
+}
+
+export function sanitizeRoute(route: string): string {
+  if (!route) return '/';
+  let text = sanitizeDiagnosticText(route);
+  text = text.replace(PREFIXED_ID_REGEX, '[REDACTED_ID]');
+  text = text.replace(PATH_ID_REGEX, '$1/[REDACTED_ID]');
+  text = text.replace(/\/([a-zA-Z0-9_-]{16,})(?=\/|$)/g, '/[REDACTED_ID]');
+  return text;
+}
+
 export function recordNavigation(route: string, segments: readonly string[] = []): void {
-  currentRoute = route || '/';
-  currentSegments = [...segments];
-  recordBreadcrumb('nav', `route: ${currentRoute}`, { segments: currentSegments });
+  currentRoute = sanitizeRoute(route || '/');
+  currentSegments = sanitizeSegments(segments);
+  recordBreadcrumb('nav', `route: ${currentRoute}`, { segments: [...currentSegments] });
 }
 
 export function recordAuthPhase(phase: string): void {
@@ -117,10 +159,10 @@ export function isDiagnosticModeEnabled(): boolean {
     return true;
   }
 
-  // For non-__DEV__ builds (e.g. TestFlight binaries), require BOTH:
-  // 1. non-production Firebase environment (already checked: env !== 'production')
+  // For non-__DEV__ builds (e.g. TestFlight binaries), require STRICTLY:
+  // 1. firebaseEnvironment === 'development'
   // 2. explicit diagnostic flag enabled
-  return Boolean(diagnosticsFlag);
+  return env === 'development' && diagnosticsFlag === true;
 }
 
 export function getBuildInfo(): {
@@ -150,7 +192,8 @@ const NIGERIAN_PHONE_REGEX = /(?:\+?234|0)[789][01]\d{8}/g;
 const INTERNATIONAL_PHONE_REGEX = /\+[1-9]\d{7,14}/g;
 const BEARER_TOKEN_REGEX = /Bearer\s+[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*/gi;
 const JWT_REGEX = /eyJ[a-zA-Z0-9-_=]+\.eyJ[a-zA-Z0-9-_=]+/g;
-const FIRESTORE_PATH_REGEX = /\b(users|renterProfiles|ownerProfiles|rentalRequests|rentalRequestContacts|bookings|payments)\/[a-zA-Z0-9_-]+/g;
+const PATH_ID_REGEX = /\b(users|renterProfiles|ownerProfiles|rentalRequests|rentalRequestContacts|bookings|payments|owner-bookings|fleet|vehicle|trip|requests)\/[a-zA-Z0-9_-]+/g;
+const PREFIXED_ID_REGEX = /\b(usr|user|req|request|bk|booking|veh|vehicle|trip|pay|payment)_[a-zA-Z0-9_-]+\b/gi;
 const IDENTITY_KEY_VALUE_REGEX = /\b(uid|userId|renterId|ownerId)(\s*[:=]\s*)["']?(?!(?:null|undefined)\b)[a-zA-Z0-9_-]+["']?/gi;
 
 export function sanitizeDiagnosticText(text: string): string {
@@ -161,8 +204,27 @@ export function sanitizeDiagnosticText(text: string): string {
     .replace(INTERNATIONAL_PHONE_REGEX, '[REDACTED_PHONE]')
     .replace(BEARER_TOKEN_REGEX, 'Bearer [REDACTED_TOKEN]')
     .replace(JWT_REGEX, '[REDACTED_JWT]')
-    .replace(FIRESTORE_PATH_REGEX, '$1/[REDACTED_ID]')
-    .replace(IDENTITY_KEY_VALUE_REGEX, '$1$2[REDACTED_ID]');
+    .replace(IDENTITY_KEY_VALUE_REGEX, '$1$2[REDACTED_ID]')
+    .replace(PATH_ID_REGEX, '$1/[REDACTED_ID]')
+    .replace(PREFIXED_ID_REGEX, '[REDACTED_ID]');
+}
+
+function sanitizeValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    let text = sanitizeDiagnosticText(value);
+    text = text.replace(PREFIXED_ID_REGEX, '[REDACTED_ID]');
+    if (/^[a-zA-Z0-9_-]{16,}$/.test(text) && /[0-9]/.test(text) && /[a-zA-Z]/.test(text)) {
+      return '[REDACTED_ID]';
+    }
+    return text;
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (value && typeof value === 'object') {
+    return sanitizeObject(value as Record<string, unknown>);
+  }
+  return value;
 }
 
 function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
@@ -172,12 +234,8 @@ function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
   for (const [key, value] of Object.entries(obj)) {
     if (SENSITIVE_KEY_PATTERN.test(key)) {
       result[key] = '[REDACTED]';
-    } else if (typeof value === 'string') {
-      result[key] = sanitizeDiagnosticText(value);
-    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-      result[key] = sanitizeObject(value as Record<string, unknown>);
     } else {
-      result[key] = value;
+      result[key] = sanitizeValue(value);
     }
   }
 
