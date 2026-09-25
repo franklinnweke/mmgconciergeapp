@@ -87,11 +87,46 @@ describe('diagnostic-tracker', () => {
       expect(sanitized).toContain('Bearer [REDACTED_TOKEN]');
     });
 
-    it('redacts sensitive keys in breadcrumb data payload', () => {
+    it('redacts Firestore document paths', () => {
+      expect(sanitizeDiagnosticText('Permission denied at users/usr_1234567890/settings')).toBe(
+        'Permission denied at users/[REDACTED_ID]/settings',
+      );
+      expect(sanitizeDiagnosticText('Failed loading renterProfiles/renter_abc123456')).toBe(
+        'Failed loading renterProfiles/[REDACTED_ID]',
+      );
+      expect(sanitizeDiagnosticText('Failed loading ownerProfiles/own_xyz789012')).toBe(
+        'Failed loading ownerProfiles/[REDACTED_ID]',
+      );
+    });
+
+    it('redacts explicit uid, userId, renterId, and ownerId key-value patterns', () => {
+      expect(sanitizeDiagnosticText('Query failed: uid=user_1234567890')).toBe(
+        'Query failed: uid=[REDACTED_ID]',
+      );
+      expect(sanitizeDiagnosticText('Context: userId: "user_1234567890"')).toBe(
+        'Context: userId: [REDACTED_ID]',
+      );
+      expect(sanitizeDiagnosticText('Request renterId = \'renter_998877\'')).toBe(
+        'Request renterId = [REDACTED_ID]',
+      );
+      expect(sanitizeDiagnosticText('Assigned ownerId: owner_554433')).toBe(
+        'Assigned ownerId: [REDACTED_ID]',
+      );
+    });
+
+    it('preserves null and undefined scalar states for uid/userId', () => {
+      expect(sanitizeDiagnosticText('Active session uid: null')).toBe('Active session uid: null');
+      expect(sanitizeDiagnosticText('Current userId: undefined')).toBe('Current userId: undefined');
+    });
+
+    it('redacts sensitive keys including uid and userId in breadcrumb data payload', () => {
       recordBreadcrumb('ui', 'submit_form', {
         email: 'private@mmg.com',
+        ownerId: 'owner_123',
         phoneNumber: '+2348012345678',
         safeKey: 'active_step',
+        uid: 'user_456',
+        userId: 'user_789',
       });
 
       const snapshot = getDiagnosticSnapshot();
@@ -99,25 +134,73 @@ describe('diagnostic-tracker', () => {
       expect(data).toBeDefined();
       expect(data?.email).toBe('[REDACTED]');
       expect(data?.phoneNumber).toBe('[REDACTED]');
+      expect(data?.uid).toBe('[REDACTED]');
+      expect(data?.userId).toBe('[REDACTED]');
+      expect(data?.ownerId).toBe('[REDACTED]');
       expect(data?.safeKey).toBe('active_step');
     });
   });
 
   describe('isDiagnosticModeEnabled', () => {
-    it('returns false when firebaseEnvironment is production', () => {
-      setDiagnosticExpoConfigForTesting({
-        extra: { firebaseEnvironment: 'production' },
-      });
+    it('returns false when firebaseEnvironment is production even if diagnosticsEnabled is true or __DEV__ is true', () => {
+      const originalDev = (globalThis as unknown as { __DEV__?: boolean }).__DEV__;
+      try {
+        (globalThis as unknown as { __DEV__?: boolean }).__DEV__ = true;
+        setDiagnosticExpoConfigForTesting({
+          extra: { diagnosticsEnabled: true, firebaseEnvironment: 'production' },
+        });
 
-      expect(isDiagnosticModeEnabled()).toBe(false);
+        expect(isDiagnosticModeEnabled()).toBe(false);
+      } finally {
+        (globalThis as unknown as { __DEV__?: boolean }).__DEV__ = originalDev;
+      }
     });
 
-    it('returns true when firebaseEnvironment is development', () => {
-      setDiagnosticExpoConfigForTesting({
-        extra: { firebaseEnvironment: 'development' },
-      });
+    it('returns true when in __DEV__ and non-production', () => {
+      const originalDev = (globalThis as unknown as { __DEV__?: boolean }).__DEV__;
+      try {
+        (globalThis as unknown as { __DEV__?: boolean }).__DEV__ = true;
+        setDiagnosticExpoConfigForTesting({
+          extra: { firebaseEnvironment: 'development' },
+        });
 
-      expect(isDiagnosticModeEnabled()).toBe(true);
+        expect(isDiagnosticModeEnabled()).toBe(true);
+      } finally {
+        (globalThis as unknown as { __DEV__?: boolean }).__DEV__ = originalDev;
+      }
+    });
+
+    it('in non-__DEV__ builds, requires explicit diagnosticsEnabled flag', () => {
+      const originalDev = (globalThis as unknown as { __DEV__?: boolean }).__DEV__;
+      try {
+        (globalThis as unknown as { __DEV__?: boolean }).__DEV__ = false;
+
+        // Without flag: false
+        setDiagnosticExpoConfigForTesting({
+          extra: { firebaseEnvironment: 'development' },
+        });
+        expect(isDiagnosticModeEnabled()).toBe(false);
+
+        // With flag false: false
+        setDiagnosticExpoConfigForTesting({
+          extra: { diagnosticsEnabled: false, firebaseEnvironment: 'development' },
+        });
+        expect(isDiagnosticModeEnabled()).toBe(false);
+
+        // With flag true: true
+        setDiagnosticExpoConfigForTesting({
+          extra: { diagnosticsEnabled: true, firebaseEnvironment: 'development' },
+        });
+        expect(isDiagnosticModeEnabled()).toBe(true);
+
+        // With flag string "true": true
+        setDiagnosticExpoConfigForTesting({
+          extra: { diagnosticsEnabled: 'true', firebaseEnvironment: 'development' },
+        });
+        expect(isDiagnosticModeEnabled()).toBe(true);
+      } finally {
+        (globalThis as unknown as { __DEV__?: boolean }).__DEV__ = originalDev;
+      }
     });
   });
 

@@ -52,13 +52,15 @@ export class AppErrorBoundary extends Component<ErrorBoundaryProps, State> {
     });
 
     if (isDiagnosticModeEnabled()) {
-      console.error(
-        `[AppErrorBoundary] Unhandled render error (${snapshot.incidentId}):`,
+      const buildInfo = getBuildInfo();
+      const sanitizedReport = formatDiagnosticReport(
         error,
-        '\nComponent stack:',
         errorInfo.componentStack,
-        '\nDiagnostic snapshot:',
         snapshot,
+        buildInfo,
+      );
+      console.error(
+        `[AppErrorBoundary] Unhandled render error (${snapshot.incidentId}):\n${sanitizedReport}`,
       );
     }
   }

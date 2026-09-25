@@ -29,7 +29,8 @@
       "extends": "production",
       "env": {
         "MMG_FIREBASE_ENV": "development",
-        "MMG_APNS_ENV": "production"
+        "MMG_APNS_ENV": "production",
+        "MMG_DIAGNOSTICS_ENABLED": "true"
       }
     },
     "production": {

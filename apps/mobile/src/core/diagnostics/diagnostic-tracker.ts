@@ -105,17 +105,22 @@ export function isDiagnosticModeEnabled(): boolean {
   const expoConfig = getExpoConfig();
   const extra = expoConfig?.extra;
   const env = extra?.firebaseEnvironment;
+  const diagnosticsFlag = extra?.diagnosticsEnabled === true || extra?.diagnosticsEnabled === 'true';
 
   // Never enable in production Firebase environment
   if (env === 'production') {
     return false;
   }
 
-  // Enabled for development Firebase environment or local __DEV__
-  return (
-    env === 'development'
-    || (typeof __DEV__ !== 'undefined' && Boolean(__DEV__))
-  );
+  // Local __DEV__ is enabled for developer convenience (unless in production Firebase)
+  if (typeof __DEV__ !== 'undefined' && Boolean(__DEV__)) {
+    return true;
+  }
+
+  // For non-__DEV__ builds (e.g. TestFlight binaries), require BOTH:
+  // 1. non-production Firebase environment (already checked: env !== 'production')
+  // 2. explicit diagnostic flag enabled
+  return Boolean(diagnosticsFlag);
 }
 
 export function getBuildInfo(): {
@@ -145,6 +150,8 @@ const NIGERIAN_PHONE_REGEX = /(?:\+?234|0)[789][01]\d{8}/g;
 const INTERNATIONAL_PHONE_REGEX = /\+[1-9]\d{7,14}/g;
 const BEARER_TOKEN_REGEX = /Bearer\s+[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*/gi;
 const JWT_REGEX = /eyJ[a-zA-Z0-9-_=]+\.eyJ[a-zA-Z0-9-_=]+/g;
+const FIRESTORE_PATH_REGEX = /\b(users|renterProfiles|ownerProfiles|rentalRequests|rentalRequestContacts|bookings|payments)\/[a-zA-Z0-9_-]+/g;
+const IDENTITY_KEY_VALUE_REGEX = /\b(uid|userId|renterId|ownerId)(\s*[:=]\s*)["']?(?!(?:null|undefined)\b)[a-zA-Z0-9_-]+["']?/gi;
 
 export function sanitizeDiagnosticText(text: string): string {
   if (!text) return text;
@@ -153,11 +160,13 @@ export function sanitizeDiagnosticText(text: string): string {
     .replace(NIGERIAN_PHONE_REGEX, '[REDACTED_PHONE]')
     .replace(INTERNATIONAL_PHONE_REGEX, '[REDACTED_PHONE]')
     .replace(BEARER_TOKEN_REGEX, 'Bearer [REDACTED_TOKEN]')
-    .replace(JWT_REGEX, '[REDACTED_JWT]');
+    .replace(JWT_REGEX, '[REDACTED_JWT]')
+    .replace(FIRESTORE_PATH_REGEX, '$1/[REDACTED_ID]')
+    .replace(IDENTITY_KEY_VALUE_REGEX, '$1$2[REDACTED_ID]');
 }
 
 function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
-  const SENSITIVE_KEY_PATTERN = /password|secret|token|credential|auth|email|phone|address|lat|lng|coord/i;
+  const SENSITIVE_KEY_PATTERN = /password|secret|token|credential|auth|email|phone|address|lat|lng|coord|uid|userId|renterId|ownerId/i;
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {

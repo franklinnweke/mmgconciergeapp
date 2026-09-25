@@ -166,4 +166,43 @@ describe('ErrorBoundary', () => {
     expect(joinedText).toContain('DIAGNOSTIC BUILD · DEV ONLY');
     expect(joinedText).toContain('Route crash');
   });
+
+  it('logs only the sanitized diagnostic report string to console.error without raw Error or component stack objects', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(diagnosticTracker, 'isDiagnosticModeEnabled').mockReturnValue(true);
+
+    function ThrowingChild(): React.ReactNode {
+      throw new Error(
+        'Fatal error for user test.owner@example.com at users/usr_1234567890 with uid=user_999888',
+      );
+    }
+
+    act(() => {
+      create(
+        React.createElement(AppErrorBoundary, null, React.createElement(ThrowingChild)),
+      );
+    });
+
+    const boundaryCall = consoleError.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('[AppErrorBoundary] Unhandled render error'),
+    );
+    expect(boundaryCall).toBeDefined();
+
+    // Exactly one string argument logged to console.error by AppErrorBoundary (no raw objects passed)
+    expect(boundaryCall).toHaveLength(1);
+    const loggedMessage = boundaryCall![0] as string;
+    expect(typeof loggedMessage).toBe('string');
+
+    // Header and report formatting present
+    expect(loggedMessage).toContain('[AppErrorBoundary] Unhandled render error');
+    expect(loggedMessage).toContain('=== MMG CONCIERGE DIAGNOSTIC REPORT ===');
+
+    // Sensitive values are properly sanitized in the logged string
+    expect(loggedMessage).toContain('[REDACTED_EMAIL]');
+    expect(loggedMessage).toContain('users/[REDACTED_ID]');
+    expect(loggedMessage).toContain('uid=[REDACTED_ID]');
+    expect(loggedMessage).not.toContain('test.owner@example.com');
+    expect(loggedMessage).not.toContain('usr_1234567890');
+    expect(loggedMessage).not.toContain('user_999888');
+  });
 });
