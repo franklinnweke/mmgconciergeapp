@@ -44,6 +44,22 @@ function safeActionError(status: number): string {
   return 'The review action could not be completed. Check the current record and try again.';
 }
 
+async function extractSafeErrorMessage(res: Response): Promise<{ message: string; isStaleVersion: boolean }> {
+  try {
+    const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+    if (typeof data?.error === 'string') {
+      const trimmed = data.error.trim();
+      if (trimmed.length > 0 && trimmed.length <= 256) {
+        const isStaleVersion = trimmed.includes('This vehicle changed');
+        return { message: trimmed, isStaleVersion };
+      }
+    }
+  } catch {
+    // Fall back to safeActionError
+  }
+  return { message: safeActionError(res.status), isStaleVersion: false };
+}
+
 function formatNaira(kobo: number): string {
   const naira = Math.floor(kobo / 100);
   return '₦' + naira.toLocaleString('en-NG');
@@ -104,7 +120,12 @@ export function VehicleModerationInspector({
       });
 
       if (!res.ok) {
-        throw new Error(safeActionError(res.status));
+        const { message, isStaleVersion } = await extractSafeErrorMessage(res);
+        if (isStaleVersion) {
+          router.refresh();
+        }
+        setErrorMsg(message);
+        return;
       }
 
       // Publication is a second step after the decision commits, and it can
@@ -145,7 +166,12 @@ export function VehicleModerationInspector({
       });
 
       if (!res.ok) {
-        throw new Error(safeActionError(res.status));
+        const { message, isStaleVersion } = await extractSafeErrorMessage(res);
+        if (isStaleVersion) {
+          router.refresh();
+        }
+        setErrorMsg(message);
+        return;
       }
 
       // Owner messaging is not live: reviewVehicle records the decision and
@@ -182,7 +208,12 @@ export function VehicleModerationInspector({
       });
 
       if (!res.ok) {
-        throw new Error(safeActionError(res.status));
+        const { message, isStaleVersion } = await extractSafeErrorMessage(res);
+        if (isStaleVersion) {
+          router.refresh();
+        }
+        setErrorMsg(message);
+        return;
       }
 
       const body = (await res.json().catch(() => ({}))) as { warning?: string };
@@ -215,7 +246,12 @@ export function VehicleModerationInspector({
       });
 
       if (!res.ok) {
-        throw new Error(safeActionError(res.status));
+        const { message, isStaleVersion } = await extractSafeErrorMessage(res);
+        if (isStaleVersion) {
+          router.refresh();
+        }
+        setErrorMsg(message);
+        return;
       }
 
       const body = (await res.json().catch(() => ({}))) as { warning?: string };
@@ -298,6 +334,24 @@ export function VehicleModerationInspector({
             <StatusIcon size={13} />
             {statusInfo.label}
           </span>
+          {vehicle.moderationStatus === 'approved' && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '11px',
+                fontWeight: '600',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                backgroundColor: vehicle.visibility === 'active' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: vehicle.visibility === 'active' ? '#4ADE80' : '#EAB308',
+                border: `1px solid ${vehicle.visibility === 'active' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(234, 179, 8, 0.3)'}`,
+              }}
+            >
+              {vehicle.visibility === 'active' ? 'Active' : 'Paused by Owner'}
+            </span>
+          )}
           <div style={{ fontSize: '12px', color: '#6B7280' }}>v{vehicle.version}</div>
         </div>
       </header>
@@ -521,31 +575,42 @@ export function VehicleModerationInspector({
                   7-Point Inspection Checklist
                 </h3>
                 <div style={{ fontSize: '12px', color: '#9AA0A6' }}>
-                  All 7 verification points must be audited before approving.
+                  {vehicle.moderationStatus === 'approved'
+                    ? 'All 7 verification points audited and verified at approval.'
+                    : vehicle.moderationStatus === 'pending_review'
+                      ? 'All 7 verification points must be audited before approving.'
+                      : 'Inspection verification checklist.'}
                 </div>
               </div>
               <div
                 style={{
                   fontSize: '12px',
                   fontWeight: '700',
-                  color: isAllChecked ? '#4ADE80' : '#EAB308',
+                  color: vehicle.moderationStatus === 'approved' || isAllChecked ? '#4ADE80' : '#EAB308',
                   padding: '3px 8px',
                   borderRadius: '4px',
-                  backgroundColor: isAllChecked ? 'rgba(34, 197, 94, 0.12)' : 'rgba(234, 179, 8, 0.12)',
+                  backgroundColor:
+                    vehicle.moderationStatus === 'approved' || isAllChecked
+                      ? 'rgba(34, 197, 94, 0.12)'
+                      : 'rgba(234, 179, 8, 0.12)',
                 }}
               >
-                {checkedCount} / 7 Verified
+                {vehicle.moderationStatus === 'approved' ? '7 / 7 Verified' : `${checkedCount} / 7 Verified`}
               </div>
             </div>
 
             {/* Checklist items */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {VEHICLE_CHECKLIST_ITEMS.map((item) => {
-                const isChecked = Boolean(checkedKeys[item.key]);
+                const isChecked = vehicle.moderationStatus === 'approved' || Boolean(checkedKeys[item.key]);
+                const isPending = vehicle.moderationStatus === 'pending_review';
                 return (
                   <button
                     key={item.key}
-                    onClick={() => toggleCheck(item.key)}
+                    onClick={() => {
+                      if (isPending) toggleCheck(item.key);
+                    }}
+                    disabled={!isPending}
                     type="button"
                     role="checkbox"
                     aria-checked={isChecked}
@@ -558,7 +623,7 @@ export function VehicleModerationInspector({
                       backgroundColor: isChecked ? 'rgba(34, 197, 94, 0.05)' : '#141820',
                       border: '1px solid',
                       borderColor: isChecked ? 'rgba(34, 197, 94, 0.3)' : '#1E232E',
-                      cursor: 'pointer',
+                      cursor: isPending ? 'pointer' : 'default',
                       transition: 'all 0.15s ease',
                       textAlign: 'left',
                       width: '100%',
@@ -637,237 +702,349 @@ export function VehicleModerationInspector({
               </div>
             )}
 
-            {/* Action Buttons */}
+            {/* Action Buttons & Status Banners */}
             <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                disabled={isSubmitting || !isAllChecked}
-                onClick={handleApprove}
-                style={{
-                  backgroundColor: isAllChecked ? '#4ADE80' : '#1E232E',
-                  color: isAllChecked ? '#090A0C' : '#6B7280',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '12px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: isAllChecked && !isSubmitting ? 'pointer' : 'default',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                }}
-              >
-                <CheckCircle2 size={16} />
-                <span>{isSubmitting ? 'Processing Decision…' : 'Approve & Activate Listing'}</span>
-              </button>
-
-              {!showRejectForm ? (
-                <button
-                  onClick={() => setShowRejectForm(true)}
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#F87171',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    borderRadius: '6px',
-                    padding: '10px',
-                    minHeight: '44px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <XCircle size={14} />
-                  <span>Request Changes / Reject Listing</span>
-                </button>
-              ) : (
-                <div
-                  style={{
-                    padding: '14px',
-                    borderRadius: '6px',
-                    backgroundColor: '#141820',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
-                  <label style={{ fontSize: '12px', fontWeight: '600', color: '#F87171' }}>
-                    REASON FOR REJECTION / REQUIRED CHANGES
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="e.g. Please re-upload clearer photos of the interior cabin and confirm registration plate..."
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
+              {/* PENDING REVIEW: Approve & Reject actions */}
+              {vehicle.moderationStatus === 'pending_review' && (
+                <>
+                  <button
+                    disabled={isSubmitting || !isAllChecked}
+                    onClick={handleApprove}
                     style={{
-                      width: '100%',
-                      backgroundColor: '#181D26',
-                      border: '1px solid #28303F',
-                      borderRadius: '4px',
-                      padding: '8px',
-                      fontSize: '12px',
-                      color: '#F9FAFB',
-                      outline: 'none',
+                      backgroundColor: isAllChecked ? '#4ADE80' : '#1E232E',
+                      color: isAllChecked ? '#090A0C' : '#6B7280',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: isAllChecked && !isSubmitting ? 'pointer' : 'default',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
                     }}
-                  />
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>{isSubmitting ? 'Processing Decision…' : 'Approve Listing'}</span>
+                  </button>
+
+                  {!showRejectForm ? (
                     <button
-                      onClick={() => setShowRejectForm(false)}
+                      onClick={() => setShowRejectForm(true)}
                       style={{
                         backgroundColor: 'transparent',
-                        color: '#9AA0A6',
-                        border: '1px solid #28303F',
-                        borderRadius: '4px',
+                        color: '#F87171',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '6px',
                         padding: '10px',
                         minHeight: '44px',
                         fontSize: '12px',
+                        fontWeight: '600',
                         cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
                       }}
                     >
-                      Cancel
+                      <XCircle size={14} />
+                      <span>Request Changes / Reject Listing</span>
                     </button>
-                    <button
-                      disabled={isSubmitting}
-                      onClick={handleReject}
+                  ) : (
+                    <div
                       style={{
-                        backgroundColor: '#EF4444',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '10px 12px',
-                        minHeight: '44px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
+                        padding: '14px',
+                        borderRadius: '6px',
+                        backgroundColor: '#141820',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
                       }}
                     >
-                      Confirm Rejection
-                    </button>
-                  </div>
-                </div>
+                      <label style={{ fontSize: '12px', fontWeight: '600', color: '#F87171' }}>
+                        REASON FOR REJECTION / REQUIRED CHANGES
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder="e.g. Please re-upload clearer photos of the interior cabin and confirm registration plate..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#181D26',
+                          border: '1px solid #28303F',
+                          borderRadius: '4px',
+                          padding: '8px',
+                          fontSize: '12px',
+                          color: '#F9FAFB',
+                          outline: 'none',
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => setShowRejectForm(false)}
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: '#9AA0A6',
+                            border: '1px solid #28303F',
+                            borderRadius: '4px',
+                            padding: '10px',
+                            minHeight: '44px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          disabled={isSubmitting}
+                          onClick={handleReject}
+                          style={{
+                            backgroundColor: '#EF4444',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '10px 12px',
+                            minHeight: '44px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Confirm Rejection
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* Suspend Action (for approved vehicles) */}
-              {vehicle.moderationStatus === 'approved' && !showSuspendForm && (
-                <button
-                  onClick={() => setShowSuspendForm(true)}
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#EF4444',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    borderRadius: '6px',
-                    padding: '10px',
-                    minHeight: '44px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <AlertTriangle size={14} />
-                  <span>Suspend Active Listing</span>
-                </button>
-              )}
-
-              {showSuspendForm && (
-                <div
-                  style={{
-                    padding: '14px',
-                    borderRadius: '6px',
-                    backgroundColor: '#141820',
-                    border: '1px solid rgba(239, 68, 68, 0.4)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
-                  <label style={{ fontSize: '12px', fontWeight: '600', color: '#EF4444' }}>
-                    REASON FOR SUSPENSION (REQUIRED)
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="e.g. Host failed dispatch SLA or vehicle undergoing unscheduled maintenance..."
-                    value={suspendReason}
-                    onChange={(e) => setSuspendReason(e.target.value)}
+              {/* APPROVED: Status banner and Suspend action */}
+              {vehicle.moderationStatus === 'approved' && (
+                <>
+                  <div
                     style={{
-                      width: '100%',
-                      backgroundColor: '#181D26',
-                      border: '1px solid #28303F',
-                      borderRadius: '4px',
-                      padding: '8px',
-                      fontSize: '12px',
-                      color: '#F9FAFB',
-                      outline: 'none',
+                      padding: '16px',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                      border: '1px solid rgba(34, 197, 94, 0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
                     }}
-                  />
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4ADE80', fontWeight: '700', fontSize: '14px' }}>
+                      <CheckCircle2 size={16} />
+                      <span>Listing Approved</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#D1D5DB', lineHeight: '1.4' }}>
+                      {vehicle.visibility === 'active'
+                        ? 'Approved and active on the platform.'
+                        : 'Approved by MMG, but unavailable to renters until owner activation.'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#9AA0A6' }}>
+                      {vehicle.discoverable ? 'Discoverable in renter search.' : 'Not discoverable to renters.'}
+                    </div>
+                    {vehicle.reviewedAt && (
+                      <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                        Approved on {new Date(vehicle.reviewedAt).toLocaleDateString('en-GB')} {vehicle.reviewedByStaffEmail ? `by ${vehicle.reviewedByStaffEmail}` : ''}
+                      </div>
+                    )}
+                  </div>
+
+                  {!showSuspendForm ? (
                     <button
-                      onClick={() => setShowSuspendForm(false)}
+                      onClick={() => setShowSuspendForm(true)}
                       style={{
                         backgroundColor: 'transparent',
-                        color: '#9AA0A6',
-                        border: '1px solid #28303F',
-                        borderRadius: '4px',
+                        color: '#EF4444',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '6px',
                         padding: '10px',
                         minHeight: '44px',
                         fontSize: '12px',
+                        fontWeight: '600',
                         cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
                       }}
                     >
-                      Cancel
+                      <AlertTriangle size={14} />
+                      <span>{vehicle.visibility === 'active' ? 'Suspend Active Listing' : 'Suspend Listing'}</span>
                     </button>
-                    <button
-                      disabled={isSubmitting}
-                      onClick={handleSuspend}
+                  ) : (
+                    <div
                       style={{
-                        backgroundColor: '#DC2626',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '10px 12px',
-                        minHeight: '44px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
+                        padding: '14px',
+                        borderRadius: '6px',
+                        backgroundColor: '#141820',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
                       }}
                     >
-                      Confirm Suspension
-                    </button>
-                  </div>
-                </div>
+                      <label style={{ fontSize: '12px', fontWeight: '600', color: '#EF4444' }}>
+                        REASON FOR SUSPENSION (REQUIRED)
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder="e.g. Host failed dispatch SLA or vehicle undergoing unscheduled maintenance..."
+                        value={suspendReason}
+                        onChange={(e) => setSuspendReason(e.target.value)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#181D26',
+                          border: '1px solid #28303F',
+                          borderRadius: '4px',
+                          padding: '8px',
+                          fontSize: '12px',
+                          color: '#F9FAFB',
+                          outline: 'none',
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => setShowSuspendForm(false)}
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: '#9AA0A6',
+                            border: '1px solid #28303F',
+                            borderRadius: '4px',
+                            padding: '10px',
+                            minHeight: '44px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          disabled={isSubmitting}
+                          onClick={handleSuspend}
+                          style={{
+                            backgroundColor: '#DC2626',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '10px 12px',
+                            minHeight: '44px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Confirm Suspension
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* Restore Action (for suspended vehicles) */}
+              {/* SUSPENDED: Status banner and Restore action */}
               {vehicle.moderationStatus === 'suspended' && (
-                <button
-                  disabled={isSubmitting}
-                  onClick={handleRestore}
+                <>
+                  <div
+                    style={{
+                      padding: '16px',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F87171', fontWeight: '700', fontSize: '14px' }}>
+                      <AlertTriangle size={16} />
+                      <span>Listing Suspended</span>
+                    </div>
+                    {vehicle.lastDecisionReason && (
+                      <div style={{ fontSize: '12px', color: '#D1D5DB', lineHeight: '1.4' }}>
+                        Reason: {vehicle.lastDecisionReason}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    disabled={isSubmitting}
+                    onClick={handleRestore}
+                    style={{
+                      backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                      color: '#4ADE80',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      borderRadius: '6px',
+                      padding: '12px',
+                      minHeight: '44px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>Restore to Approved Fleet</span>
+                  </button>
+                </>
+              )}
+
+              {/* REJECTED: Status banner */}
+              {vehicle.moderationStatus === 'rejected' && (
+                <div
                   style={{
-                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                    color: '#4ADE80',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    padding: '16px',
                     borderRadius: '6px',
-                    padding: '12px',
-                    minHeight: '44px',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    flexDirection: 'column',
                     gap: '8px',
                   }}
                 >
-                  <CheckCircle2 size={16} />
-                  <span>Restore to Approved Fleet</span>
-                </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F87171', fontWeight: '700', fontSize: '14px' }}>
+                    <XCircle size={16} />
+                    <span>Listing Changes Requested / Rejected</span>
+                  </div>
+                  {vehicle.lastDecisionReason && (
+                    <div style={{ fontSize: '12px', color: '#D1D5DB', lineHeight: '1.4' }}>
+                      Reason: {vehicle.lastDecisionReason}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '11px', color: '#9AA0A6' }}>
+                    Awaiting updated submission from vehicle owner.
+                  </div>
+                </div>
+              )}
+
+              {/* DRAFT: Status banner */}
+              {vehicle.moderationStatus === 'draft' && (
+                <div
+                  style={{
+                    padding: '16px',
+                    borderRadius: '6px',
+                    backgroundColor: '#141820',
+                    border: '1px solid #1E232E',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9AA0A6', fontWeight: '700', fontSize: '14px' }}>
+                    <FileText size={16} />
+                    <span>Draft Listing</span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#9AA0A6', lineHeight: '1.4' }}>
+                    This vehicle listing is still a draft and has not been submitted for review.
+                  </div>
+                </div>
               )}
             </div>
           </div>
