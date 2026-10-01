@@ -66,10 +66,10 @@ function safeReviewErrorMessage(error: unknown): string {
   }
   if (code.data === 'NOT_FOUND') return 'That vehicle listing is no longer available.';
   if (code.data === 'FAILED_PRECONDITION' && reason === 'stale_version') {
-    return 'This vehicle changed. Refresh the queue and try again.';
+    return 'This vehicle changed. Refresh the record and try again.';
   }
   if (code.data === 'INVALID_STATE_TRANSITION') {
-    return 'That vehicle cannot move to the requested state.';
+    return "This action is not valid for the vehicle's current state. Refresh the record and try again.";
   }
   if (code.data === 'INVALID_ARGUMENT') return 'Check the review checklist and details, then try again.';
   if (code.data === 'IDEMPOTENCY_CONFLICT') {

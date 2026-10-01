@@ -123,13 +123,14 @@ export async function reviewVehicle(
         throw new CommandError(
           'FAILED_PRECONDITION',
           'Vehicle was modified by another operation. Please refresh.',
+          { reason: 'stale_version' },
         );
       }
 
       const targetStatus = vehicleReviewTargetStatus(command.data.decision);
       if (!canTransitionVehicleModeration(vehicle.moderationStatus, targetStatus)) {
         throw new CommandError(
-          'FAILED_PRECONDITION',
+          'INVALID_STATE_TRANSITION',
           `Cannot transition vehicle from "${vehicle.moderationStatus}" to "${targetStatus}".`,
         );
       }

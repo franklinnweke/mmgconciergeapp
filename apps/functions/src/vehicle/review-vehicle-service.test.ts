@@ -359,4 +359,68 @@ describe('reviewVehicle service', () => {
       ),
     ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
   });
+
+  it('throws INVALID_STATE_TRANSITION when attempting duplicate approval on an approved vehicle', async () => {
+    const repository = seededVehicleRepository({ moderationStatus: 'approved' });
+    const storageGateway = new InMemoryVehicleStorageGateway();
+
+    await expect(
+      reviewVehicle(approveCommand('key-review-dup-approve'), staffActor, {
+        repository,
+        storageGateway,
+        now: () => now,
+      }),
+    ).rejects.toMatchObject({
+      code: 'INVALID_STATE_TRANSITION',
+    });
+  });
+
+  it('throws FAILED_PRECONDITION with stale_version reason on version conflict', async () => {
+    const repository = seededVehicleRepository({ moderationStatus: 'pending_review' });
+    const storageGateway = new InMemoryVehicleStorageGateway();
+
+    await expect(
+      reviewVehicle(
+        {
+          ...approveCommand('key-review-stale-ver'),
+          data: { ...approveCommand('key-review-stale-ver').data, expectedVersion: 99 },
+        },
+        staffActor,
+        {
+          repository,
+          storageGateway,
+          now: () => now,
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      safeDetails: { reason: 'stale_version' },
+    });
+  });
+
+  it('restores a suspended vehicle to approved status', async () => {
+    const image = vehicleImageFixture({ status: 'rejected' });
+    const repository = seededVehicleRepository({
+      moderationStatus: 'suspended',
+      visibility: 'paused',
+      images: [image],
+      lastDecisionReason: 'Suspended for inspection',
+    });
+    const storageGateway = new InMemoryVehicleStorageGateway();
+
+    const result = await reviewVehicle(
+      decisionCommand('key-review-restore', 'restore'),
+      staffActor,
+      {
+        repository,
+        storageGateway,
+        now: () => now,
+      },
+    );
+
+    expect(result.result.toStatus).toBe('approved');
+    expect(repository.vehicle().moderationStatus).toBe('approved');
+    expect(repository.vehicle().visibility).toBe('paused');
+    expect(repository.vehicle().lastDecisionReason).toBeNull();
+  });
 });
