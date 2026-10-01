@@ -37,7 +37,7 @@ export default async function VehicleInspectorPage({
       headerMeta={(
         <>
           <strong>{vehicle.moderationStatus.replaceAll('_', ' ')}</strong>
-          <span>{vehicle.areaLabel} · v{vehicle.version}</span>
+          <span>{vehicle.areaLabel}</span>
         </>
       )}
       staffEmail={session.email}
@@ -48,6 +48,7 @@ export default async function VehicleInspectorPage({
         <Link className="admin-page-link" href="/vehicles">Back to vehicles</Link>
       </div>
       <VehicleModerationInspector
+        key={`${vehicle.vehicleId}:${vehicle.version}:${vehicle.moderationStatus}`}
         vehicle={vehicle}
         staffEmail={session.email}
         staffRole={session.role}

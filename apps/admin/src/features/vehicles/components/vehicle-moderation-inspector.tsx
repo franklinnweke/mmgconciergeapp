@@ -1,24 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { VehicleModerationStatus } from '@mmg/contracts';
-import {
-  ArrowLeft,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Clock,
-  FileText,
-  Maximize2,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
 
-import {
-  type VehicleChecklistKey,
-  type VehicleModerationDetail,
-  VEHICLE_CHECKLIST_ITEMS,
-} from '../domain/types';
+import { type VehicleChecklistKey, type VehicleModerationDetail, VEHICLE_CHECKLIST_ITEMS } from '../domain/types';
 
 export type VehicleModerationInspectorProps = {
   vehicle: VehicleModerationDetail;
@@ -26,15 +13,8 @@ export type VehicleModerationInspectorProps = {
   staffRole?: string;
 };
 
-const STATUS_CONFIG: Record<
-  VehicleModerationStatus,
-  { label: string; text: string; icon: typeof CheckCircle2 }
-> = {
-  draft: { label: 'Draft', text: '#9AA0A6', icon: FileText },
-  pending_review: { label: 'Pending review', text: '#EAB308', icon: Clock },
-  approved: { label: 'Approved', text: '#4ADE80', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', text: '#F87171', icon: XCircle },
-  suspended: { label: 'Suspended', text: '#EF4444', icon: AlertTriangle },
+const STATUS: Record<VehicleModerationStatus, string> = {
+  draft: 'Draft', pending_review: 'Pending review', approved: 'Approved', rejected: 'Changes requested', suspended: 'Suspended',
 };
 
 function safeActionError(status: number): string {
@@ -44,35 +24,31 @@ function safeActionError(status: number): string {
   return 'The review action could not be completed. Check the current record and try again.';
 }
 
-async function extractSafeErrorMessage(res: Response): Promise<{ message: string; isStaleVersion: boolean }> {
+export async function extractSafeErrorMessage(res: Response): Promise<{ message: string; isStaleVersion: boolean }> {
   try {
     const data = (await res.json().catch(() => ({}))) as { error?: unknown };
-    if (typeof data?.error === 'string') {
-      const trimmed = data.error.trim();
-      if (trimmed.length > 0 && trimmed.length <= 256) {
-        const isStaleVersion = trimmed.includes('This vehicle changed');
-        return { message: trimmed, isStaleVersion };
-      }
+    if (typeof data.error === 'string') {
+      const message = data.error.trim();
+      if (message.length > 0 && message.length <= 256) return { message, isStaleVersion: message.includes('This vehicle changed') };
     }
   } catch {
-    // Fall back to safeActionError
+    // Use the safe status-based message below.
   }
   return { message: safeActionError(res.status), isStaleVersion: false };
 }
 
-function formatNaira(kobo: number): string {
-  const naira = Math.floor(kobo / 100);
-  return '₦' + naira.toLocaleString('en-NG');
+export function getVehicleActionWarning(body: unknown): string | null {
+  if (!body || typeof body !== 'object' || !('warning' in body)) return null;
+  const warning = (body as { warning?: unknown }).warning;
+  return typeof warning === 'string' && warning ? warning : null;
 }
 
-export function VehicleModerationInspector({
-  vehicle,
-  staffEmail,
-  staffRole,
-}: VehicleModerationInspectorProps) {
-  const router = useRouter();
+function formatNaira(kobo: number): string {
+  return `₦${Math.floor(kobo / 100).toLocaleString('en-NG')}`;
+}
 
-  // Checklist state - starts unchecked so staff explicitly audits all 7 points
+export function VehicleModerationInspector({ vehicle }: VehicleModerationInspectorProps) {
+  const router = useRouter();
   const [checkedKeys, setCheckedKeys] = useState<Record<VehicleChecklistKey, boolean>>({
     images_complete_and_legible: false,
     specs_match_images: false,
@@ -82,974 +58,127 @@ export function VehicleModerationInspector({
     chauffeur_delivery_included: false,
     no_fraud_indicators: false,
   });
-
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [suspendReason, setSuspendReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [showRejectForm, setShowRejectForm] = useState(false);
-  const [showSuspendForm, setShowSuspendForm] = useState(false);
-  const [suspendReason, setSuspendReason] = useState('');
-
-  const toggleCheck = (key: VehicleChecklistKey) => {
-    setCheckedKeys((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
   const checkedCount = Object.values(checkedKeys).filter(Boolean).length;
-  const isAllChecked = checkedCount === VEHICLE_CHECKLIST_ITEMS.length;
+  const allChecked = checkedCount === VEHICLE_CHECKLIST_ITEMS.length;
+  const activeImage = vehicle.images[activeImageIndex] || vehicle.images[0] || {
+    uploadId: 'thumbnail', originalFileName: 'Vehicle photo', previewUrl: vehicle.thumbnailUrl,
+    isPrimary: true, byteSize: 0, contentType: 'image/jpeg',
+  };
 
-  const handleApprove = async () => {
-    if (!isAllChecked) {
-      setErrorMsg('Please complete all 7 inspection checklist items before approving.');
-      return;
-    }
-
+  const submitDecision = async (decision: 'approve' | 'reject' | 'suspend' | 'restore', reason?: string) => {
     setIsSubmitting(true);
     setErrorMsg(null);
-
+    setSuccessMsg(null);
     try {
-      const res = await fetch(`/api/vehicles/${vehicle.vehicleId}/review`, {
+      const response = await fetch(`/api/vehicles/${vehicle.vehicleId}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          decision: 'approve',
-          expectedVersion: vehicle.version,
-          checklist: checkedKeys,
-        }),
+        body: JSON.stringify({ decision, expectedVersion: vehicle.version, ...(reason ? { reason: reason.trim() } : {}), ...(decision === 'approve' ? { checklist: checkedKeys } : {}) }),
       });
-
-      if (!res.ok) {
-        const { message, isStaleVersion } = await extractSafeErrorMessage(res);
-        if (isStaleVersion) {
-          router.refresh();
-        }
-        setErrorMsg(message);
+      if (!response.ok) {
+        const result = await extractSafeErrorMessage(response);
+        if (result.isStaleVersion) router.refresh();
+        setErrorMsg(result.message);
         return;
       }
 
-      // Publication is a second step after the decision commits, and it can
-      // fail without failing the decision. Never claim the listing went live
-      // when the server told us the photos did not publish.
-      const body = (await res.json().catch(() => ({}))) as { warning?: string };
-      if (typeof body.warning === 'string' && body.warning) {
-        setErrorMsg(body.warning);
-      } else {
-        setSuccessMsg('Approval recorded. Reloading the authoritative vehicle state.');
-      }
+      const body = (await response.json().catch(() => ({}))) as { warning?: string };
+      const warning = getVehicleActionWarning(body);
+      if (warning) setErrorMsg(warning);
+      else setSuccessMsg(`${decision === 'approve' ? 'Approval' : decision === 'reject' ? 'Review decision' : decision === 'suspend' ? 'Suspension' : 'Restore'} recorded. Reloading the authoritative vehicle state.`);
       router.refresh();
-    } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : safeActionError(500));
+    } catch {
+      setErrorMsg(safeActionError(500));
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const handleReject = async () => {
-    if (!rejectionReason.trim() || rejectionReason.trim().length < 10) {
-      setErrorMsg('Please provide a specific rationale of at least 10 characters for rejecting.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMsg(null);
-
-    try {
-      const res = await fetch(`/api/vehicles/${vehicle.vehicleId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          decision: 'reject',
-          reason: rejectionReason.trim(),
-          expectedVersion: vehicle.version,
-        }),
-      });
-
-      if (!res.ok) {
-        const { message, isStaleVersion } = await extractSafeErrorMessage(res);
-        if (isStaleVersion) {
-          router.refresh();
-        }
-        setErrorMsg(message);
-        return;
-      }
-
-      // Owner messaging is not live: reviewVehicle records the decision and
-      // reason on the listing but enqueues no notification. Do not claim a
-      // dispatch that did not happen.
-      setSuccessMsg('Review decision recorded. Reloading the authoritative vehicle state.');
-      setShowRejectForm(false);
-      router.refresh();
-    } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : safeActionError(500));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleSuspend = async () => {
-    if (!suspendReason.trim() || suspendReason.trim().length < 10) {
-      setErrorMsg('Please provide a specific rationale of at least 10 characters for suspending.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMsg(null);
-
-    try {
-      const res = await fetch(`/api/vehicles/${vehicle.vehicleId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          decision: 'suspend',
-          reason: suspendReason.trim(),
-          expectedVersion: vehicle.version,
-        }),
-      });
-
-      if (!res.ok) {
-        const { message, isStaleVersion } = await extractSafeErrorMessage(res);
-        if (isStaleVersion) {
-          router.refresh();
-        }
-        setErrorMsg(message);
-        return;
-      }
-
-      const body = (await res.json().catch(() => ({}))) as { warning?: string };
-      if (typeof body.warning === 'string' && body.warning) {
-        setErrorMsg(body.warning);
-      } else {
-        setSuccessMsg('Suspension recorded. Reloading the authoritative vehicle state.');
-      }
-      setShowSuspendForm(false);
-      router.refresh();
-    } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : safeActionError(500));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleRestore = async () => {
-    setIsSubmitting(true);
-    setErrorMsg(null);
-
-    try {
-      const res = await fetch(`/api/vehicles/${vehicle.vehicleId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          decision: 'restore',
-          expectedVersion: vehicle.version,
-        }),
-      });
-
-      if (!res.ok) {
-        const { message, isStaleVersion } = await extractSafeErrorMessage(res);
-        if (isStaleVersion) {
-          router.refresh();
-        }
-        setErrorMsg(message);
-        return;
-      }
-
-      const body = (await res.json().catch(() => ({}))) as { warning?: string };
-      if (typeof body.warning === 'string' && body.warning) {
-        setErrorMsg(body.warning);
-      } else {
-        setSuccessMsg('Restore recorded. Reloading the authoritative vehicle state.');
-      }
-      router.refresh();
-    } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : safeActionError(500));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const statusInfo = STATUS_CONFIG[vehicle.moderationStatus] || STATUS_CONFIG.draft;
-  const StatusIcon = statusInfo.icon;
-  const activeImage = vehicle.images[activeImageIndex] || { previewUrl: vehicle.thumbnailUrl, originalFileName: 'photo.jpg' };
 
   return (
-    <div className="vehicle-inspector-page" style={{ minHeight: '100vh', backgroundColor: '#090A0C', color: '#F3F4F6' }}>
-      <header
-        style={{
-          borderBottom: '1px solid #1E232E',
-          backgroundColor: '#101318',
-          padding: '14px 32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div className="vehicle-inspector-header-main" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Link
-            href="/vehicles"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              color: '#9AA0A6',
-              textDecoration: 'none',
-              fontSize: '13px',
-              padding: '10px 12px',
-              minHeight: '44px',
-              borderRadius: '6px',
-              backgroundColor: '#181D26',
-              border: '1px solid #1E232E',
-            }}
-          >
-            <ArrowLeft size={14} />
-            <span>Back to Queue</span>
-          </Link>
-          <nav className="vehicle-inspector-nav" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }} aria-label="Admin sections">
-            <Link href="/" style={{ color: '#9AA0A6', textDecoration: 'none', fontSize: '13px', padding: '10px 12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>Bookings</Link>
-            <Link href="/vehicles" aria-current="page" style={{ color: '#F3F4F6', textDecoration: 'none', fontSize: '13px', fontWeight: '600', padding: '10px 12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', borderBottom: '2px solid #C89D46' }}>Vehicles</Link>
-            <Link href="/owners" style={{ color: '#9AA0A6', textDecoration: 'none', fontSize: '13px', padding: '10px 12px', minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>Owners</Link>
-          </nav>
-        </div>
-
-        <div className="vehicle-inspector-staff" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {staffEmail && (
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#F3F4F6' }}>{staffEmail}</div>
-              <div style={{ fontSize: '12px', color: '#9AA0A6', textTransform: 'capitalize' }}>
-                {staffRole || 'Staff Operator'}
-              </div>
+    <section className="review-inspector vehicle-review" aria-label="Vehicle moderation review">
+      <div className="review-grid">
+        <div className="review-evidence vehicle-review-evidence">
+          <section className="review-section" aria-label="Vehicle photographs">
+            <div className="vehicle-review-photo">
+              {failedImageUrl === activeImage.previewUrl ? <div className="review-evidence-state"><AlertTriangle aria-hidden="true" /><strong>Photo preview unavailable</strong><span>The submitted image could not be loaded.</span></div> : <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={activeImage.previewUrl} alt={`${vehicle.make} ${vehicle.model}, photo ${activeImageIndex + 1}`} onError={() => setFailedImageUrl(activeImage.previewUrl)} ref={(node) => { if (node?.complete && node.naturalWidth === 0) setFailedImageUrl(activeImage.previewUrl); }} />
+              </>}
+              <a className="vehicle-photo-open" href={activeImage.previewUrl} target="_blank" rel="noreferrer" aria-label="Open vehicle photo in a new tab"><ExternalLink size={16} /></a>
             </div>
-          )}
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              fontSize: '12px',
-              fontWeight: '600',
-              minHeight: '44px',
-              color: statusInfo.text,
-            }}
-          >
-            <StatusIcon size={13} />
-            {statusInfo.label}
-          </span>
-          {vehicle.moderationStatus === 'approved' && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '11px',
-                fontWeight: '600',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                backgroundColor: vehicle.visibility === 'active' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
-                color: vehicle.visibility === 'active' ? '#4ADE80' : '#EAB308',
-                border: `1px solid ${vehicle.visibility === 'active' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(234, 179, 8, 0.3)'}`,
-              }}
-            >
-              {vehicle.visibility === 'active' ? 'Active' : 'Paused by Owner'}
-            </span>
-          )}
-          <div style={{ fontSize: '12px', color: '#6B7280' }}>v{vehicle.version}</div>
-        </div>
-      </header>
-
-      {/* Main Grid */}
-      <main
-        className="vehicle-inspector-grid"
-        style={{
-          maxWidth: '1440px',
-          margin: '0 auto',
-          padding: '32px',
-          display: 'grid',
-          gridTemplateColumns: '1.2fr 1fr',
-          gap: '32px',
-        }}
-      >
-        {/* LEFT COLUMN: Vehicle Details & Photos */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Main Photo & Lightbox Frame */}
-          <div
-            style={{
-              backgroundColor: '#101318',
-              border: '1px solid #1E232E',
-              borderRadius: '10px',
-              padding: '16px',
-            }}
-          >
-            <div
-              style={{
-                position: 'relative',
-                height: '340px',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                backgroundColor: '#050608',
-                border: '1px solid #1E232E',
-                backgroundImage: `url(${activeImage.previewUrl})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '12px',
-                  left: '12px',
-                  backgroundColor: 'rgba(9,10,12,0.85)',
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#C89D46',
-                  border: '1px solid #28303F',
-                }}
-              >
-                Photo {activeImageIndex + 1} of {Math.max(vehicle.images.length, 1)}
-              </div>
-
-              <a
-                href={activeImage.previewUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  position: 'absolute',
-                  top: '12px',
-                  right: '12px',
-                  backgroundColor: 'rgba(9,10,12,0.85)',
-                  padding: '10px',
-                  minHeight: '44px',
-                  minWidth: '44px',
-                  borderRadius: '4px',
-                  color: '#F9FAFB',
-                  border: '1px solid #28303F',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                title="Open high resolution in new tab"
-              >
-                <Maximize2 size={14} />
-              </a>
-
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '12px',
-                  left: '12px',
-                  backgroundColor: 'rgba(9,10,12,0.75)',
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  color: '#9AA0A6',
-                }}
-              >
-                {activeImage.originalFileName}
-              </div>
-            </div>
-
-            {/* Thumbnail Strip */}
+            <div className="review-summary">Photo {activeImageIndex + 1} of {Math.max(vehicle.images.length, 1)}</div>
             {vehicle.images.length > 1 && (
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', overflowX: 'auto', paddingBottom: '4px' }}>
-                {vehicle.images.map((img, idx) => (
-                  <button
-                    key={img.uploadId || idx}
-                    onClick={() => setActiveImageIndex(idx)}
-                    style={{
-                      width: '72px',
-                      height: '52px',
-                      borderRadius: '4px',
-                      border: '2px solid',
-                      borderColor: activeImageIndex === idx ? '#C89D46' : '#1E232E',
-                      backgroundImage: `url(${img.previewUrl})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                      backgroundColor: '#141820',
-                    }}
-                  />
+              <div className="vehicle-review-thumbnails" aria-label="Vehicle photos">
+                {vehicle.images.map((image, index) => (
+                  <button key={image.uploadId} type="button" aria-label={`Show photo ${index + 1}`} aria-pressed={activeImageIndex === index} onClick={() => setActiveImageIndex(index)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={image.previewUrl} alt="" onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }} />
+                  </button>
                 ))}
               </div>
             )}
-          </div>
+            <details className="review-details"><summary>Photo file details</summary><dl className="review-facts review-facts-compact">{vehicle.images.map((image) => <div key={image.uploadId}><dt>{image.isPrimary ? 'Primary photo' : 'Vehicle photo'}</dt><dd>{image.originalFileName} · {(image.byteSize / (1024 * 1024)).toFixed(2)} MiB · {image.contentType}</dd></div>)}</dl></details>
+          </section>
 
-          {/* Vehicle Specifications Card */}
-          <div
-            style={{
-              backgroundColor: '#101318',
-              border: '1px solid #1E232E',
-              borderRadius: '10px',
-              padding: '24px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <h2
-                  style={{
-                    fontFamily: 'var(--font-display), Georgia, serif',
-                    fontSize: '22px',
-                    fontWeight: '600',
-                    color: '#F9FAFB',
-                    margin: '0 0 4px 0',
-                  }}
-                >
-                  {vehicle.make} {vehicle.model}
-                </h2>
-                <div style={{ fontSize: '12px', color: '#9AA0A6' }}>
-                  Model year {vehicle.year} · {vehicle.category === 'executive_suv' ? 'SUV' : 'Sedan'}
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '12px', color: '#9AA0A6' }}>Daily rate</div>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: '#C89D46' }}>
-                  {formatNaira(vehicle.dailyRateKobo)}
-                </div>
-              </div>
+          <section className="review-section" aria-labelledby="vehicle-specs-title">
+            <div className="vehicle-review-title">
+              <div><h2 id="vehicle-specs-title">{vehicle.make} {vehicle.model}</h2><p>{vehicle.year} · {vehicle.category === 'executive_suv' ? 'SUV' : 'Sedan'} · {vehicle.seats} seats</p></div>
+              <div><p>Daily rate</p><strong className="vehicle-review-price">{formatNaira(vehicle.dailyRateKobo)}</strong></div>
             </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '12px',
-                padding: '16px',
-                backgroundColor: '#141820',
-                borderRadius: '8px',
-                border: '1px solid #1E232E',
-                marginBottom: '16px',
-                fontSize: '12px',
-              }}
-            >
-              <div>
-                <div style={{ color: '#6B7280', fontSize: '12px' }}>Registration plate</div>
-                <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.plateMasked}</div>
-              </div>
-              <div>
-                <div style={{ color: '#6B7280', fontSize: '12px' }}>Seating capacity</div>
-                <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.seats} Passengers</div>
-              </div>
-              <div>
-                <div style={{ color: '#6B7280', fontSize: '12px' }}>Transmission</div>
-                <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.transmission}</div>
-              </div>
-              <div>
-                <div style={{ color: '#6B7280', fontSize: '12px' }}>Exterior colour</div>
-                <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.colour}</div>
-              </div>
-              <div>
-                <div style={{ color: '#6B7280', fontSize: '12px' }}>Lagos dispatch area</div>
-                <div style={{ color: '#F9FAFB', fontWeight: '600', marginTop: '2px' }}>{vehicle.areaLabel}</div>
-              </div>
-            </div>
-
-            {vehicle.description && (
-              <div>
-                <div style={{ fontSize: '12px', color: '#9AA0A6', fontWeight: '600', marginBottom: '6px' }}>
-                  Owner Listing Description
-                </div>
-                <p style={{ margin: 0, fontSize: '13px', color: '#D1D5DB', lineHeight: '1.6', backgroundColor: '#141820', padding: '12px', borderRadius: '6px', border: '1px solid #1E232E' }}>
-                  {vehicle.description}
-                </p>
-              </div>
-            )}
-          </div>
+            <dl className="review-facts">
+              <div><dt>Owner</dt><dd>{vehicle.ownerLegalName || 'Name unavailable'}</dd></div>
+              <div><dt>Registration plate</dt><dd>{vehicle.plateMasked}</dd></div>
+              <div><dt>Transmission</dt><dd>{vehicle.transmission}</dd></div>
+              <div><dt>Exterior colour</dt><dd>{vehicle.colour}</dd></div>
+              <div><dt>Lagos base</dt><dd>{vehicle.areaLabel}</dd></div>
+              <div><dt>Availability</dt><dd>{vehicle.visibility === 'active' ? 'Active' : vehicle.visibility === 'deleted' ? 'Deleted' : 'Unavailable'}</dd></div>
+              <div><dt>Renter discovery</dt><dd>{vehicle.discoverable ? 'Discoverable' : 'Not discoverable'}</dd></div>
+            </dl>
+            {vehicle.description && <div className="vehicle-review-description"><h3>Owner description</h3><p>{vehicle.description}</p></div>}
+            {vehicle.reviewedAt && <p className="review-muted">Reviewed {new Date(vehicle.reviewedAt).toLocaleDateString('en-GB', { timeZone: 'Africa/Lagos' })}{vehicle.reviewedByStaffEmail ? ` · ${vehicle.reviewedByStaffEmail}` : ''}</p>}
+            {vehicle.lastDecisionReason && <p className="review-state-note"><strong>Latest decision reason:</strong> {vehicle.lastDecisionReason}</p>}
+            {vehicle.auditTrailUnavailable && <p className="review-warning">Audit history could not be loaded. This does not mean no decisions were made.</p>}
+            <details className="review-details"><summary>Record details</summary><dl className="review-facts review-facts-compact"><div><dt>Vehicle ID</dt><dd className="review-mono">{vehicle.vehicleId}</dd></div><div><dt>Owner ID</dt><dd className="review-mono">{vehicle.ownerId}</dd></div><div><dt>Version</dt><dd>{vehicle.version}</dd></div><div><dt>Image count</dt><dd>{vehicle.imageCount}</dd></div></dl></details>
+          </section>
         </div>
 
-        {/* RIGHT COLUMN: 7-Point Inspection & Moderation Action */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* 7-Point Inspection Card */}
-          <div
-            style={{
-              backgroundColor: '#101318',
-              border: '1px solid #1E232E',
-              borderRadius: '10px',
-              padding: '24px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#F9FAFB', margin: '0 0 2px 0' }}>
-                  7-Point Inspection Checklist
-                </h3>
-                <div style={{ fontSize: '12px', color: '#9AA0A6' }}>
-                  {vehicle.moderationStatus === 'approved'
-                    ? 'All 7 verification points audited and verified at approval.'
-                    : vehicle.moderationStatus === 'pending_review'
-                      ? 'All 7 verification points must be audited before approving.'
-                      : 'Inspection verification checklist.'}
-                </div>
-              </div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  color: vehicle.moderationStatus === 'approved' || isAllChecked ? '#4ADE80' : '#EAB308',
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  backgroundColor:
-                    vehicle.moderationStatus === 'approved' || isAllChecked
-                      ? 'rgba(34, 197, 94, 0.12)'
-                      : 'rgba(234, 179, 8, 0.12)',
-                }}
-              >
-                {vehicle.moderationStatus === 'approved' ? '7 / 7 Verified' : `${checkedCount} / 7 Verified`}
-              </div>
-            </div>
+        <aside className="review-decision vehicle-review-decision" aria-labelledby="vehicle-decision-title">
+          <div className="review-decision-heading"><div><p className="review-eyebrow">VEHICLE REVIEW</p><h2 id="vehicle-decision-title">{STATUS[vehicle.moderationStatus]}</h2></div></div>
+          {errorMsg && <p className="review-message review-error" role="alert"><AlertTriangle size={16} />{errorMsg}</p>}
+          {successMsg && <p className="review-message review-success" role="status"><CheckCircle2 size={16} />{successMsg}</p>}
 
-            {/* Checklist items */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {VEHICLE_CHECKLIST_ITEMS.map((item) => {
-                const isChecked = vehicle.moderationStatus === 'approved' || Boolean(checkedKeys[item.key]);
-                const isPending = vehicle.moderationStatus === 'pending_review';
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => {
-                      if (isPending) toggleCheck(item.key);
-                    }}
-                    disabled={!isPending}
-                    type="button"
-                    role="checkbox"
-                    aria-checked={isChecked}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                      padding: '12px',
-                      borderRadius: '6px',
-                      backgroundColor: isChecked ? 'rgba(34, 197, 94, 0.05)' : '#141820',
-                      border: '1px solid',
-                      borderColor: isChecked ? 'rgba(34, 197, 94, 0.3)' : '#1E232E',
-                      cursor: isPending ? 'pointer' : 'default',
-                      transition: 'all 0.15s ease',
-                      textAlign: 'left',
-                      width: '100%',
-                      minHeight: '44px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '4px',
-                        border: '1.5px solid',
-                        borderColor: isChecked ? '#4ADE80' : '#4B5563',
-                        backgroundColor: isChecked ? '#4ADE80' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginTop: '2px',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {isChecked && <CheckCircle2 size={14} color="#090A0C" />}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: isChecked ? '#F9FAFB' : '#D1D5DB' }}>
-                        {item.label}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#9AA0A6', marginTop: '2px', lineHeight: '1.4' }}>
-                        {item.description}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+          {vehicle.moderationStatus === 'pending_review' && <>
+            <fieldset className="review-checklist">
+              <legend>Required inspection <span>{checkedCount} / {VEHICLE_CHECKLIST_ITEMS.length}</span></legend>
+              <details className="review-inspection-guidance"><summary>Inspection guidance</summary><ul>{VEHICLE_CHECKLIST_ITEMS.map((item) => <li key={item.key}>{item.description}</li>)}</ul></details>
+              {VEHICLE_CHECKLIST_ITEMS.map((item) => <label className="review-check" key={item.key}><input type="checkbox" checked={checkedKeys[item.key]} onChange={() => setCheckedKeys((current) => ({ ...current, [item.key]: !current[item.key] }))} /><span>{item.label.replace(/^\d+\.\s*/, '')}</span></label>)}
+            </fieldset>
+            <button className="review-button review-button-primary" type="button" disabled={isSubmitting || !allChecked} onClick={() => submitDecision('approve')}>{isSubmitting ? <Loader2 className="review-spinner" size={16} /> : <CheckCircle2 size={16} />}Approve listing</button>
+            <details className="review-details review-more-actions"><summary>More actions</summary><div className="review-action-form"><label className="review-field-label" htmlFor="vehicle-reject-reason">Changes or rejection reason</label><textarea id="vehicle-reject-reason" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} minLength={10} maxLength={500} placeholder="At least 10 characters" /><button className="review-button review-button-danger" type="button" disabled={isSubmitting || rejectionReason.trim().length < 10} onClick={() => submitDecision('reject', rejectionReason)}>Confirm changes requested / rejection</button></div></details>
+          </>}
 
-            {/* Messages */}
-            {errorMsg && (
-              <div
-                style={{
-                  marginTop: '16px',
-                  padding: '12px',
-                  minHeight: '44px',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  color: '#F87171',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <AlertTriangle size={16} />
-                <span>{errorMsg}</span>
-              </div>
-            )}
+          {vehicle.moderationStatus === 'approved' && <>
+            <p className="review-state-note">Approved{vehicle.visibility === 'deleted' ? ' · listing deleted' : vehicle.visibility === 'active' ? ' · active' : ' · owner has paused availability'}{vehicle.discoverable ? ' · visible to renters' : ' · not visible to renters'}.</p>
+            {vehicle.visibility !== 'deleted' && <details className="review-details review-more-actions"><summary>More actions</summary><div className="review-action-form"><label className="review-field-label" htmlFor="vehicle-suspend-reason">Suspension reason</label><textarea id="vehicle-suspend-reason" value={suspendReason} onChange={(event) => setSuspendReason(event.target.value)} minLength={10} maxLength={500} placeholder="At least 10 characters" /><button className="review-button review-button-danger" type="button" disabled={isSubmitting || suspendReason.trim().length < 10} onClick={() => submitDecision('suspend', suspendReason)}>Confirm suspension</button></div></details>}
+          </>}
 
-            {successMsg && (
-              <div
-                style={{
-                  marginTop: '16px',
-                  padding: '12px',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                  border: '1px solid rgba(34, 197, 94, 0.25)',
-                  color: '#4ADE80',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <CheckCircle2 size={16} />
-                <span>{successMsg}</span>
-              </div>
-            )}
+          {vehicle.moderationStatus === 'suspended' && <>
+            <p className="review-state-note">This listing is suspended.{vehicle.lastDecisionReason ? ` ${vehicle.lastDecisionReason}` : ''}</p>
+            <button className="review-button review-button-primary" type="button" disabled={isSubmitting} onClick={() => submitDecision('restore')}>{isSubmitting ? <Loader2 className="review-spinner" size={16} /> : <CheckCircle2 size={16} />}Restore to approved fleet</button>
+          </>}
 
-            {/* Action Buttons & Status Banners */}
-            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {/* PENDING REVIEW: Approve & Reject actions */}
-              {vehicle.moderationStatus === 'pending_review' && (
-                <>
-                  <button
-                    disabled={isSubmitting || !isAllChecked}
-                    onClick={handleApprove}
-                    style={{
-                      backgroundColor: isAllChecked ? '#4ADE80' : '#1E232E',
-                      color: isAllChecked ? '#090A0C' : '#6B7280',
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '12px',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: isAllChecked && !isSubmitting ? 'pointer' : 'default',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <CheckCircle2 size={16} />
-                    <span>{isSubmitting ? 'Processing Decision…' : 'Approve Listing'}</span>
-                  </button>
-
-                  {!showRejectForm ? (
-                    <button
-                      onClick={() => setShowRejectForm(true)}
-                      style={{
-                        backgroundColor: 'transparent',
-                        color: '#F87171',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '6px',
-                        padding: '10px',
-                        minHeight: '44px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <XCircle size={14} />
-                      <span>Request Changes / Reject Listing</span>
-                    </button>
-                  ) : (
-                    <div
-                      style={{
-                        padding: '14px',
-                        borderRadius: '6px',
-                        backgroundColor: '#141820',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                      }}
-                    >
-                      <label style={{ fontSize: '12px', fontWeight: '600', color: '#F87171' }}>
-                        REASON FOR REJECTION / REQUIRED CHANGES
-                      </label>
-                      <textarea
-                        rows={3}
-                        placeholder="e.g. Please re-upload clearer photos of the interior cabin and confirm registration plate..."
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        style={{
-                          width: '100%',
-                          backgroundColor: '#181D26',
-                          border: '1px solid #28303F',
-                          borderRadius: '4px',
-                          padding: '8px',
-                          fontSize: '12px',
-                          color: '#F9FAFB',
-                          outline: 'none',
-                        }}
-                      />
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => setShowRejectForm(false)}
-                          style={{
-                            backgroundColor: 'transparent',
-                            color: '#9AA0A6',
-                            border: '1px solid #28303F',
-                            borderRadius: '4px',
-                            padding: '10px',
-                            minHeight: '44px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          disabled={isSubmitting}
-                          onClick={handleReject}
-                          style={{
-                            backgroundColor: '#EF4444',
-                            color: '#FFFFFF',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '10px 12px',
-                            minHeight: '44px',
-                            fontSize: '12px',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Confirm Rejection
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* APPROVED: Status banner and Suspend action */}
-              {vehicle.moderationStatus === 'approved' && (
-                <>
-                  <div
-                    style={{
-                      padding: '16px',
-                      borderRadius: '6px',
-                      backgroundColor: 'rgba(34, 197, 94, 0.08)',
-                      border: '1px solid rgba(34, 197, 94, 0.25)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4ADE80', fontWeight: '700', fontSize: '14px' }}>
-                      <CheckCircle2 size={16} />
-                      <span>Listing Approved</span>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#D1D5DB', lineHeight: '1.4' }}>
-                      {vehicle.visibility === 'active'
-                        ? 'Approved and active on the platform.'
-                        : 'Approved by MMG, but unavailable to renters until owner activation.'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#9AA0A6' }}>
-                      {vehicle.discoverable ? 'Discoverable in renter search.' : 'Not discoverable to renters.'}
-                    </div>
-                    {vehicle.reviewedAt && (
-                      <div style={{ fontSize: '11px', color: '#6B7280' }}>
-                        Approved on {new Date(vehicle.reviewedAt).toLocaleDateString('en-GB')} {vehicle.reviewedByStaffEmail ? `by ${vehicle.reviewedByStaffEmail}` : ''}
-                      </div>
-                    )}
-                  </div>
-
-                  {!showSuspendForm ? (
-                    <button
-                      onClick={() => setShowSuspendForm(true)}
-                      style={{
-                        backgroundColor: 'transparent',
-                        color: '#EF4444',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '6px',
-                        padding: '10px',
-                        minHeight: '44px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <AlertTriangle size={14} />
-                      <span>{vehicle.visibility === 'active' ? 'Suspend Active Listing' : 'Suspend Listing'}</span>
-                    </button>
-                  ) : (
-                    <div
-                      style={{
-                        padding: '14px',
-                        borderRadius: '6px',
-                        backgroundColor: '#141820',
-                        border: '1px solid rgba(239, 68, 68, 0.4)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                      }}
-                    >
-                      <label style={{ fontSize: '12px', fontWeight: '600', color: '#EF4444' }}>
-                        REASON FOR SUSPENSION (REQUIRED)
-                      </label>
-                      <textarea
-                        rows={3}
-                        placeholder="e.g. Host failed dispatch SLA or vehicle undergoing unscheduled maintenance..."
-                        value={suspendReason}
-                        onChange={(e) => setSuspendReason(e.target.value)}
-                        style={{
-                          width: '100%',
-                          backgroundColor: '#181D26',
-                          border: '1px solid #28303F',
-                          borderRadius: '4px',
-                          padding: '8px',
-                          fontSize: '12px',
-                          color: '#F9FAFB',
-                          outline: 'none',
-                        }}
-                      />
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => setShowSuspendForm(false)}
-                          style={{
-                            backgroundColor: 'transparent',
-                            color: '#9AA0A6',
-                            border: '1px solid #28303F',
-                            borderRadius: '4px',
-                            padding: '10px',
-                            minHeight: '44px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          disabled={isSubmitting}
-                          onClick={handleSuspend}
-                          style={{
-                            backgroundColor: '#DC2626',
-                            color: '#FFFFFF',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '10px 12px',
-                            minHeight: '44px',
-                            fontSize: '12px',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Confirm Suspension
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* SUSPENDED: Status banner and Restore action */}
-              {vehicle.moderationStatus === 'suspended' && (
-                <>
-                  <div
-                    style={{
-                      padding: '16px',
-                      borderRadius: '6px',
-                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F87171', fontWeight: '700', fontSize: '14px' }}>
-                      <AlertTriangle size={16} />
-                      <span>Listing Suspended</span>
-                    </div>
-                    {vehicle.lastDecisionReason && (
-                      <div style={{ fontSize: '12px', color: '#D1D5DB', lineHeight: '1.4' }}>
-                        Reason: {vehicle.lastDecisionReason}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    disabled={isSubmitting}
-                    onClick={handleRestore}
-                    style={{
-                      backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                      color: '#4ADE80',
-                      border: '1px solid rgba(34, 197, 94, 0.3)',
-                      borderRadius: '6px',
-                      padding: '12px',
-                      minHeight: '44px',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <CheckCircle2 size={16} />
-                    <span>Restore to Approved Fleet</span>
-                  </button>
-                </>
-              )}
-
-              {/* REJECTED: Status banner */}
-              {vehicle.moderationStatus === 'rejected' && (
-                <div
-                  style={{
-                    padding: '16px',
-                    borderRadius: '6px',
-                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F87171', fontWeight: '700', fontSize: '14px' }}>
-                    <XCircle size={16} />
-                    <span>Listing Changes Requested / Rejected</span>
-                  </div>
-                  {vehicle.lastDecisionReason && (
-                    <div style={{ fontSize: '12px', color: '#D1D5DB', lineHeight: '1.4' }}>
-                      Reason: {vehicle.lastDecisionReason}
-                    </div>
-                  )}
-                  <div style={{ fontSize: '11px', color: '#9AA0A6' }}>
-                    Awaiting updated submission from vehicle owner.
-                  </div>
-                </div>
-              )}
-
-              {/* DRAFT: Status banner */}
-              {vehicle.moderationStatus === 'draft' && (
-                <div
-                  style={{
-                    padding: '16px',
-                    borderRadius: '6px',
-                    backgroundColor: '#141820',
-                    border: '1px solid #1E232E',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9AA0A6', fontWeight: '700', fontSize: '14px' }}>
-                    <FileText size={16} />
-                    <span>Draft Listing</span>
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#9AA0A6', lineHeight: '1.4' }}>
-                    This vehicle listing is still a draft and has not been submitted for review.
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+          {vehicle.moderationStatus === 'rejected' && <p className="review-state-note">Changes requested. The owner must update the submission before it can be reviewed again.{vehicle.lastDecisionReason ? ` ${vehicle.lastDecisionReason}` : ''}</p>}
+          {vehicle.moderationStatus === 'draft' && <p className="review-state-note">This listing is still a draft and has not been submitted for review.</p>}
+        </aside>
+      </div>
+    </section>
   );
 }
