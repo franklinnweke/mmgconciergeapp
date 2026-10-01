@@ -61,7 +61,10 @@ export const reportTripEnded = onCall(
       }
 
       const result = await reportTripEndedService(request.data, { uid: request.auth.uid });
-      logger.info('trip.owner_reported_ended', { bookingId: result.bookingId });
+      logger.info('trip.owner_reported_ended', {
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+      });
       return result;
     } catch (error) {
       return rethrow(error, 'trip.report_ended_failed');
@@ -98,8 +101,9 @@ export const confirmBookingCompletion = onCall(
 
       const result = await confirmBookingCompletionService(request.data, actor);
       logger.info('trip.confirmed_complete', {
-        bookingId: result.bookingId,
-        earningState: result.earningState,
+        requestId: result.requestId,
+        bookingId: result.result.bookingId,
+        earningState: result.result.earningState,
       });
       return result;
     } catch (error) {
@@ -136,8 +140,9 @@ export const setOwnerSettlementHold = onCall(
 
       const result = await setOwnerSettlementHoldService(request.data, actor);
       logger.info('settlement.hold_updated', {
-        ownerId: result.ownerId,
-        settlementHold: result.settlementHold,
+        requestId: result.requestId,
+        ownerId: result.result.ownerId,
+        settlementHold: result.result.settlementHold,
       });
       return result;
     } catch (error) {

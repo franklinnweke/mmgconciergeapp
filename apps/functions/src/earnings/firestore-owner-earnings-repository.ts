@@ -7,11 +7,17 @@ import {
   priceSnapshotSchema,
 } from '@mmg/contracts';
 import {
+  confirmBookingCompletionEnvelopeSchema,
   confirmBookingCompletionResultSchema,
+  reportTripEndedEnvelopeSchema,
   reportTripEndedResultSchema,
+  setOwnerSettlementHoldEnvelopeSchema,
   setOwnerSettlementHoldResultSchema,
+  type ConfirmBookingCompletionEnvelope,
   type ConfirmBookingCompletionResult,
+  type ReportTripEndedEnvelope,
   type ReportTripEndedResult,
+  type SetOwnerSettlementHoldEnvelope,
   type SetOwnerSettlementHoldResult,
 } from '@mmg/contracts/earnings';
 import {
@@ -113,23 +119,55 @@ export class FirestoreOwnerEarningsRepository {
       now: Date;
     },
     snapshots: {
-      earningExists: boolean;
+      earningSnapshot?: FirebaseFirestore.DocumentSnapshot;
+      earningExists?: boolean;
       settlementSnapshot: FirebaseFirestore.DocumentSnapshot;
     },
   ): void {
-    if (snapshots.earningExists) {
-      return; // Idempotent: already created
-    }
-
     const earningRef = this.firestore.doc(`ownerEarnings/${input.bookingId}`);
     const settlementRef = this.firestore.doc(`ownerSettlementState/${input.ownerId}`);
 
+    if (snapshots.earningSnapshot?.exists) {
+      const parsedEarning = earningSchema.safeParse(snapshots.earningSnapshot.data());
+      if (!parsedEarning.success) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Existing owner earning record is invalid or malformed.',
+        );
+      }
+      const existingEarning = parsedEarning.data;
+      if (
+        existingEarning.bookingId !== input.bookingId ||
+        existingEarning.ownerId !== input.ownerId ||
+        existingEarning.vehicleId !== input.vehicleId ||
+        existingEarning.amountKobo !== input.amountKobo ||
+        existingEarning.state !== 'pending'
+      ) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Existing owner earning record conflicts with booking financial details.',
+        );
+      }
+      return; // Idempotent: verified consistent pending earning already exists
+    } else if (snapshots.earningExists && !snapshots.earningSnapshot) {
+      throw new BookingCommandError(
+        'FAILED_PRECONDITION',
+        'Cannot verify existing owner earning without document snapshot.',
+      );
+    }
+
     if (snapshots.settlementSnapshot.exists) {
-      const current = snapshots.settlementSnapshot.data();
-      const currentPending = typeof current?.pendingKobo === 'number' ? current.pendingKobo : 0;
+      const parsedSettlement = settlementStateSchema.safeParse(snapshots.settlementSnapshot.data());
+      if (!parsedSettlement.success || parsedSettlement.data.ownerId !== input.ownerId) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Existing owner settlement state document is invalid or malformed.',
+        );
+      }
+      const current = parsedSettlement.data;
       transaction.update(settlementRef, {
-        pendingKobo: currentPending + input.amountKobo,
-        version: (current?.version || 1) + 1,
+        pendingKobo: current.pendingKobo + input.amountKobo,
+        version: current.version + 1,
         updatedAt: Timestamp.fromDate(input.now),
       });
     } else {
@@ -175,7 +213,7 @@ export class FirestoreOwnerEarningsRepository {
 
   async reportTripEnded(
     input: ReportTripEndedInput,
-  ): Promise<ReportTripEndedResult> {
+  ): Promise<ReportTripEndedEnvelope> {
     return this.firestore.runTransaction(async (transaction) => {
       // 1. ALL READS FIRST
       const idempotencyRef = this.firestore.doc(`idempotencyKeys/${input.idempotencyDocumentId}`);
@@ -185,7 +223,11 @@ export class FirestoreOwnerEarningsRepository {
         if (stored?.actorId !== input.actor.uid || stored?.requestHash !== input.requestHash) {
           throw new BookingCommandError('IDEMPOTENCY_CONFLICT', 'This idempotency key was already used differently.');
         }
-        return reportTripEndedResultSchema.parse(stored.result);
+        const envelopeCandidate = stored?.envelope ?? {
+          requestId: stored?.requestId ?? input.commandRequestId,
+          result: stored?.result,
+        };
+        return reportTripEndedEnvelopeSchema.parse(envelopeCandidate);
       }
 
       const bookingRef = this.firestore.doc(`bookings/${input.bookingId}`);
@@ -239,6 +281,7 @@ export class FirestoreOwnerEarningsRepository {
         toState: 'completion_pending',
         occurredAt: Timestamp.fromDate(input.now),
         details: {
+          requestId: input.commandRequestId,
           reportedEarly: today < booking.endDate,
           today,
           startDate: booking.startDate,
@@ -246,27 +289,32 @@ export class FirestoreOwnerEarningsRepository {
         },
       });
 
-      const result: ReportTripEndedResult = {
-        bookingId: input.bookingId,
-        state: 'completion_pending',
-        version: nextVersion,
+      const envelope: ReportTripEndedEnvelope = {
+        requestId: input.commandRequestId,
+        result: {
+          bookingId: input.bookingId,
+          state: 'completion_pending',
+          version: nextVersion,
+        },
       };
 
       transaction.create(idempotencyRef, {
         actorId: input.actor.uid,
         commandName: 'reportTripEnded',
         requestHash: input.requestHash,
-        result,
+        requestId: input.commandRequestId,
+        result: envelope.result,
+        envelope,
         createdAt: Timestamp.fromDate(input.now),
       });
 
-      return result;
+      return envelope;
     });
   }
 
   async confirmBookingCompletion(
     input: ConfirmBookingCompletionInput,
-  ): Promise<ConfirmBookingCompletionResult> {
+  ): Promise<ConfirmBookingCompletionEnvelope> {
     return this.firestore.runTransaction(async (transaction) => {
       // 1. ALL READS FIRST
       const idempotencyRef = this.firestore.doc(`idempotencyKeys/${input.idempotencyDocumentId}`);
@@ -276,7 +324,11 @@ export class FirestoreOwnerEarningsRepository {
         if (stored?.actorId !== input.actor.uid || stored?.requestHash !== input.requestHash) {
           throw new BookingCommandError('IDEMPOTENCY_CONFLICT', 'This idempotency key was already used differently.');
         }
-        return confirmBookingCompletionResultSchema.parse(stored.result);
+        const envelopeCandidate = stored?.envelope ?? {
+          requestId: stored?.requestId ?? input.commandRequestId,
+          result: stored?.result,
+        };
+        return confirmBookingCompletionEnvelopeSchema.parse(envelopeCandidate);
       }
 
       const bookingRef = this.firestore.doc(`bookings/${input.bookingId}`);
@@ -316,12 +368,28 @@ export class FirestoreOwnerEarningsRepository {
       const settlementRef = this.firestore.doc(`ownerSettlementState/${booking.ownerId}`);
       const settlementSnapshot = await transaction.get(settlementRef);
 
-      // Determine earning amount
+      // Determine earning amount and validate earning invariant (item 1 & 4)
       let earningAmountKobo: number;
       if (earningSnapshot.exists) {
         const parsedEarning = earningSchema.safeParse(earningSnapshot.data());
         if (!parsedEarning.success) {
           throw new BookingCommandError('FAILED_PRECONDITION', 'Existing owner earning record is invalid.');
+        }
+        if (parsedEarning.data.state !== 'pending') {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            `Existing owner earning must be in pending state (currently "${parsedEarning.data.state}").`,
+          );
+        }
+        if (
+          parsedEarning.data.bookingId !== input.bookingId ||
+          parsedEarning.data.ownerId !== booking.ownerId ||
+          parsedEarning.data.vehicleId !== booking.vehicleId
+        ) {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            'Existing owner earning record conflicts with booking details.',
+          );
         }
         earningAmountKobo = parsedEarning.data.amountKobo;
       } else {
@@ -332,33 +400,38 @@ export class FirestoreOwnerEarningsRepository {
         earningAmountKobo = booking.priceSnapshot.ownerEarningsKobo;
       }
 
-      // Fail-closed checks on balance/state consistency (no silent clamping)
-      if (earningSnapshot.exists) {
-        if (!settlementSnapshot.exists) {
+      // Fail-closed checks on settlement state (no silent clamping, no zero/version 1 defaults)
+      let parsedSettlementData: z.infer<typeof settlementStateSchema> | null = null;
+      if (settlementSnapshot.exists) {
+        const parsedSettlement = settlementStateSchema.safeParse(settlementSnapshot.data());
+        if (!parsedSettlement.success || parsedSettlement.data.ownerId !== booking.ownerId) {
           throw new BookingCommandError(
             'FAILED_PRECONDITION',
-            'Owner settlement state document is missing for existing earning release.',
+            'Owner settlement state document is invalid or malformed.',
           );
         }
-        const curSettlement = settlementSnapshot.data()!;
-        const curPending = typeof curSettlement.pendingKobo === 'number' ? curSettlement.pendingKobo : 0;
-        if (curPending < earningAmountKobo) {
+        parsedSettlementData = parsedSettlement.data;
+        if (earningSnapshot.exists && parsedSettlementData.pendingKobo < earningAmountKobo) {
           throw new BookingCommandError(
             'FAILED_PRECONDITION',
             'Settlement pending balance is insufficient for earning release.',
           );
         }
+      } else if (earningSnapshot.exists) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Owner settlement state document is missing for existing earning release.',
+        );
       }
 
       // Check settlement restriction
-      const settlementData = settlementSnapshot.exists ? settlementSnapshot.data() : null;
-      const hasSettlementHold = Boolean(settlementData?.settlementHold);
+      const hasSettlementHold = Boolean(parsedSettlementData?.settlementHold);
       const hasBookingRestriction = Boolean(booking.settlementRestriction);
       const hasRestriction = hasSettlementHold || hasBookingRestriction;
 
       const targetEarningState = hasRestriction ? ('review_required' as const) : ('available' as const);
       const reviewReason = hasRestriction
-        ? (settlementData?.holdReason || (hasBookingRestriction ? 'booking_settlement_restriction' : 'settlement_hold'))
+        ? (parsedSettlementData?.holdReason || (hasBookingRestriction ? 'booking_settlement_restriction' : 'settlement_hold'))
         : null;
 
       // 2. ALL WRITES AFTER READS
@@ -402,26 +475,22 @@ export class FirestoreOwnerEarningsRepository {
       }
 
       // Update / Create settlement state (strict accounting, fail closed, no Math.max)
-      if (settlementSnapshot.exists) {
-        const curSettlement = settlementSnapshot.data()!;
-        const curPending = typeof curSettlement.pendingKobo === 'number' ? curSettlement.pendingKobo : 0;
-        const curAvailable = typeof curSettlement.availableKobo === 'number' ? curSettlement.availableKobo : 0;
-
-        let newPending = curPending;
-        let newAvailable = curAvailable;
+      if (parsedSettlementData) {
+        let newPending = parsedSettlementData.pendingKobo;
+        let newAvailable = parsedSettlementData.availableKobo;
 
         if (earningSnapshot.exists) {
-          newPending = curPending - earningAmountKobo;
+          newPending = parsedSettlementData.pendingKobo - earningAmountKobo;
         }
 
         if (targetEarningState === 'available') {
-          newAvailable = curAvailable + earningAmountKobo;
+          newAvailable = parsedSettlementData.availableKobo + earningAmountKobo;
         }
 
         transaction.update(settlementRef, {
           pendingKobo: newPending,
           availableKobo: newAvailable,
-          version: (curSettlement.version || 1) + 1,
+          version: parsedSettlementData.version + 1,
           updatedAt: Timestamp.fromDate(input.now),
         });
       } else {
@@ -448,6 +517,7 @@ export class FirestoreOwnerEarningsRepository {
         toState: 'completed',
         occurredAt: Timestamp.fromDate(input.now),
         details: {
+          requestId: input.commandRequestId,
           earningState: targetEarningState,
           amountKobo: earningAmountKobo,
           completedByType: isRenter ? 'renter' : 'staff',
@@ -464,6 +534,7 @@ export class FirestoreOwnerEarningsRepository {
         toState: targetEarningState,
         occurredAt: Timestamp.fromDate(input.now),
         details: {
+          requestId: input.commandRequestId,
           amountKobo: earningAmountKobo,
           ...(reviewReason ? { reason: reviewReason } : {}),
         },
@@ -486,23 +557,28 @@ export class FirestoreOwnerEarningsRepository {
         });
       }
 
-      const result: ConfirmBookingCompletionResult = {
-        bookingId: input.bookingId,
-        bookingState: 'completed',
-        earningState: targetEarningState,
-        amountKobo: earningAmountKobo,
-        version: nextBookingVersion,
+      const envelope: ConfirmBookingCompletionEnvelope = {
+        requestId: input.commandRequestId,
+        result: {
+          bookingId: input.bookingId,
+          bookingState: 'completed',
+          earningState: targetEarningState,
+          amountKobo: earningAmountKobo,
+          version: nextBookingVersion,
+        },
       };
 
       transaction.create(idempotencyRef, {
         actorId: input.actor.uid,
         commandName: 'confirmBookingCompletion',
         requestHash: input.requestHash,
-        result,
+        requestId: input.commandRequestId,
+        result: envelope.result,
+        envelope,
         createdAt: Timestamp.fromDate(input.now),
       });
 
-      return result;
+      return envelope;
     });
   }
 
@@ -551,12 +627,12 @@ export class FirestoreOwnerEarningsRepository {
       }
 
       try {
-        await this.firestore.runTransaction(async (transaction) => {
+        const didTransition = await this.firestore.runTransaction(async (transaction) => {
           const fresh = await transaction.get(doc.ref);
-          if (!fresh.exists) return;
+          if (!fresh.exists) return false;
           const current = bookingSchema.safeParse(fresh.data());
           if (!current.success || current.data.version !== booking.version || current.data.state !== booking.state) {
-            return;
+            return false;
           }
 
           const freshTargetState = evaluateBookingLifecycleProgression(
@@ -565,7 +641,7 @@ export class FirestoreOwnerEarningsRepository {
             current.data.endDate,
             today,
           );
-          if (!freshTargetState || freshTargetState === current.data.state) return;
+          if (!freshTargetState || freshTargetState === current.data.state) return false;
 
           const nextVersion = current.data.version + 1;
           transaction.update(doc.ref, {
@@ -592,8 +668,13 @@ export class FirestoreOwnerEarningsRepository {
               endDate: current.data.endDate,
             },
           });
+
+          return true;
         });
-        transitioned += 1;
+
+        if (didTransition === true) {
+          transitioned += 1;
+        }
       } catch {
         // Continue scanning remaining batch items on concurrency conflicts
       }
@@ -604,7 +685,7 @@ export class FirestoreOwnerEarningsRepository {
 
   async setOwnerSettlementHold(
     input: SetOwnerSettlementHoldInput,
-  ): Promise<SetOwnerSettlementHoldResult> {
+  ): Promise<SetOwnerSettlementHoldEnvelope> {
     return this.firestore.runTransaction(async (transaction) => {
       // 1. ALL READS FIRST
       const idempotencyRef = this.firestore.doc(`idempotencyKeys/${input.idempotencyDocumentId}`);
@@ -614,7 +695,11 @@ export class FirestoreOwnerEarningsRepository {
         if (stored?.actorId !== input.actor.uid || stored?.requestHash !== input.requestHash) {
           throw new BookingCommandError('IDEMPOTENCY_CONFLICT', 'This idempotency key was already used differently.');
         }
-        return setOwnerSettlementHoldResultSchema.parse(stored.result);
+        const envelopeCandidate = stored?.envelope ?? {
+          requestId: stored?.requestId ?? input.commandRequestId,
+          result: stored?.result,
+        };
+        return setOwnerSettlementHoldEnvelopeSchema.parse(envelopeCandidate);
       }
 
       const ref = this.firestore.doc(`ownerSettlementState/${input.ownerId}`);
@@ -622,7 +707,14 @@ export class FirestoreOwnerEarningsRepository {
 
       let nextVersion = 1;
       if (snapshot.exists) {
-        const current = settlementStateSchema.parse(snapshot.data());
+        const parsedSettlement = settlementStateSchema.safeParse(snapshot.data());
+        if (!parsedSettlement.success || parsedSettlement.data.ownerId !== input.ownerId) {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            'Owner settlement state document is invalid or malformed.',
+          );
+        }
+        const current = parsedSettlement.data;
         nextVersion = current.version + 1;
         transaction.update(ref, {
           settlementHold: input.hold,
@@ -653,7 +745,7 @@ export class FirestoreOwnerEarningsRepository {
         fromState: snapshot.exists ? String(snapshot.data()?.settlementHold) : 'false',
         toState: String(input.hold),
         occurredAt: Timestamp.fromDate(input.now),
-        details: { reason: input.reason || null },
+        details: { requestId: input.commandRequestId, reason: input.reason || null },
       });
 
       transaction.create(this.firestore.collection('adminAuditLogs').doc(), {
@@ -667,21 +759,26 @@ export class FirestoreOwnerEarningsRepository {
         metadata: { hold: input.hold, reason: input.reason || null },
       });
 
-      const result: SetOwnerSettlementHoldResult = {
-        ownerId: input.ownerId,
-        settlementHold: input.hold,
-        version: nextVersion,
+      const envelope: SetOwnerSettlementHoldEnvelope = {
+        requestId: input.commandRequestId,
+        result: {
+          ownerId: input.ownerId,
+          settlementHold: input.hold,
+          version: nextVersion,
+        },
       };
 
       transaction.create(idempotencyRef, {
         actorId: input.actor.uid,
         commandName: 'setOwnerSettlementHold',
         requestHash: input.requestHash,
-        result,
+        requestId: input.commandRequestId,
+        result: envelope.result,
+        envelope,
         createdAt: Timestamp.fromDate(input.now),
       });
 
-      return result;
+      return envelope;
     });
   }
 
@@ -696,7 +793,11 @@ export class FirestoreOwnerEarningsRepository {
       if (!earningSnapshot.exists) {
         throw new BookingCommandError('NOT_FOUND', 'Owner earning not found.');
       }
-      const earning = earningSchema.parse(earningSnapshot.data());
+      const parsedEarning = earningSchema.safeParse(earningSnapshot.data());
+      if (!parsedEarning.success) {
+        throw new BookingCommandError('FAILED_PRECONDITION', 'Owner earning record is invalid or malformed.');
+      }
+      const earning = parsedEarning.data;
 
       const settlementRef = this.firestore.doc(`ownerSettlementState/${earning.ownerId}`);
       const settlementSnapshot = await transaction.get(settlementRef);
@@ -716,7 +817,14 @@ export class FirestoreOwnerEarningsRepository {
             'Owner settlement state document is missing to hold earning for review.',
           );
         }
-        const settlement = settlementStateSchema.parse(settlementSnapshot.data());
+        const parsedSettlement = settlementStateSchema.safeParse(settlementSnapshot.data());
+        if (!parsedSettlement.success || parsedSettlement.data.ownerId !== earning.ownerId) {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            'Owner settlement state document is invalid or malformed.',
+          );
+        }
+        const settlement = parsedSettlement.data;
         if (settlement.availableKobo < earning.amountKobo) {
           throw new BookingCommandError(
             'FAILED_PRECONDITION',

@@ -12,9 +12,12 @@ describe('owner earnings service', () => {
   it('validates reportTripEnded command and invokes repository with idempotency parameters', async () => {
     const mockRepo = {
       reportTripEnded: vi.fn().mockResolvedValue({
-        bookingId: 'booking-123',
-        state: 'completion_pending' as const,
-        version: 2,
+        requestId: 'req-test-123',
+        result: {
+          bookingId: 'booking-123',
+          state: 'completion_pending' as const,
+          version: 2,
+        },
       }),
     } as unknown as FirestoreOwnerEarningsRepository;
 
@@ -28,7 +31,8 @@ describe('owner earnings service', () => {
       { repository: mockRepo, createRequestId: () => 'req-test-123' },
     );
 
-    expect(result.state).toBe('completion_pending');
+    expect(result.requestId).toBe('req-test-123');
+    expect(result.result.state).toBe('completion_pending');
     expect(mockRepo.reportTripEnded).toHaveBeenCalledWith(
       expect.objectContaining({
         bookingId: 'booking-123',
@@ -57,11 +61,14 @@ describe('owner earnings service', () => {
   it('validates confirmBookingCompletion command and invokes repository with idempotency parameters', async () => {
     const mockRepo = {
       confirmBookingCompletion: vi.fn().mockResolvedValue({
-        bookingId: 'booking-123',
-        bookingState: 'completed' as const,
-        earningState: 'available' as const,
-        amountKobo: 41000000,
-        version: 3,
+        requestId: 'req-confirm-123',
+        result: {
+          bookingId: 'booking-123',
+          bookingState: 'completed' as const,
+          earningState: 'available' as const,
+          amountKobo: 41000000,
+          version: 3,
+        },
       }),
     } as unknown as FirestoreOwnerEarningsRepository;
 
@@ -75,8 +82,9 @@ describe('owner earnings service', () => {
       { repository: mockRepo, createRequestId: () => 'req-confirm-123' },
     );
 
-    expect(result.bookingState).toBe('completed');
-    expect(result.earningState).toBe('available');
+    expect(result.requestId).toBe('req-confirm-123');
+    expect(result.result.bookingState).toBe('completed');
+    expect(result.result.earningState).toBe('available');
     expect(mockRepo.confirmBookingCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
         bookingId: 'booking-123',
@@ -105,9 +113,12 @@ describe('owner earnings service', () => {
   it('validates setOwnerSettlementHold command and invokes repository with idempotency parameters', async () => {
     const mockRepo = {
       setOwnerSettlementHold: vi.fn().mockResolvedValue({
-        ownerId: 'owner-123',
-        settlementHold: true,
-        version: 2,
+        requestId: 'req-hold-123',
+        result: {
+          ownerId: 'owner-123',
+          settlementHold: true,
+          version: 2,
+        },
       }),
     } as unknown as FirestoreOwnerEarningsRepository;
 
@@ -121,7 +132,8 @@ describe('owner earnings service', () => {
       { repository: mockRepo, createRequestId: () => 'req-hold-123' },
     );
 
-    expect(result.settlementHold).toBe(true);
+    expect(result.requestId).toBe('req-hold-123');
+    expect(result.result.settlementHold).toBe(true);
     expect(mockRepo.setOwnerSettlementHold).toHaveBeenCalledWith(
       expect.objectContaining({
         ownerId: 'owner-123',

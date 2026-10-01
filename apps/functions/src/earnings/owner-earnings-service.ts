@@ -5,6 +5,9 @@ import {
   confirmBookingCompletionCommandSchema,
   reportTripEndedCommandSchema,
   setOwnerSettlementHoldCommandSchema,
+  type ConfirmBookingCompletionEnvelope,
+  type ReportTripEndedEnvelope,
+  type SetOwnerSettlementHoldEnvelope,
 } from '@mmg/contracts/earnings';
 
 import { FirestoreOwnerEarningsRepository } from './firestore-owner-earnings-repository.js';
@@ -32,7 +35,7 @@ export async function reportTripEnded(
   rawCommand: unknown,
   actor: TripReportEndedActor,
   dependencies: OwnerEarningsServiceDependencies = {},
-) {
+): Promise<ReportTripEndedEnvelope> {
   const parsed = reportTripEndedCommandSchema.safeParse(rawCommand);
   if (!parsed.success) {
     throw new BookingCommandError('INVALID_ARGUMENT', 'Invalid trip end report command.', {
@@ -58,7 +61,7 @@ export async function confirmBookingCompletion(
   rawCommand: unknown,
   actor: TripCompletionActor,
   dependencies: OwnerEarningsServiceDependencies = {},
-) {
+): Promise<ConfirmBookingCompletionEnvelope> {
   const parsed = confirmBookingCompletionCommandSchema.safeParse(rawCommand);
   if (!parsed.success) {
     throw new BookingCommandError('INVALID_ARGUMENT', 'Invalid booking completion confirmation command.', {
@@ -84,7 +87,7 @@ export async function setOwnerSettlementHold(
   rawCommand: unknown,
   actor: SettlementHoldActor,
   dependencies: OwnerEarningsServiceDependencies = {},
-) {
+): Promise<SetOwnerSettlementHoldEnvelope> {
   const parsed = setOwnerSettlementHoldCommandSchema.safeParse(rawCommand);
   if (!parsed.success) {
     throw new BookingCommandError('INVALID_ARGUMENT', 'Invalid owner settlement hold command.', {

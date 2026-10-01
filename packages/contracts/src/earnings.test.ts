@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   confirmBookingCompletionCommandSchema,
+  confirmBookingCompletionEnvelopeSchema,
   ownerEarningSchema,
   ownerSettlementStateSchema,
   reportTripEndedCommandSchema,
+  reportTripEndedEnvelopeSchema,
   setOwnerSettlementHoldCommandSchema,
+  setOwnerSettlementHoldEnvelopeSchema,
 } from './earnings.js';
 
 describe('earnings contracts', () => {
@@ -126,5 +129,54 @@ describe('earnings contracts', () => {
       },
     };
     expect(setOwnerSettlementHoldCommandSchema.safeParse(missingKey).success).toBe(false);
+  });
+
+  it('validates command result envelopes and rejects missing requestId or result', () => {
+    const validReportTripEndedEnvelope = {
+      requestId: 'req-report-12345678',
+      result: {
+        bookingId: 'booking-test-123',
+        state: 'completion_pending',
+        version: 2,
+      },
+    };
+    expect(reportTripEndedEnvelopeSchema.safeParse(validReportTripEndedEnvelope).success).toBe(true);
+
+    const validConfirmCompletionEnvelope = {
+      requestId: 'req-confirm-12345678',
+      result: {
+        bookingId: 'booking-test-123',
+        bookingState: 'completed',
+        earningState: 'available',
+        amountKobo: 41000000,
+        version: 3,
+      },
+    };
+    expect(confirmBookingCompletionEnvelopeSchema.safeParse(validConfirmCompletionEnvelope).success).toBe(true);
+
+    const validSettlementHoldEnvelope = {
+      requestId: 'req-hold-1234567890',
+      result: {
+        ownerId: 'owner-test-456',
+        settlementHold: true,
+        version: 2,
+      },
+    };
+    expect(setOwnerSettlementHoldEnvelopeSchema.safeParse(validSettlementHoldEnvelope).success).toBe(true);
+
+    // Missing requestId
+    expect(
+      reportTripEndedEnvelopeSchema.safeParse({
+        result: validReportTripEndedEnvelope.result,
+      }).success,
+    ).toBe(false);
+
+    // Malformed result
+    expect(
+      confirmBookingCompletionEnvelopeSchema.safeParse({
+        requestId: 'req-confirm-12345678',
+        result: { bookingId: 'booking-test-123', state: 'unknown' },
+      }).success,
+    ).toBe(false);
   });
 });

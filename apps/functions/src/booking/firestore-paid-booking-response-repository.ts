@@ -147,7 +147,7 @@ class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTran
           now: patch.updatedAt,
         },
         {
-          earningExists: false,
+          earningSnapshot: this.earningSnapshot,
           settlementSnapshot: this.settlementSnapshot,
         },
       );

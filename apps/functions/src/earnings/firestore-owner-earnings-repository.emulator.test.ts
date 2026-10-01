@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FirestoreOwnerEarningsRepository } from './firestore-owner-earnings-repository.js';
 
@@ -98,7 +98,7 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
           now,
         },
         {
-          earningExists: earningSnapshot.exists,
+          earningSnapshot,
           settlementSnapshot,
         },
       );
@@ -142,7 +142,7 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
           now,
         },
         {
-          earningExists: earningSnapshot.exists,
+          earningSnapshot,
           settlementSnapshot,
         },
       );
@@ -181,8 +181,10 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
 
     const result = await repository.reportTripEnded(input);
 
-    expect(result.state).toBe('completion_pending');
-    expect(result.version).toBe(3);
+    expect(result.requestId).toBe('req-report-01');
+    expect(result.result.bookingId).toBe('booking-report-1');
+    expect(result.result.state).toBe('completion_pending');
+    expect(result.result.version).toBe(3);
 
     const updatedBooking = await database.doc('bookings/booking-report-1').get();
     expect(updatedBooking.data()?.state).toBe('completion_pending');
@@ -191,9 +193,10 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     expect(updatedBooking.data()?.endDate).toBe('2026-10-10');
     expect(updatedBooking.data()?.priceSnapshot?.ownerEarningsKobo).toBe(89_250_000);
 
-    // Idempotent replay: returns same result without re-mutating
+    // Idempotent replay: returns same envelope with original requestId and result without re-mutating
     const replayResult = await repository.reportTripEnded(input);
     expect(replayResult).toEqual(result);
+    expect(replayResult.requestId).toBe('req-report-01');
 
     const recheckBooking = await database.doc('bookings/booking-report-1').get();
     expect(recheckBooking.data()?.version).toBe(3);
@@ -302,9 +305,11 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
 
     const result = await repository.confirmBookingCompletion(input);
 
-    expect(result.bookingState).toBe('completed');
-    expect(result.earningState).toBe('available');
-    expect(result.amountKobo).toBe(89_250_000);
+    expect(result.requestId).toBe('req-confirm-staff-001');
+    expect(result.result.bookingId).toBe('booking-comp-1');
+    expect(result.result.bookingState).toBe('completed');
+    expect(result.result.earningState).toBe('available');
+    expect(result.result.amountKobo).toBe(89_250_000);
 
     const bookingDoc = await database.doc('bookings/booking-comp-1').get();
     expect(bookingDoc.data()?.state).toBe('completed');
@@ -337,6 +342,7 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     // Idempotent replay: returns same result without re-mutating
     const replay = await repository.confirmBookingCompletion(input);
     expect(replay).toEqual(result);
+    expect(replay.requestId).toBe('req-confirm-staff-001');
 
     const auditQueryAfterReplay = await database
       .collection('adminAuditLogs')
@@ -488,8 +494,9 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
 
     const result = await repository.confirmBookingCompletion(input);
 
-    expect(result.bookingState).toBe('completed');
-    expect(result.earningState).toBe('review_required');
+    expect(result.requestId).toBe('req-hold-comp');
+    expect(result.result.bookingState).toBe('completed');
+    expect(result.result.earningState).toBe('review_required');
 
     const earningDoc = await database.doc('ownerEarnings/booking-hold-1').get();
     expect(earningDoc.data()?.state).toBe('review_required');
@@ -516,7 +523,8 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     };
 
     const result = await repository.setOwnerSettlementHold(input);
-    expect(result.settlementHold).toBe(true);
+    expect(result.requestId).toBe('req-admin-hold-01');
+    expect(result.result.settlementHold).toBe(true);
 
     const doc = await database.doc('ownerSettlementState/owner-1').get();
     expect(doc.data()?.settlementHold).toBe(true);
@@ -539,6 +547,7 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     // Idempotent replay
     const replay = await repository.setOwnerSettlementHold(input);
     expect(replay).toEqual(result);
+    expect(replay.requestId).toBe('req-admin-hold-01');
   });
 
   it('progressBookingLifecycle is starvation-immune and advances due bookings even when future bookings exist', async () => {
@@ -604,5 +613,334 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
 
     const futureDoc = await database.doc('bookings/future-booking-1').get();
     expect(futureDoc.data()?.state).toBe('confirmed');
+  });
+
+  it('rejects confirmBookingCompletion with FAILED_PRECONDITION when ownerEarnings already exists with state available and does not mutate state', async () => {
+    await database.doc('bookings/booking-inv-avail').set({
+      bookingId: 'booking-inv-avail',
+      ownerId: 'owner-1',
+      renterId: 'renter-1',
+      vehicleId: 'vehicle-1',
+      startDate,
+      endDate,
+      state: 'completion_pending',
+      version: 2,
+      priceSnapshot,
+      vehicleSnapshot,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.doc('ownerEarnings/booking-inv-avail').set({
+      bookingId: 'booking-inv-avail',
+      ownerId: 'owner-1',
+      vehicleId: 'vehicle-1',
+      amountKobo: 89_250_000,
+      currency: 'NGN',
+      state: 'available',
+      startDate,
+      endDate,
+      vehicleSnapshot,
+      version: 2,
+      availableAt: Timestamp.fromDate(now),
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.doc('ownerSettlementState/owner-1').set({
+      ownerId: 'owner-1',
+      pendingKobo: 0,
+      availableKobo: 89_250_000,
+      reservedKobo: 0,
+      activePayoutId: null,
+      settlementHold: false,
+      version: 2,
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    const input = {
+      bookingId: 'booking-inv-avail',
+      actor: { uid: 'renter-1', isStaff: false },
+      commandRequestId: 'req-inv-avail-01',
+      requestHash: stableHash({ bookingId: 'booking-inv-avail' }),
+      idempotencyDocumentId: idempotencyDocumentId('renter-1', 'confirmBookingCompletion', 'idem-inv-avail-0001'),
+      now,
+    };
+
+    await expect(repository.confirmBookingCompletion(input)).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      message: 'Existing owner earning must be in pending state (currently "available").',
+    });
+
+    // Verify invariant: booking, earning, and settlement state are NOT mutated
+    const bookingDoc = await database.doc('bookings/booking-inv-avail').get();
+    expect(bookingDoc.data()?.state).toBe('completion_pending');
+    expect(bookingDoc.data()?.version).toBe(2);
+
+    const earningDoc = await database.doc('ownerEarnings/booking-inv-avail').get();
+    expect(earningDoc.data()?.state).toBe('available');
+    expect(earningDoc.data()?.version).toBe(2);
+
+    const settlementDoc = await database.doc('ownerSettlementState/owner-1').get();
+    expect(settlementDoc.data()?.pendingKobo).toBe(0);
+    expect(settlementDoc.data()?.availableKobo).toBe(89_250_000);
+    expect(settlementDoc.data()?.version).toBe(2);
+  });
+
+  it('rejects confirmBookingCompletion with FAILED_PRECONDITION when ownerEarnings already exists with state review_required and does not mutate state', async () => {
+    await database.doc('bookings/booking-inv-rev').set({
+      bookingId: 'booking-inv-rev',
+      ownerId: 'owner-1',
+      renterId: 'renter-1',
+      vehicleId: 'vehicle-1',
+      startDate,
+      endDate,
+      state: 'completion_pending',
+      version: 2,
+      priceSnapshot,
+      vehicleSnapshot,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.doc('ownerEarnings/booking-inv-rev').set({
+      bookingId: 'booking-inv-rev',
+      ownerId: 'owner-1',
+      vehicleId: 'vehicle-1',
+      amountKobo: 89_250_000,
+      currency: 'NGN',
+      state: 'review_required',
+      reviewReason: 'Investigation hold',
+      startDate,
+      endDate,
+      vehicleSnapshot,
+      version: 2,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.doc('ownerSettlementState/owner-1').set({
+      ownerId: 'owner-1',
+      pendingKobo: 0,
+      availableKobo: 0,
+      reservedKobo: 0,
+      activePayoutId: null,
+      settlementHold: true,
+      version: 2,
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    const input = {
+      bookingId: 'booking-inv-rev',
+      actor: { uid: 'renter-1', isStaff: false },
+      commandRequestId: 'req-inv-rev-01',
+      requestHash: stableHash({ bookingId: 'booking-inv-rev' }),
+      idempotencyDocumentId: idempotencyDocumentId('renter-1', 'confirmBookingCompletion', 'idem-inv-rev-0001'),
+      now,
+    };
+
+    await expect(repository.confirmBookingCompletion(input)).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      message: 'Existing owner earning must be in pending state (currently "review_required").',
+    });
+
+    // Invariant: no mutation
+    const bookingDoc = await database.doc('bookings/booking-inv-rev').get();
+    expect(bookingDoc.data()?.state).toBe('completion_pending');
+
+    const earningDoc = await database.doc('ownerEarnings/booking-inv-rev').get();
+    expect(earningDoc.data()?.state).toBe('review_required');
+
+    const settlementDoc = await database.doc('ownerSettlementState/owner-1').get();
+    expect(settlementDoc.data()?.availableKobo).toBe(0);
+  });
+
+  it('progressBookingLifecycle returns accurate transitioned count and does not increment on stale records or concurrency race', async () => {
+    await database.doc('bookings/prog-race-1').set({
+      bookingId: 'prog-race-1',
+      ownerId: 'owner-1',
+      renterId: 'renter-1',
+      vehicleId: 'vehicle-1',
+      startDate: '2026-10-06',
+      endDate: '2026-10-09',
+      state: 'confirmed',
+      version: 1,
+      priceSnapshot,
+      vehicleSnapshot,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    const origRunTransaction = database.runTransaction.bind(database);
+    let runCount = 0;
+    vi.spyOn(database, 'runTransaction').mockImplementation(async (updateFunction, options) => {
+      runCount++;
+      if (runCount === 1) {
+        // Mutate the doc before the transaction reads it, simulating a concurrent transition that changed version
+        await database.doc('bookings/prog-race-1').update({ version: 2, state: 'in_progress' });
+      }
+      return origRunTransaction(updateFunction, options);
+    });
+
+    const progressResult = await repository.progressBookingLifecycle(now, 10);
+    // Scanned was 1, but transitioned MUST NOT be incremented because stale record was detected
+    expect(progressResult.scanned).toBe(1);
+    expect(progressResult.transitioned).toBe(0);
+    vi.restoreAllMocks();
+  });
+
+  it('recordPendingEarningInTransaction fails closed when ownerSettlementState exists with malformed data', async () => {
+    await database.doc('ownerSettlementState/owner-malformed').set({
+      ownerId: 'owner-malformed',
+      pendingKobo: 'not-a-number' as any,
+      availableKobo: 0,
+      reservedKobo: 0,
+      settlementHold: false,
+      version: 1,
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.runTransaction(async (transaction) => {
+      const earningSnapshot = await transaction.get(database.doc('ownerEarnings/booking-mal-1'));
+      const settlementSnapshot = await transaction.get(database.doc('ownerSettlementState/owner-malformed'));
+
+      expect(() => {
+        repository.recordPendingEarningInTransaction(
+          transaction,
+          {
+            bookingId: 'booking-mal-1',
+            ownerId: 'owner-malformed',
+            vehicleId: 'vehicle-1',
+            amountKobo: 89_250_000,
+            startDate,
+            endDate,
+            vehicleDisplayName: 'Toyota Prado',
+            now,
+          },
+          {
+            earningSnapshot,
+            settlementSnapshot,
+          },
+        );
+      }).toThrow('Existing owner settlement state document is invalid or malformed.');
+    });
+  });
+
+  it('recordPendingEarningInTransaction fails closed when ownerEarnings already exists with conflicting amount, owner, or state', async () => {
+    // 1. Conflict on amount
+    await database.doc('ownerEarnings/booking-conflict-amt').set({
+      bookingId: 'booking-conflict-amt',
+      ownerId: 'owner-1',
+      vehicleId: 'vehicle-1',
+      amountKobo: 50_000_000, // Conflicts with 89_250_000
+      currency: 'NGN',
+      state: 'pending',
+      startDate,
+      endDate,
+      vehicleSnapshot,
+      version: 1,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.runTransaction(async (transaction) => {
+      const earningSnapshot = await transaction.get(database.doc('ownerEarnings/booking-conflict-amt'));
+      const settlementSnapshot = await transaction.get(database.doc('ownerSettlementState/owner-1'));
+
+      expect(() => {
+        repository.recordPendingEarningInTransaction(
+          transaction,
+          {
+            bookingId: 'booking-conflict-amt',
+            ownerId: 'owner-1',
+            vehicleId: 'vehicle-1',
+            amountKobo: 89_250_000,
+            startDate,
+            endDate,
+            vehicleDisplayName: 'Toyota Prado',
+            now,
+          },
+          {
+            earningSnapshot,
+            settlementSnapshot,
+          },
+        );
+      }).toThrow('Existing owner earning record conflicts with booking financial details.');
+    });
+
+    // 2. Conflict on state (already available)
+    await database.doc('ownerEarnings/booking-conflict-st').set({
+      bookingId: 'booking-conflict-st',
+      ownerId: 'owner-1',
+      vehicleId: 'vehicle-1',
+      amountKobo: 89_250_000,
+      currency: 'NGN',
+      state: 'available', // Conflicts with pending
+      startDate,
+      endDate,
+      vehicleSnapshot,
+      version: 1,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.runTransaction(async (transaction) => {
+      const earningSnapshot = await transaction.get(database.doc('ownerEarnings/booking-conflict-st'));
+      const settlementSnapshot = await transaction.get(database.doc('ownerSettlementState/owner-1'));
+
+      expect(() => {
+        repository.recordPendingEarningInTransaction(
+          transaction,
+          {
+            bookingId: 'booking-conflict-st',
+            ownerId: 'owner-1',
+            vehicleId: 'vehicle-1',
+            amountKobo: 89_250_000,
+            startDate,
+            endDate,
+            vehicleDisplayName: 'Toyota Prado',
+            now,
+          },
+          {
+            earningSnapshot,
+            settlementSnapshot,
+          },
+        );
+      }).toThrow('Existing owner earning record conflicts with booking financial details.');
+    });
+  });
+
+  it('recordPendingEarningInTransaction fails closed when ownerEarnings already exists with malformed data', async () => {
+    await database.doc('ownerEarnings/booking-corrupt-data').set({
+      bookingId: 'booking-corrupt-data',
+      ownerId: 'owner-1',
+      amountKobo: 'corrupt-string',
+      version: 1,
+    });
+
+    await database.runTransaction(async (transaction) => {
+      const earningSnapshot = await transaction.get(database.doc('ownerEarnings/booking-corrupt-data'));
+      const settlementSnapshot = await transaction.get(database.doc('ownerSettlementState/owner-1'));
+
+      expect(() => {
+        repository.recordPendingEarningInTransaction(
+          transaction,
+          {
+            bookingId: 'booking-corrupt-data',
+            ownerId: 'owner-1',
+            vehicleId: 'vehicle-1',
+            amountKobo: 89_250_000,
+            startDate,
+            endDate,
+            vehicleDisplayName: 'Toyota Prado',
+            now,
+          },
+          {
+            earningSnapshot,
+            settlementSnapshot,
+          },
+        );
+      }).toThrow('Existing owner earning record is invalid or malformed.');
+    });
   });
 });

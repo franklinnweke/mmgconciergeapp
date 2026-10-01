@@ -307,7 +307,7 @@ export class FirestoreVerifiedPaymentValueRepository implements VerifiedPaymentV
               now: input.now,
             },
             {
-              earningExists: earningSnapshot.exists,
+              earningSnapshot,
               settlementSnapshot,
             },
           );

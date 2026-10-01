@@ -112,3 +112,27 @@ export const setOwnerSettlementHoldResultSchema = z.object({
   version: z.number().int().positive(),
 }).strict();
 export type SetOwnerSettlementHoldResult = z.infer<typeof setOwnerSettlementHoldResultSchema>;
+
+export const reportTripEndedEnvelopeSchema = z.object({
+  requestId: boundedIdSchema,
+  result: reportTripEndedResultSchema,
+}).strict();
+export type ReportTripEndedEnvelope = z.infer<typeof reportTripEndedEnvelopeSchema>;
+export const reportTripEndedResultEnvelopeSchema = reportTripEndedEnvelopeSchema;
+export type ReportTripEndedResultEnvelope = ReportTripEndedEnvelope;
+
+export const confirmBookingCompletionEnvelopeSchema = z.object({
+  requestId: boundedIdSchema,
+  result: confirmBookingCompletionResultSchema,
+}).strict();
+export type ConfirmBookingCompletionEnvelope = z.infer<typeof confirmBookingCompletionEnvelopeSchema>;
+export const confirmBookingCompletionResultEnvelopeSchema = confirmBookingCompletionEnvelopeSchema;
+export type ConfirmBookingCompletionResultEnvelope = ConfirmBookingCompletionEnvelope;
+
+export const setOwnerSettlementHoldEnvelopeSchema = z.object({
+  requestId: boundedIdSchema,
+  result: setOwnerSettlementHoldResultSchema,
+}).strict();
+export type SetOwnerSettlementHoldEnvelope = z.infer<typeof setOwnerSettlementHoldEnvelopeSchema>;
+export const setOwnerSettlementHoldResultEnvelopeSchema = setOwnerSettlementHoldEnvelopeSchema;
+export type SetOwnerSettlementHoldResultEnvelope = SetOwnerSettlementHoldEnvelope;
