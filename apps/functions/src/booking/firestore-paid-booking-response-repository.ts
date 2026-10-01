@@ -2,6 +2,7 @@ import { dateOnlySchema, paidBookingStateSchema } from '@mmg/contracts';
 import { getFirestore, Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
+import { FirestoreOwnerEarningsRepository } from '../earnings/firestore-owner-earnings-repository.js';
 import { BookingCommandError } from './errors.js';
 import type {
   PaidBookingAuditEvent,
@@ -38,6 +39,10 @@ const bookingBlockSchema = z.object({
 }).passthrough();
 
 class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTransaction {
+  private earningSnapshot: FirebaseFirestore.DocumentSnapshot | null = null;
+  private settlementSnapshot: FirebaseFirestore.DocumentSnapshot | null = null;
+  private currentBookingData: Record<string, any> | null = null;
+
   constructor(
     private readonly firestore: Firestore,
     private readonly transaction: Transaction,
@@ -60,6 +65,9 @@ class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTran
     if (!parsed.success) {
       throw new BookingCommandError('FAILED_PRECONDITION', 'Booking data is invalid.');
     }
+    this.currentBookingData = (snapshot.data() as Record<string, any>) || null;
+    this.earningSnapshot = await this.transaction.get(this.firestore.doc(`ownerEarnings/${bookingId}`));
+    this.settlementSnapshot = await this.transaction.get(this.firestore.doc(`ownerSettlementState/${parsed.data.ownerId}`));
     return {
       bookingId: snapshot.id,
       intentId: parsed.data.intentId,
@@ -117,6 +125,33 @@ class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTran
       ...patch,
       updatedAt: Timestamp.fromDate(patch.updatedAt),
     });
+
+    if (
+      patch.state === 'confirmed' &&
+      this.earningSnapshot &&
+      !this.earningSnapshot.exists &&
+      this.settlementSnapshot &&
+      this.currentBookingData &&
+      typeof this.currentBookingData.priceSnapshot?.ownerEarningsKobo === 'number'
+    ) {
+      new FirestoreOwnerEarningsRepository(this.firestore).recordPendingEarningInTransaction(
+        this.transaction,
+        {
+          bookingId,
+          ownerId: this.currentBookingData.ownerId,
+          vehicleId: this.currentBookingData.vehicleId,
+          amountKobo: this.currentBookingData.priceSnapshot.ownerEarningsKobo,
+          startDate: this.currentBookingData.startDate,
+          endDate: this.currentBookingData.endDate,
+          vehicleDisplayName: this.currentBookingData.vehicleSnapshot?.displayName || 'Vehicle',
+          now: patch.updatedAt,
+        },
+        {
+          earningExists: false,
+          settlementSnapshot: this.settlementSnapshot,
+        },
+      );
+    }
   }
 
   updateBookingBlock(blockId: string, state: 'confirmed', updatedAt: Date): void {

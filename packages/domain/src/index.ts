@@ -726,3 +726,53 @@ export function projectOwnerVehicleCalendar(
     return { date, status: 'available' as const };
   });
 }
+
+export const ownerEarningTransitions = {
+  pending: ['available', 'review_required'],
+  available: ['review_required'],
+  review_required: ['available'],
+} as const;
+
+export type OwnerEarningTransitionState = keyof typeof ownerEarningTransitions;
+
+export function canTransitionOwnerEarning(
+  from: OwnerEarningTransitionState,
+  to: OwnerEarningTransitionState,
+): boolean {
+  return (ownerEarningTransitions[from] as readonly OwnerEarningTransitionState[]).includes(to);
+}
+
+export function canOwnerReportTripEnded(
+  bookingState: PaidBookingState,
+  startDate: string,
+  currentDate: string,
+): boolean {
+  if (bookingState !== 'confirmed' && bookingState !== 'in_progress') {
+    return false;
+  }
+  return currentDate >= startDate;
+}
+
+export function evaluateBookingLifecycleProgression(
+  bookingState: PaidBookingState,
+  startDate: string,
+  endDate: string,
+  currentDate: string,
+): PaidBookingState | null {
+  if (bookingState === 'confirmed') {
+    if (currentDate >= endDate) {
+      return 'completion_pending';
+    }
+    if (currentDate >= startDate) {
+      return 'in_progress';
+    }
+    return null;
+  }
+  if (bookingState === 'in_progress') {
+    if (currentDate >= endDate) {
+      return 'completion_pending';
+    }
+    return null;
+  }
+  return null;
+}

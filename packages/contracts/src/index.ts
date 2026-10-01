@@ -125,7 +125,7 @@ export const dateOnlySchema = z
       parsed.getUTCDate() === day;
   }, 'Enter a real calendar date.');
 
-const safeKoboSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+export const safeKoboSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const basisPointsSchema = z.number().int().min(0).max(10_000);
 
 export const bookingIntentStateSchema = z.enum([

@@ -17,6 +17,7 @@ import {
 } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
+import { FirestoreOwnerEarningsRepository } from '../earnings/firestore-owner-earnings-repository.js';
 import { BookingCommandError } from './errors.js';
 import type {
   VerifiedPaymentValueRepository,
@@ -263,6 +264,11 @@ export class FirestoreVerifiedPaymentValueRepository implements VerifiedPaymentV
           outcome, paymentState: 'succeeded', intentState: 'paid', bookingId,
         });
 
+        const earningRef = this.firestore.doc(`ownerEarnings/${bookingId}`);
+        const earningSnapshot = await transaction.get(earningRef);
+        const settlementRef = this.firestore.doc(`ownerSettlementState/${intent.data.ownerId}`);
+        const settlementSnapshot = await transaction.get(settlementRef);
+
         if (ownBlockSnapshot.exists) {
           transaction.set(ownBlockRef, {
             intentId: intentSnapshot.id, renterId: intent.data.renterId, ownerId: intent.data.ownerId,
@@ -287,6 +293,25 @@ export class FirestoreVerifiedPaymentValueRepository implements VerifiedPaymentV
           createdAt: Timestamp.fromDate(input.now), updatedAt: Timestamp.fromDate(input.now),
           ...(linkedRequest ? { confirmedAt: Timestamp.fromDate(input.now) } : {}),
         });
+        if (bookingState === 'confirmed' && typeof intent.data.priceSnapshot?.ownerEarningsKobo === 'number') {
+          new FirestoreOwnerEarningsRepository(this.firestore).recordPendingEarningInTransaction(
+            transaction,
+            {
+              bookingId,
+              ownerId: intent.data.ownerId,
+              vehicleId: intent.data.vehicleId,
+              amountKobo: intent.data.priceSnapshot.ownerEarningsKobo,
+              startDate: intent.data.startDate,
+              endDate: intent.data.endDate,
+              vehicleDisplayName: intent.data.vehicleSnapshot.displayName,
+              now: input.now,
+            },
+            {
+              earningExists: earningSnapshot.exists,
+              settlementSnapshot,
+            },
+          );
+        }
         transaction.update(paymentRef, {
           state: 'succeeded', succeededAt: Timestamp.fromDate(input.now), succeededByEventId: input.eventId,
           valueDeliveryOutcome: outcome, bookingId, updatedAt: Timestamp.fromDate(input.now),

@@ -1,0 +1,106 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  confirmBookingCompletionCommandSchema,
+  ownerEarningSchema,
+  ownerSettlementStateSchema,
+  reportTripEndedCommandSchema,
+  setOwnerSettlementHoldCommandSchema,
+} from './earnings.js';
+
+describe('earnings contracts', () => {
+  it('validates a valid owner earning record', () => {
+    const valid = {
+      bookingId: 'booking-test-123',
+      ownerId: 'owner-test-456',
+      vehicleId: 'vehicle-test-789',
+      amountKobo: 41000000,
+      currency: 'NGN',
+      state: 'pending',
+      startDate: '2026-10-05',
+      endDate: '2026-10-08',
+      vehicleSnapshot: {
+        displayName: 'Toyota Land Cruiser Prado 2024',
+      },
+      createdAt: '2026-10-01T12:00:00.000Z',
+      availableAt: null,
+      reviewReason: null,
+      updatedAt: '2026-10-01T12:00:00.000Z',
+      version: 1,
+    };
+
+    const parsed = ownerEarningSchema.safeParse(valid);
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects invalid earning state and negative kobo', () => {
+    const invalidState = {
+      bookingId: 'booking-test-123',
+      ownerId: 'owner-test-456',
+      vehicleId: 'vehicle-test-789',
+      amountKobo: -100,
+      currency: 'NGN',
+      state: 'non_existent_state',
+      startDate: '2026-10-05',
+      endDate: '2026-10-08',
+      vehicleSnapshot: { displayName: 'Prado' },
+      createdAt: '2026-10-01T12:00:00.000Z',
+      updatedAt: '2026-10-01T12:00:00.000Z',
+      version: 1,
+    };
+
+    expect(ownerEarningSchema.safeParse(invalidState).success).toBe(false);
+  });
+
+  it('validates owner settlement state schema', () => {
+    const valid = {
+      ownerId: 'owner-test-456',
+      pendingKobo: 41000000,
+      availableKobo: 25000000,
+      reservedKobo: 0,
+      activePayoutId: null,
+      settlementHold: false,
+      holdReason: null,
+      version: 2,
+      updatedAt: '2026-10-01T12:00:00.000Z',
+    };
+
+    expect(ownerSettlementStateSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('validates report trip ended command', () => {
+    const valid = {
+      schemaVersion: 1,
+      idempotencyKey: 'idemp-key-test-12345678',
+      data: {
+        bookingId: 'booking-test-123',
+      },
+    };
+
+    expect(reportTripEndedCommandSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('validates confirm booking completion command', () => {
+    const valid = {
+      schemaVersion: 1,
+      data: {
+        bookingId: 'booking-test-123',
+      },
+    };
+
+    expect(confirmBookingCompletionCommandSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('validates set settlement hold command', () => {
+    const valid = {
+      schemaVersion: 1,
+      data: {
+        ownerId: 'owner-test-456',
+        hold: true,
+        reason: 'Payment dispute under investigation',
+      },
+    };
+
+    expect(setOwnerSettlementHoldCommandSchema.safeParse(valid).success).toBe(true);
+  });
+});
