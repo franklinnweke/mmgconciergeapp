@@ -3,6 +3,7 @@ import type {
   VehicleModerationStatus,
   VehicleReviewChecklistKey,
   VehicleReviewDecision,
+  VehicleVisibility,
 } from '@mmg/contracts';
 
 export type VehicleModerationListItem = {
@@ -19,6 +20,8 @@ export type VehicleModerationListItem = {
   plateMasked: string;
   imageCount: number;
   moderationStatus: VehicleModerationStatus;
+  visibility: VehicleVisibility;
+  discoverable: boolean;
   version: number;
   createdAt: string;
   submittedAt: string | null;
