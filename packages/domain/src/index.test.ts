@@ -7,7 +7,9 @@ import {
   calculateBookingQuote,
   calculateChargedDays,
   calculateDiscoveryScore,
+  canOwnerReportTripEnded,
   canTransitionBookingIntent,
+  canTransitionOwnerEarning,
   canTransitionOwnerVerification,
   canTransitionPaidBooking,
   canTransitionVehicleModeration,
@@ -19,6 +21,7 @@ import {
   DEFAULT_OWNER_COMMISSION_BPS,
   DEFAULT_SERVICE_FEE_BPS,
   DEFAULT_SERVICE_FEE_FIXED_KOBO,
+  evaluateBookingLifecycleProgression,
   formatNairaFromKobo,
   haversineDistanceKm,
   intervalsOverlap,
@@ -655,5 +658,54 @@ describe('renter profile domain rules', () => {
     expect(renterMayRequestDeletion('suspended')).toBe(false);
     expect(renterMayRequestDeletion('deleted')).toBe(false);
     expect(renterMayRequestDeletion('deletion_requested')).toBe(false);
+  });
+});
+
+describe('owner earnings & trip lifecycle domain rules', () => {
+  it('validates owner earning state transitions', () => {
+    expect(canTransitionOwnerEarning('pending', 'available')).toBe(true);
+    expect(canTransitionOwnerEarning('pending', 'review_required')).toBe(true);
+    expect(canTransitionOwnerEarning('available', 'review_required')).toBe(true);
+    expect(canTransitionOwnerEarning('review_required', 'available')).toBe(true);
+
+    // Disallowed direct transitions
+    expect(canTransitionOwnerEarning('available', 'pending')).toBe(false);
+    expect(canTransitionOwnerEarning('review_required', 'pending')).toBe(false);
+  });
+
+  it('validates owner report-trip-ended criteria', () => {
+    // Only confirmed or in_progress can be reported ended
+    expect(canOwnerReportTripEnded('confirmed', '2026-10-05', '2026-10-05')).toBe(true);
+    expect(canOwnerReportTripEnded('in_progress', '2026-10-05', '2026-10-06')).toBe(true);
+    expect(canOwnerReportTripEnded('completed', '2026-10-05', '2026-10-06')).toBe(false);
+    expect(canOwnerReportTripEnded('cancelled', '2026-10-05', '2026-10-06')).toBe(false);
+    expect(canOwnerReportTripEnded('completion_pending', '2026-10-05', '2026-10-06')).toBe(false);
+
+    // Cannot report ended before start date
+    expect(canOwnerReportTripEnded('confirmed', '2026-10-05', '2026-10-04')).toBe(false);
+  });
+
+  it('evaluates scheduled date-driven booking lifecycle progression', () => {
+    const startDate = '2026-10-05';
+    const endDate = '2026-10-08';
+
+    // Before trip starts: no progression
+    expect(evaluateBookingLifecycleProgression('confirmed', startDate, endDate, '2026-10-04')).toBeNull();
+
+    // Start date arrived: moves to in_progress
+    expect(evaluateBookingLifecycleProgression('confirmed', startDate, endDate, '2026-10-05')).toBe('in_progress');
+    expect(evaluateBookingLifecycleProgression('confirmed', startDate, endDate, '2026-10-06')).toBe('in_progress');
+
+    // End date arrived: moves to completion_pending
+    expect(evaluateBookingLifecycleProgression('confirmed', startDate, endDate, '2026-10-08')).toBe('completion_pending');
+    expect(evaluateBookingLifecycleProgression('in_progress', startDate, endDate, '2026-10-08')).toBe('completion_pending');
+
+    // After end date: moves to completion_pending
+    expect(evaluateBookingLifecycleProgression('in_progress', startDate, endDate, '2026-10-09')).toBe('completion_pending');
+
+    // Already in completion_pending or completed or cancelled: scheduler never alters them
+    expect(evaluateBookingLifecycleProgression('completion_pending', startDate, endDate, '2026-10-09')).toBeNull();
+    expect(evaluateBookingLifecycleProgression('completed', startDate, endDate, '2026-10-09')).toBeNull();
+    expect(evaluateBookingLifecycleProgression('cancelled', startDate, endDate, '2026-10-09')).toBeNull();
   });
 });

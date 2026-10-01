@@ -35,3 +35,9 @@ export { startBookingCaseSourcing } from './booking/booking-case-callables.js';
 export { emitOwnerResponseSlaAlerts } from './booking/owner-response-sla-scheduler.js';
 export { processStorageDeletionOutbox } from './owner/storage-deletion-scheduler.js';
 export { updateVehicleDraft } from './vehicle/owner-vehicle-callables.js';
+export {
+  confirmBookingCompletion,
+  reportTripEnded,
+  setOwnerSettlementHold,
+} from './earnings/trip-completion-callables.js';
+export { progressBookingLifecycle } from './earnings/booking-lifecycle-scheduler.js';

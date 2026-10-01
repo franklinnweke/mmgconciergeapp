@@ -776,3 +776,9 @@ export const requestAccountDeletion = onCall(
 // Storage deletes.
 export { expireAbandonedOwnerVerificationUploads, processStorageDeletionOutbox };
 export { resolvePickupPlace, searchPickupPlaces } from './discovery/pickup-place-callables.js';
+export {
+  confirmBookingCompletion,
+  reportTripEnded,
+  setOwnerSettlementHold,
+} from './earnings/trip-completion-callables.js';
+export { progressBookingLifecycle } from './earnings/booking-lifecycle-scheduler.js';
