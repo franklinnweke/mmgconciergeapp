@@ -101,6 +101,8 @@ The booking concierge desk uses capabilities rather than a new role. `bookings.m
 5. **Simple means exactly enough information, not the fewest elements possible**: Retain critical context (availability, cancellation consequences, payment timer); remove internal classifications and repetitive service promises.
 6. **Delight comes from confidence, responsiveness, and craft, not ornamental effects**: Smooth transitions, truthful states, and instant inline feedback beat disruptive success modals and marketing decorations.
 
+Admin review screens follow **task, evidence, next safe action**: evidence beside required unchecked verification/inspection checks, one state-valid primary action, and exceptional actions and technical/audit metadata behind disclosure. Never simplify by auto-checking evidence, bypassing required reasons, exposing invalid transitions, or combining request approval with opening payment. The current Admin UI pass is Owners and Vehicles only; Bookings and Dashboard follow after stabilization.
+
 ## 3. Canonical request-first booking model
 
 The Build 30 commercial model is request-first concierge booking:

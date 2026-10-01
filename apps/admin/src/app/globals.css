@@ -21,16 +21,99 @@ button, a { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .sr-only { height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 
-.owner-inspector-page { overflow-x: hidden; }
-.owner-inspector-page a,
-.owner-inspector-page button { min-height: 44px; }
-.owner-inspector-page .owner-field-label,
-.owner-inspector-page .owner-security-label { font-size: 12px !important; }
-.owner-inspector-page .owner-audit { font-size: 12px; overflow-wrap: anywhere; }
-.owner-inspector-page .owner-audit > div,
-.owner-inspector-page .owner-audit span { font-size: 12px !important; }
-.owner-inspector-page img { max-width: 100%; }
-.owner-inspector-grid { grid-template-columns: 360px minmax(0, 1fr) 380px !important; }
+/* Owner and vehicle inspectors use the same two-column review grammar. */
+.review-inspector { color: #20221d; }
+.review-grid { align-items: start; display: grid; gap: clamp(22px, 3vw, 36px); grid-template-columns: minmax(0, 1fr) minmax(285px, 360px); }
+.review-evidence, .review-decision { min-width: 0; }
+.review-section { border-bottom: 1px solid var(--line); padding: 0 0 18px; }
+.review-section + .review-section { padding-top: 18px; }
+.review-section h2, .review-decision h2 { color: #252720; font-size: 15px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 11px; }
+.review-section-heading, .review-decision-heading { align-items: center; display: flex; justify-content: space-between; }
+.review-section-heading h2 { margin: 0 0 11px; }
+.review-private, .review-muted { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.review-facts { display: grid; gap: 0 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.review-facts > div { border-top: 1px solid #e5e2d9; min-width: 0; padding: 10px 0; }
+.review-facts > div:nth-child(-n+2) { border-top: 0; }
+.review-facts dt { color: var(--muted); font-size: 11px; }
+.review-facts dd { color: #242621; font-size: 13px; font-weight: 550; line-height: 1.5; margin: 3px 0 0; overflow-wrap: anywhere; }
+.review-facts-compact { margin-top: 8px; }
+.review-facts-compact > div { padding: 7px 0; }
+.review-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px !important; }
+.review-id-preview { align-items: center; background: #e8e5dc; border: 1px solid var(--line); border-radius: 5px; display: flex; justify-content: center; min-height: 260px; overflow: hidden; }
+.review-id-preview img { display: block; max-height: 560px; max-width: 100%; object-fit: contain; }
+.review-evidence-state { align-items: center; color: var(--muted); display: flex; flex-direction: column; gap: 8px; padding: 30px; text-align: center; }
+.review-evidence-state > svg { color: var(--gold-dark); }
+.review-evidence-state strong { color: #292b25; font-size: 13px; }
+.review-evidence-state span, .review-evidence-state a { font-size: 12px; }
+.review-evidence-state a { align-items: center; color: #292b25; display: inline-flex; gap: 6px; min-height: 44px; }
+.review-summary { color: #292b25; font-size: 13px; margin: 0 0 6px; }
+.review-details { border-top: 1px solid #e5e2d9; margin-top: 8px; }
+.review-details summary { color: #55574f; cursor: pointer; font-size: 13px; font-weight: 650; min-height: 44px; padding: 12px 0; }
+.review-details summary:hover { color: #171914; }
+.review-audit p, .review-audit-list { color: #4b4d47; font-size: 12px; line-height: 1.5; }
+.review-audit-list { list-style: none; margin: 0; padding: 0; }
+.review-audit-list li { border-top: 1px solid #e5e2d9; padding: 10px 0; }
+.review-audit-list strong, .review-audit-list span { display: block; }
+.review-audit-list span { color: var(--muted); font-size: 11px; margin-top: 3px; }
+.review-audit-list p { margin: 5px 0 0; }
+.review-warning { color: #865716 !important; }
+.review-record-details { margin-top: 10px; }
+.review-decision { background: rgba(255,253,247,.76); border: 1px solid var(--line); border-radius: 7px; max-height: calc(100dvh - 32px); overflow: auto; padding: 18px; position: sticky; top: 16px; }
+.review-decision-heading { margin-bottom: 13px; }
+.review-decision-heading h2 { margin: 3px 0 0; }
+.review-eyebrow { color: var(--gold-dark); font-size: 10px; font-weight: 750; letter-spacing: .08em; margin: 0; }
+.review-state-note { color: #474942; font-size: 13px; line-height: 1.5; margin: 0 0 12px; }
+.review-checklist { border: 0; margin: 0 0 14px; min-width: 0; padding: 0; }
+.review-checklist legend { color: #282a25; font-size: 13px; font-weight: 700; padding: 0 0 5px; width: 100%; }
+.review-checklist legend span { color: var(--muted); float: right; font-size: 12px; font-weight: 500; }
+.review-check { align-items: flex-start; border-top: 1px solid #e7e3d8; color: #363831; cursor: pointer; display: flex; font-size: 13px; gap: 10px; line-height: 1.4; min-height: 44px; padding: 10px 0; }
+.review-check input, .review-confirm input { accent-color: var(--green); flex: 0 0 auto; height: 18px; margin: 1px 0 0; width: 18px; }
+.review-button { align-items: center; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; display: flex; font-size: 13px; font-weight: 700; gap: 7px; justify-content: center; min-height: 44px; padding: 8px 12px; width: 100%; }
+.review-button:disabled { cursor: not-allowed; opacity: .48; }
+.review-button-primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+.review-button-secondary { background: transparent; color: #373932; }
+.review-button-danger { background: transparent; border-color: rgba(168,72,60,.42); color: var(--red); }
+.review-action-form { border-top: 1px solid #e6e2d8; display: grid; gap: 9px; padding-top: 12px; }
+.review-field-label { color: #494b44; font-size: 12px; font-weight: 650; }
+.review-action-form textarea { background: #fffdf7; border: 1px solid var(--line); border-radius: 5px; color: #23251f; font-size: 13px; line-height: 1.5; min-height: 88px; padding: 10px; resize: vertical; width: 100%; }
+.review-confirm { align-items: flex-start; color: #494b44; display: flex; font-size: 12px; gap: 8px; line-height: 1.4; min-height: 44px; padding: 8px 0; }
+.review-message { align-items: flex-start; display: flex; font-size: 12px; gap: 8px; line-height: 1.45; margin: 0 0 12px; }
+.review-error { color: var(--red); }
+.review-success { color: var(--green); }
+.review-spinner { animation: review-spin 1s linear infinite; }
+@keyframes review-spin { to { transform: rotate(360deg); } }
+.review-inspector :is(button, a, summary, input, textarea):focus-visible { outline: 3px solid var(--gold-dark); outline-offset: 2px; }
+.review-more-actions { margin-top: 11px; }
+.vehicle-review-evidence { display: grid; gap: 18px; }
+.vehicle-review-photo { background: #e8e5dc; border: 1px solid var(--line); border-radius: 5px; min-height: 260px; overflow: hidden; position: relative; }
+.vehicle-photo-open { align-items: center; background: rgba(255,253,247,.92); border: 1px solid var(--line); border-radius: 4px; color: #242621; display: flex; height: 44px; justify-content: center; position: absolute; right: 12px; text-decoration: none; top: 12px; width: 44px; }
+.vehicle-review-photo img { display: block; height: clamp(260px, 38vw, 460px); object-fit: cover; width: 100%; }
+.vehicle-review-thumbnails { display: flex; gap: 8px; margin-top: 9px; overflow-x: auto; }
+.vehicle-review-thumbnails button { background: transparent; border: 2px solid var(--line); border-radius: 4px; cursor: pointer; flex: 0 0 auto; min-height: 48px; padding: 2px; width: 68px; }
+.vehicle-review-thumbnails button[aria-pressed="true"] { border-color: var(--gold-dark); }
+.vehicle-review-thumbnails img { display: block; height: 40px; object-fit: cover; width: 60px; }
+.vehicle-review-title { align-items: start; display: flex; flex-wrap: wrap; gap: 14px 28px; justify-content: space-between; }
+.vehicle-review-title h2 { font-size: 22px; margin: 0 0 4px; }
+.vehicle-review-title p { color: var(--muted); font-size: 13px; margin: 0; }
+.vehicle-review-price { font-size: 16px; font-weight: 700; }
+.vehicle-review-description { border-top: 1px solid var(--line); margin-top: 15px; padding-top: 14px; }
+.vehicle-review-decision .review-check { cursor: pointer; }
+.vehicle-review-decision .review-check span { display: block; }
+.review-inspection-guidance { border-bottom: 1px solid #e7e3d8; }
+.review-inspection-guidance summary { color: var(--muted); cursor: pointer; font-size: 12px; min-height: 40px; padding: 10px 0; }
+.review-inspection-guidance ul { color: #494b44; font-size: 12px; line-height: 1.45; margin: 0 0 10px; padding-left: 18px; }
+.review-inspection-guidance li + li { margin-top: 6px; }
+@media (max-width: 900px) {
+  .review-grid { grid-template-columns: 1fr; }
+  .review-decision { max-height: none; overflow: visible; position: static; }
+  .review-facts { grid-template-columns: 1fr; }
+  .review-facts > div:nth-child(-n+2) { border-top: 1px solid #e5e2d9; }
+  .review-facts > div:first-child { border-top: 0; }
+  .vehicle-review-photo img { height: min(64vw, 380px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .review-spinner { animation-duration: .01ms; }
+}
 
 .operations-shell { display: grid; grid-template-columns: 238px minmax(0, 1fr); min-height: 100svh; }
 .sidebar { background: var(--ink); color: #f3efe4; display: flex; flex-direction: column; min-height: 100svh; padding: 30px 20px 18px; position: sticky; top: 0; }

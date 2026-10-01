@@ -39,7 +39,7 @@ export default async function OwnerInspectorPage({ params }: OwnerInspectorPageP
       headerMeta={(
         <>
           <strong>{detail.status.replaceAll('_', ' ')}</strong>
-          <span>Version {detail.version}</span>
+          <span>Owner review</span>
         </>
       )}
       staffEmail={session.email}
@@ -50,6 +50,7 @@ export default async function OwnerInspectorPage({ params }: OwnerInspectorPageP
         <Link className="admin-page-link" href="/owners">Back to owners</Link>
       </div>
       <OwnerVerificationInspector
+        key={`${detail.ownerId}:${detail.version}:${detail.status}`}
         detail={detail}
         staffEmail={session.email}
         staffRole={session.role}
