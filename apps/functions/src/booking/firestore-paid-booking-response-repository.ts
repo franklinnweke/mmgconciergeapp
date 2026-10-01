@@ -121,19 +121,16 @@ class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTran
       lastOwnerDecisionReason: string | null;
     },
   ): void {
-    this.transaction.update(this.firestore.doc(`bookings/${bookingId}`), {
-      ...patch,
-      updatedAt: Timestamp.fromDate(patch.updatedAt),
-    });
-
     if (
       patch.state === 'confirmed' &&
-      this.earningSnapshot &&
-      !this.earningSnapshot.exists &&
-      this.settlementSnapshot &&
-      this.currentBookingData &&
-      typeof this.currentBookingData.priceSnapshot?.ownerEarningsKobo === 'number'
+      typeof this.currentBookingData?.priceSnapshot?.ownerEarningsKobo === 'number'
     ) {
+      if (!this.earningSnapshot || !this.settlementSnapshot) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Earning and settlement snapshots must be loaded before confirming a paid booking.',
+        );
+      }
       new FirestoreOwnerEarningsRepository(this.firestore).recordPendingEarningInTransaction(
         this.transaction,
         {
@@ -152,6 +149,11 @@ class FirestorePaidBookingResponseTransaction implements PaidBookingResponseTran
         },
       );
     }
+
+    this.transaction.update(this.firestore.doc(`bookings/${bookingId}`), {
+      ...patch,
+      updatedAt: Timestamp.fromDate(patch.updatedAt),
+    });
   }
 
   updateBookingBlock(blockId: string, state: 'confirmed', updatedAt: Date): void {

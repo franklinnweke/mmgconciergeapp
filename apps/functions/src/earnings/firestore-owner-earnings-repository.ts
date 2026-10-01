@@ -148,6 +148,26 @@ export class FirestoreOwnerEarningsRepository {
           'Existing owner earning record conflicts with booking financial details.',
         );
       }
+
+      if (!snapshots.settlementSnapshot?.exists) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Owner settlement state document is missing for existing pending earning.',
+        );
+      }
+      const parsedSettlement = settlementStateSchema.safeParse(snapshots.settlementSnapshot.data());
+      if (!parsedSettlement.success || parsedSettlement.data.ownerId !== input.ownerId) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Existing owner settlement state document is invalid or malformed.',
+        );
+      }
+      if (parsedSettlement.data.pendingKobo < input.amountKobo) {
+        throw new BookingCommandError(
+          'FAILED_PRECONDITION',
+          'Owner settlement pending balance is insufficient for existing pending earning.',
+        );
+      }
       return; // Idempotent: verified consistent pending earning already exists
     } else if (snapshots.earningExists && !snapshots.earningSnapshot) {
       throw new BookingCommandError(

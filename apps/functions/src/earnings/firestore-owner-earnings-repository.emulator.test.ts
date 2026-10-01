@@ -943,4 +943,146 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
       }).toThrow('Existing owner earning record is invalid or malformed.');
     });
   });
+
+  it('recordPendingEarningInTransaction fails closed when existing pending earning has missing ownerSettlementState', async () => {
+    await database.doc('ownerEarnings/booking-valid-earning-1').set({
+      bookingId: 'booking-valid-earning-1',
+      ownerId: 'owner-1',
+      vehicleId: 'vehicle-1',
+      amountKobo: 89_250_000,
+      currency: 'NGN',
+      state: 'pending',
+      startDate,
+      endDate,
+      vehicleSnapshot,
+      version: 1,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+    await database.doc('ownerSettlementState/owner-1').delete();
+
+    await database.runTransaction(async (transaction) => {
+      const earningSnapshot = await transaction.get(database.doc('ownerEarnings/booking-valid-earning-1'));
+      const settlementSnapshot = await transaction.get(database.doc('ownerSettlementState/owner-1'));
+
+      expect(() => {
+        repository.recordPendingEarningInTransaction(
+          transaction,
+          {
+            bookingId: 'booking-valid-earning-1',
+            ownerId: 'owner-1',
+            vehicleId: 'vehicle-1',
+            amountKobo: 89_250_000,
+            startDate,
+            endDate,
+            vehicleDisplayName: 'Toyota Prado',
+            now,
+          },
+          {
+            earningSnapshot,
+            settlementSnapshot,
+          },
+        );
+      }).toThrow('Owner settlement state document is missing for existing pending earning.');
+    });
+  });
+
+  it('recordPendingEarningInTransaction fails closed when existing pending earning has malformed ownerSettlementState', async () => {
+    await database.doc('ownerEarnings/booking-valid-earning-2').set({
+      bookingId: 'booking-valid-earning-2',
+      ownerId: 'owner-1',
+      vehicleId: 'vehicle-1',
+      amountKobo: 89_250_000,
+      currency: 'NGN',
+      state: 'pending',
+      startDate,
+      endDate,
+      vehicleSnapshot,
+      version: 1,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+    await database.doc('ownerSettlementState/owner-1').set({
+      ownerId: 'owner-1',
+      pendingKobo: 'corrupt-string-value',
+      version: 1,
+    });
+
+    await database.runTransaction(async (transaction) => {
+      const earningSnapshot = await transaction.get(database.doc('ownerEarnings/booking-valid-earning-2'));
+      const settlementSnapshot = await transaction.get(database.doc('ownerSettlementState/owner-1'));
+
+      expect(() => {
+        repository.recordPendingEarningInTransaction(
+          transaction,
+          {
+            bookingId: 'booking-valid-earning-2',
+            ownerId: 'owner-1',
+            vehicleId: 'vehicle-1',
+            amountKobo: 89_250_000,
+            startDate,
+            endDate,
+            vehicleDisplayName: 'Toyota Prado',
+            now,
+          },
+          {
+            earningSnapshot,
+            settlementSnapshot,
+          },
+        );
+      }).toThrow('Existing owner settlement state document is invalid or malformed.');
+    });
+  });
+
+  it('recordPendingEarningInTransaction fails closed when existing pending earning has pendingKobo below earning amount', async () => {
+    await database.doc('ownerEarnings/booking-valid-earning-3').set({
+      bookingId: 'booking-valid-earning-3',
+      ownerId: 'owner-1',
+      vehicleId: 'vehicle-1',
+      amountKobo: 89_250_000,
+      currency: 'NGN',
+      state: 'pending',
+      startDate,
+      endDate,
+      vehicleSnapshot,
+      version: 1,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+    await database.doc('ownerSettlementState/owner-1').set({
+      ownerId: 'owner-1',
+      pendingKobo: 50_000_000,
+      availableKobo: 0,
+      reservedKobo: 0,
+      activePayoutId: null,
+      settlementHold: false,
+      version: 1,
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.runTransaction(async (transaction) => {
+      const earningSnapshot = await transaction.get(database.doc('ownerEarnings/booking-valid-earning-3'));
+      const settlementSnapshot = await transaction.get(database.doc('ownerSettlementState/owner-1'));
+
+      expect(() => {
+        repository.recordPendingEarningInTransaction(
+          transaction,
+          {
+            bookingId: 'booking-valid-earning-3',
+            ownerId: 'owner-1',
+            vehicleId: 'vehicle-1',
+            amountKobo: 89_250_000,
+            startDate,
+            endDate,
+            vehicleDisplayName: 'Toyota Prado',
+            now,
+          },
+          {
+            earningSnapshot,
+            settlementSnapshot,
+          },
+        );
+      }).toThrow('Owner settlement pending balance is insufficient for existing pending earning.');
+    });
+  });
 });

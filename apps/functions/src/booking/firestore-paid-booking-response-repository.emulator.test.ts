@@ -17,6 +17,8 @@ async function clearCollections(database: Firestore) {
     'idempotencyKeys',
     'notificationOutbox',
     'vehicleAvailability',
+    'ownerEarnings',
+    'ownerSettlementState',
   ]) {
     const documents = await database.collection(name).listDocuments();
     await Promise.all(documents.map((document) => document.delete()));
@@ -189,5 +191,155 @@ describeWithEmulator('Firestore R5 paid booking owner-response integrity', () =>
     expect((await database.collection('bookingCases').get()).size).toBe(0);
     expect((await database.collection('auditEvents').get()).size).toBe(0);
     expect((await database.collection('notificationOutbox').get()).size).toBe(0);
+  });
+
+  it('confirms pay-first booking idempotently when compatible pending earning and valid settlement already exist', async () => {
+    // Seed booking with priceSnapshot containing ownerEarningsKobo
+    await database.doc('bookings/booking-r5-001').set({
+      bookingId: 'booking-r5-001',
+      intentId: 'intent-r5-001',
+      renterId: 'renter-r5-001',
+      ownerId: 'owner-r5-001',
+      vehicleId: 'vehicle-r5-001',
+      startDate: '2026-09-10',
+      endDate: '2026-09-13',
+      state: 'paid_pending_owner',
+      version: 1,
+      blockId: 'intent-r5-001',
+      paymentId: 'payment-r5-001',
+      paymentReference: 'mmg-payment-r5-001',
+      priceSnapshot: {
+        totalPriceKobo: 105_000_000,
+        ownerEarningsKobo: 89_250_000,
+      },
+      vehicleSnapshot: { displayName: 'Toyota Prado' },
+      createdAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+      updatedAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+    });
+
+    // Seed existing compatible pending earning
+    await database.doc('ownerEarnings/booking-r5-001').set({
+      bookingId: 'booking-r5-001',
+      ownerId: 'owner-r5-001',
+      vehicleId: 'vehicle-r5-001',
+      amountKobo: 89_250_000,
+      currency: 'NGN',
+      state: 'pending',
+      startDate: '2026-09-10',
+      endDate: '2026-09-13',
+      vehicleSnapshot: { displayName: 'Toyota Prado' },
+      createdAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+      updatedAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+      version: 1,
+    });
+
+    // Seed existing valid settlement state
+    await database.doc('ownerSettlementState/owner-r5-001').set({
+      ownerId: 'owner-r5-001',
+      pendingKobo: 89_250_000,
+      availableKobo: 0,
+      reservedKobo: 0,
+      activePayoutId: null,
+      settlementHold: false,
+      version: 1,
+      updatedAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+    });
+
+    await confirmBooking(confirmCommand(), owner, {
+      repository,
+      now: () => now,
+      createId: () => 'outbox-r5-confirm',
+      createRequestId: () => 'request-r5-confirm',
+    });
+
+    // Booking confirmed
+    const updatedBooking = await database.doc('bookings/booking-r5-001').get();
+    expect(updatedBooking.data()?.state).toBe('confirmed');
+    expect(updatedBooking.data()?.version).toBe(2);
+
+    // Earning remains pending and version unchanged
+    const earningDoc = await database.doc('ownerEarnings/booking-r5-001').get();
+    expect(earningDoc.data()?.state).toBe('pending');
+    expect(earningDoc.data()?.amountKobo).toBe(89_250_000);
+    expect(earningDoc.data()?.version).toBe(1);
+
+    // Settlement pendingKobo unchanged (did not double count)
+    const settlementDoc = await database.doc('ownerSettlementState/owner-r5-001').get();
+    expect(settlementDoc.data()?.pendingKobo).toBe(89_250_000);
+    expect(settlementDoc.data()?.version).toBe(1);
+  });
+
+  it('fails pay-first confirmation closed and leaves booking unchanged when earning conflicts', async () => {
+    // Seed booking with priceSnapshot containing ownerEarningsKobo
+    await database.doc('bookings/booking-r5-001').set({
+      bookingId: 'booking-r5-001',
+      intentId: 'intent-r5-001',
+      renterId: 'renter-r5-001',
+      ownerId: 'owner-r5-001',
+      vehicleId: 'vehicle-r5-001',
+      startDate: '2026-09-10',
+      endDate: '2026-09-13',
+      state: 'paid_pending_owner',
+      version: 1,
+      blockId: 'intent-r5-001',
+      paymentId: 'payment-r5-001',
+      paymentReference: 'mmg-payment-r5-001',
+      priceSnapshot: {
+        totalPriceKobo: 105_000_000,
+        ownerEarningsKobo: 89_250_000,
+      },
+      vehicleSnapshot: { displayName: 'Toyota Prado' },
+      createdAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+      updatedAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+    });
+
+    // Seed existing CONFLICTING earning (wrong amount: 50_000_000 instead of 89_250_000)
+    await database.doc('ownerEarnings/booking-r5-001').set({
+      bookingId: 'booking-r5-001',
+      ownerId: 'owner-r5-001',
+      vehicleId: 'vehicle-r5-001',
+      amountKobo: 50_000_000,
+      currency: 'NGN',
+      state: 'pending',
+      startDate: '2026-09-10',
+      endDate: '2026-09-13',
+      vehicleSnapshot: { displayName: 'Toyota Prado' },
+      createdAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+      updatedAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+      version: 1,
+    });
+
+    await database.doc('ownerSettlementState/owner-r5-001').set({
+      ownerId: 'owner-r5-001',
+      pendingKobo: 50_000_000,
+      availableKobo: 0,
+      reservedKobo: 0,
+      activePayoutId: null,
+      settlementHold: false,
+      version: 1,
+      updatedAt: Timestamp.fromDate(new Date('2026-09-01T11:30:00.000Z')),
+    });
+
+    await expect(confirmBooking(confirmCommand(), owner, {
+      repository,
+      now: () => now,
+      createId: () => 'outbox-r5-confirm',
+      createRequestId: () => 'request-r5-confirm',
+    })).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+    });
+
+    // Invariant: booking remains unchanged in paid_pending_owner at version 1
+    const unchangedBooking = await database.doc('bookings/booking-r5-001').get();
+    expect(unchangedBooking.data()?.state).toBe('paid_pending_owner');
+    expect(unchangedBooking.data()?.version).toBe(1);
+
+    // Availability block remains paid
+    const unchangedBlock = await database.doc('bookingBlocks/intent-r5-001').get();
+    expect(unchangedBlock.data()?.state).toBe('paid');
+
+    // Availability sentinel remains at 5
+    const unchangedSentinel = await database.doc('vehicleAvailability/vehicle-r5-001').get();
+    expect(unchangedSentinel.data()?.version).toBe(5);
   });
 });
