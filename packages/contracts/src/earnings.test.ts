@@ -68,7 +68,7 @@ describe('earnings contracts', () => {
     expect(ownerSettlementStateSchema.safeParse(valid).success).toBe(true);
   });
 
-  it('validates report trip ended command', () => {
+  it('validates report trip ended command and requires idempotencyKey', () => {
     const valid = {
       schemaVersion: 1,
       idempotencyKey: 'idemp-key-test-12345678',
@@ -76,31 +76,55 @@ describe('earnings contracts', () => {
         bookingId: 'booking-test-123',
       },
     };
-
     expect(reportTripEndedCommandSchema.safeParse(valid).success).toBe(true);
-  });
 
-  it('validates confirm booking completion command', () => {
-    const valid = {
+    const missingKey = {
       schemaVersion: 1,
       data: {
         bookingId: 'booking-test-123',
       },
     };
-
-    expect(confirmBookingCompletionCommandSchema.safeParse(valid).success).toBe(true);
+    expect(reportTripEndedCommandSchema.safeParse(missingKey).success).toBe(false);
   });
 
-  it('validates set settlement hold command', () => {
+  it('validates confirm booking completion command and requires idempotencyKey', () => {
     const valid = {
       schemaVersion: 1,
+      idempotencyKey: 'idemp-key-confirm-12345',
+      data: {
+        bookingId: 'booking-test-123',
+      },
+    };
+    expect(confirmBookingCompletionCommandSchema.safeParse(valid).success).toBe(true);
+
+    const missingKey = {
+      schemaVersion: 1,
+      data: {
+        bookingId: 'booking-test-123',
+      },
+    };
+    expect(confirmBookingCompletionCommandSchema.safeParse(missingKey).success).toBe(false);
+  });
+
+  it('validates set settlement hold command and requires idempotencyKey', () => {
+    const valid = {
+      schemaVersion: 1,
+      idempotencyKey: 'idemp-key-hold-12345678',
       data: {
         ownerId: 'owner-test-456',
         hold: true,
         reason: 'Payment dispute under investigation',
       },
     };
-
     expect(setOwnerSettlementHoldCommandSchema.safeParse(valid).success).toBe(true);
+
+    const missingKey = {
+      schemaVersion: 1,
+      data: {
+        ownerId: 'owner-test-456',
+        hold: true,
+      },
+    };
+    expect(setOwnerSettlementHoldCommandSchema.safeParse(missingKey).success).toBe(false);
   });
 });

@@ -59,10 +59,17 @@ export type ReportTripEndedData = z.infer<typeof reportTripEndedDataSchema>;
 
 export const reportTripEndedCommandSchema = z.object({
   schemaVersion: schemaVersionSchema,
-  idempotencyKey: idempotencyKeySchema.optional(),
+  idempotencyKey: idempotencyKeySchema,
   data: reportTripEndedDataSchema,
 }).strict();
 export type ReportTripEndedCommand = z.infer<typeof reportTripEndedCommandSchema>;
+
+export const reportTripEndedResultSchema = z.object({
+  bookingId: boundedIdSchema,
+  state: z.literal('completion_pending'),
+  version: z.number().int().positive(),
+}).strict();
+export type ReportTripEndedResult = z.infer<typeof reportTripEndedResultSchema>;
 
 export const confirmBookingCompletionDataSchema = z.object({
   bookingId: boundedIdSchema,
@@ -71,10 +78,19 @@ export type ConfirmBookingCompletionData = z.infer<typeof confirmBookingCompleti
 
 export const confirmBookingCompletionCommandSchema = z.object({
   schemaVersion: schemaVersionSchema,
-  idempotencyKey: idempotencyKeySchema.optional(),
+  idempotencyKey: idempotencyKeySchema,
   data: confirmBookingCompletionDataSchema,
 }).strict();
 export type ConfirmBookingCompletionCommand = z.infer<typeof confirmBookingCompletionCommandSchema>;
+
+export const confirmBookingCompletionResultSchema = z.object({
+  bookingId: boundedIdSchema,
+  bookingState: z.literal('completed'),
+  earningState: z.enum(['available', 'review_required']),
+  amountKobo: safeKoboSchema,
+  version: z.number().int().positive(),
+}).strict();
+export type ConfirmBookingCompletionResult = z.infer<typeof confirmBookingCompletionResultSchema>;
 
 export const setOwnerSettlementHoldDataSchema = z.object({
   ownerId: boundedIdSchema,
@@ -85,7 +101,14 @@ export type SetOwnerSettlementHoldData = z.infer<typeof setOwnerSettlementHoldDa
 
 export const setOwnerSettlementHoldCommandSchema = z.object({
   schemaVersion: schemaVersionSchema,
-  idempotencyKey: idempotencyKeySchema.optional(),
+  idempotencyKey: idempotencyKeySchema,
   data: setOwnerSettlementHoldDataSchema,
 }).strict();
 export type SetOwnerSettlementHoldCommand = z.infer<typeof setOwnerSettlementHoldCommandSchema>;
+
+export const setOwnerSettlementHoldResultSchema = z.object({
+  ownerId: boundedIdSchema,
+  settlementHold: z.boolean(),
+  version: z.number().int().positive(),
+}).strict();
+export type SetOwnerSettlementHoldResult = z.infer<typeof setOwnerSettlementHoldResultSchema>;

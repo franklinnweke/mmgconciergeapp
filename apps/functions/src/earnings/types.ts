@@ -63,3 +63,32 @@ export type SettlementHoldActor = {
   email?: string;
   role: 'finance_admin' | 'super_admin';
 };
+
+export type ReportTripEndedInput = {
+  bookingId: string;
+  actor: TripReportEndedActor;
+  commandRequestId: string;
+  requestHash: string;
+  idempotencyDocumentId: string;
+  now: Date;
+};
+
+export type ConfirmBookingCompletionInput = {
+  bookingId: string;
+  actor: TripCompletionActor;
+  commandRequestId: string;
+  requestHash: string;
+  idempotencyDocumentId: string;
+  now: Date;
+};
+
+export type SetOwnerSettlementHoldInput = {
+  ownerId: string;
+  hold: boolean;
+  reason?: string;
+  actor: SettlementHoldActor;
+  commandRequestId: string;
+  requestHash: string;
+  idempotencyDocumentId: string;
+  now: Date;
+};

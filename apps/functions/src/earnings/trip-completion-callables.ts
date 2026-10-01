@@ -1,5 +1,6 @@
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { z } from 'zod';
 
 import { isProductionAppCheck } from '../app-check-env.js';
 import { CommandError } from '../errors.js';
@@ -35,6 +36,11 @@ function rethrow(error: unknown, fallback: string): never {
   if (error instanceof CommandError) {
     const code = httpsCode[error.code as keyof typeof httpsCode] || 'failed-precondition';
     throw new HttpsError(code, error.message, { code: error.code, ...error.safeDetails });
+  }
+  if (error instanceof z.ZodError) {
+    throw new HttpsError('invalid-argument', 'Trip completion command payload is invalid.', {
+      issues: error.issues,
+    });
   }
   logger.error(fallback, { error });
   throw new HttpsError('internal', 'Trip completion operation could not be completed.');

@@ -1,3 +1,5 @@
+import { createHash, randomUUID } from 'node:crypto';
+
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -32,6 +34,14 @@ const vehicleSnapshot = {
   displayName: 'Toyota Land Cruiser Prado',
 };
 
+function stableHash(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+function idempotencyDocumentId(actorId: string, commandName: string, key: string): string {
+  return stableHash({ actorId, commandName, key });
+}
+
 async function clearCollection(database: Firestore, name: string) {
   const documents = await database.collection(name).listDocuments();
   await Promise.all(documents.map((document) => document.delete()));
@@ -42,6 +52,7 @@ async function clearDatabase(database: Firestore) {
     'adminAuditLogs',
     'auditEvents',
     'bookings',
+    'idempotencyKeys',
     'ownerEarnings',
     'ownerSettlementState',
   ]) {
@@ -141,7 +152,7 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     expect(settlementDoc2.data()?.pendingKobo).toBe(89_250_000);
   });
 
-  it('allows owner to report trip ended early and transitions to completion_pending', async () => {
+  it('allows owner to report trip ended early and transitions to completion_pending with idempotency', async () => {
     await database.doc('bookings/booking-report-1').set({
       bookingId: 'booking-report-1',
       ownerId: 'owner-1',
@@ -157,11 +168,18 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
       updatedAt: Timestamp.fromDate(now),
     });
 
-    const result = await repository.reportTripEnded(
-      'booking-report-1',
-      { uid: 'owner-1' },
+    const idempotencyKey = 'idem-key-report-ended-0001';
+    const requestData = { bookingId: 'booking-report-1' };
+    const input = {
+      bookingId: 'booking-report-1',
+      actor: { uid: 'owner-1' },
+      commandRequestId: 'req-report-01',
+      requestHash: stableHash(requestData),
+      idempotencyDocumentId: idempotencyDocumentId('owner-1', 'reportTripEnded', idempotencyKey),
       now, // 2026-10-06 is >= 2026-10-05
-    );
+    };
+
+    const result = await repository.reportTripEnded(input);
 
     expect(result.state).toBe('completion_pending');
     expect(result.version).toBe(3);
@@ -172,6 +190,22 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     expect(updatedBooking.data()?.startDate).toBe('2026-10-05');
     expect(updatedBooking.data()?.endDate).toBe('2026-10-10');
     expect(updatedBooking.data()?.priceSnapshot?.ownerEarningsKobo).toBe(89_250_000);
+
+    // Idempotent replay: returns same result without re-mutating
+    const replayResult = await repository.reportTripEnded(input);
+    expect(replayResult).toEqual(result);
+
+    const recheckBooking = await database.doc('bookings/booking-report-1').get();
+    expect(recheckBooking.data()?.version).toBe(3);
+
+    // Replay with different payload triggers IDEMPOTENCY_CONFLICT
+    const conflictInput = {
+      ...input,
+      requestHash: stableHash({ bookingId: 'booking-different' }),
+    };
+    await expect(repository.reportTripEnded(conflictInput)).rejects.toMatchObject({
+      code: 'IDEMPOTENCY_CONFLICT',
+    });
   });
 
   it('rejects report trip ended before the start date or by non-owner', async () => {
@@ -188,18 +222,32 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
       updatedAt: Timestamp.fromDate(now),
     });
 
-    // Non-owner rejected
-    await expect(
-      repository.reportTripEnded('booking-future', { uid: 'stranger-99' }, now),
-    ).rejects.toThrow('Only the vehicle owner can report the trip ended.');
+    const badActorInput = {
+      bookingId: 'booking-future',
+      actor: { uid: 'stranger-99' },
+      commandRequestId: 'req-bad-actor',
+      requestHash: stableHash({ bookingId: 'booking-future' }),
+      idempotencyDocumentId: idempotencyDocumentId('stranger-99', 'reportTripEnded', 'idem-stranger-000001'),
+      now,
+    };
+    await expect(repository.reportTripEnded(badActorInput)).rejects.toThrow(
+      'Only the vehicle owner can report the trip ended.',
+    );
 
-    // Before start date rejected (now is 2026-10-06, startDate is 2026-10-20)
-    await expect(
-      repository.reportTripEnded('booking-future', { uid: 'owner-1' }, now),
-    ).rejects.toThrow('Cannot report trip ended before the trip start date.');
+    const futureInput = {
+      bookingId: 'booking-future',
+      actor: { uid: 'owner-1' },
+      commandRequestId: 'req-future',
+      requestHash: stableHash({ bookingId: 'booking-future' }),
+      idempotencyDocumentId: idempotencyDocumentId('owner-1', 'reportTripEnded', 'idem-future-00000001'),
+      now,
+    };
+    await expect(repository.reportTripEnded(futureInput)).rejects.toThrow(
+      'Cannot report trip ended before the trip start date.',
+    );
   });
 
-  it('atomically completes booking and releases pending earning to available', async () => {
+  it('atomically completes booking, releases pending earning to available, records audit logs, and handles idempotency', async () => {
     await database.doc('bookings/booking-comp-1').set({
       bookingId: 'booking-comp-1',
       ownerId: 'owner-1',
@@ -241,12 +289,18 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
       updatedAt: Timestamp.fromDate(now),
     });
 
-    // Renter confirms completion
-    const result = await repository.confirmBookingCompletion(
-      'booking-comp-1',
-      { uid: 'renter-1', isStaff: false },
+    const idempotencyKey = 'idem-confirm-complete-0001';
+    const requestData = { bookingId: 'booking-comp-1' };
+    const input = {
+      bookingId: 'booking-comp-1',
+      actor: { uid: 'staff-admin-1', isStaff: true, role: 'support' },
+      commandRequestId: 'req-confirm-staff-001',
+      requestHash: stableHash(requestData),
+      idempotencyDocumentId: idempotencyDocumentId('staff-admin-1', 'confirmBookingCompletion', idempotencyKey),
       now,
-    );
+    };
+
+    const result = await repository.confirmBookingCompletion(input);
 
     expect(result.bookingState).toBe('completed');
     expect(result.earningState).toBe('available');
@@ -254,7 +308,7 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
 
     const bookingDoc = await database.doc('bookings/booking-comp-1').get();
     expect(bookingDoc.data()?.state).toBe('completed');
-    expect(bookingDoc.data()?.completedByType).toBe('renter');
+    expect(bookingDoc.data()?.completedByType).toBe('staff');
 
     const earningDoc = await database.doc('ownerEarnings/booking-comp-1').get();
     expect(earningDoc.data()?.state).toBe('available');
@@ -263,6 +317,91 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     const settlementDoc = await database.doc('ownerSettlementState/owner-1').get();
     expect(settlementDoc.data()?.pendingKobo).toBe(0);
     expect(settlementDoc.data()?.availableKobo).toBe(89_250_000);
+
+    // Verify normalized admin audit log
+    const auditQuery = await database
+      .collection('adminAuditLogs')
+      .where('target', '==', 'bookings/booking-comp-1')
+      .get();
+    expect(auditQuery.docs.length).toBe(1);
+    const adminLog = auditQuery.docs[0].data();
+    expect(adminLog).toMatchObject({
+      actorId: 'staff-admin-1',
+      role: 'support',
+      action: 'booking.confirm_completion',
+      target: 'bookings/booking-comp-1',
+      requestId: 'req-confirm-staff-001',
+    });
+    expect(adminLog.createdAt).toBeDefined();
+
+    // Idempotent replay: returns same result without re-mutating
+    const replay = await repository.confirmBookingCompletion(input);
+    expect(replay).toEqual(result);
+
+    const auditQueryAfterReplay = await database
+      .collection('adminAuditLogs')
+      .where('target', '==', 'bookings/booking-comp-1')
+      .get();
+    expect(auditQueryAfterReplay.docs.length).toBe(1);
+  });
+
+  it('fails closed if pending settlement balance is insufficient for release', async () => {
+    await database.doc('bookings/booking-inconsistent').set({
+      bookingId: 'booking-inconsistent',
+      ownerId: 'owner-inconsistent',
+      renterId: 'renter-1',
+      vehicleId: 'vehicle-1',
+      startDate,
+      endDate,
+      state: 'completion_pending',
+      version: 3,
+      priceSnapshot,
+      vehicleSnapshot,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    await database.doc('ownerEarnings/booking-inconsistent').set({
+      bookingId: 'booking-inconsistent',
+      ownerId: 'owner-inconsistent',
+      vehicleId: 'vehicle-1',
+      amountKobo: 89_250_000,
+      currency: 'NGN',
+      state: 'pending',
+      startDate,
+      endDate,
+      vehicleSnapshot,
+      version: 1,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    // Inconsistent settlement state: pendingKobo is less than earning amount
+    await database.doc('ownerSettlementState/owner-inconsistent').set({
+      ownerId: 'owner-inconsistent',
+      pendingKobo: 10_000_000, // < 89_250_000
+      availableKobo: 0,
+      reservedKobo: 0,
+      activePayoutId: null,
+      settlementHold: false,
+      version: 1,
+      updatedAt: Timestamp.fromDate(now),
+    });
+
+    const input = {
+      bookingId: 'booking-inconsistent',
+      actor: { uid: 'renter-1', isStaff: false },
+      commandRequestId: 'req-fail-closed-01',
+      requestHash: stableHash({ bookingId: 'booking-inconsistent' }),
+      idempotencyDocumentId: idempotencyDocumentId('renter-1', 'confirmBookingCompletion', 'idem-fail-closed-0001'),
+      now,
+    };
+
+    // Must fail closed with FAILED_PRECONDITION instead of clamping
+    await expect(repository.confirmBookingCompletion(input)).rejects.toMatchObject({
+      code: 'FAILED_PRECONDITION',
+      message: 'Settlement pending balance is insufficient for earning release.',
+    });
   });
 
   it('owner cannot confirm final completion', async () => {
@@ -281,13 +420,18 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
       updatedAt: Timestamp.fromDate(now),
     });
 
-    await expect(
-      repository.confirmBookingCompletion(
-        'booking-owner-comp',
-        { uid: 'owner-1', isStaff: false },
-        now,
-      ),
-    ).rejects.toThrow('Vehicle owners cannot confirm final booking completion.');
+    const input = {
+      bookingId: 'booking-owner-comp',
+      actor: { uid: 'owner-1', isStaff: false },
+      commandRequestId: 'req-owner-comp',
+      requestHash: stableHash({ bookingId: 'booking-owner-comp' }),
+      idempotencyDocumentId: idempotencyDocumentId('owner-1', 'confirmBookingCompletion', 'idem-owner-comp-0001'),
+      now,
+    };
+
+    await expect(repository.confirmBookingCompletion(input)).rejects.toThrow(
+      'Vehicle owners cannot confirm final booking completion.',
+    );
   });
 
   it('holds earning in review_required on completion if a settlement hold exists', async () => {
@@ -321,7 +465,6 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
       updatedAt: Timestamp.fromDate(now),
     });
 
-    // Settlement hold applied
     await database.doc('ownerSettlementState/owner-hold').set({
       ownerId: 'owner-hold',
       pendingKobo: 89_250_000,
@@ -334,11 +477,16 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
       updatedAt: Timestamp.fromDate(now),
     });
 
-    const result = await repository.confirmBookingCompletion(
-      'booking-hold-1',
-      { uid: 'renter-1', isStaff: false },
+    const input = {
+      bookingId: 'booking-hold-1',
+      actor: { uid: 'renter-1', isStaff: false },
+      commandRequestId: 'req-hold-comp',
+      requestHash: stableHash({ bookingId: 'booking-hold-1' }),
+      idempotencyDocumentId: idempotencyDocumentId('renter-1', 'confirmBookingCompletion', 'idem-hold-comp-000001'),
       now,
-    );
+    };
+
+    const result = await repository.confirmBookingCompletion(input);
 
     expect(result.bookingState).toBe('completed');
     expect(result.earningState).toBe('review_required');
@@ -353,7 +501,65 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     expect(settlementDoc.data()?.pendingKobo).toBe(0);
   });
 
-  it('progressBookingLifecycle advances confirmed to in_progress and in_progress to completion_pending', async () => {
+  it('manages administrative settlement hold with idempotency and audit logs', async () => {
+    const idempotencyKey = 'idem-settle-hold-0001';
+    const requestData = { ownerId: 'owner-1', hold: true, reason: 'Suspected fraudulent vehicle' };
+    const input = {
+      ownerId: 'owner-1',
+      hold: true,
+      reason: 'Suspected fraudulent vehicle',
+      actor: { uid: 'admin-finance-1', role: 'finance_admin' as const },
+      commandRequestId: 'req-admin-hold-01',
+      requestHash: stableHash(requestData),
+      idempotencyDocumentId: idempotencyDocumentId('admin-finance-1', 'setOwnerSettlementHold', idempotencyKey),
+      now,
+    };
+
+    const result = await repository.setOwnerSettlementHold(input);
+    expect(result.settlementHold).toBe(true);
+
+    const doc = await database.doc('ownerSettlementState/owner-1').get();
+    expect(doc.data()?.settlementHold).toBe(true);
+    expect(doc.data()?.holdReason).toBe('Suspected fraudulent vehicle');
+
+    // Verify normalized admin audit log
+    const auditLogs = await database
+      .collection('adminAuditLogs')
+      .where('target', '==', 'ownerSettlement/owner-1')
+      .get();
+    expect(auditLogs.docs.length).toBe(1);
+    expect(auditLogs.docs[0].data()).toMatchObject({
+      actorId: 'admin-finance-1',
+      role: 'finance_admin',
+      action: 'settlement.apply_hold',
+      target: 'ownerSettlement/owner-1',
+      requestId: 'req-admin-hold-01',
+    });
+
+    // Idempotent replay
+    const replay = await repository.setOwnerSettlementHold(input);
+    expect(replay).toEqual(result);
+  });
+
+  it('progressBookingLifecycle is starvation-immune and advances due bookings even when future bookings exist', async () => {
+    // Populate 5 future bookings (startDate > 2026-10-06)
+    for (let i = 1; i <= 5; i++) {
+      await database.doc(`bookings/future-booking-${i}`).set({
+        bookingId: `future-booking-${i}`,
+        ownerId: 'owner-1',
+        renterId: 'renter-1',
+        vehicleId: 'vehicle-1',
+        startDate: '2026-10-25',
+        endDate: '2026-10-28',
+        state: 'confirmed',
+        version: 1,
+        priceSnapshot,
+        vehicleSnapshot,
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now),
+      });
+    }
+
     // 1. Trip starting today (now: 2026-10-06, start: 2026-10-06, end: 2026-10-09) -> in_progress
     await database.doc('bookings/prog-start-today').set({
       bookingId: 'prog-start-today',
@@ -386,23 +592,8 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
       updatedAt: Timestamp.fromDate(now),
     });
 
-    // 3. Trip in the future (now: 2026-10-06, start: 2026-10-15, end: 2026-10-18) -> stays confirmed
-    await database.doc('bookings/prog-future').set({
-      bookingId: 'prog-future',
-      ownerId: 'owner-1',
-      renterId: 'renter-1',
-      vehicleId: 'vehicle-1',
-      startDate: '2026-10-15',
-      endDate: '2026-10-18',
-      state: 'confirmed',
-      version: 1,
-      priceSnapshot,
-      vehicleSnapshot,
-      createdAt: Timestamp.fromDate(now),
-      updatedAt: Timestamp.fromDate(now),
-    });
-
-    const progressResult = await repository.progressBookingLifecycle(now);
+    const progressResult = await repository.progressBookingLifecycle(now, 10);
+    // Both due bookings MUST be transitioned without being starved by future bookings
     expect(progressResult.transitioned).toBe(2);
 
     const doc1 = await database.doc('bookings/prog-start-today').get();
@@ -411,7 +602,7 @@ describeWithEmulator('FirestoreOwnerEarningsRepository emulator', () => {
     const doc2 = await database.doc('bookings/prog-end-today').get();
     expect(doc2.data()?.state).toBe('completion_pending');
 
-    const doc3 = await database.doc('bookings/prog-future').get();
-    expect(doc3.data()?.state).toBe('confirmed');
+    const futureDoc = await database.doc('bookings/future-booking-1').get();
+    expect(futureDoc.data()?.state).toBe('confirmed');
   });
 });

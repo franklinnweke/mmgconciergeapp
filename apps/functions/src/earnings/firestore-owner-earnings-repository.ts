@@ -1,9 +1,19 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   BookingCommandError,
   dateOnlySchema,
   paidBookingStateSchema,
   priceSnapshotSchema,
 } from '@mmg/contracts';
+import {
+  confirmBookingCompletionResultSchema,
+  reportTripEndedResultSchema,
+  setOwnerSettlementHoldResultSchema,
+  type ConfirmBookingCompletionResult,
+  type ReportTripEndedResult,
+  type SetOwnerSettlementHoldResult,
+} from '@mmg/contracts/earnings';
 import {
   getFirestore,
   FieldValue,
@@ -20,6 +30,9 @@ import {
 } from '@mmg/domain';
 
 import type {
+  ConfirmBookingCompletionInput,
+  ReportTripEndedInput,
+  SetOwnerSettlementHoldInput,
   SettlementHoldActor,
   StoredBookingForLifecycle,
   StoredOwnerEarning,
@@ -161,12 +174,21 @@ export class FirestoreOwnerEarningsRepository {
   }
 
   async reportTripEnded(
-    bookingId: string,
-    actor: TripReportEndedActor,
-    now: Date = new Date(),
-  ): Promise<{ bookingId: string; state: 'completion_pending'; version: number }> {
+    input: ReportTripEndedInput,
+  ): Promise<ReportTripEndedResult> {
     return this.firestore.runTransaction(async (transaction) => {
-      const bookingRef = this.firestore.doc(`bookings/${bookingId}`);
+      // 1. ALL READS FIRST
+      const idempotencyRef = this.firestore.doc(`idempotencyKeys/${input.idempotencyDocumentId}`);
+      const idempotencySnapshot = await transaction.get(idempotencyRef);
+      if (idempotencySnapshot.exists) {
+        const stored = idempotencySnapshot.data();
+        if (stored?.actorId !== input.actor.uid || stored?.requestHash !== input.requestHash) {
+          throw new BookingCommandError('IDEMPOTENCY_CONFLICT', 'This idempotency key was already used differently.');
+        }
+        return reportTripEndedResultSchema.parse(stored.result);
+      }
+
+      const bookingRef = this.firestore.doc(`bookings/${input.bookingId}`);
       const snapshot = await transaction.get(bookingRef);
       if (!snapshot.exists) {
         throw new BookingCommandError('NOT_FOUND', 'Booking was not found.');
@@ -178,11 +200,11 @@ export class FirestoreOwnerEarningsRepository {
       }
       const booking = parsed.data;
 
-      if (booking.ownerId !== actor.uid) {
+      if (booking.ownerId !== input.actor.uid) {
         throw new BookingCommandError('FORBIDDEN', 'Only the vehicle owner can report the trip ended.');
       }
 
-      const today = lagosDateOnly(now);
+      const today = lagosDateOnly(input.now);
       if (!canOwnerReportTripEnded(booking.state, booking.startDate, today)) {
         if (booking.state !== 'confirmed' && booking.state !== 'in_progress') {
           throw new BookingCommandError(
@@ -201,21 +223,21 @@ export class FirestoreOwnerEarningsRepository {
       const nextVersion = booking.version + 1;
       transaction.update(bookingRef, {
         state: 'completion_pending',
-        reportedEndedAt: Timestamp.fromDate(now),
-        reportedEndedBy: actor.uid,
+        reportedEndedAt: Timestamp.fromDate(input.now),
+        reportedEndedBy: input.actor.uid,
         version: nextVersion,
-        updatedAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(input.now),
       });
 
       transaction.create(this.firestore.collection('auditEvents').doc(), {
-        actorId: actor.uid,
+        actorId: input.actor.uid,
         actorType: 'owner',
-        entityId: bookingId,
+        entityId: input.bookingId,
         entityType: 'booking',
         eventType: 'trip.owner_reported_ended',
         fromState: booking.state,
         toState: 'completion_pending',
-        occurredAt: Timestamp.fromDate(now),
+        occurredAt: Timestamp.fromDate(input.now),
         details: {
           reportedEarly: today < booking.endDate,
           today,
@@ -224,24 +246,40 @@ export class FirestoreOwnerEarningsRepository {
         },
       });
 
-      return { bookingId, state: 'completion_pending' as const, version: nextVersion };
+      const result: ReportTripEndedResult = {
+        bookingId: input.bookingId,
+        state: 'completion_pending',
+        version: nextVersion,
+      };
+
+      transaction.create(idempotencyRef, {
+        actorId: input.actor.uid,
+        commandName: 'reportTripEnded',
+        requestHash: input.requestHash,
+        result,
+        createdAt: Timestamp.fromDate(input.now),
+      });
+
+      return result;
     });
   }
 
   async confirmBookingCompletion(
-    bookingId: string,
-    actor: TripCompletionActor,
-    now: Date = new Date(),
-  ): Promise<{
-    bookingId: string;
-    bookingState: 'completed';
-    earningState: 'available' | 'review_required';
-    amountKobo: number;
-    version: number;
-  }> {
+    input: ConfirmBookingCompletionInput,
+  ): Promise<ConfirmBookingCompletionResult> {
     return this.firestore.runTransaction(async (transaction) => {
       // 1. ALL READS FIRST
-      const bookingRef = this.firestore.doc(`bookings/${bookingId}`);
+      const idempotencyRef = this.firestore.doc(`idempotencyKeys/${input.idempotencyDocumentId}`);
+      const idempotencySnapshot = await transaction.get(idempotencyRef);
+      if (idempotencySnapshot.exists) {
+        const stored = idempotencySnapshot.data();
+        if (stored?.actorId !== input.actor.uid || stored?.requestHash !== input.requestHash) {
+          throw new BookingCommandError('IDEMPOTENCY_CONFLICT', 'This idempotency key was already used differently.');
+        }
+        return confirmBookingCompletionResultSchema.parse(stored.result);
+      }
+
+      const bookingRef = this.firestore.doc(`bookings/${input.bookingId}`);
       const bookingSnapshot = await transaction.get(bookingRef);
       if (!bookingSnapshot.exists) {
         throw new BookingCommandError('NOT_FOUND', 'Booking was not found.');
@@ -254,12 +292,12 @@ export class FirestoreOwnerEarningsRepository {
       const booking = parsedBooking.data;
 
       // Authorization check
-      const isRenter = actor.uid === booking.renterId;
-      const isOwner = actor.uid === booking.ownerId;
-      if (isOwner && !actor.isStaff) {
+      const isRenter = input.actor.uid === booking.renterId;
+      const isOwner = input.actor.uid === booking.ownerId;
+      if (isOwner && !input.actor.isStaff) {
         throw new BookingCommandError('FORBIDDEN', 'Vehicle owners cannot confirm final booking completion.');
       }
-      if (!isRenter && !actor.isStaff) {
+      if (!isRenter && !input.actor.isStaff) {
         throw new BookingCommandError('FORBIDDEN', 'You are not authorized to confirm completion for this booking.');
       }
 
@@ -271,7 +309,7 @@ export class FirestoreOwnerEarningsRepository {
       }
 
       // Read earning
-      const earningRef = this.firestore.doc(`ownerEarnings/${bookingId}`);
+      const earningRef = this.firestore.doc(`ownerEarnings/${input.bookingId}`);
       const earningSnapshot = await transaction.get(earningRef);
 
       // Read settlement state
@@ -294,6 +332,24 @@ export class FirestoreOwnerEarningsRepository {
         earningAmountKobo = booking.priceSnapshot.ownerEarningsKobo;
       }
 
+      // Fail-closed checks on balance/state consistency (no silent clamping)
+      if (earningSnapshot.exists) {
+        if (!settlementSnapshot.exists) {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            'Owner settlement state document is missing for existing earning release.',
+          );
+        }
+        const curSettlement = settlementSnapshot.data()!;
+        const curPending = typeof curSettlement.pendingKobo === 'number' ? curSettlement.pendingKobo : 0;
+        if (curPending < earningAmountKobo) {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            'Settlement pending balance is insufficient for earning release.',
+          );
+        }
+      }
+
       // Check settlement restriction
       const settlementData = settlementSnapshot.exists ? settlementSnapshot.data() : null;
       const hasSettlementHold = Boolean(settlementData?.settlementHold);
@@ -309,11 +365,11 @@ export class FirestoreOwnerEarningsRepository {
       const nextBookingVersion = booking.version + 1;
       transaction.update(bookingRef, {
         state: 'completed',
-        completedAt: Timestamp.fromDate(now),
-        completedBy: actor.uid,
+        completedAt: Timestamp.fromDate(input.now),
+        completedBy: input.actor.uid,
         completedByType: isRenter ? 'renter' : 'staff',
         version: nextBookingVersion,
-        updatedAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(input.now),
       });
 
       // Update / Create earning
@@ -321,14 +377,14 @@ export class FirestoreOwnerEarningsRepository {
         const currentEarning = earningSnapshot.data()!;
         transaction.update(earningRef, {
           state: targetEarningState,
-          ...(targetEarningState === 'available' ? { availableAt: Timestamp.fromDate(now) } : {}),
+          ...(targetEarningState === 'available' ? { availableAt: Timestamp.fromDate(input.now) } : {}),
           ...(reviewReason ? { reviewReason } : { reviewReason: FieldValue.delete() }),
           version: (currentEarning.version || 1) + 1,
-          updatedAt: Timestamp.fromDate(now),
+          updatedAt: Timestamp.fromDate(input.now),
         });
       } else {
         transaction.create(earningRef, {
-          bookingId,
+          bookingId: input.bookingId,
           ownerId: booking.ownerId,
           vehicleId: booking.vehicleId,
           amountKobo: earningAmountKobo,
@@ -337,15 +393,15 @@ export class FirestoreOwnerEarningsRepository {
           startDate: booking.startDate,
           endDate: booking.endDate,
           vehicleSnapshot: { displayName: booking.vehicleSnapshot?.displayName || 'Vehicle' },
-          createdAt: Timestamp.fromDate(now),
-          ...(targetEarningState === 'available' ? { availableAt: Timestamp.fromDate(now) } : {}),
+          createdAt: Timestamp.fromDate(input.now),
+          ...(targetEarningState === 'available' ? { availableAt: Timestamp.fromDate(input.now) } : {}),
           ...(reviewReason ? { reviewReason } : {}),
           version: 1,
-          updatedAt: Timestamp.fromDate(now),
+          updatedAt: Timestamp.fromDate(input.now),
         });
       }
 
-      // Update / Create settlement state
+      // Update / Create settlement state (strict accounting, fail closed, no Math.max)
       if (settlementSnapshot.exists) {
         const curSettlement = settlementSnapshot.data()!;
         const curPending = typeof curSettlement.pendingKobo === 'number' ? curSettlement.pendingKobo : 0;
@@ -355,7 +411,7 @@ export class FirestoreOwnerEarningsRepository {
         let newAvailable = curAvailable;
 
         if (earningSnapshot.exists) {
-          newPending = Math.max(0, curPending - earningAmountKobo);
+          newPending = curPending - earningAmountKobo;
         }
 
         if (targetEarningState === 'available') {
@@ -366,7 +422,7 @@ export class FirestoreOwnerEarningsRepository {
           pendingKobo: newPending,
           availableKobo: newAvailable,
           version: (curSettlement.version || 1) + 1,
-          updatedAt: Timestamp.fromDate(now),
+          updatedAt: Timestamp.fromDate(input.now),
         });
       } else {
         transaction.create(settlementRef, {
@@ -377,20 +433,20 @@ export class FirestoreOwnerEarningsRepository {
           activePayoutId: null,
           settlementHold: false,
           version: 1,
-          updatedAt: Timestamp.fromDate(now),
+          updatedAt: Timestamp.fromDate(input.now),
         });
       }
 
       // Write audit events
       transaction.create(this.firestore.collection('auditEvents').doc(), {
-        actorId: actor.uid,
+        actorId: input.actor.uid,
         actorType: isRenter ? 'renter' : 'admin',
-        entityId: bookingId,
+        entityId: input.bookingId,
         entityType: 'booking',
         eventType: isRenter ? 'trip.renter_confirmed_complete' : 'trip.admin_confirmed_complete',
         fromState: 'completion_pending',
         toState: 'completed',
-        occurredAt: Timestamp.fromDate(now),
+        occurredAt: Timestamp.fromDate(input.now),
         details: {
           earningState: targetEarningState,
           amountKobo: earningAmountKobo,
@@ -399,28 +455,29 @@ export class FirestoreOwnerEarningsRepository {
       });
 
       transaction.create(this.firestore.collection('auditEvents').doc(), {
-        actorId: actor.uid,
+        actorId: input.actor.uid,
         actorType: isRenter ? 'renter' : 'admin',
-        entityId: bookingId,
+        entityId: input.bookingId,
         entityType: 'ownerEarning',
         eventType: targetEarningState === 'available' ? 'earning.released' : 'earning.held_for_review',
         fromState: earningSnapshot.exists ? 'pending' : null,
         toState: targetEarningState,
-        occurredAt: Timestamp.fromDate(now),
+        occurredAt: Timestamp.fromDate(input.now),
         details: {
           amountKobo: earningAmountKobo,
           ...(reviewReason ? { reason: reviewReason } : {}),
         },
       });
 
-      if (actor.isStaff) {
+      if (input.actor.isStaff) {
         transaction.create(this.firestore.collection('adminAuditLogs').doc(), {
-          actorId: actor.uid,
-          adminEmail: actor.email || 'staff@mmg.ng',
+          actorId: input.actor.uid,
+          role: input.actor.role || 'support',
           action: 'booking.confirm_completion',
-          targetType: 'booking',
-          targetId: bookingId,
-          occurredAt: Timestamp.fromDate(now),
+          target: `bookings/${input.bookingId}`,
+          reason: null,
+          requestId: input.commandRequestId,
+          createdAt: Timestamp.fromDate(input.now),
           metadata: {
             ownerId: booking.ownerId,
             amountKobo: earningAmountKobo,
@@ -429,13 +486,23 @@ export class FirestoreOwnerEarningsRepository {
         });
       }
 
-      return {
-        bookingId,
-        bookingState: 'completed' as const,
+      const result: ConfirmBookingCompletionResult = {
+        bookingId: input.bookingId,
+        bookingState: 'completed',
         earningState: targetEarningState,
         amountKobo: earningAmountKobo,
         version: nextBookingVersion,
       };
+
+      transaction.create(idempotencyRef, {
+        actorId: input.actor.uid,
+        commandName: 'confirmBookingCompletion',
+        requestHash: input.requestHash,
+        result,
+        createdAt: Timestamp.fromDate(input.now),
+      });
+
+      return result;
     });
   }
 
@@ -444,15 +511,30 @@ export class FirestoreOwnerEarningsRepository {
     batchLimit = 50,
   ): Promise<{ scanned: number; transitioned: number }> {
     const today = lagosDateOnly(now);
-    const candidateSnapshot = await this.firestore
-      .collection('bookings')
-      .where('state', 'in', ['confirmed', 'in_progress'])
-      .limit(batchLimit)
-      .get();
+    // Two separate targeted queries ensure future bookings never starve due bookings:
+    // 1. confirmed bookings where startDate <= today (due for in_progress or completion_pending)
+    // 2. in_progress bookings where endDate <= today (due for completion_pending)
+    const [confirmedSnapshot, inProgressSnapshot] = await Promise.all([
+      this.firestore
+        .collection('bookings')
+        .where('state', '==', 'confirmed')
+        .where('startDate', '<=', today)
+        .orderBy('startDate', 'asc')
+        .limit(batchLimit)
+        .get(),
+      this.firestore
+        .collection('bookings')
+        .where('state', '==', 'in_progress')
+        .where('endDate', '<=', today)
+        .orderBy('endDate', 'asc')
+        .limit(batchLimit)
+        .get(),
+    ]);
 
+    const candidateDocs = [...confirmedSnapshot.docs, ...inProgressSnapshot.docs];
     let transitioned = 0;
 
-    for (const doc of candidateSnapshot.docs) {
+    for (const doc of candidateDocs) {
       const parsed = bookingSchema.safeParse(doc.data());
       if (!parsed.success) continue;
 
@@ -517,15 +599,24 @@ export class FirestoreOwnerEarningsRepository {
       }
     }
 
-    return { scanned: candidateSnapshot.docs.length, transitioned };
+    return { scanned: candidateDocs.length, transitioned };
   }
 
   async setOwnerSettlementHold(
-    input: { ownerId: string; hold: boolean; reason?: string },
-    actor: SettlementHoldActor,
-    now: Date = new Date(),
-  ): Promise<{ ownerId: string; settlementHold: boolean; version: number }> {
+    input: SetOwnerSettlementHoldInput,
+  ): Promise<SetOwnerSettlementHoldResult> {
     return this.firestore.runTransaction(async (transaction) => {
+      // 1. ALL READS FIRST
+      const idempotencyRef = this.firestore.doc(`idempotencyKeys/${input.idempotencyDocumentId}`);
+      const idempotencySnapshot = await transaction.get(idempotencyRef);
+      if (idempotencySnapshot.exists) {
+        const stored = idempotencySnapshot.data();
+        if (stored?.actorId !== input.actor.uid || stored?.requestHash !== input.requestHash) {
+          throw new BookingCommandError('IDEMPOTENCY_CONFLICT', 'This idempotency key was already used differently.');
+        }
+        return setOwnerSettlementHoldResultSchema.parse(stored.result);
+      }
+
       const ref = this.firestore.doc(`ownerSettlementState/${input.ownerId}`);
       const snapshot = await transaction.get(ref);
 
@@ -537,7 +628,7 @@ export class FirestoreOwnerEarningsRepository {
           settlementHold: input.hold,
           holdReason: input.hold ? input.reason || 'Admin hold' : FieldValue.delete(),
           version: nextVersion,
-          updatedAt: Timestamp.fromDate(now),
+          updatedAt: Timestamp.fromDate(input.now),
         });
       } else {
         transaction.create(ref, {
@@ -549,38 +640,53 @@ export class FirestoreOwnerEarningsRepository {
           settlementHold: input.hold,
           holdReason: input.hold ? input.reason || 'Admin hold' : null,
           version: 1,
-          updatedAt: Timestamp.fromDate(now),
+          updatedAt: Timestamp.fromDate(input.now),
         });
       }
 
       transaction.create(this.firestore.collection('auditEvents').doc(), {
-        actorId: actor.uid,
+        actorId: input.actor.uid,
         actorType: 'admin',
         entityId: input.ownerId,
         entityType: 'ownerSettlement',
         eventType: input.hold ? 'settlement.hold_applied' : 'settlement.hold_released',
         fromState: snapshot.exists ? String(snapshot.data()?.settlementHold) : 'false',
         toState: String(input.hold),
-        occurredAt: Timestamp.fromDate(now),
+        occurredAt: Timestamp.fromDate(input.now),
         details: { reason: input.reason || null },
       });
 
       transaction.create(this.firestore.collection('adminAuditLogs').doc(), {
-        actorId: actor.uid,
-        adminEmail: actor.email || 'staff@mmg.ng',
+        actorId: input.actor.uid,
+        role: input.actor.role || 'finance_admin',
         action: input.hold ? 'settlement.apply_hold' : 'settlement.release_hold',
-        targetType: 'ownerSettlement',
-        targetId: input.ownerId,
-        occurredAt: Timestamp.fromDate(now),
+        target: `ownerSettlement/${input.ownerId}`,
+        reason: input.reason || null,
+        requestId: input.commandRequestId,
+        createdAt: Timestamp.fromDate(input.now),
         metadata: { hold: input.hold, reason: input.reason || null },
       });
 
-      return { ownerId: input.ownerId, settlementHold: input.hold, version: nextVersion };
+      const result: SetOwnerSettlementHoldResult = {
+        ownerId: input.ownerId,
+        settlementHold: input.hold,
+        version: nextVersion,
+      };
+
+      transaction.create(idempotencyRef, {
+        actorId: input.actor.uid,
+        commandName: 'setOwnerSettlementHold',
+        requestHash: input.requestHash,
+        result,
+        createdAt: Timestamp.fromDate(input.now),
+      });
+
+      return result;
     });
   }
 
   async holdEarningForReview(
-    input: { bookingId: string; reason: string },
+    input: { bookingId: string; reason: string; requestId?: string },
     actor: SettlementHoldActor,
     now: Date = new Date(),
   ): Promise<{ bookingId: string; state: 'review_required'; version: number }> {
@@ -603,9 +709,21 @@ export class FirestoreOwnerEarningsRepository {
         updatedAt: Timestamp.fromDate(now),
       });
 
-      if (earning.state === 'available' && settlementSnapshot.exists) {
+      if (earning.state === 'available') {
+        if (!settlementSnapshot.exists) {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            'Owner settlement state document is missing to hold earning for review.',
+          );
+        }
         const settlement = settlementStateSchema.parse(settlementSnapshot.data());
-        const newAvailable = Math.max(0, settlement.availableKobo - earning.amountKobo);
+        if (settlement.availableKobo < earning.amountKobo) {
+          throw new BookingCommandError(
+            'FAILED_PRECONDITION',
+            'Settlement available balance is insufficient to hold earning for review.',
+          );
+        }
+        const newAvailable = settlement.availableKobo - earning.amountKobo;
         transaction.update(settlementRef, {
           availableKobo: newAvailable,
           version: settlement.version + 1,
@@ -627,11 +745,12 @@ export class FirestoreOwnerEarningsRepository {
 
       transaction.create(this.firestore.collection('adminAuditLogs').doc(), {
         actorId: actor.uid,
-        adminEmail: actor.email || 'staff@mmg.ng',
+        role: actor.role || 'finance_admin',
         action: 'earning.hold_for_review',
-        targetType: 'ownerEarning',
-        targetId: input.bookingId,
-        occurredAt: Timestamp.fromDate(now),
+        target: `ownerEarnings/${input.bookingId}`,
+        reason: input.reason,
+        requestId: input.requestId || randomUUID(),
+        createdAt: Timestamp.fromDate(now),
         metadata: { reason: input.reason, amountKobo: earning.amountKobo },
       });
 
