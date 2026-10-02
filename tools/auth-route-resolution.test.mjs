@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-const repositoryRoot = fileURLToPath(new URL('../../../../..', import.meta.url));
+const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
 
 // Run the installed Expo Router CommonJS parser in isolation. Only its native
 // platform dependency is shimmed: route discovery, config generation and path
@@ -47,7 +47,7 @@ const resolveRoutes = String.raw`
 `;
 
 describe('Signed-out route resolution', () => {
-  let result: { auth: string[][]; journey: string[][]; ambiguousRoot: string[][] };
+  let result;
 
   beforeAll(() => {
     result = JSON.parse(execFileSync(process.execPath, ['-e', resolveRoutes], {
