@@ -209,7 +209,7 @@ export function OwnerPhoneScreen() {
             </Text>
             <PressableScale
               onPress={() => {
-                if (!emailVerified) router.push('/' as Href);
+                if (!emailVerified) router.push('/auth' as Href);
                 else router.push('/(owner)/identity' as Href);
               }}
               style={styles.cardAction}

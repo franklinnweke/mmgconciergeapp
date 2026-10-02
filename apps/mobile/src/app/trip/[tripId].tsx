@@ -10,6 +10,6 @@ export default function TripDetailRoute() {
 
   if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (initializing) return <AuthLoadingScreen />;
-  if (!user || !user.emailVerified) return <Redirect href="/" />;
+  if (!user || !user.emailVerified) return <Redirect href="/auth" />;
   return <TripDetailScreen tripId={tripId ?? ''} />;
 }

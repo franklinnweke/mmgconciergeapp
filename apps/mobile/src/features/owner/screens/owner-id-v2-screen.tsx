@@ -108,7 +108,7 @@ export function OwnerIdV2Screen() {
   };
 
   const prerequisiteAction = () => {
-    if (!emailVerified) router.replace('/' as Href);
+    if (!emailVerified) router.replace('/auth' as Href);
     else if (!identityComplete) router.push('/(owner)/identity' as Href);
     else router.push('/(owner)/phone' as Href);
   };
