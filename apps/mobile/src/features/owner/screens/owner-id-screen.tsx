@@ -288,7 +288,7 @@ export function OwnerIdScreen() {
             </Text>
             <PressableScale
               onPress={() => {
-                if (!emailVerified) router.push('/' as Href);
+                if (!emailVerified) router.push('/auth' as Href);
                 else if (!identityComplete) router.push('/(owner)/identity' as Href);
                 else router.push('/(owner)/phone' as Href);
               }}

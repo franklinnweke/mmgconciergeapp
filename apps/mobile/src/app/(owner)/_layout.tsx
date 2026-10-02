@@ -10,7 +10,7 @@ export default function OwnerLayout() {
   if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (initializing) return <AuthLoadingScreen />;
   if (!user || !user.emailVerified) {
-    return <Redirect href="/" />;
+    return <Redirect href="/auth" />;
   }
 
   return (

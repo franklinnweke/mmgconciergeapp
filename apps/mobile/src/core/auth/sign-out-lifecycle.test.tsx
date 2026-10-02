@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppErrorBoundary } from '../../components/error-boundary';
 import { AuthProvider, useAuth } from './auth-context';
 import OwnerLayout from '../../app/(owner)/_layout';
+import RenterLayout from '../../app/(renter)/_layout';
 
 (globalThis as typeof globalThis & { __DEV__?: boolean; IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as typeof globalThis & { __DEV__?: boolean; IS_REACT_ACT_ENVIRONMENT?: boolean }).__DEV__ = true;
@@ -78,9 +79,20 @@ vi.mock('expo-router', () => ({
     return React.createElement('Redirect', { href });
   },
   Stack: () => React.createElement('Stack'),
+  Tabs: Object.assign(() => React.createElement('Tabs'), {
+    Screen: () => null,
+  }),
   useRouter: () => routerMocks,
   useSegments: () => ['(owner)'],
   usePathname: () => '/(owner)',
+}));
+
+vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
+
+vi.mock('@/core/auth/auth-context', () => import('./auth-context'));
+vi.mock('@/features/auth/screens/auth-loading-screen', () => ({
+  AuthLoadingScreen: ({ message }: { message?: string }) =>
+    React.createElement('AuthLoadingScreen', { message }),
 }));
 
 vi.mock('../../features/auth/screens/auth-loading-screen', () => ({
@@ -124,7 +136,7 @@ async function flushMicrotasks() {
   await Promise.resolve();
 }
 
-describe('Owner sign-out lifecycle', () => {
+describe('Authenticated layout sign-out lifecycle', () => {
   let renderer: ReactTestRenderer | null = null;
   let authContext: ReturnType<typeof useAuth> | null = null;
 
@@ -145,7 +157,10 @@ describe('Owner sign-out lifecycle', () => {
     renderer?.unmount();
   });
 
-  it('runs sign-out lifecycle through OwnerLayout without crashing AppErrorBoundary', async () => {
+  it.each([
+    ['owner', OwnerLayout, 'Stack'],
+    ['renter', RenterLayout, 'Tabs'],
+  ] as const)('signs out from %s and permits same-user relogin/sign-out', async (_mode, Layout, navigator) => {
     await act(async () => {
       renderer = create(
         React.createElement(
@@ -155,7 +170,7 @@ describe('Owner sign-out lifecycle', () => {
             AuthProvider,
             null,
             React.createElement(AuthCaptor),
-            React.createElement(OwnerLayout),
+            React.createElement(Layout),
           ),
         ),
       );
@@ -168,7 +183,7 @@ describe('Owner sign-out lifecycle', () => {
     });
 
     expect(authContext?.user?.uid).toBe('owner-1');
-    expect(renderer!.root.findAll((node) => (node.type as unknown) === 'Stack')).toHaveLength(1);
+    expect(renderer!.root.findAll((node) => (node.type as unknown) === navigator)).toHaveLength(1);
 
     // Initiate sign out
     let signOutPromise!: Promise<void>;
@@ -190,9 +205,30 @@ describe('Owner sign-out lifecycle', () => {
     expect(authContext?.signingOut).toBe(false);
     expect(authContext?.user).toBeNull();
 
-    // After sign-out, OwnerLayout renders Redirect href="/"
+    // After sign-out, use the distinct auth URL, never the ambiguous root URL.
     expect(renderer!.root.findAll((node) => (node.type as unknown) === 'Redirect')).toHaveLength(1);
-    expect(routerMocks.replace).toHaveBeenCalledWith('/');
+    expect(routerMocks.replace).toHaveBeenCalledWith('/auth');
+
+    // The same Firebase identity can log in and sign out again without stale
+    // layout/session state selecting the protected root index.
+    await act(async () => {
+      authMocks.emitAuth(fakeOwnerUser);
+      await flushMicrotasks();
+    });
+    expect(authContext?.user?.uid).toBe('owner-1');
+    expect(renderer!.root.findAll((node) => (node.type as unknown) === navigator)).toHaveLength(1);
+    act(() => {
+      signOutPromise = authContext!.signOut();
+    });
+    await act(async () => {
+      authMocks.emitAuth(null);
+      authMocks.finishSignOut();
+      await signOutPromise;
+      await flushMicrotasks();
+    });
+    expect(authContext?.user).toBeNull();
+    expect(authContext?.signingOut).toBe(false);
+    expect(routerMocks.replace).toHaveBeenLastCalledWith('/auth');
 
     // AppErrorBoundary was not triggered
     expect(renderer!.root.findAll((node) => (node.type as unknown) === 'Text').map((t) => t.props.children))

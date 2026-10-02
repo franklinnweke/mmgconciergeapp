@@ -432,6 +432,7 @@ Do not call the release complete until Admin is deployed by the VPS/Admin agent 
 
 Current auth/UI expectations:
 
+- Signed-out and unverified-email route guards use the explicit `/auth` entry. Never redirect those guards to `/`: Expo Router can resolve it to the current renter/owner index and create a redirect loop. The launch index and `/auth` share the same account-entry component.
 - Google authentication uses the Firebase-environment-matched OAuth client.
 - Apple authentication uses nonce hashing, Firebase credential exchange, first-login name persistence when supplied, cancellation handling, and Expo's native Apple button.
 - Social sign-in presentation should place Google first and Apple immediately underneath on supported iOS devices.

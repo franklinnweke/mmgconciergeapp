@@ -17,7 +17,7 @@ export default function RenterTabsLayout() {
 
   if (signingOut) return <AuthLoadingScreen message="Signing out" />;
   if (!initializing && (!user || !user.emailVerified)) {
-    return <Redirect href="/" />;
+    return <Redirect href="/auth" />;
   }
 
   return (
