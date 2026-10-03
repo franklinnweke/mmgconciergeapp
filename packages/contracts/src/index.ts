@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+export const ownerVehicleImagePreviewInputSchema = z.object({
+  vehicleId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  variant: z.literal('card').default('card'),
+}).strict();
+export const ownerVehicleImagePreviewResultSchema = z.object({
+  url: z.string().url().startsWith('https://'),
+  expiresAt: z.string().datetime(),
+}).strict();
+export type OwnerVehicleImagePreview = z.infer<typeof ownerVehicleImagePreviewResultSchema>;
+
 export const accountTypeSchema = z.enum(['renter', 'owner']);
 export type AccountType = z.infer<typeof accountTypeSchema>;
 

@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import type { OwnerVisibleVehicle, VehicleModerationStatus } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
-import { Image } from 'expo-image';
 import { type Href, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +10,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { useAuth } from '@/core/auth/auth-context';
 import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
-import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import { OwnerVehicleImage } from '../components/owner-vehicle-image';
 import { useOwnerFleet } from '../hooks/use-owner-fleet';
 
 function statusPresentation(status: VehicleModerationStatus, visibility: string) {
@@ -106,7 +105,7 @@ function VehicleRow({
     <View style={styles.card}>
       <PressableScale accessibilityLabel={`Open ${item.displayName}`} accessibilityRole="button" onPress={onOpen}>
         <View style={styles.media}>
-          <Image contentFit="cover" source={resolveVehicleImageSource({ imageUrl: item.primaryImagePath ?? undefined, category: item.category ?? undefined })} style={StyleSheet.absoluteFill} />
+          <OwnerVehicleImage vehicle={item} style={StyleSheet.absoluteFill} />
         </View>
         <View style={styles.cardBody}>
           <Text numberOfLines={1} style={styles.name}>{item.displayName}</Text>
