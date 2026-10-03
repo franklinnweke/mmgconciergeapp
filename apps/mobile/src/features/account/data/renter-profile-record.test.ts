@@ -26,7 +26,26 @@ const VALID_PROFILE = {
   updatedAt: '2026-09-15T10:00:00.000Z',
 };
 
+// Native Firestore Timestamp.toDate delegates to this.toMillis(). Arrow-function
+// mocks hide an unbound-method bug, so keep the receiver-dependent prototype.
+class NativeTimestampLike {
+  constructor(private readonly millis: number) {}
+  toMillis() { return this.millis; }
+  toDate() { return new Date(this.toMillis()); }
+}
+
 describe('normalizeTimestamp', () => {
+  it('preserves the receiver for native Firestore Timestamp methods', () => {
+    const timestamp = new NativeTimestampLike(Date.parse(VALID_PROFILE.createdAt));
+    expect(normalizeTimestamp(timestamp)).toBe(VALID_PROFILE.createdAt);
+  });
+
+  it('keeps throwing or invalid timestamp methods invalid', () => {
+    const throwing = { toDate() { throw new Error('Invalid timestamp'); } };
+    const invalid = { toDate() { return new Date(NaN); } };
+    expect(normalizeTimestamp(throwing)).toBe(throwing);
+    expect(normalizeTimestamp(invalid)).toBe(invalid);
+  });
   it('normalizes ISO string', () => {
     expect(normalizeTimestamp('2026-09-01T10:00:00.000Z')).toBe('2026-09-01T10:00:00.000Z');
   });
@@ -88,6 +107,15 @@ describe('normalizeDeliveryAddress', () => {
 });
 
 describe('parseRenterProfileDocument', () => {
+  it('loads the complete profile with receiver-dependent native timestamps', () => {
+    const parsed = parseRenterProfileDocument('renter-1', {
+      ...VALID_PROFILE,
+      createdAt: new NativeTimestampLike(Date.parse(VALID_PROFILE.createdAt)),
+      updatedAt: new NativeTimestampLike(Date.parse(VALID_PROFILE.updatedAt)),
+    });
+    expect(parsed).toEqual(VALID_PROFILE);
+  });
+
   it('parses an authoritative profile and normalizes Firestore timestamps', () => {
     const parsed = parseRenterProfileDocument('renter-1', {
       ...VALID_PROFILE,
