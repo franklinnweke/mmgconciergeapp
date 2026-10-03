@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   area: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 12 },
   dateText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 12 },
   empty: { alignItems: 'flex-start', gap: spacing.sm, paddingTop: spacing.xxl },
-  emptyAction: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.pill, justifyContent: 'center', marginTop: spacing.md, minHeight: 48, paddingHorizontal: spacing.lg },
+  emptyAction: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.button, justifyContent: 'center', marginTop: spacing.md, minHeight: 48, paddingHorizontal: spacing.lg },
   emptyActionText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   emptyBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, maxWidth: 300 },
   emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },

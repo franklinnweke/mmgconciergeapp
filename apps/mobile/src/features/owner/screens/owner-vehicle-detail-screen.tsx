@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   availabilityIcon: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderRadius: radii.sm, height: 44, justifyContent: 'center', width: 44 },
   availabilityRow: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg, minHeight: 72 },
   availabilityTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  backBtn: { backgroundColor: colors.gold, borderRadius: radii.pill, marginTop: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  backBtn: { backgroundColor: colors.gold, borderRadius: radii.button, marginTop: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   backBtnText: { color: colors.black, fontFamily: typography.bodySemiBold },
   content: { paddingBottom: spacing.xxl + 40, paddingHorizontal: spacing.lg },
   errorBox: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },

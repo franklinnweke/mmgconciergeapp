@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginBottom: spacing.lg },
   lastSummaryRow: { borderBottomWidth: 0 },
   phoneValue: { color: colors.goldStrong, fontFamily: 'monospace' },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   retryButtonText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, marginTop: 4 },
   screen: { backgroundColor: colors.black, flex: 1 },

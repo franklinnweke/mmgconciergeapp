@@ -911,7 +911,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     flexDirection: 'row',
     gap: spacing.sm,
     justifyContent: 'center',

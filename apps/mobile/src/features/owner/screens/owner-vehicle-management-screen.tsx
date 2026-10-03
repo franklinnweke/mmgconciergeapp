@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: colors.graphiteRaised, borderRadius: radii.lg, height: 190, overflow: 'hidden' },
   link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 14, padding: spacing.sm },
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', marginTop: spacing.md, minHeight: 50 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', marginTop: spacing.md, minHeight: 50 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   screen: { backgroundColor: colors.black, flex: 1 },
   section: { gap: spacing.xs },

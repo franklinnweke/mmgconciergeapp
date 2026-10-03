@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   confirmButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     height: 52,
     justifyContent: 'center',
     marginTop: spacing.md,
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(20, 20, 20, 0.85)',
     borderColor: colors.goldStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.xs,

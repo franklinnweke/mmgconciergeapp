@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   areaText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11 },
   areaTextSelected: { color: colors.black },
   body: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  button: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.md },
+  button: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.md },
   buttonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
   disabled: { opacity: 0.55 },
   error: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 12, lineHeight: 18, textAlign: 'center' },

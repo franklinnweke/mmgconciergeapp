@@ -286,7 +286,7 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
                 <AppleAuthentication.AppleAuthenticationButton
                   buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
                   buttonType={appleButtonType}
-                  cornerRadius={22}
+                  cornerRadius={radii.button}
                   onPress={() => void handleAppleSignIn()}
                   style={styles.appleButton}
                 />
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   googleButton: {
     alignItems: 'center',
     borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     justifyContent: 'center',
     minHeight: 56,
   },

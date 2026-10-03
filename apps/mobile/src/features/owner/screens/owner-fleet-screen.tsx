@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   emptyButton: {
     alignItems: 'center',
     backgroundColor: colors.gold,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     justifyContent: 'center',
     marginTop: spacing.lg,
     minHeight: 48,

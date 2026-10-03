@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   meta: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 2 },
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   name: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
-  primaryButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg },
+  primaryButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
   rate: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
   rateRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm },

@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
   pickerButton: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   pickerText: { color: colors.ivory, fontFamily: typography.body, fontSize: 14 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 54 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   readOnlyInput: { alignItems: 'center', backgroundColor: '#0D0F13', flexDirection: 'row', justifyContent: 'space-between' },
   readOnlyText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
