@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   exploreButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
-    borderRadius: radii.md,
+    borderRadius: radii.button,
     justifyContent: 'center',
     minHeight: layout.primaryButtonHeight,
   },

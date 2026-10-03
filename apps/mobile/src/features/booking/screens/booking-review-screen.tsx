@@ -397,7 +397,7 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
-  ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
+  ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
   ctaText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   deliveryAddress: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
   deliveryCard: {
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.black, flex: 1 },
   section: { gap: spacing.xs },
   sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17, marginBottom: spacing.xs },
-  stateButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.pill, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
+  stateButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.button, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
   stateButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
   stateCenter: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', paddingHorizontal: spacing.xl },
   stateScreen: { backgroundColor: colors.black, flex: 1, paddingHorizontal: spacing.lg },

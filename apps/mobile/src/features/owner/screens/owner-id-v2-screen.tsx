@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   preview: { borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   previewFooter: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   previewImage: { backgroundColor: colors.graphiteRaised, height: 220, width: '100%' },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 52 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   privacy: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md },
   privacyText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },

@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     justifyContent: 'center',
     marginTop: spacing.md,
     minHeight: 56,
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   secondaryButton: {
     alignItems: 'center',
     borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
     minHeight: 54,

@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     flexDirection: 'row',
     gap: spacing.xs,
     justifyContent: 'center',
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.graphiteRaised,
     borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     borderWidth: 1,
     justifyContent: 'center',
     minHeight: 48,

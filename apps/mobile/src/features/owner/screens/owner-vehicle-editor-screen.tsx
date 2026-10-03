@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   photoPickerText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
   photoTile: { backgroundColor: colors.graphite, borderRadius: radii.md, height: 100, overflow: 'hidden', width: '30%' },
   primaryAction: { marginTop: spacing.sm },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 52 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   progressRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   removePhoto: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.68)', borderRadius: radii.pill, height: 26, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 26 },

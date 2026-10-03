@@ -594,7 +594,7 @@ function ActionButton({
 }
 
 const styles = StyleSheet.create({
-  actionButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderColor: colors.goldStrong, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: spacing.lg },
+  actionButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderColor: colors.goldStrong, borderRadius: radii.button, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: spacing.lg },
   actionButtonDisabled: { opacity: 0.62 },
   actionButtonSecondary: { backgroundColor: 'transparent', borderColor: colors.lineStrong },
   actionText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   datePoint: { flex: 1, minWidth: 120 },
   dateValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12, lineHeight: 18, marginTop: 5 },
   flex: { flex: 1 },
-  goldButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, minHeight: 52, paddingHorizontal: spacing.lg },
+  goldButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, minHeight: 52, paddingHorizontal: spacing.lg },
   goldButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
   hero: { height: 405, justifyContent: 'space-between', position: 'relative' },
   heroCopy: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },

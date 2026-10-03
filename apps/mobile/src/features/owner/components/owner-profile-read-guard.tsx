@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     justifyContent: 'center',
     minHeight: 52,
     width: '100%',
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   secondaryButton: {
     alignItems: 'center',
     borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     borderWidth: 1,
     justifyContent: 'center',
     minHeight: 52,

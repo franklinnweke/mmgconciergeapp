@@ -282,7 +282,7 @@ function LoadingPanel({ title, body }: { title: string; body: string }) {
 
 const styles = StyleSheet.create({
   body: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 19, textAlign: 'center' },
-  button: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
+  button: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
   buttonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
   codeInput: { fontFamily: typography.bodySemiBold, fontSize: 18, letterSpacing: 5, textAlign: 'center' },
   disabled: { opacity: 0.5 },

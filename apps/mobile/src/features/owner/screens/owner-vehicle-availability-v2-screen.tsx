@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   notes: { borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 13, minHeight: 82, padding: spacing.md, textAlignVertical: 'top' },
   ownerBlock: { backgroundColor: 'rgba(212,175,55,0.08)' },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.pill, justifyContent: 'center', minHeight: 50 },
+  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 50 },
   primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
   reasonRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, minHeight: 60 },
   reasonTitle: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
