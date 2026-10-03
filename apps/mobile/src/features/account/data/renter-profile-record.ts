@@ -38,7 +38,7 @@ export function normalizeTimestamp(value: unknown): unknown {
     const toDate = (value as { toDate?: unknown }).toDate;
     if (typeof toDate === 'function') {
       try {
-        const parsed = (toDate as () => Date)();
+        const parsed = (toDate as () => Date).call(value);
         return parsed instanceof Date && !Number.isNaN(parsed.getTime())
           ? parsed.toISOString()
           : value;
