@@ -69,6 +69,7 @@ Production is never a development or test target.
 - Booking dates are Africa/Lagos date-only half-open intervals `[startDate, endDate)`.
 - Trusted money is integer NGN kobo and server-authoritative.
 - Exact vehicle address/coordinates and owner-sensitive data remain private.
+- Owner processed vehicle photos remain client-denied in Storage. Owner previews use a vehicle-ownership-checked callable that derives only the processed card path and returns an ephemeral five-minute signed URL; never accept client Storage paths, persist preview URLs, or broaden private Storage reads.
 - Only approved, active, discoverable vehicles are renter-visible.
 - Signed-out `Rent a car` versus `List a car` is session intent, not a permanent navigation role.
 - Every verified authenticated MMG account can use the renter experience.

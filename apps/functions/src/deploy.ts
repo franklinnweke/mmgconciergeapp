@@ -1,6 +1,7 @@
 // Firebase deployment entrypoint. Explicit exports override or add focused
 // network boundaries without duplicating the rest of the function surface.
 export * from './index.js';
+export { getOwnerVehicleImagePreview } from './vehicle/owner-image-preview-callable.js';
 export {
   getVehicleDetails,
   searchVehicles,

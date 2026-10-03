@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import { OwnerVisibleVehicle, VehicleVisibility } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -18,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
-import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import { OwnerVehicleImage } from '../components/owner-vehicle-image';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
 
 function safeVehicleErrorMessage(error: unknown): string {
@@ -129,14 +128,7 @@ export function OwnerVehicleDetailScreen() {
       {header}
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroImageContainer}>
-          <Image
-            contentFit="cover"
-            source={resolveVehicleImageSource({
-              imageUrl: vehicle.primaryImagePath ?? undefined,
-              category: vehicle.category ?? undefined,
-            })}
-            style={StyleSheet.absoluteFill}
-          />
+          <OwnerVehicleImage vehicle={vehicle} style={StyleSheet.absoluteFill} />
         </View>
 
         <View style={styles.statusCard}>

@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import type { OwnerVisibleVehicle, VehicleVisibility } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
-import { Image } from 'expo-image';
 import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -10,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
-import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import { OwnerVehicleImage } from '../components/owner-vehicle-image';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
 
 function statusCopy(vehicle: OwnerVisibleVehicle): { label: string; body: string } {
@@ -124,11 +123,7 @@ export function OwnerVehicleManagementScreen() {
       <View style={styles.header}><ScreenHeader onBack={() => router.back()} showBrand={false} title={vehicle.displayName} /></View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Image
-            contentFit="cover"
-            source={resolveVehicleImageSource({ imageUrl: vehicle.primaryImagePath ?? undefined, category: vehicle.category ?? undefined })}
-            style={StyleSheet.absoluteFill}
-          />
+          <OwnerVehicleImage vehicle={vehicle} style={StyleSheet.absoluteFill} />
         </View>
 
         <View style={styles.statusSection}>

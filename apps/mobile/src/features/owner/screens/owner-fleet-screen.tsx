@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
 import { OwnerVisibleVehicle, VehicleModerationStatus } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -16,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
-import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import { OwnerVehicleImage } from '../components/owner-vehicle-image';
 import { useOwnerFleet } from '../hooks/use-owner-fleet';
 
 function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) {
@@ -138,14 +137,7 @@ export function OwnerFleetScreen() {
                 style={styles.card}
               >
                 <View style={styles.cardMedia}>
-                  <Image
-                    contentFit="cover"
-                    source={resolveVehicleImageSource({
-                      imageUrl: item.primaryImagePath ?? undefined,
-                      category: item.category ?? undefined,
-                    })}
-                    style={StyleSheet.absoluteFill}
-                  />
+                  <OwnerVehicleImage vehicle={item} style={StyleSheet.absoluteFill} />
                 </View>
 
                 <View style={styles.cardBody}>
