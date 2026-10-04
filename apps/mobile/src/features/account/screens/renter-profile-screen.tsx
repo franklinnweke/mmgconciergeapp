@@ -172,7 +172,6 @@ function RenterProfileForm({
           <Ionicons color={colors.success} name="checkmark-circle" size={14} />
           <Text style={styles.emailText}>{userEmail}</Text>
         </View>
-        <Text style={styles.identityHint}>Your email is your renter identity. The details below are optional for app access.</Text>
       </View>
 
       {successMessage ? (
@@ -191,9 +190,6 @@ function RenterProfileForm({
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Profile details</Text>
-        <Text style={styles.sectionDescription}>
-          Add these when convenient to make bookings and chauffeur delivery quicker. They do not verify your renter identity.
-        </Text>
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>NAME</Text>

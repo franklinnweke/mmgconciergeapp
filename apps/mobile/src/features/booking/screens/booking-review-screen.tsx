@@ -331,7 +331,7 @@ export default function BookingReviewScreen({
         ) : null}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Estimated total</Text>
+          <Text style={styles.sectionTitle}>Price breakdown</Text>
           <QuoteRow
             label={`${formatNairaFromKobo(vehicle.dailyRateKobo)} × ${journey.durationDays} ${journey.durationDays === 1 ? 'day' : 'days'}`}
             value={formatNairaFromKobo(quote.rentalKobo)}

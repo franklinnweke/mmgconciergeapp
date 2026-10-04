@@ -183,7 +183,7 @@ export function OwnerIdentityScreen() {
       <ScreenHeader
         onBack={() => router.back()}
         showBrand={false}
-        title="Owner profile & terms"
+        title="Your details"
       />
     </View>
   );
@@ -235,7 +235,7 @@ export function OwnerIdentityScreen() {
         ) : null}
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Full Legal Name / Registered Entity</Text>
+          <Text style={styles.label}>Legal name or registered business</Text>
           <TextInput
             onChangeText={handleLegalNameChange}
             placeholder="As shown on official Nigerian ID"
@@ -246,7 +246,7 @@ export function OwnerIdentityScreen() {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Email Address</Text>
+          <Text style={styles.label}>Email</Text>
           <View style={[styles.input, styles.readOnlyInput]}>
             <Text style={styles.readOnlyText}>{auth.user?.email || 'Unavailable'}</Text>
             <Ionicons
@@ -267,7 +267,7 @@ export function OwnerIdentityScreen() {
         ) : null}
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Primary Lagos Operating Area</Text>
+          <Text style={styles.label}>Lagos operating area</Text>
           <PressableScale onPress={() => setAreaModalVisible(true)}>
             <View style={[styles.input, styles.pickerButton]}>
               <Text style={styles.pickerText}>{areaLabel}</Text>
@@ -277,7 +277,7 @@ export function OwnerIdentityScreen() {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Street Address Line 1</Text>
+          <Text style={styles.label}>Street address</Text>
           <TextInput
             onChangeText={handleLine1Change}
             placeholder="e.g. 14 Admiralty Way"
@@ -288,7 +288,7 @@ export function OwnerIdentityScreen() {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Address Line 2 (Optional)</Text>
+          <Text style={styles.label}>Address line 2 (optional)</Text>
           <TextInput
             onChangeText={handleLine2Change}
             placeholder="Suite, building, or unit number"
@@ -296,11 +296,6 @@ export function OwnerIdentityScreen() {
             style={styles.input}
             value={line2}
           />
-        </View>
-
-        <View style={styles.locationHelper}>
-          <Ionicons color={colors.muted} name="location-outline" size={14} />
-          <Text style={styles.locationHelperText}>All vehicle listings and operations are based in Lagos, Nigeria.</Text>
         </View>
 
         <View style={styles.termsSection}>
@@ -394,8 +389,6 @@ const styles = StyleSheet.create({
   label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
   loadingBox: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center', padding: spacing.lg },
   loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  locationHelper: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, marginTop: spacing.xs },
-  locationHelperText: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
   modalContent: { backgroundColor: '#14181F', borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '60%', padding: spacing.lg },
   modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   modalItem: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },

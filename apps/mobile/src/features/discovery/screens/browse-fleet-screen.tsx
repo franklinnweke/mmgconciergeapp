@@ -2,10 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
 import { VehicleCategory } from '@mmg/contracts';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  Animated,
-  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
-import { useReducedMotion } from '@/components/use-reduced-motion';
 
 import { BrowseVehicleCard } from '../components/browse-vehicle-card';
 import {
@@ -80,25 +78,12 @@ export default function BrowseFleetScreen() {
 
   const [query, setQuery] = useState('');
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
-  const reduceMotion = useReducedMotion();
-  const [entrance] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
 
   const { error, isLoading, vehicles } = useVehicleSearch({
     category,
     query,
   });
 
-  useEffect(() => {
-    if (reduceMotion) {
-      entrance.setValue(1);
-      return;
-    }
-    Animated.timing(entrance, {
-      duration: 380,
-      toValue: 1,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start();
-  }, [entrance, reduceMotion]);
 
   const hasAnyFilterOrSearch = category !== undefined || query.trim().length > 0;
 
@@ -127,21 +112,10 @@ export default function BrowseFleetScreen() {
 
   return (
     <View style={styles.screen}>
-      <Animated.ScrollView
+      <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        style={{
-          opacity: entrance,
-          transform: [
-            {
-              translateY: entrance.interpolate({
-                inputRange: [0, 1],
-                outputRange: [12, 0],
-              }),
-            },
-          ],
-        }}
       >
         <ScreenHeader />
 
@@ -262,7 +236,7 @@ export default function BrowseFleetScreen() {
             </View>
           )}
         </View>
-      </Animated.ScrollView>
+      </ScrollView>
 
       <FleetFilterSheet
         currentFilters={{
