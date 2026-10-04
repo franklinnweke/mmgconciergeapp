@@ -420,6 +420,21 @@ Build 43 was created from the exact checkpoint above:
 - production APNs entitlement enabled (`MMG_APNS_ENV=production`)
 - resolution included: Softly rounded rectangular action buttons across mobile UI (PR #94), and monorepo build packaging with `EAS_SKIP_AUTO_FINGERPRINT=1`.
 
+Validated Build 45 TestFlight source checkpoint merged to `main`:
+
+`49bbe0e5bbcd8e506131396ed2f009e8352f6b2f`
+
+Build 45 was created from the exact checkpoint above:
+
+- build number: `45`
+- EAS build ID: `861d9540-f1cd-439e-8f9a-05d437b333f0`
+- submission ID: `9b489d3f-975b-4add-a9eb-54844a154f6a`
+- App Store Connect App ID: `6801330614`
+- development Firebase config selected (`mmg-concierge-dev`)
+- profile: `testflight-development`
+- production APNs entitlement enabled (`MMG_APNS_ENV=production`)
+- resolution included: Mobile restraint pass (PR #96: simplified interface copy, removed decorative motion, cleaned up orphaned owner location helper).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -443,7 +458,7 @@ Current state:
 - Main CI: green
 - Production `mmg-concierge`: untouched
 - Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes including storageDeletionOutbox, reviewOwnerVerification in africa-south1, processStorageDeletionOutbox scheduler in europe-west1, and all 19 approved Functions active)
-- Native Build Milestone: Build 43 active on TestFlight (submitted to Apple Connect, processing)
+- Native Build Milestone: Build 45 active on TestFlight (submitted to Apple Connect, processing)
 - Android native validation: in progress on Pixel 7 API 35
 
 Do not call the release complete until Admin is deployed by the VPS/Admin agent and end-to-end human acceptance has been completed on the physical device.
