@@ -114,6 +114,7 @@ export function stateGroup(state: RenterTripState): RenterTripGroup {
 }
 
 export function permittedRenterActions(state: RenterTripState): readonly RenterTripAction[] {
+  if (state === 'intent_created') return ['cancellation'];
   if (state === 'requested' || state === 'approved') return ['cancellation'];
   if (state === 'ready_for_payment') return ['payment', 'cancellation'];
   if (state === 'checkout_pending') return ['payment', 'support'];
@@ -124,7 +125,6 @@ export function permittedRenterActions(state: RenterTripState): readonly RenterT
     state === 'needs_attention' ||
     state === 'cancellation_requested' ||
     state === 'refund_pending' ||
-    state === 'intent_created' ||
     state === 'legacy_availability_requested' ||
     state === 'paid' ||
     state === 'in_progress' ||
@@ -462,14 +462,15 @@ export function mapLegacyBookingRequest(request: BookingRequest): RenterTrip {
 }
 
 export function mapTrustedBookingIntent(record: RenterVisibleBookingIntent): RenterTrip {
+  const state = record.state === 'expired' && record.cancelledByRenterAt ? 'cancelled_by_renter' : record.state;
   return {
     id: record.id,
     vehicleId: record.vehicleId,
     startDate: record.startDate,
     endDate: record.endDate,
-    state: record.state,
+    state,
     priceSnapshot: record.priceSnapshot,
-    group: stateGroup(record.state),
+    group: stateGroup(state),
     updatedAt: record.updatedAt,
     source: 'trusted',
     vehicleSnapshot: record.vehicleSnapshot,

@@ -43,6 +43,24 @@ export const cancelRentalRequestResultSchema = z.discriminatedUnion('state', [
 ]);
 export type CancelRentalRequestResult = z.infer<typeof cancelRentalRequestResultSchema>;
 
+// Historical pay-first holds only. Request-first holds use cancelRentalRequest.
+export const cancelUnpaidBookingIntentCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: z.object({ intentId: boundedIdSchema.regex(/^[A-Za-z0-9_-]+$/) }).strict(),
+}).strict();
+
+export const cancelUnpaidBookingIntentResultSchema = z.object({
+  requestId: boundedIdSchema,
+  result: z.object({
+    intentId: boundedIdSchema,
+    state: z.literal('expired'),
+    cancelledAt: isoDateTimeSchema,
+    inventoryReleased: z.literal(true),
+  }).strict(),
+}).strict();
+export type CancelUnpaidBookingIntentResult = z.infer<typeof cancelUnpaidBookingIntentResultSchema>;
+
 export const quoteBookingCancellationDataSchema = z.object({
   bookingId: boundedIdSchema,
 }).strict();

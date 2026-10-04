@@ -56,7 +56,7 @@ export function normalizeFirestoreTimestamp(value: unknown): string | undefined 
   const withToDate = value as { toDate?: unknown };
   if (typeof withToDate.toDate === 'function') {
     try {
-      const date = (withToDate.toDate as () => Date)();
+      const date = (withToDate.toDate as () => Date).call(value);
       return date instanceof Date && !Number.isNaN(date.getTime()) ? date.toISOString() : undefined;
     } catch {
       return undefined;
@@ -119,6 +119,7 @@ function normalizeTrustedRecord(id: string, data: Record<string, unknown>) {
     createdAt: normalizeFirestoreTimestamp(data.createdAt),
     updatedAt: normalizeFirestoreTimestamp(data.updatedAt) ?? normalizeFirestoreTimestamp(data.createdAt),
     expiresAt: data.expiresAt === undefined ? undefined : normalizeFirestoreTimestamp(data.expiresAt),
+    cancelledByRenterAt: data.cancelledByRenterAt === undefined ? undefined : normalizeFirestoreTimestamp(data.cancelledByRenterAt),
     vehicleSnapshot: data.vehicleSnapshot === undefined
       ? {
           displayName: 'Booked vehicle',

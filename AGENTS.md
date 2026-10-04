@@ -182,6 +182,8 @@ These safeguards are essential:
 14. There is no automatic owner-rejection timeout.
 15. Do not invent refund, cancellation, top-up, reassignment, or payout economics.
 
+Historical unpaid `intent_created` holds may be withdrawn through the renter-owned `cancelUnpaidBookingIntent` callable, including after their rental dates pass. It atomically releases only the matching held block, advances the availability sentinel and records `expired` plus `cancelledByRenterAt`; mobile presents that marker as cancelled in Past. Request-first holds continue through `cancelRentalRequest`. Payment-in-flight, payment-bound or inconsistent historical records must not be released by the unpaid-hold command. This does not authorize refunds or deleting trip history.
+
 The historical product copy `Payment received — confirming your ride` belongs only to flows that are actually still awaiting owner confirmation. Request-first direct-confirmation UI must use truthful confirmed-booking copy instead.
 
 ## 6. Architecture freeze / MVP scope

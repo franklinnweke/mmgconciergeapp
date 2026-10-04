@@ -27,6 +27,7 @@ export {
 } from './booking/rental-request-callables.js';
 export {
   cancelBooking,
+  cancelUnpaidBookingIntent,
   cancelRentalRequest,
   quoteBookingCancellation,
 } from './booking/renter-cancellation-callables.js';

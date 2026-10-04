@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { stateGroup, type RenterTrip } from '../domain/renter-trip';
+import { mapTrustedBookingIntent, stateGroup, type RenterTrip } from '../domain/renter-trip';
 import {
   createUnsubscribeBundle,
   decodeTrustedTripDocuments,
@@ -92,6 +92,27 @@ const validBooking = {
   createdAt: '2026-08-13T12:00:00.000Z',
   updatedAt: '2026-08-13T13:00:00.000Z',
 };
+
+describe('cancelled historical held-date presentation', () => {
+  it('moves cancelled unpaid holds to Past without hiding their history', () => {
+    const result = parseTrustedBookingIntent('intent-one', {
+      ...validIntent, state: 'expired', cancelledByRenterAt: { seconds: 1_786_617_600 },
+    });
+    expect(result).not.toBeNull();
+    const trip = mapTrustedBookingIntent(result!);
+    expect(trip.state).toBe('cancelled_by_renter');
+    expect(trip.group).toBe('past');
+  });
+
+  it('does not relabel ordinary hold expiry as renter cancellation', () => {
+    expect(parseTrustedBookingIntent('intent-one', { ...validIntent, state: 'expired' })?.state).toBe('expired');
+  });
+
+  it('preserves Firestore Timestamp receiver context', () => {
+    const timestamp = { seconds: 1_786_617_600, toDate() { return new Date(this.seconds * 1000); } };
+    expect(normalizeFirestoreTimestamp(timestamp)).toBe(new Date(timestamp.seconds * 1000).toISOString());
+  });
+});
 
 describe('renter trip repository', () => {
   it('uses renter-scoped equality queries and client-side updatedAt ordering', () => {
