@@ -16,6 +16,9 @@ import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-ima
 
 import { useBookings } from '../booking-context';
 import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
+import { RenterTripCompletion } from '../components/renter-trip-completion';
+import { canRenterConfirmCompletion } from '../domain/renter-trip-completion';
+import type { RenterCompletionGateway } from '../data/renter-completion-gateway';
 import {
   createRenterCancellationGateway,
   type RenterCancellationGateway,
@@ -47,6 +50,7 @@ type TripDetailScreenProps = {
   actionGateway?: RenterTripActionGateway;
   cancellationGateway?: RenterCancellationGateway;
   rentalRequestGateway?: RentalRequestGateway;
+  completionGateway?: RenterCompletionGateway;
   trip?: RenterTrip | null;
   tripId: string;
 };
@@ -70,6 +74,7 @@ export default function TripDetailScreen({
   actionGateway = unavailableRenterTripActionGateway,
   cancellationGateway,
   rentalRequestGateway,
+  completionGateway,
   trip: tripOverride,
   tripId,
 }: TripDetailScreenProps) {
@@ -443,6 +448,15 @@ export default function TripDetailScreen({
               </View>
             ) : null}
 
+            {canRenterConfirmCompletion(trip) ? (
+              <RenterTripCompletion key={trip.id} bookingId={trip.id} gateway={completionGateway}
+                disabled={busy || mode === 'offline'}
+                onCompleted={async () => {
+                  await refreshRentalRequests();
+                  router.replace('/(renter)/trips');
+                }} />
+            ) : null}
+
             {requestFirstPayment && trip.intentId && trip.holdExpiresAt ? (
               <>
                 <RenterPaymentCheckout
@@ -503,7 +517,7 @@ export default function TripDetailScreen({
               </View>
             ) : null}
 
-            {!renderedActions.isTerminal && renderedActions.actions.length === 0 ? (
+            {!renderedActions.isTerminal && renderedActions.actions.length === 0 && !canRenterConfirmCompletion(trip) ? (
               <View style={styles.terminalNote}>
                 <Ionicons
                   color={colors.goldStrong}
