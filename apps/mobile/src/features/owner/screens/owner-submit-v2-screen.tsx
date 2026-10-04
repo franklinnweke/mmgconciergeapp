@@ -144,7 +144,6 @@ export function OwnerSubmitV2Screen() {
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}><ScreenHeader onBack={() => router.back()} showBrand={false} title="Review & submit" /></View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.intro}>Confirm the owner information MMG will review. You can edit a section before submitting.</Text>
         {(error || (uploadFailed && upload.errorMessage)) ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error || upload.errorMessage}</Text> : null}
 
         <SummaryRow label="Legal name" value={profile?.legalName || auth.profile?.displayName || 'Not provided'} onEdit={() => router.push('/(owner)/identity' as Href)} />

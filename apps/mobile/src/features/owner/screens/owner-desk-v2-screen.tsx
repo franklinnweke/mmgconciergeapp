@@ -114,9 +114,8 @@ export function OwnerDeskV2Screen() {
           </View>
         ) : (
           <>
-            <Text style={styles.eyebrow}>{copy[0]}</Text>
-            <Text style={styles.title}>{copy[1]}</Text>
-            <Text style={styles.body}>{copy[2]}</Text>
+            <Text accessibilityRole="header" style={styles.title}>{copy[0] === 'OWNER DESK' ? 'Owner application' : copy[0].toLowerCase().replace(/^./, (letter) => letter.toUpperCase())}</Text>
+            {status !== 'approved' && status !== 'rejected' ? <Text style={styles.body}>{copy[2]}</Text> : null}
 
             {status === 'rejected' && profile?.lastDecisionReason ? (
               <View style={styles.feedback}>

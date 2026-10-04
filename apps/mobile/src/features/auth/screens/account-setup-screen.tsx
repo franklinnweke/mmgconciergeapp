@@ -3,13 +3,12 @@ import { colors, radii, spacing, typography } from '@mmg/brand';
 import type { AccountType } from '@mmg/contracts';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { PressableScale } from '@/components/pressable-scale';
-import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
 const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.jpg');
@@ -32,24 +31,10 @@ const choices = [
 export function AccountSetupScreen() {
   const auth = useAuth();
   const insets = useSafeAreaInsets();
-  const reduceMotion = useReducedMotion();
   const [selection, setSelection] = useState<AccountType>('renter');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [opacity] = useState(() => new Animated.Value(0));
-  const [translate] = useState(() => new Animated.Value(18));
 
-  useEffect(() => {
-    if (reduceMotion) {
-      opacity.setValue(1);
-      translate.setValue(0);
-      return;
-    }
-    Animated.parallel([
-      Animated.timing(opacity, { duration: 440, toValue: 1, useNativeDriver: true }),
-      Animated.spring(translate, { damping: 18, stiffness: 100, toValue: 0, useNativeDriver: true }),
-    ]).start();
-  }, [opacity, reduceMotion, translate]);
 
   async function continueWithSelection() {
     setBusy(true);
@@ -68,7 +53,7 @@ export function AccountSetupScreen() {
       <View style={styles.hero}>
         <Image contentFit="cover" source={heroImage} style={StyleSheet.absoluteFill} />
         <LinearGradient
-          colors={['rgba(4,4,4,0.2)', 'rgba(4,4,4,0.35)', colors.black]}
+          colors={['rgba(4,4,4,0.72)', 'rgba(4,4,4,0.35)', colors.black]}
           style={StyleSheet.absoluteFill}
         />
         <View style={[styles.brandRow, { paddingTop: insets.top + spacing.md }]}>
@@ -76,13 +61,12 @@ export function AccountSetupScreen() {
         </View>
       </View>
 
-      <Animated.ScrollView
+      <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        style={[styles.scrollView, { opacity, transform: [{ translateY: translate }] }]}
+        style={styles.scrollView}
       >
-        <Text style={styles.title}>Choose account type.</Text>
-        <Text style={styles.body}>This choice is permanent.</Text>
+        <Text style={styles.title}>Get started</Text>
 
         <View style={styles.choiceList}>
           {choices.map((choice) => {
@@ -97,7 +81,6 @@ export function AccountSetupScreen() {
                 <View style={[styles.choice, selected && styles.choiceSelected]}>
                   <View style={styles.choiceCopy}>
                     <Text style={styles.choiceLabel}>{choice.label}</Text>
-                    <Text style={styles.choiceDescription}>{choice.description}</Text>
                   </View>
                   <Ionicons
                     color={selected ? colors.goldStrong : colors.muted}
@@ -123,7 +106,7 @@ export function AccountSetupScreen() {
         <PressableScale onPress={() => void auth.signOut()}>
           <Text style={styles.signOut}>Use a different account</Text>
         </PressableScale>
-      </Animated.ScrollView>
+      </ScrollView>
     </SafeAreaView>
   );
 }

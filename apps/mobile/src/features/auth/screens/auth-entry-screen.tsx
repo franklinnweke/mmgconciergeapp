@@ -7,7 +7,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState, type ComponentProps } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,7 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
-import { useReducedMotion } from '@/components/use-reduced-motion';
 import { useAuth } from '@/core/auth/auth-context';
 
 type Mode = 'sign-in' | 'register';
@@ -36,7 +34,6 @@ const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.
 export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryScreenProps) {
   const insets = useSafeAreaInsets();
   const auth = useAuth();
-  const reduceMotion = useReducedMotion();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -45,9 +42,6 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
-  const [entranceOpacity] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
-  const [entranceTranslate] = useState(() => new Animated.Value(reduceMotion ? 0 : 16));
-  const [formOpacity] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     let active = true;
@@ -64,45 +58,13 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
     return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    if (reduceMotion) return;
-    Animated.parallel([
-      Animated.timing(entranceOpacity, {
-        duration: 480,
-        toValue: 1,
-        useNativeDriver: true,
-      }),
-      Animated.spring(entranceTranslate, {
-        damping: 20,
-        stiffness: 95,
-        toValue: 0,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [entranceOpacity, entranceTranslate, reduceMotion]);
 
   function showSignIn() {
     if (mode === 'sign-in' || busy) return;
     setError(null);
     setNotice(null);
 
-    if (reduceMotion) {
-      setMode('sign-in');
-      return;
-    }
-
-    Animated.timing(formOpacity, {
-      duration: 120,
-      toValue: 0,
-      useNativeDriver: true,
-    }).start(() => {
-      setMode('sign-in');
-      Animated.timing(formOpacity, {
-        duration: 200,
-        toValue: 1,
-        useNativeDriver: true,
-      }).start();
-    });
+    setMode('sign-in');
   }
 
   async function run(action: () => Promise<void>) {
@@ -177,25 +139,23 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
             style={StyleSheet.absoluteFill}
           />
           <LinearGradient
-            colors={['rgba(4,4,4,0.18)', 'rgba(4,4,4,0.08)', colors.black]}
+            colors={['rgba(4,4,4,0.72)', 'rgba(4,4,4,0.08)', colors.black]}
             locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
-          <Animated.View
+          <View
             style={[
               styles.heroContent,
               {
-                opacity: entranceOpacity,
                 paddingTop: insets.top + spacing.sm,
-                transform: [{ translateY: entranceTranslate }],
               },
             ]}
           >
             <ScreenHeader onBack={onBack} />
-          </Animated.View>
+          </View>
         </View>
 
-        <Animated.View style={[styles.formSection, { opacity: formOpacity }]}>
+        <View style={[styles.formSection]}>
           <Text accessibilityRole="header" style={styles.formTitle}>{title}</Text>
 
           <View style={styles.fields}>
@@ -306,7 +266,7 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
                 : 'New to MMG? Choose how to start'}
             </Text>
           </PressableScale>
-        </Animated.View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
