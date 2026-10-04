@@ -298,10 +298,6 @@ export function OwnerIdentityScreen() {
           />
         </View>
 
-        <View style={styles.locationHelper}>
-          <Ionicons color={colors.muted} name="location-outline" size={14} />
-        </View>
-
         <View style={styles.termsSection}>
           <Text style={styles.sectionTitle}>Agreements</Text>
 
@@ -393,8 +389,6 @@ const styles = StyleSheet.create({
   label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
   loadingBox: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center', padding: spacing.lg },
   loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  locationHelper: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, marginTop: spacing.xs },
-  locationHelperText: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
   modalContent: { backgroundColor: '#14181F', borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '60%', padding: spacing.lg },
   modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   modalItem: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
