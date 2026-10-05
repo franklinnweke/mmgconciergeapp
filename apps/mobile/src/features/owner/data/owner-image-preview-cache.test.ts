@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createOwnerImagePreviewCache } from './owner-image-preview-cache';
 const url = 'https://storage.googleapis.com/test?X-Goog-Signature=keep-me';
-function setup() {
+function setup(onSessionChange?: (prev: string | null, next: string | null) => void) {
   let now = 0;
   const fetch = vi.fn(async () => ({ url, expiresAt: new Date(now + 300000).toISOString() }));
-  const cache = createOwnerImagePreviewCache(fetch, () => now);
+  const cache = createOwnerImagePreviewCache(fetch, () => now, onSessionChange);
   cache.setSession('owner');
   return { cache, fetch, advance: () => { now += 300000; } };
 }
@@ -31,11 +31,13 @@ describe('owner preview memory cache', () => {
     await cache.resolve('owner', 'v', 'private/path', true);
     expect(fetch).toHaveBeenCalledTimes(3);
   });
-  it('does not return cached previews to a different or signed-out session', async () => {
-    const { cache } = setup();
+  it('does not return cached previews to a different or signed-out session and invokes session cleanup', async () => {
+    const onSessionChange = vi.fn();
+    const { cache } = setup(onSessionChange);
     await cache.resolve('owner', 'v', 'private/path');
     cache.setSession(null);
     expect(await cache.resolve('owner', 'v', 'private/path')).toBeNull();
+    expect(onSessionChange).toHaveBeenCalledWith('owner', null);
   });
   it('propagates failure for a quiet UI fallback and permits retry', async () => {
     const { cache, fetch } = setup();

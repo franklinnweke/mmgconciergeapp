@@ -1,12 +1,21 @@
 import type { OwnerVehicleImagePreview } from '@mmg/contracts';
 
 /** Session-scoped, memory-only URLs. Private image bytes must not use disk cache. */
-export function createOwnerImagePreviewCache(fetchPreview: (vehicleId: string) => Promise<OwnerVehicleImagePreview>, now = Date.now) {
+export function createOwnerImagePreviewCache(
+  fetchPreview: (vehicleId: string) => Promise<OwnerVehicleImagePreview>,
+  now = Date.now,
+  onSessionChange?: (prevSession: string | null, nextSession: string | null) => void,
+) {
   let session: string | null = null;
   const cache = new Map<string, Promise<OwnerVehicleImagePreview>>();
   return {
     setSession(uid: string | null) {
-      if (session !== uid) { session = uid; cache.clear(); }
+      if (session !== uid) {
+        const prev = session;
+        session = uid;
+        cache.clear();
+        onSessionChange?.(prev, uid);
+      }
     },
     async resolve(uid: string, vehicleId: string, path: string | null, refresh = false): Promise<string | null> {
       if (session !== uid || !path) return null;
