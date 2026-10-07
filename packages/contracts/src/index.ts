@@ -421,6 +421,7 @@ export const renterVisibleBookingIntentSchema = z.object({
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
   expiresAt: isoDateTimeSchema,
+  cancelledByRenterAt: isoDateTimeSchema.optional(),
 });
 export type RenterVisibleBookingIntent = z.infer<typeof renterVisibleBookingIntentSchema>;
 

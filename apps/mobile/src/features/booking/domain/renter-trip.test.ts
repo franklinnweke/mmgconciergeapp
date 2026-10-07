@@ -61,6 +61,7 @@ describe('renter trip state presentation', () => {
   });
 
   it('keeps payment limited while enabling cancellation in safe request and paid stages', () => {
+    expect(permittedRenterActions('intent_created')).toEqual(['cancellation']);
     expect(permittedRenterActions('checkout_pending')).toEqual(['payment', 'support']);
     expect(permittedRenterActions('ready_for_payment')).toEqual(['payment', 'cancellation']);
     expect(permittedRenterActions('requested')).toEqual(['cancellation']);

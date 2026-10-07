@@ -5,6 +5,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { isProductionAppCheck } from '../app-check-env.js';
 import { FirestoreBookingCancellationQuoteQuery } from './booking-cancellation-quote-query.js';
 import { requireVerifiedRenter } from './callable-auth.js';
+import { cancelUnpaidBookingIntent as cancelUnpaidBookingIntentService } from './cancel-unpaid-booking-intent.js';
 import { BookingCommandError } from './errors.js';
 import { FirestoreRenterCancellationRepository } from './firestore-renter-cancellation-repository.js';
 import {
@@ -55,6 +56,14 @@ export const cancelRentalRequest = onCall(runtime, async (request) => {
     });
   } catch (error) {
     return rethrow(error, 'renter_cancellation.request');
+  }
+});
+
+export const cancelUnpaidBookingIntent = onCall(runtime, async (request) => {
+  try {
+    return await cancelUnpaidBookingIntentService(request.data, requireVerifiedRenter(request.auth));
+  } catch (error) {
+    return rethrow(error, 'renter_cancellation.unpaid_hold');
   }
 });
 

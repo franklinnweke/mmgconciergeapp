@@ -5,7 +5,7 @@ import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +18,7 @@ import { useBookings } from '../booking-context';
 import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
 import { RenterTripCompletion } from '../components/renter-trip-completion';
 import { canRenterConfirmCompletion } from '../domain/renter-trip-completion';
+import { cancelUnpaidHold } from '../data/unpaid-hold-cancellation-gateway';
 import type { RenterCompletionGateway } from '../data/renter-completion-gateway';
 import {
   createRenterCancellationGateway,
@@ -85,6 +86,7 @@ export default function TripDetailScreen({
   const [cancellationQuote, setCancellationQuote] = useState<BookingCancellationQuote | null>(null);
   const [cancellationError, setCancellationError] = useState<string | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const cancellationInFlight = useRef(false);
   const requestGateway = useMemo(
     () => rentalRequestGateway ?? createRentalRequestGateway(),
     [rentalRequestGateway],
@@ -162,7 +164,7 @@ export default function TripDetailScreen({
     setCancellationError(null);
     setCancellationQuote(null);
 
-    if (trip.source !== 'trusted') {
+    if (trip.source !== 'trusted' || trip.state === 'intent_created') {
       dispatch({ type: 'begin', action: 'cancellation' });
       return;
     }
@@ -183,9 +185,18 @@ export default function TripDetailScreen({
   }
 
   async function perform(action: RenterTripAction) {
-    if (!trip || session.pendingAction) return;
+    if (!trip || session.pendingAction || cancellationInFlight.current) return;
+    cancellationInFlight.current = true;
     dispatch({ type: 'start', action });
     try {
+      if (action === 'cancellation' && trip.source === 'trusted' && trip.state === 'intent_created') {
+        await cancelUnpaidHold(trip.id);
+        // Firestore subscription updates the intent. Request refresh is independent.
+        await refreshRentalRequests().catch(() => undefined);
+        dispatch({ type: 'finish', action });
+        router.replace('/(renter)/trips');
+        return;
+      }
       if (action === 'cancellation' && trip.source === 'request') {
         if (!trip.requestVersion) throw new Error('Refresh this request before cancelling.');
         await requestGateway.cancelRequest(trip.id, trip.requestVersion);
@@ -210,6 +221,8 @@ export default function TripDetailScreen({
       dispatch({ type: 'finish', action });
     } catch (error) {
       dispatch({ type: 'finish', action, error });
+    } finally {
+      cancellationInFlight.current = false;
     }
   }
 
@@ -292,6 +305,7 @@ export default function TripDetailScreen({
     && Boolean(trip.intentId)
     && Boolean(trip.holdExpiresAt);
   const requestCancellation = trip.source === 'request';
+  const unpaidHoldCancellation = trip.source === 'trusted' && trip.state === 'intent_created';
   const selfServicePaidCancellation = cancellationQuote?.selfServiceAllowed === true
     && Boolean(cancellationQuote.bookingVersion);
 
@@ -402,9 +416,11 @@ export default function TripDetailScreen({
             {session.confirmingCancellation ? (
               <View style={styles.confirmCard}>
                 <Text style={styles.confirmTitle}>
-                  {requestCancellation ? 'Cancel this request?' : 'Cancel this paid booking?'}
+                  {unpaidHoldCancellation ? 'Cancel these held dates?' : requestCancellation ? 'Cancel this request?' : 'Cancel this paid booking?'}
                 </Text>
-                {requestCancellation ? (
+                {unpaidHoldCancellation ? (
+                  <Text style={styles.confirmBody}>Release these dates and withdraw your interest. No payment or refund will be made.</Text>
+                ) : requestCancellation ? (
                   <Text style={styles.confirmBody}>
                     No payment has been confirmed. If checkout has not started, MMG will cancel the request and release any active hold immediately. If Paystack is already processing, the hold stays protected until payment resolves and MMG will then finish the cancellation safely.
                   </Text>
@@ -432,11 +448,11 @@ export default function TripDetailScreen({
                     }}
                     secondary
                   />
-                  {(requestCancellation || selfServicePaidCancellation) ? (
+                  {(unpaidHoldCancellation || requestCancellation || selfServicePaidCancellation) ? (
                     <ActionButton
                       disabled={busy}
                       icon="close-circle-outline"
-                      label={requestCancellation ? 'Cancel request' : 'Confirm cancellation'}
+                      label={unpaidHoldCancellation ? 'Cancel held dates' : requestCancellation ? 'Cancel request' : 'Confirm cancellation'}
                       loading={session.pendingAction === 'cancellation'}
                       onPress={() => void perform('cancellation')}
                     />
@@ -488,7 +504,7 @@ export default function TripDetailScreen({
                 <ActionButton
                   disabled={busy}
                   icon={actionCopy[renderedActions.primary].icon}
-                  label={renderedActions.primary === 'cancellation' && quoteLoading ? 'Checking…' : actionCopy[renderedActions.primary].label}
+                  label={renderedActions.primary === 'cancellation' ? (quoteLoading ? 'Checking…' : unpaidHoldCancellation ? 'Cancel held dates' : 'Cancel request') : actionCopy[renderedActions.primary].label}
                   loading={session.pendingAction === renderedActions.primary}
                   onPress={() => renderedActions.primary === 'cancellation'
                     ? void beginCancellation()
@@ -499,7 +515,7 @@ export default function TripDetailScreen({
                     key={action}
                     disabled={busy}
                     icon={actionCopy[action].icon}
-                    label={action === 'cancellation' && quoteLoading ? 'Checking…' : actionCopy[action].label}
+                    label={action === 'cancellation' ? (quoteLoading ? 'Checking…' : unpaidHoldCancellation ? 'Cancel held dates' : 'Cancel request') : actionCopy[action].label}
                     loading={session.pendingAction === action}
                     onPress={() => action === 'cancellation'
                       ? void beginCancellation()
