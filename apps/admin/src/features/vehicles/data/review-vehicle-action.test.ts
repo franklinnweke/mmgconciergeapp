@@ -142,6 +142,13 @@ describe('executeReviewVehicleAction', () => {
     });
   });
 
+  it('explains incomplete discovery details without exposing the underlying record', async () => {
+    mockReviewVehicle.mockRejectedValueOnce(new CommandError('FAILED_PRECONDITION', 'private internal details', { reason: 'listing_incomplete' }));
+    const result = await executeReviewVehicleAction({ vehicleId: 'veh-1', expectedVersion: 1, decision: 'approve', checklist: validChecklist });
+    expect(result).toEqual({ success: false, error: 'Complete the listing details and choose a valid Lagos base area before approval.' });
+    expect(JSON.stringify(result)).not.toContain('private internal details');
+  });
+
   it('maps FORBIDDEN with not_staff reason to safe unauthorized message', async () => {
     mockReviewVehicle.mockRejectedValueOnce(
       new CommandError('FORBIDDEN', 'User is not staff.', { reason: 'not_staff' }),

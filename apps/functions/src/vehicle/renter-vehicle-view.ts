@@ -3,6 +3,7 @@ import {
   renterVisibleVehicleSchema,
   type RenterVisibleVehicle,
 } from '@mmg/contracts';
+import { resolveVehicleDiscoveryLocation } from '@mmg/domain';
 
 import { PRIMARY_IMAGE_VARIANT } from './image-processing.js';
 import type { VehicleImageRecord, VehicleRecord } from './vehicle-repository.js';
@@ -63,6 +64,52 @@ export type RenterVehicleViewOptions = {
   onDropped?: (vehicleId: string, reason: RenterVehicleDropReason) => void;
 };
 
+const renterVehicleDetailsSchema = renterVisibleVehicleSchema.omit({ imageUrls: true, primaryImageUrl: true });
+
+function renterVehicleDetails(vehicle: Record<string, unknown>) {
+  const location = resolveVehicleDiscoveryLocation({
+    areaLabel: vehicle.areaLabel,
+    approxLatitude: vehicle.approxLatitude,
+    approxLongitude: vehicle.approxLongitude,
+  });
+  return {
+    vehicleId: vehicle.vehicleId,
+    ownerId: vehicle.ownerId,
+    displayName: vehicle.displayName,
+    category: vehicle.category,
+    seats: vehicle.seats,
+    areaLabel: vehicle.areaLabel,
+    approxLatitude: location?.lat ?? null,
+    approxLongitude: location?.lng ?? null,
+    ownerDailyRateKobo: vehicle.ownerDailyRateKobo,
+    chauffeurPolicy: vehicle.chauffeurPolicy,
+    deliveryPolicy: vehicle.deliveryPolicy,
+    description: vehicle.description,
+    features: vehicle.features,
+    year: vehicle.year,
+    make: vehicle.make,
+    model: vehicle.model,
+  };
+}
+
+/** Shared readiness check: publication must satisfy the same details as discovery. */
+export function isRenterVehicleDetailsReady(vehicle: Record<string, unknown>): boolean {
+  return renterVehicleDetailsSchema.safeParse(renterVehicleDetails(vehicle)).success;
+}
+
+type PublishedImageCandidate = Pick<VehicleImageRecord, 'status' | 'publicVariantPaths'>;
+
+function publishedImagePath(image: PublishedImageCandidate): string | null {
+  if (image.status !== 'approved' || !image.publicVariantPaths) return null;
+  const path = image.publicVariantPaths[PRIMARY_IMAGE_VARIANT] ?? Object.values(image.publicVariantPaths)[0];
+  return typeof path === 'string' && path.length > 0 ? path : null;
+}
+
+/** Publication uses the same approved-photo predicate as the renter projection. */
+export function hasRenterPublishedImage(images: readonly PublishedImageCandidate[]): boolean {
+  return images.some((image) => publishedImagePath(image) !== null);
+}
+
 /**
  * Projects a stored listing for renters, or returns null if it is not visible.
  *
@@ -96,11 +143,7 @@ export function toRenterVisibleVehicle(
     // record of what was published, `status` is the moderation fact. A rejected
     // image with paths still stamped is a listing mid-demotion, not a photo to
     // show.
-    if (image.status !== 'approved' || !image.publicVariantPaths) continue;
-
-    const path =
-      image.publicVariantPaths[PRIMARY_IMAGE_VARIANT] ??
-      Object.values(image.publicVariantPaths)[0];
+    const path = publishedImagePath(image);
     if (path) imageUrls.push(publicObjectUrl(path));
     if (imageUrls.length === MAX_VEHICLE_IMAGES) break;
   }
@@ -108,26 +151,9 @@ export function toRenterVisibleVehicle(
   if (imageUrls.length === 0) return drop('no_published_images');
 
   const projection = {
-    vehicleId: vehicle.vehicleId,
-    ownerId: vehicle.ownerId,
-    displayName: vehicle.displayName,
-    category: vehicle.category,
-    seats: vehicle.seats,
-    areaLabel: vehicle.areaLabel,
-    // Approximate coordinates only. The exact base is in `vehiclePrivate`, which
-    // this function is not given.
-    approxLatitude: vehicle.approxLatitude,
-    approxLongitude: vehicle.approxLongitude,
-    ownerDailyRateKobo: vehicle.ownerDailyRateKobo,
-    chauffeurPolicy: vehicle.chauffeurPolicy,
-    deliveryPolicy: vehicle.deliveryPolicy,
+    ...renterVehicleDetails(vehicle),
     imageUrls,
     primaryImageUrl: imageUrls[0],
-    description: vehicle.description,
-    features: vehicle.features,
-    year: vehicle.year,
-    make: vehicle.make,
-    model: vehicle.model,
   };
 
   const parsed = renterVisibleVehicleSchema.safeParse(projection);

@@ -7,7 +7,7 @@ import {
   type CreateVehicleDraftCommand,
   type CreateVehicleDraftResult,
 } from '@mmg/contracts';
-import { ownerMayCreateVehicle, roundToApproxLatLng } from '@mmg/domain';
+import { ownerMayCreateVehicle, resolveVehicleDiscoveryLocation, roundToApproxLatLng } from '@mmg/domain';
 
 import type {
   VehicleAuditEvent,
@@ -73,9 +73,14 @@ export async function createVehicleDraft(
       ? `${command.data.specs.make ?? 'New'} ${command.data.specs.model ?? 'Vehicle'} ${command.data.specs.year ?? ''}`.trim()
       : 'New Vehicle';
 
+    if (command.data.areaLabel && command.data.baseAddress &&
+        command.data.areaLabel !== command.data.baseAddress.areaLabel) {
+      throw new CommandError('INVALID_ARGUMENT', 'Vehicle area must match the garage address area.');
+    }
+    const areaLabel = command.data.areaLabel ?? command.data.baseAddress?.areaLabel ?? null;
     const approxLatLng = command.data.exactBase
       ? roundToApproxLatLng(command.data.exactBase.latitude, command.data.exactBase.longitude)
-      : null;
+      : resolveVehicleDiscoveryLocation({ areaLabel });
 
     const vehicleRecord: VehicleRecord = {
       vehicleId,
@@ -95,7 +100,7 @@ export async function createVehicleDraft(
       ownerDailyRateKobo: command.data.ownerDailyRateKobo ?? null,
       chauffeurPolicy: 'included' as const,
       deliveryPolicy: 'included' as const,
-      areaLabel: command.data.areaLabel ?? null,
+      areaLabel,
       approxLatitude: approxLatLng?.lat ?? null,
       approxLongitude: approxLatLng?.lng ?? null,
       moderationStatus: 'draft' as const,

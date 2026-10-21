@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   promotedVehicleImageFixture,
@@ -82,6 +82,29 @@ const mockSource: DiscoveryVehicleSource = {
 const bucketName = 'mmg-test.appspot.com';
 
 describe('searchVehiclesService', () => {
+  it('returns approved area-only listings through both search and detail with finite distance', async () => {
+    const item = { ...suv, vehicle: { ...suv.vehicle, approxLatitude: null, approxLongitude: null } };
+    const source: DiscoveryVehicleSource = { listDiscoverable: async () => [item], getById: async () => item };
+    const search = await searchVehiclesService({ areaLabel: 'Ikoyi', originLat: 6.45, originLng: 3.43, radiusKm: 1 }, source, bucketName);
+    expect(search.totalMatches).toBe(1);
+    expect(search.vehicles[0]).toMatchObject({ approxLatitude: 6.45, approxLongitude: 3.43, distanceKm: 0 });
+    const detail = await getVehicleDetailsService(item.vehicle.vehicleId, source, bucketName);
+    expect(detail.vehicle?.vehicleId).toBe(item.vehicle.vehicleId);
+    expect(Number.isFinite(detail.vehicle?.distanceKm)).toBe(true);
+    expect(JSON.stringify(search)).not.toContain('owner-private');
+    expect(JSON.stringify(detail)).not.toContain('private/');
+    expect(item.vehicle.approxLatitude).toBeNull();
+  });
+
+  it('reports invalid projections without returning internal diagnostics to renters', async () => {
+    const item = { ...suv, vehicle: { ...suv.vehicle, approxLatitude: 6.45, approxLongitude: null } };
+    const source: DiscoveryVehicleSource = { listDiscoverable: async () => [item], getById: async () => item };
+    const onDropped = vi.fn();
+    const result = await searchVehiclesService({}, source, bucketName, { onDropped });
+    expect(result).toEqual({ vehicles: [], totalMatches: 0 });
+    expect(onDropped).toHaveBeenCalledWith(item.vehicle.vehicleId, 'invalid_projection');
+  });
+
   it('returns strict renter discovery DTOs without trusted fields', async () => {
     const result = await searchVehiclesService({}, mockSource, bucketName);
 

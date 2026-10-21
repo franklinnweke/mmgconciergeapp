@@ -11,6 +11,7 @@ import {
   canTransitionVehicleVisibility,
   ownerMayCreateVehicle,
   ownerMayManageVehicle,
+  resolveVehicleDiscoveryLocation,
 } from '@mmg/domain';
 
 import {
@@ -26,6 +27,7 @@ import type {
   VehicleRepository,
 } from './vehicle-repository.js';
 import type { VehicleStorageGateway } from './vehicle-storage-gateway.js';
+import { isRenterVehicleDetailsReady } from './renter-vehicle-view.js';
 
 /**
  * Owner-driven visibility changes, and the publication that follows them.
@@ -137,6 +139,13 @@ export async function setVehicleVisibility(
       );
     }
 
+    const discoveryLocation = resolveVehicleDiscoveryLocation(vehicle);
+    if (command.data.visibility === 'active' && !isRenterVehicleDetailsReady(vehicle)) {
+      throw new CommandError('FAILED_PRECONDITION', 'Complete the vehicle details and a valid Lagos base area before activating the listing.', {
+        reason: 'listing_incomplete',
+      });
+    }
+
     if (command.data.visibility === 'deleted') {
       const privateDoc = await transaction.getVehiclePrivate(command.data.vehicleId);
       if (privateDoc) {
@@ -163,6 +172,8 @@ export async function setVehicleVisibility(
     const updatedVehicle: VehicleRecord = {
       ...vehicle,
       visibility: command.data.visibility,
+      approxLatitude: discoveryLocation?.lat ?? vehicle.approxLatitude,
+      approxLongitude: discoveryLocation?.lng ?? vehicle.approxLongitude,
       discoverable: false,
       updatedAt: now.toISOString(),
       version: nextVersion,

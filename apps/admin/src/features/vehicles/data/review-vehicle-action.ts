@@ -68,6 +68,9 @@ function safeReviewErrorMessage(error: unknown): string {
   if (code.data === 'FAILED_PRECONDITION' && reason === 'stale_version') {
     return 'This vehicle changed. Refresh the record and try again.';
   }
+  if (code.data === 'FAILED_PRECONDITION' && reason === 'listing_incomplete') {
+    return 'Complete the listing details and choose a valid Lagos base area before approval.';
+  }
   if (code.data === 'INVALID_STATE_TRANSITION') {
     return "This action is not valid for the vehicle's current state. Refresh the record and try again.";
   }

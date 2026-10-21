@@ -38,6 +38,32 @@ function promotedImageFixture() {
 }
 
 describe('setVehicleVisibility service', () => {
+  it('repairs an approved area-only listing during activation', async () => {
+    const image = vehicleImageFixture({ status: 'approved' });
+    const repository = seededVehicleRepository({ moderationStatus: 'approved', images: [image] });
+    repository.vehicles.set('veh-01', { ...repository.vehicle(), approxLatitude: null, approxLongitude: null });
+    await setVehicleVisibility(activateCommand('activate-area-only', 'active'), 'owner-1', {
+      repository, storageGateway: new InMemoryVehicleStorageGateway(seededVariantObjects([image])),
+    });
+    expect(repository.vehicle()).toMatchObject({ approxLatitude: 6.43, approxLongitude: 3.42, discoverable: true });
+  });
+
+  it.each([
+    { approxLatitude: 6.43, approxLongitude: null },
+    { approxLatitude: null, approxLongitude: null, areaLabel: null },
+    { ownerDailyRateKobo: 1 },
+  ])('refuses activation of an invalid discovery record with no partial effects', async (overrides) => {
+    const repository = seededVehicleRepository({ moderationStatus: 'approved' });
+    repository.vehicles.set('veh-01', { ...repository.vehicle(), ...overrides });
+    const storageGateway = new InMemoryVehicleStorageGateway();
+    await expect(setVehicleVisibility(activateCommand('activate-invalid-location', 'active'), 'owner-1', { repository, storageGateway }))
+      .rejects.toMatchObject({ code: 'FAILED_PRECONDITION', safeDetails: { reason: 'listing_incomplete' } });
+    expect(repository.vehicle().visibility).toBe('paused');
+    expect(repository.vehicleWrites).toHaveLength(0);
+    expect(repository.auditEvents).toHaveLength(0);
+    expect(storageGateway.objects.size).toBe(0);
+  });
+
   it('publishes an approved listing’s images when the owner activates it', async () => {
     const image = vehicleImageFixture({ status: 'approved' });
     const repository = seededVehicleRepository({

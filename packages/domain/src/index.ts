@@ -554,6 +554,27 @@ export const LAGOS_AREA_CENTROIDS = {
 export type LagosDomainAreaLabel = keyof typeof LAGOS_AREA_CENTROIDS;
 
 /**
+ * Discovery needs an approximate service area, not the private garage location.
+ * Area-only listings use their explicitly selected canonical area centre. Never
+ * disguise a partial/malformed coordinate pair as a valid area-only listing.
+ */
+export function resolveVehicleDiscoveryLocation(input: {
+  areaLabel: unknown;
+  approxLatitude?: unknown;
+  approxLongitude?: unknown;
+}): { lat: number; lng: number } | null {
+  const { approxLatitude: lat, approxLongitude: lng, areaLabel } = input;
+  if (lat == null && lng == null) {
+    if (typeof areaLabel !== 'string' || !Object.hasOwn(LAGOS_AREA_CENTROIDS, areaLabel)) return null;
+    const centre = LAGOS_AREA_CENTROIDS[areaLabel as LagosDomainAreaLabel];
+    return roundToApproxLatLng(centre.lat, centre.lng);
+  }
+  if (typeof lat !== 'number' || typeof lng !== 'number' ||
+      !Number.isFinite(lat) || !Number.isFinite(lng) || !isWithinLagosBBox(lat, lng)) return null;
+  return { lat, lng };
+}
+
+/**
  * Derives the canonical LagosAreaLabel from geographic coordinates.
  * Returns null if the coordinates are outside the Lagos operational service envelope.
  */
