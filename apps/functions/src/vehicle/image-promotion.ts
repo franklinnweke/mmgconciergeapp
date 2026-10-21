@@ -6,6 +6,7 @@ import type {
 import { computeDiscoverable } from '@mmg/domain';
 
 import { publicVariantPath } from './image-processing.js';
+import { hasRenterPublishedImage, isRenterVehicleDetailsReady } from './renter-vehicle-view.js';
 import type { VehicleStorageGateway } from './vehicle-storage-gateway.js';
 import { PUBLIC_VARIANT_CACHE_CONTROL } from './vehicle-storage-gateway.js';
 
@@ -257,7 +258,6 @@ export async function applyPublication(context: PublicationContext): Promise<voi
         vehicle.visibility !== outcome.visibility;
 
       const images = await transaction.getVehicleImages(vehicleId);
-      let servableCount = 0;
 
       for (const image of images) {
         if (promotions.has(image.imageId)) {
@@ -278,7 +278,6 @@ export async function applyPublication(context: PublicationContext): Promise<voi
             },
             now,
           );
-          servableCount += 1;
           continue;
         }
 
@@ -299,11 +298,14 @@ export async function applyPublication(context: PublicationContext): Promise<voi
           );
           continue;
         }
-
-        if (image.publicVariantPaths !== null) {
-          servableCount += 1;
-        }
       }
+
+      const publishedImages = images.map((image) => ({
+        ...image,
+        publicVariantPaths: demotions.includes(image.imageId) ? null
+          : !superseded && promotions.has(image.imageId) ? promotions.get(image.imageId)!
+          : image.publicVariantPaths,
+      }));
 
       // The newer state is authoritative and owns its own discoverability;
       // publication does not reinstate a superseded decision.
@@ -312,8 +314,8 @@ export async function applyPublication(context: PublicationContext): Promise<voi
         : computeDiscoverable({
             moderationStatus: vehicle.moderationStatus as VehicleModerationStatus,
             visibility: vehicle.visibility as VehicleVisibility,
-            hasApprovedSnapshot: servableCount > 0,
-          });
+            hasApprovedSnapshot: hasRenterPublishedImage(publishedImages),
+          }) && isRenterVehicleDetailsReady(vehicle);
 
       if (nextDiscoverable !== vehicle.discoverable) {
         transaction.setVehicle(

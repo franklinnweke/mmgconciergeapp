@@ -71,6 +71,7 @@ Production is never a development or test target.
 - Exact vehicle address/coordinates and owner-sensitive data remain private.
 - Owner processed vehicle photos remain client-denied in Storage. Owner previews use a vehicle-ownership-checked callable that derives only the processed card path and returns an ephemeral five-minute signed URL; never accept client Storage paths, persist preview URLs, or broaden private Storage reads.
 - Only approved, active, discoverable vehicles are renter-visible.
+- Vehicle discovery uses approximate Lagos base-area coordinates, never the exact garage address. If both approximate coordinates are absent, the server may use the listing's explicitly selected canonical Lagos area centre, rounded to the existing discovery precision. This is area-level positioning, not a verified garage pin; never write that centre into private exact-location fields or renter pickup data. Partial/malformed coordinate pairs fail closed; no area fallback is allowed for unknown areas. Approval/activation/publication must satisfy the same renter-detail contract as discovery.
 - Signed-out `Rent a car` versus `List a car` is session intent, not a permanent navigation role.
 - Every verified authenticated MMG account can use the renter experience.
 - Listing vehicles is an additional owner application/capability on the same identity.
@@ -459,7 +460,7 @@ Current state:
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
 - Production `mmg-concierge`: untouched
-- Firebase development deployment (`mmg-concierge-dev`): deployed (Rules, indexes including storageDeletionOutbox, reviewOwnerVerification in africa-south1, processStorageDeletionOutbox scheduler in europe-west1, and all 19 approved Functions active)
+- Firebase development deployment (`mmg-concierge-dev`): deployed. Use Issue #35 and the exact development-CD deployment step for current resource/revision evidence; the historical 19-Function count is no longer current. A feature branch passing tests does not mean its runtime changes have been deployed.
 - Native Build Milestone: Build 45 active on TestFlight (submitted to Apple Connect, processing)
 - Android native validation: in progress on Pixel 7 API 35
 
@@ -485,7 +486,7 @@ Pre-launch compliance and policy status:
 - Apple private email relay/operator-domain verification as applicable.
 - Apple token revocation on account deletion before public App Store release.
 
-Automatic development CD remains intentionally disabled until Google Workload Identity variables are configured. This is infrastructure work, not an MVP functional blocker. Production Firebase and live Paystack remain out of scope without explicit authorization.
+Development CD uses Google Workload Identity and is gated by `MMG_DEV_CD_ENABLED=true`. It deploys development Firebase resources after green `main` CI when backend resources changed (or an authorized manual run requests deployment). Verify that the actual deployment step ran: a successful skipped workflow is not deployment evidence. EAS builds and Admin/VPS deployment remain separate. Production Firebase and live Paystack remain out of scope without explicit authorization.
 
 ## 9. Validation discipline
 

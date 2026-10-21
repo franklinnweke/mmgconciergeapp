@@ -14,6 +14,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import {
   googleCloudStoragePublicUrl,
   toRenterVisibleVehicle,
+  type RenterVehicleViewOptions,
 } from '../vehicle/renter-vehicle-view.js';
 import type { VehicleImageRecord, VehicleRecord } from '../vehicle/vehicle-repository.js';
 
@@ -69,11 +70,13 @@ export class FirestoreDiscoveryVehicleSource implements DiscoveryVehicleSource {
 function toDiscoveryVehicle(
   source: { vehicle: VehicleRecord; images: VehicleImageRecord[] },
   bucketName: string,
+  options: RenterVehicleViewOptions,
 ): DiscoveryVehicle | null {
   const renterVehicle = toRenterVisibleVehicle(
     source.vehicle,
     source.images,
     googleCloudStoragePublicUrl(bucketName),
+    options,
   );
   if (!renterVehicle) return null;
 
@@ -85,11 +88,12 @@ export async function getVehicleDetailsService(
   vehicleId: string,
   source: DiscoveryVehicleSource,
   bucketName: string,
+  options: RenterVehicleViewOptions = {},
 ): Promise<GetVehicleDetailsResult> {
   const item = await source.getById(vehicleId);
   if (!item) return { vehicle: null };
 
-  const vehicle = toDiscoveryVehicle(item, bucketName);
+  const vehicle = toDiscoveryVehicle(item, bucketName, options);
   if (!vehicle) return { vehicle: null };
 
   const distanceKm = haversineDistanceKm(
@@ -106,6 +110,7 @@ export async function searchVehiclesService(
   criteria: SearchVehiclesData,
   source: DiscoveryVehicleSource,
   bucketName: string,
+  options: RenterVehicleViewOptions = {},
 ): Promise<SearchVehiclesResult> {
   const items = await source.listDiscoverable();
   const originLat = criteria.originLat ?? DEFAULT_LAGOS_ORIGIN.lat;
@@ -113,7 +118,7 @@ export async function searchVehiclesService(
   const matches: RankedDiscoveryVehicle[] = [];
 
   for (const item of items) {
-    const vehicle = toDiscoveryVehicle(item, bucketName);
+    const vehicle = toDiscoveryVehicle(item, bucketName, options);
     if (!vehicle) continue;
 
     const distanceKm = haversineDistanceKm(

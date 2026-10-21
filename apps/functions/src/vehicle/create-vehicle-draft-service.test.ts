@@ -83,7 +83,9 @@ describe('createVehicleDraft service', () => {
     expect(vehicles[0].discoverable).toBe(false);
     expect(vehicles[0].chauffeurPolicy).toBe('included');
     expect(vehicles[0].deliveryPolicy).toBe('included');
+    expect(vehicles[0]).toMatchObject({ approxLatitude: 6.43, approxLongitude: 3.42 });
     expect(privateRecords).toHaveLength(1);
+    expect(privateRecords[0]).toMatchObject({ exactLatitude: null, exactLongitude: null, placeId: null });
     expect(auditEvents).toHaveLength(1);
     expect(auditEvents[0].eventType).toBe('vehicle.draft_created');
   });
@@ -98,6 +100,23 @@ describe('createVehicleDraft service', () => {
         createVehicleId: () => 'vehicle-02',
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('keeps exact bases private and derives only rounded discovery coordinates', async () => {
+    const { repository, writes } = mockRepository();
+    const command = validCommand();
+    await createVehicleDraft({ ...command, data: { ...command.data, exactBase: { latitude: 6.428123, longitude: 3.421987 } } }, 'owner-approved', { repository });
+    expect(writes().vehicles[0]).toMatchObject({ approxLatitude: 6.43, approxLongitude: 3.42 });
+    expect(writes().privateRecords[0]).toMatchObject({ exactLatitude: 6.428123, exactLongitude: 3.421987 });
+  });
+
+  it('rejects inconsistent area labels without creating a listing', async () => {
+    const { repository, writes } = mockRepository();
+    const command = validCommand();
+    await expect(createVehicleDraft({ ...command, data: { ...command.data,
+      baseAddress: { line1: '12 Fictional Road', areaLabel: 'Ikoyi', city: 'Lagos', country: 'NG' },
+    } }, 'owner-approved', { repository })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+    expect(writes().vehicles).toHaveLength(0);
   });
 
   it('rejects unknown users', async () => {

@@ -19,6 +19,15 @@ import {
 } from './search-vehicles-service.js';
 
 import { isProductionAppCheck } from '../app-check-env.js';
+import type { RenterVehicleViewOptions } from '../vehicle/renter-vehicle-view.js';
+
+const projectionDiagnostics: RenterVehicleViewOptions = {
+  onDropped: (vehicleId, reason) => {
+    if (reason === 'invalid_projection' || reason === 'no_published_images') {
+      logger.warn('discovery.vehicle_excluded', { vehicleId, reason });
+    }
+  },
+};
 
 const discoveryRuntimeOptions = {
   region: 'africa-south1',
@@ -53,7 +62,7 @@ export const searchVehicles = onCall(
       const bucketName = getStorage().bucket().name || 'mmg-concierge.appspot.com';
       const source = new FirestoreDiscoveryVehicleSource(getFirestore());
       return searchVehiclesResultSchema.parse(
-        await searchVehiclesService(data, source, bucketName),
+        await searchVehiclesService(data, source, bucketName, projectionDiagnostics),
       );
     } catch (error) {
       rethrowDiscoveryError(error, 'Vehicle search failed.');
@@ -70,7 +79,7 @@ export const getVehicleDetails = onCall(
       const bucketName = getStorage().bucket().name || 'mmg-concierge.appspot.com';
       const source = new FirestoreDiscoveryVehicleSource(getFirestore());
       return getVehicleDetailsResultSchema.parse(
-        await getVehicleDetailsService(data.vehicleId, source, bucketName),
+        await getVehicleDetailsService(data.vehicleId, source, bucketName, projectionDiagnostics),
       );
     } catch (error) {
       rethrowDiscoveryError(error, 'Vehicle details could not be loaded.');

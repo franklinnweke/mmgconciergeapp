@@ -183,8 +183,8 @@ describe('updateVehicleDraft', () => {
       displayName: 'Lexus LX 600 2025',
       ownerDailyRateKobo: 200_000_00,
       areaLabel: 'Victoria Island',
-      approxLatitude: null,
-      approxLongitude: null,
+      approxLatitude: 6.43,
+      approxLongitude: 3.42,
       version: 4,
       visibility: 'paused',
       discoverable: false,
@@ -230,6 +230,13 @@ describe('updateVehicleDraft', () => {
       'owner-1',
       { repository, now: () => now },
     )).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+  });
+
+  it('does not disguise a malformed location as an area-only listing during a non-location edit', async () => {
+    const { repository, state } = setup();
+    state().vehicle.approxLongitude = null;
+    await updateVehicleDraft(command({ areaLabel: undefined, baseAddress: undefined }), 'owner-1', { repository, now: () => now });
+    expect(state().vehicle).toMatchObject({ approxLatitude: 6.454, approxLongitude: null });
   });
 
   it('keeps rejected images excluded when the owner is replacing photos', async () => {

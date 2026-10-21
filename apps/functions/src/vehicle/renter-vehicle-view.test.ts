@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   googleCloudStoragePublicUrl,
+  hasRenterPublishedImage,
   toRenterVisibleVehicle,
   toRenterVisibleVehicles,
 } from './renter-vehicle-view.js';
@@ -37,6 +38,36 @@ describe('googleCloudStoragePublicUrl', () => {
 });
 
 describe('toRenterVisibleVehicle', () => {
+  it('requires an approved non-empty published path for both publication readiness and renter rendering', () => {
+    for (const image of [
+      promotedVehicleImageFixture({ publicVariantPaths: {} }),
+      promotedVehicleImageFixture({ publicVariantPaths: { card: '' } }),
+      promotedVehicleImageFixture({ status: 'rejected' }),
+    ]) {
+      expect(hasRenterPublishedImage([image])).toBe(false);
+      expect(toRenterVisibleVehicle(liveVehicle(), [image], publicUrl)).toBeNull();
+    }
+    expect(hasRenterPublishedImage([promotedVehicleImageFixture()])).toBe(true);
+  });
+
+  it('recovers an approved area-only legacy listing without changing the stored record', () => {
+    const vehicle = liveVehicle({ areaLabel: 'Ikoyi', approxLatitude: null, approxLongitude: null });
+    const before = structuredClone(vehicle);
+    const dto = toRenterVisibleVehicle(vehicle, [promotedVehicleImageFixture()], publicUrl);
+    expect(dto).toMatchObject({ approxLatitude: 6.45, approxLongitude: 3.43, areaLabel: 'Ikoyi' });
+    expect(vehicle).toEqual(before);
+  });
+
+  it.each([
+    { areaLabel: 'Unknown area', approxLatitude: null, approxLongitude: null },
+    { approxLatitude: 6.43, approxLongitude: null },
+    { approxLatitude: 51.5, approxLongitude: -0.1 },
+  ])('continues to hide an unresolvable or corrupt location', (overrides) => {
+    const onDropped = vi.fn();
+    expect(toRenterVisibleVehicle(liveVehicle(overrides), [promotedVehicleImageFixture()], publicUrl, { onDropped })).toBeNull();
+    expect(onDropped).toHaveBeenCalledWith('veh-01', 'invalid_projection');
+  });
+
   it('projects a live listing with its published photos', () => {
     const image = promotedVehicleImageFixture();
     const dto = toRenterVisibleVehicle(liveVehicle(), [image], publicUrl);

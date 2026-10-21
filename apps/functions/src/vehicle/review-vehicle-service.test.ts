@@ -53,6 +53,25 @@ function decisionCommand(
 }
 
 describe('reviewVehicle service', () => {
+  it('resolves an area-only listing on approval without inventing private coordinates', async () => {
+    const repository = seededVehicleRepository();
+    repository.vehicles.set('veh-01', { ...repository.vehicle(), areaLabel: 'Ikoyi', approxLatitude: null, approxLongitude: null });
+    repository.privateDocs.set('veh-01', { ...repository.privateDocs.get('veh-01')!, exactLatitude: null, exactLongitude: null, placeId: null });
+    await reviewVehicle(approveCommand('review-area-only'), staffActor, { repository, storageGateway: new InMemoryVehicleStorageGateway() });
+    expect(repository.vehicle()).toMatchObject({ moderationStatus: 'approved', approxLatitude: 6.45, approxLongitude: 3.43 });
+    expect(repository.privateDocs.get('veh-01')).toMatchObject({ exactLatitude: null, exactLongitude: null, placeId: null });
+  });
+
+  it('rejects approval of details that discovery cannot serve with no partial effects', async () => {
+    const repository = seededVehicleRepository();
+    repository.vehicles.set('veh-01', { ...repository.vehicle(), approxLatitude: 51.5, approxLongitude: -0.1 });
+    await expect(reviewVehicle(approveCommand('review-invalid-location'), staffActor, { repository, storageGateway: new InMemoryVehicleStorageGateway() }))
+      .rejects.toMatchObject({ code: 'FAILED_PRECONDITION', safeDetails: { reason: 'listing_incomplete' } });
+    expect(repository.vehicle().moderationStatus).toBe('pending_review');
+    expect(repository.vehicleWrites).toHaveLength(0);
+    expect(repository.auditEvents).toHaveLength(0);
+  });
+
   it('approves a pending listing without publishing anything', async () => {
     const image = vehicleImageFixture();
     const repository = seededVehicleRepository({
@@ -113,6 +132,19 @@ describe('reviewVehicle service', () => {
 
     expect(repository.vehicle().moderationStatus).toBe('pending_review');
     expect(repository.auditEvents).toHaveLength(0);
+  });
+
+  it('does not mark publication discoverable if details become invalid before the publication commit', async () => {
+    const image = vehicleImageFixture();
+    const repository = seededVehicleRepository({ visibility: 'active', images: [image] });
+    repository.beforeTransaction = (index) => {
+      if (index === 2) repository.vehicles.set('veh-01', { ...repository.vehicle(), approxLongitude: null });
+    };
+    await reviewVehicle(approveCommand('review-publication-readiness'), staffActor, {
+      repository, storageGateway: new InMemoryVehicleStorageGateway(seededVariantObjects([image])),
+    });
+    expect(repository.vehicle().discoverable).toBe(false);
+    expect(repository.auditEvents.at(-1)?.details).toMatchObject({ discoverable: false });
   });
 
   it('rejects a listing with a mandatory reason', async () => {

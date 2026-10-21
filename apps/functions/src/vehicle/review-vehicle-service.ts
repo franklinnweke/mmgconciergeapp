@@ -11,11 +11,13 @@ import {
 } from '@mmg/contracts';
 import {
   canTransitionVehicleModeration,
+  resolveVehicleDiscoveryLocation,
   roundToApproxLatLng,
   vehicleReviewTargetStatus,
 } from '@mmg/domain';
 
 import { applyPublication, contentTypesForImages } from './image-promotion.js';
+import { isRenterVehicleDetailsReady } from './renter-vehicle-view.js';
 import type {
   VehicleAdminAuditLog,
   VehicleAuditEvent,
@@ -142,10 +144,8 @@ export async function reviewVehicle(
 
       let nextVisibility = vehicle.visibility;
       let nextLastDecisionReason = vehicle.lastDecisionReason;
-      let approxCoords = {
-        lat: vehicle.approxLatitude,
-        lng: vehicle.approxLongitude,
-      };
+      const discoveryLocation = resolveVehicleDiscoveryLocation(vehicle);
+      let approxCoords = { lat: discoveryLocation?.lat ?? vehicle.approxLatitude, lng: discoveryLocation?.lng ?? vehicle.approxLongitude };
 
       if (command.data.decision === 'approve') {
         nextLastDecisionReason = null;
@@ -184,6 +184,11 @@ export async function reviewVehicle(
             updatedAt: now.toISOString(),
           };
           transaction.setVehiclePrivate(command.data.vehicleId, updatedPrivate, now);
+        }
+        if (!isRenterVehicleDetailsReady({ ...vehicle, approxLatitude: approxCoords.lat, approxLongitude: approxCoords.lng })) {
+          throw new CommandError('FAILED_PRECONDITION', 'Complete the vehicle details and a valid Lagos base area before approval.', {
+            reason: 'listing_incomplete',
+          });
         }
       } else if (command.data.decision === 'reject') {
         if (!command.data.reason) {

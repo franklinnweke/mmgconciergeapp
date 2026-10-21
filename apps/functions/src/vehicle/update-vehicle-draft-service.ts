@@ -9,6 +9,7 @@ import {
 import {
   ownerMayCreateVehicle,
   ownerMayManageVehicle,
+  resolveVehicleDiscoveryLocation,
   roundToApproxLatLng,
 } from '@mmg/domain';
 import { z } from 'zod';
@@ -164,6 +165,11 @@ export async function updateVehicleDraft(
       command.data.exactBase !== undefined;
     const nextAreaLabel =
       command.data.areaLabel ?? command.data.baseAddress?.areaLabel ?? vehicle.areaLabel;
+    const discoveryLocation = roundedBase ?? resolveVehicleDiscoveryLocation({
+      areaLabel: nextAreaLabel,
+      approxLatitude: locationChanged ? null : vehicle.approxLatitude,
+      approxLongitude: locationChanged ? null : vehicle.approxLongitude,
+    });
 
     const images = await transaction.getVehicleImages(command.data.vehicleId);
     const reuseRejectedImages =
@@ -200,8 +206,8 @@ export async function updateVehicleDraft(
       features,
       ownerDailyRateKobo: command.data.ownerDailyRateKobo ?? vehicle.ownerDailyRateKobo,
       areaLabel: nextAreaLabel,
-      approxLatitude: roundedBase?.lat ?? (locationChanged ? null : vehicle.approxLatitude),
-      approxLongitude: roundedBase?.lng ?? (locationChanged ? null : vehicle.approxLongitude),
+      approxLatitude: discoveryLocation?.lat ?? (locationChanged ? null : vehicle.approxLatitude),
+      approxLongitude: discoveryLocation?.lng ?? (locationChanged ? null : vehicle.approxLongitude),
       visibility: 'paused',
       discoverable: false,
       pendingRevisionId: null,
