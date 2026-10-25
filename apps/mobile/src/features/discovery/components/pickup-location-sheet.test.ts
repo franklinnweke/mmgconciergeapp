@@ -1,6 +1,16 @@
+import React from 'react';
+import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 import { CURATED_PICKUP_LOCATIONS } from '../domain/pickup-location';
 import { PickupLocationSheet } from './pickup-location-sheet';
+
+const mocks = vi.hoisted(() => ({ request: vi.fn(), reset: vi.fn() }));
+vi.mock('../hooks/use-current-location', () => ({ useCurrentLocation: () => ({ requestCurrentLocation: mocks.request, reset: mocks.reset, status: 'idle', errorMessage: null, accuracyMessage: null }) }));
+vi.mock('../hooks/use-place-search', async () => {
+  const { CURATED_PICKUP_LOCATIONS } = await import('../domain/pickup-location');
+  return { usePlaceSearch: () => ({ suggestions: CURATED_PICKUP_LOCATIONS.map((location) => ({ ...location, primaryText: location.displayName, isCurated: true, location })), isLoading: false, error: null, resolvePlace: vi.fn() }) };
+});
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 (globalThis as any).__DEV__ = true;
 
@@ -73,6 +83,44 @@ vi.mock('./pickup-pin-map', () => ({
 }));
 
 describe('PickupLocationSheet', () => {
+  it('does not let a late GPS result replace a manually selected pickup', async () => {
+    let resolveGps!: (value: unknown) => void;
+    mocks.request.mockReturnValueOnce(new Promise((resolve) => { resolveGps = resolve; }));
+    const onSelectLocation = vi.fn();
+    let view!: ReturnType<typeof create>;
+    await act(async () => { view = create(React.createElement(PickupLocationSheet, { visible: true, selectedLocation: null, onSelectLocation, onClose: vi.fn() })); });
+    const action = (label: string) => view.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
+    let pending!: Promise<void>;
+    await act(async () => { pending = action('Use my current location').props.onPress(); });
+    const curated = CURATED_PICKUP_LOCATIONS[0];
+    await act(async () => { await view.root.findAll((node) => node.props.accessibilityHint === 'Selects this pickup location')[0].props.onPress(); });
+    await act(async () => { resolveGps({ success: true, location: { ...curated, latitude: 6.45, longitude: 3.45, source: 'current_location' } }); await pending; });
+    const map = view.root.findAll((node) => String(node.type) === 'PickupPinMap')[0];
+    expect(map.props.latitude).toBe(curated.latitude);
+    expect(map.props.longitude).toBe(curated.longitude);
+    await act(async () => { action('Confirm pickup location').props.onPress(); });
+    expect(onSelectLocation).toHaveBeenCalledWith(expect.objectContaining({ latitude: curated.latitude, longitude: curated.longitude, source: 'suggested' }));
+    await act(async () => { view.unmount(); });
+  });
+
+  it('ignores GPS completion after dismissing pickup selection', async () => {
+    let resolveGps!: (value: unknown) => void;
+    mocks.request.mockReturnValueOnce(new Promise((resolve) => { resolveGps = resolve; }));
+    const onClose = vi.fn();
+    const onSelectLocation = vi.fn();
+    let view!: ReturnType<typeof create>;
+    await act(async () => { view = create(React.createElement(PickupLocationSheet, { visible: true, selectedLocation: null, onSelectLocation, onClose })); });
+    const action = (label: string) => view.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
+    let pending!: Promise<void>;
+    await act(async () => { pending = action('Use my current location').props.onPress(); });
+    await act(async () => { action('Close location selection').props.onPress(); });
+    await act(async () => { resolveGps({ success: true, location: { ...CURATED_PICKUP_LOCATIONS[0], source: 'current_location' } }); await pending; });
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onSelectLocation).not.toHaveBeenCalled();
+    expect(view.root.findAll((node) => node.props.accessibilityLabel === 'Confirm pickup location')).toHaveLength(0);
+    await act(async () => { view.unmount(); });
+  });
+
   it('defines the component function properly', () => {
     expect(typeof PickupLocationSheet).toBe('function');
   });
@@ -140,8 +188,8 @@ describe('PickupLocationSheet', () => {
       isCurated: true,
     };
 
-    const shouldShowAttribution = (suggestions: { isCurated?: boolean }[], query: string) =>
-      suggestions.length > 0 && (query.trim().length >= 2 || suggestions.some((s) => !s.isCurated));
+    const shouldShowAttribution = (suggestions: { isCurated?: boolean }[], _query: string) =>
+      suggestions.length > 0 && suggestions.some((s) => !s.isCurated);
 
     // Case 1: Initial state (query empty, curated only) -> no Google attribution
     expect(shouldShowAttribution([curatedSuggestion], '')).toBe(false);
@@ -151,6 +199,7 @@ describe('PickupLocationSheet', () => {
 
     // Case 3: Empty results -> no attribution
     expect(shouldShowAttribution([], 'Zzz')).toBe(false);
+    expect(shouldShowAttribution([curatedSuggestion], 'Ikeja')).toBe(false);
   });
 
   it('identifies when confirmation step requires Google attribution', () => {

@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Location from 'expo-location';
 import { isWithinLagosBBox } from '@mmg/domain';
+import { acquirePickupFix, PICKUP_PRECISE_ACCURACY_METERS } from '../data/pickup-device-location';
 
 import {
   deriveLagosAreaLabel,
@@ -22,17 +23,26 @@ export type CurrentLocationResult =
 export function useCurrentLocation() {
   const [status, setStatus] = useState<CurrentLocationStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [accuracyMessage, setAccuracyMessage] = useState<string | null>(null);
+  const active = useRef<AbortController | null>(null);
+  useEffect(() => () => { active.current?.abort(); }, []);
 
   const requestCurrentLocation = useCallback(async (): Promise<CurrentLocationResult> => {
+    active.current?.abort();
+    const controller = new AbortController();
+    active.current = controller;
     setStatus('requesting');
     setErrorMessage(null);
+    setAccuracyMessage(null);
 
     try {
       const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+      if (controller.signal.aborted) throw new Error('Cancelled');
       let finalStatus = existingStatus;
 
       if (finalStatus !== Location.PermissionStatus.GRANTED) {
         const { status: requestedStatus } = await Location.requestForegroundPermissionsAsync();
+        if (controller.signal.aborted) throw new Error('Cancelled');
         finalStatus = requestedStatus;
       }
 
@@ -43,9 +53,8 @@ export function useCurrentLocation() {
         return { success: false, reason: 'denied', message: msg };
       }
 
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      if (!await Location.hasServicesEnabledAsync()) throw new Error('Location services unavailable');
+      const position = await acquirePickupFix(controller.signal);
 
       const { latitude, longitude } = position.coords;
 
@@ -68,7 +77,11 @@ export function useCurrentLocation() {
       let formattedAddress = `${serviceAreaLabel}, Lagos`;
 
       try {
-        const geocoded = await Location.reverseGeocodeAsync({ latitude, longitude });
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const geocoded = await Promise.race([
+          Location.reverseGeocodeAsync({ latitude, longitude }),
+          new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error('Geocoding timeout')), 3_000); }),
+        ]).finally(() => { if (timer) clearTimeout(timer); });
         if (geocoded && geocoded.length > 0) {
           const first = geocoded[0];
           const namePart = first.name || first.street;
@@ -98,9 +111,14 @@ export function useCurrentLocation() {
         serviceAreaLabel,
       };
 
+      if (controller.signal.aborted) throw new Error('Cancelled');
+      if (position.coords.accuracy! > PICKUP_PRECISE_ACCURACY_METERS) {
+        setAccuracyMessage('Your location is approximate. Adjust the pin and confirm your pickup.');
+      }
       setStatus('success');
       return { success: true, location };
     } catch {
+      if (controller.signal.aborted) return { success: false, reason: 'error', message: 'Location request cancelled.' };
       const msg = 'Could not determine device location. Please search for an address or place.';
       setStatus('error');
       setErrorMessage(msg);
@@ -109,11 +127,14 @@ export function useCurrentLocation() {
   }, []);
 
   const reset = useCallback(() => {
+    active.current?.abort();
     setStatus('idle');
     setErrorMessage(null);
+    setAccuracyMessage(null);
   }, []);
 
   return {
+    accuracyMessage,
     errorMessage,
     requestCurrentLocation,
     reset,

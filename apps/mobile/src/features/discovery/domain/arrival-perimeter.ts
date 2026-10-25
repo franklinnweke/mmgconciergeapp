@@ -1,10 +1,9 @@
 /**
- * Arrival Perimeter Domain Logic
+ * Pickup pin adjustment limit
  *
- * Enforces that customer pin adjustments remain strictly within the property perimeter
- * of the resolved building or destination (default MAX_ARRIVAL_RADIUS_METERS = 300m).
- * This guarantees that the pin represents an entrance, gate, lobby, or driveway
- * for that specific destination, preventing coordinate drift to another street or neighborhood.
+ * Limits adjustments to a 300m radius around the selected coordinate. This is
+ * not a verified property boundary or proof of a reachable entrance. The renter
+ * must confirm the final pickup point and may add an entrance note.
  */
 
 // At Lagos latitude (~6.5° N):

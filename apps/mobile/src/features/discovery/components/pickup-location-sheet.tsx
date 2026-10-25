@@ -73,14 +73,23 @@ export function PickupLocationSheet({
   const [resolveError, setResolveError] = useState<string | null>(null);
 
   const searchInputRef = useRef<TextInput>(null);
+  const selectionVersion = useRef(0);
 
   const { suggestions, isLoading: searching, error: searchError, resolvePlace } = usePlaceSearch(query);
   const {
     requestCurrentLocation,
+    accuracyMessage,
     status: currentLocStatus,
     errorMessage: currentLocError,
     reset: resetCurrentLoc,
   } = useCurrentLocation();
+
+  useEffect(() => {
+    if (!visible) {
+      selectionVersion.current += 1;
+      resetCurrentLoc();
+    }
+  }, [visible, resetCurrentLoc]);
 
   const snapHeights = useMemo(
     () => calculateSnapHeights(screenHeight, insets),
@@ -144,6 +153,7 @@ export function PickupLocationSheet({
   }));
 
   const handleDismiss = useCallback(() => {
+    selectionVersion.current += 1;
     setQuery('');
     setPendingLocation(null);
     setInitialCoords(null);
@@ -175,6 +185,9 @@ export function PickupLocationSheet({
   };
 
   const handleSelectSuggestion = async (item: PlaceSuggestion) => {
+    const version = ++selectionVersion.current;
+    resetCurrentLoc();
+    setResolvingPlaceId(null);
     setResolveError(null);
     Keyboard.dismiss();
 
@@ -190,23 +203,26 @@ export function PickupLocationSheet({
     setResolvingPlaceId(item.placeId);
     try {
       const location = await resolvePlace(item);
+      if (version !== selectionVersion.current) return;
       setPendingLocation(location);
       setInitialCoords({ latitude: location.latitude, longitude: location.longitude });
       setInitialSource('place_search');
       setNote(isSelected(location) ? (selectedLocation?.note ?? '') : '');
       setMode('confirm');
     } catch (error) {
-      setResolveError(error instanceof Error ? error.message : 'Could not resolve pickup location.');
+      if (version === selectionVersion.current) setResolveError(error instanceof Error ? error.message : 'Could not resolve pickup location.');
     } finally {
-      setResolvingPlaceId(null);
+      if (version === selectionVersion.current) setResolvingPlaceId(null);
     }
   };
 
   const handleCurrentLocationPress = async () => {
+    const version = ++selectionVersion.current;
+    setResolvingPlaceId(null);
     setResolveError(null);
     Keyboard.dismiss();
     const result = await requestCurrentLocation();
-    if (!result.success) return;
+    if (!result.success || version !== selectionVersion.current) return;
     setPendingLocation(result.location);
     setInitialCoords({ latitude: result.location.latitude, longitude: result.location.longitude });
     setInitialSource('current_location');
@@ -249,7 +265,7 @@ export function PickupLocationSheet({
     return dist > 5;
   }, [pendingLocation, initialCoords]);
 
-  const bannerMessage = currentLocError || searchError || resolveError;
+  const bannerMessage = currentLocError || searchError || resolveError || (initialSource === 'current_location' ? accuracyMessage : null);
   const serviceAreaNotice = currentLocStatus === 'outside_lagos' && Boolean(currentLocError);
 
   const effectiveLat = pendingLocation?.latitude ?? initialCoords?.latitude ?? selectedLocation?.latitude ?? DEFAULT_LAGOS_COORDS.latitude;
@@ -346,6 +362,8 @@ export function PickupLocationSheet({
                   accessibilityLabel="Back to pickup search"
                   accessibilityRole="button"
                   onPress={() => {
+                    selectionVersion.current += 1;
+                    resetCurrentLoc();
                     Keyboard.dismiss();
                     setQuery('');
                     setResolveError(null);
@@ -385,8 +403,8 @@ export function PickupLocationSheet({
               </PressableScale>
 
               {initialSource === 'place_search' ? (
-                <View accessibilityLabel="Powered by Google" style={styles.attributionContainer}>
-                  <Text style={styles.attributionText}>Powered by Google</Text>
+                <View accessibilityLabel="Google Maps" style={styles.attributionContainer}>
+                  <Text style={styles.attributionText}>Google Maps</Text>
                 </View>
               ) : null}
             </ScrollView>
@@ -457,7 +475,12 @@ export function PickupLocationSheet({
                     }
                   }}
                   onChangeText={setQuery}
-                  onFocus={() => setMode('search_focused')}
+                  onFocus={() => {
+                    selectionVersion.current += 1;
+                    resetCurrentLoc();
+                    setResolvingPlaceId(null);
+                    setMode('search_focused');
+                  }}
                   placeholder="Search Lagos address or landmark..."
                   placeholderTextColor={colors.muted}
                   ref={searchInputRef}
@@ -539,9 +562,9 @@ export function PickupLocationSheet({
                   })
                 )}
                 {suggestions.length > 0 &&
-                (query.trim().length >= 2 || suggestions.some((item) => !item.isCurated)) ? (
-                  <View accessibilityLabel="Powered by Google" style={styles.attributionContainer}>
-                    <Text style={styles.attributionText}>Powered by Google</Text>
+                suggestions.some((item) => !item.isCurated) ? (
+                  <View accessibilityLabel="Google Maps" style={styles.attributionContainer}>
+                    <Text style={styles.attributionText}>Google Maps</Text>
                   </View>
                 ) : null}
               </ScrollView>
@@ -575,7 +598,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   attributionText: {
-    color: colors.muted,
+    color: '#FFFFFF',
     fontFamily: typography.body,
     fontSize: 12,
     letterSpacing: 0.2,
