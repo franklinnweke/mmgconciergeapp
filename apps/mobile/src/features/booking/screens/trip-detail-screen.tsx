@@ -17,6 +17,7 @@ import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-ima
 import { useBookings } from '../booking-context';
 import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
 import { RenterTripCompletion } from '../components/renter-trip-completion';
+import { TripPickupDetails } from '../components/trip-pickup-details';
 import { canRenterConfirmCompletion } from '../domain/renter-trip-completion';
 import { cancelUnpaidHold } from '../data/unpaid-hold-cancellation-gateway';
 import type { RenterCompletionGateway } from '../data/renter-completion-gateway';
@@ -346,6 +347,8 @@ export default function TripDetailScreen({
               </View>
               <DatePoint label="Return" value={formatDate(trip.endDate)} />
             </View>
+
+            <TripPickupDetails key={trip.id} pickup={trip.pickupLocation} time={trip.confirmedPickupTime} />
 
             {timeline.length > 1 ? (
               <>

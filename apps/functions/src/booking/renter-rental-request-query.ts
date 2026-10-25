@@ -11,7 +11,7 @@ import { BookingCommandError } from './errors.js';
 export class FirestoreRenterRentalRequestQuery {
   constructor(private readonly firestore: Firestore = getFirestore()) {}
 
-  async list(renterId: string): Promise<ListRenterRentalRequestsResult> {
+  async list(renterId: string, includePickupDispatch = false): Promise<ListRenterRentalRequestsResult> {
     const snapshot = await this.firestore
       .collection('rentalRequests')
       .where('renterId', '==', renterId)
@@ -20,7 +20,7 @@ export class FirestoreRenterRentalRequestQuery {
 
     const requests = snapshot.docs.map((document) => {
       const parsed = renterVisibleRentalRequestSchema.safeParse(
-        clientRentalRequestProjection(document.id, document.data(), { audience: 'renter' }),
+        clientRentalRequestProjection(document.id, document.data(), { audience: 'renter', includePickupDispatch }),
       );
       if (!parsed.success) {
         throw new BookingCommandError('FAILED_PRECONDITION', 'A rental request cannot be displayed safely.');

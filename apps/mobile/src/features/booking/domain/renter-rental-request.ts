@@ -35,6 +35,8 @@ export function mapRenterVisibleRentalRequest(request: RenterVisibleRentalReques
     holdExpiresAt: request.holdExpiresAt,
     bookingId: request.bookingId,
     requestVersion: request.version,
+    pickupLocation: request.pickupLocation,
+    confirmedPickupTime: request.confirmedPickupTime,
   };
 }
 

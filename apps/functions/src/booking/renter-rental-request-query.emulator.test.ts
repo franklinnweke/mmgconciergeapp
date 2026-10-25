@@ -118,4 +118,11 @@ describeWithEmulator('renter rental request safe projection', () => {
       expect(record).not.toHaveProperty(key);
     }
   });
+
+  it('returns dispatch time only to opt-in renter clients and never another renter', async () => {
+    await database.doc('rentalRequests/request-renter-one').update({ confirmedPickupTime: '10:30' });
+    expect((await query.list('renter-one')).requests[0]).not.toHaveProperty('confirmedPickupTime');
+    expect((await query.list('renter-one', true)).requests[0]).toHaveProperty('confirmedPickupTime', '10:30');
+    expect((await query.list('renter-two', true)).requests[0]).not.toHaveProperty('confirmedPickupTime');
+  });
 });

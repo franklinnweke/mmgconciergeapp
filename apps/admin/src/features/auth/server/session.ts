@@ -32,7 +32,8 @@ export type StaffCapability =
 /**
  * Booking request management is intentionally narrower than generic booking
  * writes. Support and super-admin may approve/decline soft requests and open
- * the authoritative 30-minute payment window. Refunds, payouts and arbitrary
+ * the authoritative 30-minute payment window, and confirm the operational
+ * pickup time. Exact pickup reads are dispatch-only. Refunds, payouts and arbitrary
  * paid-booking mutation remain outside this capability.
  */
 const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {

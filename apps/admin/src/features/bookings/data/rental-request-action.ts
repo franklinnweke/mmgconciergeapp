@@ -15,19 +15,23 @@ import {
 } from '@/features/auth/server/session';
 import { BookingCommandError } from '@mmg/functions-booking/errors';
 import { FirestoreRentalRequestRepository } from '@mmg/functions-booking/firestore-rental-request-repository';
+import { confirmRentalRequestPickup } from '@mmg/functions-booking/confirm-rental-request-pickup';
+import { confirmedPickupTimeSchema } from '@mmg/contracts/rental-request';
+import { z } from 'zod';
 import {
   approveRentalRequest,
   declineRentalRequest,
   openRentalRequestPaymentWindow,
 } from '@mmg/functions-booking/rental-request-service';
 
-export type RentalRequestAdminAction = 'approve' | 'decline' | 'open_payment_window';
+export type RentalRequestAdminAction = 'approve' | 'decline' | 'open_payment_window' | 'confirm_pickup';
 
 export type ExecuteRentalRequestActionInput = {
   requestId: string;
   expectedVersion: number;
   action: RentalRequestAdminAction;
   reason?: string;
+  confirmedPickupTime?: string;
 };
 
 export type ExecuteRentalRequestActionResult =
@@ -40,6 +44,13 @@ export type ExecuteRentalRequestActionResult =
   | { success: false; error: string };
 
 const GENERIC_ERROR = 'The rental request action could not be completed. Refresh the queue and try again.';
+const actionInputSchema = z.object({
+  requestId: z.string().min(1).max(128).regex(/^[^/]+$/),
+  expectedVersion: z.number().int().positive().max(Number.MAX_SAFE_INTEGER - 1),
+  action: z.enum(['approve', 'decline', 'open_payment_window', 'confirm_pickup']),
+  reason: z.string().trim().max(500).optional(),
+  confirmedPickupTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+}).strict();
 
 function idempotencyKey(input: ExecuteRentalRequestActionInput): string {
   const digest = createHash('sha256')
@@ -48,6 +59,7 @@ function idempotencyKey(input: ExecuteRentalRequestActionInput): string {
       expectedVersion: input.expectedVersion,
       action: input.action,
       reason: input.reason?.trim() || null,
+      confirmedPickupTime: input.confirmedPickupTime ?? null,
     }))
     .digest('hex')
     .slice(0, 48);
@@ -78,12 +90,18 @@ export async function executeRentalRequestAction(
     if (!role || !staffSessionHasCapability(session, 'bookings.manage_requests')) {
       return { success: false, error: 'You are not authorized to manage concierge rental requests.' };
     }
+    const validated = actionInputSchema.safeParse(input);
+    if (!validated.success) return { success: false, error: 'Check the request action details and try again.' };
+    input = validated.data;
 
-    if (!input.requestId || !Number.isInteger(input.expectedVersion) || input.expectedVersion < 1) {
-      return { success: false, error: 'A valid request and expected version are required.' };
+    if (input.action === 'confirm_pickup' && !confirmedPickupTimeSchema.safeParse(input.confirmedPickupTime).success) {
+      return { success: false, error: 'Enter a valid pickup time in Lagos time (HH:mm).' };
     }
 
     if (process.env.MMG_ADMIN_FIXTURES === '1' && process.env.NODE_ENV !== 'production') {
+      if (input.action === 'confirm_pickup') {
+        return { success: false, error: 'Pickup confirmation is unavailable in fixture mode. No record changed.' };
+      }
       const state = input.action === 'approve'
         ? 'approved'
         : input.action === 'decline'
@@ -101,6 +119,15 @@ export async function executeRentalRequestAction(
 
     const repository = new FirestoreRentalRequestRepository(getAdminFirestore());
     const key = idempotencyKey(input);
+
+    if (input.action === 'confirm_pickup') {
+      const result = await confirmRentalRequestPickup({ schemaVersion: 1, idempotencyKey: key, data: {
+        requestId: input.requestId, expectedVersion: input.expectedVersion,
+        confirmedPickupTime: input.confirmedPickupTime,
+      } }, { uid: session.uid, role }, getAdminFirestore());
+      revalidatePath('/bookings');
+      return { success: true, ...result };
+    }
 
     if (input.action === 'open_payment_window') {
       const result = await openRentalRequestPaymentWindow({

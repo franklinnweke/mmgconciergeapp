@@ -4,7 +4,7 @@ import { Check, Copy, Phone } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { formatNairaFromKobo } from '@mmg/domain';
+import { formatNairaFromKobo, pickupDirectionsUrl } from '@mmg/domain';
 
 import type { AdminRentalRequestRecord } from '../data/live-admin-rental-request-repository';
 import type { RentalRequestAdminAction } from '../data/rental-request-action';
@@ -82,6 +82,7 @@ export function RentalRequestQueue({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null);
+  const [pickupTimes, setPickupTimes] = useState<Record<string, string>>({});
 
   const copyPhone = async (requestId: string, phone: string) => {
     try {
@@ -121,6 +122,7 @@ export function RentalRequestQueue({
         body: JSON.stringify({
           action,
           expectedVersion: request.version,
+          ...(action === 'confirm_pickup' ? { confirmedPickupTime: pickupTimes[request.requestId] ?? request.confirmedPickupTime ?? '' } : {}),
           ...(action === 'decline' ? { reason: 'Declined by MMG Concierge' } : {}),
         }),
       });
@@ -176,6 +178,28 @@ export function RentalRequestQueue({
                     <div className="admin-primary">{formatDate(item.startDate)} to {formatDate(item.endDate)}</div>
                     <div className="admin-secondary">{item.serviceAreaLabel}</div>
                     <div className="admin-secondary">Owner {item.ownerReference}</div>
+                    <details className="admin-disclosure" style={{ marginTop: 8 }}>
+                      <summary>Pickup details</summary>
+                      {item.pickupLocation ? <>
+                        <div className="admin-primary">{item.pickupLocation.formattedAddress}</div>
+                        {item.pickupLocation.note ? <div className="admin-secondary">{item.pickupLocation.note}</div> : null}
+                        <div className="admin-secondary">{item.confirmedPickupTime ? `${item.confirmedPickupTime} WAT · Confirmed` : 'Pickup time not confirmed'}</div>
+                        {pickupDirectionsUrl(item.pickupLocation) ? <a className="admin-action-link" href={pickupDirectionsUrl(item.pickupLocation)!} target="_blank" rel="noopener noreferrer">Open directions</a> : null}
+                        {canManage && !item.cancellationRequestedAt && ['approved', 'ready_for_payment', 'confirmed'].includes(item.state) ? (
+                          <form onSubmit={(event) => {
+                            event.preventDefault();
+                            if (window.confirm('Confirm this pickup time with the renter? Rental dates and price will not change.')) void execute(item, 'confirm_pickup');
+                          }} style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+                            <label style={{ display: 'grid', gap: 6 }}>Pickup time (Lagos)
+                              <input aria-label={`Pickup time for ${item.vehicleDisplayName}`} type="time" required style={{ minHeight: 44, padding: '0 10px', font: 'inherit' }}
+                                value={pickupTimes[item.requestId] ?? item.confirmedPickupTime ?? ''}
+                                onChange={(event) => setPickupTimes((current) => ({ ...current, [item.requestId]: event.target.value }))} />
+                            </label>
+                            <button className="admin-button secondary" style={{ minHeight: 44 }} disabled={busy} type="submit">Confirm pickup time</button>
+                          </form>
+                        ) : null}
+                      </> : <div className="admin-secondary">Pickup not recorded. Confirm the address with the renter before dispatch.</div>}
+                    </details>
                   </td>
                   <td>
                     {item.contactPhone ? (

@@ -59,9 +59,9 @@ export const createRentalRequest = onCall({ ...runtime, enforceAppCheck: isProdu
 
 export const listRenterRentalRequests = onCall({ ...runtime, enforceAppCheck: isProductionAppCheck() }, async (request) => {
   try {
-    listRenterRentalRequestsCommandSchema.parse(request.data);
+    const command = listRenterRentalRequestsCommandSchema.parse(request.data);
     const renterId = requireVerifiedRenter(request.auth);
-    return await new FirestoreRenterRentalRequestQuery().list(renterId);
+    return await new FirestoreRenterRentalRequestQuery().list(renterId, command.includePickupDispatch === true);
   } catch (error) { return rethrow(error, 'rental_request.renter_list_failed'); }
 });
 

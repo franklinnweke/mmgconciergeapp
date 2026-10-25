@@ -7,7 +7,7 @@ function timestampIso(value: unknown): string | undefined {
 export function clientRentalRequestProjection(
   documentId: string,
   data: Record<string, unknown>,
-  options?: { audience?: 'renter' | 'owner' },
+  options?: { audience?: 'renter' | 'owner'; includePickupDispatch?: boolean },
 ) {
   const cancellationRequestedAt = timestampIso(data.cancellationRequestedAt);
   const state = cancellationRequestedAt && (data.state === 'ready_for_payment' || data.state === 'confirmed')
@@ -33,5 +33,7 @@ export function clientRentalRequestProjection(
     createdAt: timestampIso(data.createdAt),
     updatedAt: timestampIso(data.updatedAt),
     ...(options?.audience === 'renter' && data.pickupLocation ? { pickupLocation: data.pickupLocation } : {}),
+    ...(options?.audience === 'renter' && options.includePickupDispatch && data.confirmedPickupTime
+      ? { confirmedPickupTime: data.confirmedPickupTime } : {}),
   };
 }

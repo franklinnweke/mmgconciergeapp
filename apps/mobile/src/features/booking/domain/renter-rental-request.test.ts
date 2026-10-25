@@ -51,6 +51,13 @@ describe('resolveServiceAreaLabel', () => {
 });
 
 describe('mapRenterVisibleRentalRequest', () => {
+  it('preserves a confirmed pickup and dispatch time without inventing them for old records', () => {
+    const pickup = { displayName: 'Hotel gate', formattedAddress: 'Hotel, Ikoyi', latitude: 6.45, longitude: 3.43, serviceAreaLabel: 'Ikoyi' as const, note: 'Use the side gate' };
+    expect(mapRenterVisibleRentalRequest({ ...request, pickupLocation: pickup, confirmedPickupTime: '10:30' }))
+      .toMatchObject({ pickupLocation: pickup, confirmedPickupTime: '10:30' });
+    expect(mapRenterVisibleRentalRequest(request).pickupLocation).toBeUndefined();
+    expect(mapRenterVisibleRentalRequest(request).confirmedPickupTime).toBeUndefined();
+  });
   it('maps a soft request without claiming a hold or payment', () => {
     const trip = mapRenterVisibleRentalRequest(request);
     expect(trip.source).toBe('request');

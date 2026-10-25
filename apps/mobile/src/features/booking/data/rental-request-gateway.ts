@@ -57,7 +57,7 @@ export class NativeRentalRequestGateway implements RentalRequestGateway {
   }
 
   async listRenterRequests(): Promise<ListRenterRentalRequestsResult> {
-    const parsed = listRenterRentalRequestsCommandSchema.parse({ schemaVersion: 1 });
+    const parsed = listRenterRentalRequestsCommandSchema.parse({ schemaVersion: 1, includePickupDispatch: true });
     const callable = httpsCallable(this.functions, 'listRenterRentalRequests');
     const response = await callable(parsed);
     return parseCallableResult(
