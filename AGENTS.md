@@ -61,6 +61,10 @@ Production is never a development or test target.
 
 - Every MVP rental includes chauffeur and delivery. No self-drive.
 - No live tracking in MVP.
+- Pickup uses a bounded foreground device-location fix or a manually selected address, followed by explicit renter confirmation. GPS is optional; do not claim a fix verifies a property entrance. The 300m pin adjustment limit is a radius, not a property boundary.
+- Confirmed customer pickup coordinates/address/entrance notes remain separate from approximate vehicle discovery centres and private garages. Preserve the pickup into renter Trip Detail, including after request-to-booking conversion; never invent one for historical records.
+- Authorized `support`/`super_admin` dispatch staff may read the exact pickup and confirm `confirmedPickupTime` as `HH:mm` on the request start date in Africa/Lagos. Confirmation uses expectedVersion, idempotency and domain/Admin audits; it does not change price, dates, payment, booking or availability state. Owners do not receive this exact pickup projection.
+- New renter dispatch-time fields require explicit `includePickupDispatch` opt-in on the list command so existing strict-schema TestFlight clients remain compatible. Deploy the updated list callable before releasing a client that opts in.
 - Renter baseline access requires an authenticated, verified-email identity.
 - Full name, phone, profile photo, delivery address and similar renter details are profile enrichment, not government identity verification.
 - Renter checkout does **not** require Firebase Phone Auth or SMS OTP. Contact phone is ordinary operational profile/request data.
@@ -93,7 +97,7 @@ Canonical admin roles are exactly:
 
 Never add `booking_admin`.
 
-The booking concierge desk uses capabilities rather than a new role. `bookings.manage_requests` is bounded to soft-request approval/decline and opening the payment window. It does not grant refunds, payouts, reassignment, or arbitrary paid-booking mutation.
+The booking concierge desk uses capabilities rather than a new role. `bookings.manage_requests` is bounded to soft-request approval/decline, opening the payment window and operational pickup-time confirmation/dispatch reads. It does not grant refunds, payouts, reassignment, or arbitrary paid-booking mutation.
 
 ### Design doctrine and restraint rules
 1. **Content before chrome**: The vehicle, pickup location, and trip state dominate; navigation and decorative frames recede.
@@ -482,7 +486,7 @@ Pre-launch compliance and policy status:
   - Place IDs: Stored indefinitely in rental requests and booking records as explicitly permitted under TOS §3.2.3(a).
   - Transaction fulfillment records: Exact coordinates (`latitude`, `longitude`) and formatted addresses are captured and stored in `rentalRequests` and private `rentalRequestContacts` strictly as immutable customer transaction records for physical chauffeur dispatch and delivery fulfillment. They are never used to build an independent geospatial database or directory.
   - Ephemeral search data: Search queries, autocomplete suggestion lists, and temporary session tokens are ephemeral in-memory state only and are never stored in persistent databases.
-  - Attribution: Minimum 12sp "Powered by Google" text attribution is displayed wherever Google Places data appears, including autocomplete search suggestions and the pickup confirmation step.
+  - Maps/attribution: Google Places pickup data must use an explicitly configured Google map, not implicit iOS MapKit. Space-limited pickup sheets use 12sp-or-larger "Google Maps" text attribution for provider content; preserve the native map's visible attribution above overlays. Native iOS Maps requires its environment-specific SDK key and a new binary; missing configuration must not silently select MapKit. See `docs/operations/PICKUP_DISPATCH_ACCEPTANCE.md` for setup and remaining device gates. This is not a blanket legal/compliance sign-off.
 - Apple private email relay/operator-domain verification as applicable.
 - Apple token revocation on account deletion before public App Store release.
 
