@@ -29,9 +29,9 @@ import type { CreateRentalRequestData } from '@mmg/contracts/rental-request';
 import { useBookings } from '../booking-context';
 import {
   createRentalRequestGateway,
-  RentalRequestSubmissionKey,
   type RentalRequestGateway,
 } from '../data/rental-request-gateway';
+import { completeRentalRequestAttempt, prepareRentalRequestAttempt } from '../data/rental-request-attempt';
 import { bookingCommandErrorMessage } from '../domain/booking-errors';
 import { resolveServiceAreaLabel } from '../domain/renter-rental-request';
 
@@ -63,7 +63,12 @@ export default function BookingReviewScreen({
     () => rentalRequestGateway ?? createRentalRequestGateway(),
     [rentalRequestGateway],
   );
-  const submissionKey = useRef(new RentalRequestSubmissionKey());
+  const activeUid = useRef<string | null>(null);
+  const submissionInFlight = useRef(false);
+  useEffect(() => {
+    activeUid.current = auth.signingOut ? null : auth.user?.uid ?? null;
+    return () => { activeUid.current = null; };
+  }, [auth.signingOut, auth.user?.uid]);
   const journey = useMemo(() => resolveRentalJourney(startDate, endDate), [endDate, startDate]);
   const initialPickupLocation = useMemo(() => parsePickupLocation(pickup), [pickup]);
   const [overridePickupLocation, setOverridePickupLocation] = useState<PickupLocation | null | undefined>(undefined);
@@ -126,6 +131,8 @@ export default function BookingReviewScreen({
   const needsProfile = !profile || profile.accountStatus !== 'active';
 
   const handleSubmitRequest = async () => {
+    const uid = auth.user?.uid;
+    if (!uid || !auth.user?.emailVerified || auth.signingOut || submissionInFlight.current) return;
     if (!pickupLocation || !isServiceable || !serviceArea) {
       setErrorMessage(
         pickupLocation
@@ -140,6 +147,7 @@ export default function BookingReviewScreen({
       return;
     }
 
+    submissionInFlight.current = true;
     setSubmitting(true);
     setErrorMessage(null);
     try {
@@ -177,11 +185,15 @@ export default function BookingReviewScreen({
       };
       let requestId: string;
       try {
+        if (activeUid.current !== uid) return;
+        const key = await prepareRentalRequestAttempt(uid, data);
+        if (activeUid.current !== uid) return;
         const result = await requestGateway.createRequest(
           data,
-          submissionKey.current.forData(data),
+          key,
         );
-        submissionKey.current.markSucceeded();
+        void completeRentalRequestAttempt(uid, key).catch(() => { /* Keep server success authoritative. */ });
+        if (activeUid.current !== uid) return;
         requestId = result.result.requestId;
       } catch (error: unknown) {
         setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
@@ -196,6 +208,7 @@ export default function BookingReviewScreen({
 
       router.replace(`/trip/${requestId}` as any);
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };
