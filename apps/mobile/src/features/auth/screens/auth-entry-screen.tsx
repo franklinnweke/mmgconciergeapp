@@ -199,6 +199,7 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
             accessibilityRole="button"
             disabled={busy}
             onPress={() => void handlePrimaryAction()}
+            testID="auth-submit"
           >
             <View style={[styles.primaryButton, busy && styles.disabledButton]}>
               {busy ? (
@@ -284,6 +285,7 @@ function AuthField({ icon, label, ...inputProps }: AuthFieldProps) {
       <View style={styles.fieldShell}>
         <Ionicons color={colors.muted} name={icon} size={18} />
         <TextInput
+          accessibilityLabel={label}
           placeholderTextColor="rgba(180,174,164,0.62)"
           selectionColor={colors.gold}
           style={styles.fieldInput}

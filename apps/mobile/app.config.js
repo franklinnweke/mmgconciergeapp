@@ -50,6 +50,7 @@ module.exports = {
   extra: {
     ...baseConfig.extra,
     diagnosticsEnabled,
+    crashReportingEnabled: !isProduction && process.env.MMG_CRASH_REPORTING_ENABLED === 'true',
     easBuildCommit: process.env.EAS_BUILD_GIT_COMMIT_HASH || null,
     easBuildProfile: process.env.EAS_BUILD_PROFILE || null,
     firebaseEnvironment,

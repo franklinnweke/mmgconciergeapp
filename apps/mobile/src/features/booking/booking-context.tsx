@@ -1,6 +1,7 @@
 import type { BookingRequest, CreateBookingRequestInput, VehicleSummary } from '@mmg/contracts';
 import {
   createContext,
+  useCallback,
   PropsWithChildren,
   useContext,
   useEffect,
@@ -11,6 +12,7 @@ import {
 import { AppState } from 'react-native';
 
 import { useAuth } from '@/core/auth/auth-context';
+import { reportUnexpectedMobileError } from '../../core/diagnostics/crash-reporting';
 import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 
 import {
@@ -60,6 +62,11 @@ export function BookingProvider({ children }: PropsWithChildren) {
   const [rentalRequestTrips, setRentalRequestTrips] = useState<RenterTrip[]>([]);
   const [rentalRequestUserId, setRentalRequestUserId] = useState<string | null>(null);
   const [resolvedTripVehicles, setResolvedTripVehicles] = useState<Record<string, VehicleSummary | null>>({});
+  // Retry unavailable media only on an explicit refresh/foreground, not every poll.
+  const retryUnavailableTripImages = useCallback(() => setResolvedTripVehicles((current) => {
+    if (!Object.values(current).some((vehicle) => vehicle === null)) return current;
+    return Object.fromEntries(Object.entries(current).filter(([, vehicle]) => vehicle !== null));
+  }), []);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [requestSyncError, setRequestSyncError] = useState<string | null>(null);
@@ -171,7 +178,10 @@ export function BookingProvider({ children }: PropsWithChildren) {
         setRentalRequestUserId(user.uid);
         setRequestSyncError(null);
       },
-      failed() { setRequestSyncError('Rental requests could not be refreshed. Try again.'); },
+      failed(error) {
+        setRequestSyncError('Rental requests could not be refreshed. Try again.');
+        reportUnexpectedMobileError(error, 'request_refresh');
+      },
     });
     requestRefresh.current = { uid: user.uid, reader };
     const load = () => {
@@ -182,7 +192,10 @@ export function BookingProvider({ children }: PropsWithChildren) {
       if (AppState.currentState === 'active') load();
     }, 15_000);
     const subscription = AppState.addEventListener('change', (next) => {
-      if (next === 'active') load();
+      if (next === 'active') {
+        retryUnavailableTripImages();
+        load();
+      }
     });
 
     return () => {
@@ -191,7 +204,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
       clearInterval(interval);
       subscription.remove();
     };
-  }, [signingOut, user]);
+  }, [retryUnavailableTripImages, signingOut, user]);
 
   const requests = useMemo(
     () => (user && !signingOut && loadedUserId === user.uid ? storedRequests : []),
@@ -271,6 +284,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
       async refreshRentalRequests() {
         if (!user || signingOut) return;
         if (requestRefresh.current?.uid !== user.uid) return;
+        retryUnavailableTripImages();
         await requestRefresh.current.reader.refresh(true);
       },
       async requestAvailability(input) {
@@ -309,7 +323,7 @@ export function BookingProvider({ children }: PropsWithChildren) {
         return request;
       },
     }),
-    [initializing, requestSyncError, requests, signingOut, syncError, syncState, trips, user],
+    [initializing, requestSyncError, requests, retryUnavailableTripImages, signingOut, syncError, syncState, trips, user],
   );
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>;

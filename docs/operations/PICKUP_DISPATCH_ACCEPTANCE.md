@@ -43,4 +43,21 @@ Primary references: [Expo SDK 57 maps](https://docs.expo.dev/versions/v57.0.0/sd
 - Open directions targets the confirmed pin, including an adjusted entrance, rather than an old Place ID. Test link failure and a device without the Maps app.
 - Review loading, errors, long addresses and touch targets at 320, 390 and 430px widths. Browser component previews do not substitute for native GPS/map acceptance.
 
+## Consolidated mobile reliability candidate
+
+The companion mobile reliability change must merge with this pickup package before the next main-only build. It adds full-payload retry identity (opaque per-user hash/key only), one session-scoped request refresher, one historical image loader and server reconciliation whenever checkout reopens. No new booking/payment state machine, backend service or persistent offline request queue is added.
+
+- Retry an interrupted request with exactly the same pickup/contact/dates: no duplicate request. Change the pickup or note: the edited command uses a new attempt. Test a lost response and app restart; never treat local metadata as server success.
+- Background/foreground Trips and refresh immediately after a mutation. Older reads must not overwrite a later result. After sign-out/relogin, an old user's late result must not appear. Missing historical media stays neutral; explicit refresh/foreground may retry unavailable media, without a second Trips-screen loader or poll-driven image retry loop.
+- Kill/relaunch during Paystack checkout, navigate back to the same trip and reconcile. Pending/unknown results must not offer another payment, even after the visible window ends. An authenticated intent-scoped no-payment result may offer initialization while the window remains valid. A browser return never proves payment.
+- Run the native smoke flows in `apps/mobile/.maestro/README.md`. They are executable acceptance aids, not evidence of a run until an actual device/runner executes them. Do not run against production or use real Paystack payments.
+
+### Development crash reporting
+
+`testflight-development` opts into the matching RNFirebase Crashlytics SDK. App-local `firebase.json` disables automatic collection and raw JavaScript crash generation by default. Runtime opt-in requires development configuration **and** actual project `mmg-concierge-dev`. Expo/RNFirebase handles native linkage and the dSYM upload build phase; do not add a separate Swift Package or manually patch Xcode files.
+
+Application reports contain only fixed failure categories, sanitized numeric stack positions and environment/build/commit attributes. The pinned SDK's separate promise tracker is replaced with the same sanitizing boundary; repeated categories are bounded per launch so offline polling cannot flood reports. Do not add user IDs, phone/address, coordinates, provider payloads, URLs, custom raw logs or automatic Analytics breadcrumbs. Sanitized JavaScript positions are diagnostic hints, not a claim of source-map symbolication.
+
+Before calling crash reporting accepted: inspect the actual iOS archive for the Crashlytics configuration/dSYM upload step; trigger a controlled development-only test crash from a local debugger (not a shipped startup crash button); relaunch without the debugger and verify receipt in the development Firebase console with matching build identity and usable native symbols. Also exercise a sanitized handled error and inspect its fields. Do not enable production collection as part of this candidate. No console receipt, native compile or crash test is implied by unit tests or Expo config introspection.
+
 Stop after review and report actual deployment/build/device evidence separately. Do not provision infrastructure, rotate keys, change IAM or start live tracking as part of acceptance.

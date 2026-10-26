@@ -18,6 +18,7 @@ import { useEffect } from 'react';
 import { AuthProvider } from '@/core/auth/auth-context';
 import { SessionIntentProvider } from '@/core/auth/session-intent';
 import { initializeNativeAppCheck } from '@/core/firebase/app-check';
+import { initializeCrashReporting } from '@/core/diagnostics/crash-reporting';
 import { AppErrorBoundary, ErrorBoundary } from '@/components/error-boundary';
 import { BookingProvider } from '@/features/booking/booking-context';
 
@@ -26,6 +27,7 @@ import 'react-native-reanimated';
 export { ErrorBoundary };
 
 void SplashScreen.preventAutoHideAsync();
+void initializeCrashReporting();
 void initializeNativeAppCheck().catch(() => {
   // Callable requests will surface the platform error; do not silently
   // downgrade or bypass App Check when native initialization fails.

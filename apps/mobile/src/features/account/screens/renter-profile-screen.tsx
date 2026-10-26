@@ -298,7 +298,7 @@ function RenterProfileForm({
           <Ionicons color={colors.success} name="checkmark-circle" size={17} />
         </View>
 
-        <PressableScale accessibilityRole="button" disabled={signingOut} onPress={onSignOut}>
+        <PressableScale accessibilityRole="button" disabled={signingOut} onPress={onSignOut} testID="account-sign-out">
           <View style={styles.secondaryButton}>
             {signingOut ? (
               <ActivityIndicator color={colors.ivory} size="small" />

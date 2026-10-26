@@ -14,6 +14,7 @@ import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-nativ
 
 import { PressableScale } from '@/components/pressable-scale';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
+import { reportUnexpectedMobileError } from '../../../core/diagnostics/crash-reporting';
 
 import {
   createPaymentCheckoutGateway,
@@ -111,6 +112,7 @@ export function RenterPaymentCheckout({
         setState(isExpired(holdExpiresAt) ? 'expired_hold' : 'ready');
         return;
       }
+      reportUnexpectedMobileError(error, 'payment_reconcile');
       setState('checking');
       setErrorMessage(
         safeProviderError(
@@ -181,6 +183,7 @@ export function RenterPaymentCheckout({
       }
     } catch (error) {
       if (!mounted.current) return;
+      reportUnexpectedMobileError(error, 'payment_initialize');
       checkoutWasOpened.current = false;
       // A lost response may still have created a provider transaction. Require
       // reconciliation instead of suggesting another payment immediately.

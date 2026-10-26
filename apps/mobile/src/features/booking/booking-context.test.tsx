@@ -71,8 +71,10 @@ describe('booking provider lifecycle and image ownership', () => {
   it('resolves a missing historical image in the provider only, not again in Trips', async () => {
     mocks.list.mockResolvedValue({ requests: [request] }); await mount(true);
     expect(mocks.vehicle).toHaveBeenCalledExactlyOnceWith(request.vehicleId);
-    await act(async () => { await value.refreshRentalRequests(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
     expect(mocks.vehicle).toHaveBeenCalledOnce();
+    await act(async () => { await value.refreshRentalRequests(); });
+    expect(mocks.vehicle).toHaveBeenCalledTimes(2);
     expect(JSON.stringify(tree!.toJSON())).toContain('image unavailable');
   });
 });

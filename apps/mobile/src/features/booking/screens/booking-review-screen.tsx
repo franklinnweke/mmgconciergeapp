@@ -196,7 +196,7 @@ export default function BookingReviewScreen({
         if (activeUid.current !== uid) return;
         requestId = result.result.requestId;
       } catch (error: unknown) {
-        setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
+        if (activeUid.current === uid) setErrorMessage(`${bookingCommandErrorMessage(error)} No dates were locked and no charge was attempted.`);
         return;
       }
 
@@ -206,10 +206,10 @@ export default function BookingReviewScreen({
         // Non-blocking: background cache update failure must not block navigation to the newly created request
       }
 
-      router.replace(`/trip/${requestId}` as any);
+      if (activeUid.current === uid) router.replace(`/trip/${requestId}` as any);
     } finally {
       submissionInFlight.current = false;
-      setSubmitting(false);
+      if (activeUid.current === uid) setSubmitting(false);
     }
   };
 

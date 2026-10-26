@@ -19,6 +19,7 @@ import {
   sanitizeDiagnosticText,
   type DiagnosticSnapshot,
 } from '../core/diagnostics/diagnostic-tracker';
+import { reportUnexpectedMobileError } from '../core/diagnostics/crash-reporting';
 
 export type ErrorBoundaryProps = {
   children?: ReactNode;
@@ -45,6 +46,7 @@ export class AppErrorBoundary extends Component<ErrorBoundaryProps, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    reportUnexpectedMobileError(error, 'render');
     const snapshot = getDiagnosticSnapshot();
     this.setState({
       diagnosticSnapshot: snapshot,

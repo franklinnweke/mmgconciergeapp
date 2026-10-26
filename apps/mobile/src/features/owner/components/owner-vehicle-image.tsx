@@ -116,6 +116,7 @@ export function ResolvedOwnerVehicleImage({ vehicle, style, uid }: {
 
       {url && resolvedIdentity === identity && uid && status !== 'unavailable' ? (
         <Image
+          testID={status === 'loaded' ? `owner-vehicle-photo-${vehicle.vehicleId}` : undefined}
           accessibilityLabel={status === 'loaded' ? `${vehicle.vehicleId} photo` : 'Loading vehicle photo'}
           cachePolicy="memory"
           contentFit="cover"

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { completeRentalRequestAttempt, prepareRentalRequestAttempt } from './rental-request-attempt';
 
@@ -9,7 +8,10 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   removeItem: async (key: string) => { mocks.values.delete(key); },
 } }));
 vi.mock('expo-crypto', () => ({ CryptoDigestAlgorithm: { SHA256: 'sha256' },
-  digestStringAsync: async (_algorithm: string, value: string) => createHash('sha256').update(value).digest('hex'),
+  digestStringAsync: async (_algorithm: string, value: string) => {
+    const bytes = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+    return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  },
   randomUUID: () => `test_uuid_0000000000_${++mocks.count}`,
 }));
 const data = { vehicleId: 'vehicle-one', startDate: '2026-11-01', endDate: '2026-11-02', contactPhone: '+2348012345678', serviceAreaLabel: 'Ikoyi' as const,
