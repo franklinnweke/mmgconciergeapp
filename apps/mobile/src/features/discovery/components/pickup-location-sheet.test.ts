@@ -83,6 +83,16 @@ vi.mock('./pickup-pin-map', () => ({
 }));
 
 describe('PickupLocationSheet', () => {
+  it('renders Google Maps attribution with normal letter spacing', async () => {
+    let view!: ReturnType<typeof create>;
+    await act(async () => { view = create(React.createElement(PickupLocationSheet, { visible: true, selectedLocation: { ...CURATED_PICKUP_LOCATIONS[0], source: 'place_search' }, onSelectLocation: vi.fn(), onClose: vi.fn() })); });
+    const attribution = view.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Google Maps');
+    expect(attribution).toHaveLength(1);
+    expect(attribution[0].props.style).toMatchObject({ fontSize: 12, color: '#FFFFFF' });
+    expect(attribution[0].props.style).not.toHaveProperty('letterSpacing');
+    await act(async () => { view.unmount(); });
+  });
+
   it('does not let a late GPS result replace a manually selected pickup', async () => {
     let resolveGps!: (value: unknown) => void;
     mocks.request.mockReturnValueOnce(new Promise((resolve) => { resolveGps = resolve; }));

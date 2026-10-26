@@ -61,7 +61,7 @@ Production is never a development or test target.
 
 - Every MVP rental includes chauffeur and delivery. No self-drive.
 - No live tracking in MVP.
-- Pickup uses a bounded foreground device-location fix or a manually selected address, followed by explicit renter confirmation. GPS is optional; do not claim a fix verifies a property entrance. The 300m pin adjustment limit is a radius, not a property boundary.
+- Pickup uses a bounded foreground device-location fix or a manually selected address, followed by explicit renter confirmation. GPS targets 50m accuracy and rejects fixes whose reported uncertainty exceeds the map's 300m adjustment radius; if no usable fix arrives, direct the renter to manual search. GPS is optional; do not claim a fix verifies a property entrance. The adjustment limit is a radius, not a property boundary.
 - Confirmed customer pickup coordinates/address/entrance notes remain separate from approximate vehicle discovery centres and private garages. Preserve the pickup into renter Trip Detail, including after request-to-booking conversion; never invent one for historical records.
 - Authorized `support`/`super_admin` dispatch staff may read the exact pickup and confirm `confirmedPickupTime` as `HH:mm` on the request start date in Africa/Lagos. Confirmation uses expectedVersion, idempotency and domain/Admin audits; it does not change price, dates, payment, booking or availability state. Owners do not receive this exact pickup projection.
 - New renter dispatch-time fields require explicit `includePickupDispatch` opt-in on the list command so existing strict-schema TestFlight clients remain compatible. Deploy the updated list callable before releasing a client that opts in.

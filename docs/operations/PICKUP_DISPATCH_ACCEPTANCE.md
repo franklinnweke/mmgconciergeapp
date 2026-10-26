@@ -5,7 +5,7 @@ Scope: confirmed pickup continuity, foreground device location, authorized dispa
 ## Operating model
 
 - A renter explicitly selects GPS or an address, checks the meeting point, optionally adds an entrance note and confirms it. Later device movement never changes that saved pickup.
-- Device acquisition requests high accuracy, accepts only finite fresh fixes (at most 30 seconds old), targets 50m-or-better accuracy and stops within 15 seconds. A fresh approximate fix can be shown with a correction warning; it is not entrance verification. Reverse geocoding has a separate 3-second timeout and cannot block coordinate selection indefinitely.
+- Device acquisition requests high accuracy, accepts only finite fresh fixes (at most 30 seconds old), targets 50m-or-better accuracy and stops within 15 seconds. The separate maximum acceptable uncertainty is the map's 300m adjustment radius: fixes worse than that are ignored while waiting for a better fix, then fail to manual search if none arrives. A fresh 50–300m approximate fix can be shown with a correction warning; it is not entrance verification. Reverse geocoding has a separate 3-second timeout and cannot block coordinate selection indefinitely.
 - Permission denial, disabled services, acquisition failure and out-of-area fixes leave manual search available. Dismissal/reset/unmount stops acquisition and discards late results.
 - Trip Detail preserves the request pickup after payment, using only an explicit matching booking link, vehicle and dates. Older records show **Pickup not recorded**; no garage or discovery-centre fallback is permitted.
 - Dispatch staff (`support`/`super_admin`, `bookings.manage_requests`) expand **Pickup details**, inspect address/entrance note, open directions and confirm the agreed pickup time. `HH:mm` means the request start date in Africa/Lagos, not the staff browser's time zone. It does not change day-based pricing or booking state.
@@ -33,7 +33,7 @@ Primary references: [Expo SDK 57 maps](https://docs.expo.dev/versions/v57.0.0/sd
 
 ## Acceptance checklist
 
-- iPhone and Android: allow precise location, approximate-only location, deny permission, disable services, poor GPS, no fix, lost geocoding network and dismissal during acquisition.
+- iPhone and Android: allow precise location, approximate-only location, deny permission, disable services, poor GPS, no fix, lost geocoding network and dismissal during acquisition. Verify uncertainty above 300m (including 1km) never becomes a selected pickup; manual search remains available. Verify a later better fix can still succeed within the bounded wait.
 - Confirm the selected pin does not move after selection; repeat GPS requests and rapid dismissal must not apply an older result or leave a watcher running.
 - Confirm an entrance within the adjustment radius; verify the radius is not presented as a building/property guarantee. The default map camera must never become a selected pickup silently.
 - Send a real development request. Renter Trip Detail and authorized Admin must show the same address, note, coordinate destination and confirmed Lagos time before and after trusted payment conversion.

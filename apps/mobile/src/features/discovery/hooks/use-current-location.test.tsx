@@ -29,9 +29,15 @@ describe('current pickup location UX', () => {
     expect(hook.status).toBe('denied'); expect(mocks.acquirePickupFix).not.toHaveBeenCalled();
   });
   it('returns real coordinates for confirmation and warns when accuracy is approximate', async () => {
-    mocks.acquirePickupFix.mockResolvedValueOnce({ coords: { latitude: 6.45, longitude: 3.43, accuracy: 400 } });
+    mocks.acquirePickupFix.mockResolvedValueOnce({ coords: { latitude: 6.45, longitude: 3.43, accuracy: 120 } });
     await act(async () => { expect(await hook.requestCurrentLocation()).toMatchObject({ success: true, location: { source: 'current_location', latitude: 6.45, longitude: 3.43 } }); });
     expect(hook.accuracyMessage).toContain('approximate');
+  });
+  it('directs the renter to manual search when no sufficiently accurate fix is available', async () => {
+    mocks.acquirePickupFix.mockRejectedValueOnce(new Error('Location acquisition unavailable.'));
+    await act(async () => { expect(await hook.requestCurrentLocation()).toMatchObject({ success: false, reason: 'error', message: expect.stringContaining('search') }); });
+    expect(hook.status).toBe('error'); expect(hook.accuracyMessage).toBeNull();
+    expect(mocks.reverseGeocodeAsync).not.toHaveBeenCalled();
   });
   it('does not silently substitute a Lagos pickup for an out-of-area fix', async () => {
     mocks.acquirePickupFix.mockResolvedValueOnce({ coords: { latitude: 43.65, longitude: -79.38, accuracy: 10 } });

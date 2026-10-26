@@ -1,14 +1,17 @@
 import * as Location from 'expo-location';
+import { MAX_ARRIVAL_RADIUS_METERS } from '../domain/arrival-perimeter';
 
 export const PICKUP_FIX_TIMEOUT_MS = 15_000;
 export const PICKUP_FIX_MAX_AGE_MS = 30_000;
 export const PICKUP_PRECISE_ACCURACY_METERS = 50;
+// A fallback estimate must be correctable within the existing pickup map radius.
+export const PICKUP_MAX_ACCURACY_METERS = MAX_ARRIVAL_RADIUS_METERS;
 
 export function isUsablePickupFix(position: Location.LocationObject, now = Date.now()): boolean {
   const { latitude, longitude, accuracy } = position.coords;
   return Number.isFinite(latitude) && Math.abs(latitude) <= 90
     && Number.isFinite(longitude) && Math.abs(longitude) <= 180
-    && accuracy !== null && Number.isFinite(accuracy) && accuracy >= 0
+    && accuracy !== null && Number.isFinite(accuracy) && accuracy >= 0 && accuracy <= PICKUP_MAX_ACCURACY_METERS
     && Number.isFinite(position.timestamp) && position.timestamp <= now + 5_000
     && now - position.timestamp <= PICKUP_FIX_MAX_AGE_MS;
 }

@@ -601,7 +601,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: typography.body,
     fontSize: 12,
-    letterSpacing: 0.2,
   },
   changeButton: {
     justifyContent: 'center',
