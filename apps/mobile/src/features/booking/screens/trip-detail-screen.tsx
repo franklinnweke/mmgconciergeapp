@@ -479,6 +479,7 @@ export default function TripDetailScreen({
             {requestFirstPayment && trip.intentId && trip.holdExpiresAt ? (
               <>
                 <RenterPaymentCheckout
+                  key={trip.intentId}
                   holdExpiresAt={trip.holdExpiresAt}
                   intentId={trip.intentId}
                   mode="request_first"

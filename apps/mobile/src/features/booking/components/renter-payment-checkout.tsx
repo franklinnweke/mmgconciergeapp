@@ -62,12 +62,18 @@ export function RenterPaymentCheckout({
   const keys = useRef(new PaymentCheckoutSubmissionKeys());
   const checkoutWasOpened = useRef(false);
   const hasAutoReturned = useRef(false);
-  const [state, setState] = useState<CheckoutUiState>('ready');
+  const [state, setState] = useState<CheckoutUiState>('checking');
+  const checking = useRef(false);
+  const opening = useRef(false);
+  const mounted = useRef(true);
+  const initialCheck = useRef<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmingRelease, setConfirmingRelease] = useState(false);
   const [releasingDates, setReleasingDates] = useState(false);
 
   const checkPayment = useCallback(async () => {
+    if (checking.current) return;
+    checking.current = true;
     setErrorMessage(null);
     setState('checking');
     try {
@@ -75,6 +81,7 @@ export function RenterPaymentCheckout({
         intentId,
         keys.current.forReconciliation(),
       );
+      if (!mounted.current) return;
       const nextState = resolveRenterCheckoutState(reconciliation, { holdExpiresAt });
       setState(nextState);
 
@@ -95,6 +102,15 @@ export function RenterPaymentCheckout({
         onViewTrips();
       }
     } catch (error) {
+      if (!mounted.current) return;
+      const value = error as { code?: unknown; details?: { code?: unknown } } | null;
+      const code = String(value?.details?.code ?? value?.code ?? '').split('/').pop()?.toLowerCase().replaceAll('_', '-');
+      // An authenticated, intent-scoped NOT_FOUND means initialization has not
+      // created a payment. Network/unknown errors never unlock a fresh charge.
+      if (code === 'not-found') {
+        setState(isExpired(holdExpiresAt) ? 'expired_hold' : 'ready');
+        return;
+      }
       setState('checking');
       setErrorMessage(
         safeProviderError(
@@ -102,8 +118,21 @@ export function RenterPaymentCheckout({
           'We could not refresh the payment status. Do not start another payment. Try checking again.',
         ),
       );
+    } finally {
+      checking.current = false;
     }
   }, [gateway, holdExpiresAt, intentId, mode, onViewTrips]);
+
+  useEffect(() => {
+    mounted.current = true;
+    // Includes cold launch/process death: recover by the trusted intent already
+    // present in Trips, not a browser callback or persisted local success flag.
+    if (initialCheck.current !== intentId) {
+      initialCheck.current = intentId;
+      void checkPayment();
+    }
+    return () => { mounted.current = false; };
+  }, [checkPayment, intentId]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -115,10 +144,13 @@ export function RenterPaymentCheckout({
   }, [checkPayment]);
 
   const openCheckout = useCallback(async () => {
+    if (opening.current || checking.current) return;
+    opening.current = true;
     setErrorMessage(null);
     hasAutoReturned.current = false;
     if (isExpired(holdExpiresAt)) {
       setState('expired_hold');
+      opening.current = false;
       return;
     }
 
@@ -129,6 +161,7 @@ export function RenterPaymentCheckout({
         keys.current.forInitialization(intentId),
         mode,
       );
+      if (!mounted.current) return;
       const authorizationUrl = initialized.result.authorizationUrl;
       assertApprovedCheckoutUrl(authorizationUrl);
 
@@ -137,6 +170,7 @@ export function RenterPaymentCheckout({
         dismissButtonStyle: 'close',
         showTitle: true,
       });
+      if (!mounted.current) return;
 
       // The callback only returns control to MMG. It is not payment proof.
       // AppState may have reconciled first on some devices, so avoid a second
@@ -146,14 +180,19 @@ export function RenterPaymentCheckout({
         await checkPayment();
       }
     } catch (error) {
+      if (!mounted.current) return;
       checkoutWasOpened.current = false;
-      setState(isExpired(holdExpiresAt) ? 'expired_hold' : 'ready');
+      // A lost response may still have created a provider transaction. Require
+      // reconciliation instead of suggesting another payment immediately.
+      setState('checking');
       setErrorMessage(
         safeProviderError(
           error,
           'Payment checkout could not be opened. No booking has been confirmed.',
         ),
       );
+    } finally {
+      opening.current = false;
     }
   }, [checkPayment, gateway, holdExpiresAt, intentId, mode]);
 
@@ -212,7 +251,7 @@ export function RenterPaymentCheckout({
       <StatusCard icon="time-outline" tone="warning" title={mode === 'request_first' ? 'Payment window expired' : 'Checkout hold expired'}>
         <Text style={styles.bodyText}>
           {mode === 'request_first'
-            ? 'The 30-minute payment window ended. Dates were released and no charge was taken.'
+            ? 'The 30-minute payment window ended. Return to Trips for the latest status.'
             : 'Create a new hold before attempting payment again. No ride has been confirmed.'}
         </Text>
         <ActionButton
@@ -298,7 +337,7 @@ export function RenterPaymentCheckout({
 
 function ActionButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <PressableScale accessibilityRole="button" onPress={onPress}>
+    <PressableScale accessibilityLabel={label} accessibilityRole="button" onPress={onPress}>
       <View style={styles.button}>
         <Text style={styles.buttonText}>{label}</Text>
       </View>
