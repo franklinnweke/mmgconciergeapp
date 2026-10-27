@@ -1,4 +1,5 @@
 const baseConfig = require('./app.json').expo;
+const { mapsConfiguration } = require('./maps.config');
 
 const firebaseEnvironment = process.env.MMG_FIREBASE_ENV === 'production' ? 'production' : 'development';
 const isProduction = firebaseEnvironment === 'production';
@@ -14,6 +15,7 @@ if (!googleWebClientId) {
 }
 
 const googleMapsApiKey = googleServices.client?.[0]?.api_key?.[0]?.current_key;
+const maps = mapsConfiguration(firebaseEnvironment, process.env, googleMapsApiKey);
 const apnsEnvironment = process.env.MMG_APNS_ENV === 'production' ? 'production' : 'development';
 const diagnosticsEnabled = process.env.MMG_DIAGNOSTICS_ENABLED === 'true';
 const backgroundModes = Array.isArray(baseConfig.ios?.infoPlist?.UIBackgroundModes)
@@ -22,6 +24,7 @@ const backgroundModes = Array.isArray(baseConfig.ios?.infoPlist?.UIBackgroundMod
 
 module.exports = {
   ...baseConfig,
+  plugins: [...(baseConfig.plugins ?? []), maps.plugin],
   ios: {
     ...baseConfig.ios,
     googleServicesFile: isProduction ? './GoogleService-Info.plist' : './GoogleService-Info.dev.plist',
@@ -50,6 +53,7 @@ module.exports = {
     easBuildCommit: process.env.EAS_BUILD_GIT_COMMIT_HASH || null,
     easBuildProfile: process.env.EAS_BUILD_PROFILE || null,
     firebaseEnvironment,
+    googleMapsIosConfigured: maps.googleMapsIosConfigured,
     googleWebClientId,
   },
 };

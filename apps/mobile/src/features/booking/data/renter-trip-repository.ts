@@ -222,7 +222,18 @@ export function mergeRequestFirstTrips(
     if (request.intentId) hiddenIds.add(request.intentId);
     if (request.bookingId) hiddenIds.add(request.bookingId);
   }
-  const visibleAuthoritative = authoritative.filter((trip) => !hiddenIds.has(trip.id));
+  const visibleAuthoritative = authoritative.filter((trip) => !hiddenIds.has(trip.id)).map((trip) => {
+    // Enrich only by the explicit booking link plus matching journey identity.
+    // Do not borrow a pickup merely because two requests use the same car/dates.
+    const request = requests.find((candidate) => candidate.bookingId === trip.id
+      && candidate.vehicleId === trip.vehicleId && candidate.startDate === trip.startDate
+      && candidate.endDate === trip.endDate);
+    return request ? {
+      ...trip,
+      pickupLocation: request.pickupLocation ?? trip.pickupLocation,
+      confirmedPickupTime: request.confirmedPickupTime ?? trip.confirmedPickupTime,
+    } : trip;
+  });
   return mergeRenterTrips([...visibleRequests, ...visibleAuthoritative], legacy);
 }
 

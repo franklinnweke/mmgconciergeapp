@@ -13,6 +13,7 @@ const VALID_ACTIONS: readonly RentalRequestAdminAction[] = [
   'approve',
   'decline',
   'open_payment_window',
+  'confirm_pickup',
 ];
 
 export async function POST(request: Request, context: RouteContext) {
@@ -26,6 +27,7 @@ export async function POST(request: Request, context: RouteContext) {
       action?: unknown;
       expectedVersion?: unknown;
       reason?: unknown;
+      confirmedPickupTime?: unknown;
     };
 
     const action = typeof body.action === 'string' &&
@@ -49,6 +51,7 @@ export async function POST(request: Request, context: RouteContext) {
       action,
       expectedVersion,
       ...(typeof body.reason === 'string' ? { reason: body.reason } : {}),
+      ...(typeof body.confirmedPickupTime === 'string' ? { confirmedPickupTime: body.confirmedPickupTime } : {}),
     });
 
     if (!result.success) {

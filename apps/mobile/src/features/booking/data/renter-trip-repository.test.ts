@@ -260,6 +260,8 @@ describe('renter trip repository', () => {
           state: 'confirmed',
           intentId: 'intent-one',
           bookingId: 'booking-one',
+          pickupLocation: { displayName: 'Gate', formattedAddress: 'Ikoyi gate', latitude: 6.45, longitude: 3.43, serviceAreaLabel: 'Ikoyi', note: 'Side entrance' },
+          confirmedPickupTime: '09:30',
           updatedAt: '2026-08-13T13:30:00.000Z',
         }),
       ],
@@ -270,6 +272,8 @@ describe('renter trip repository', () => {
     );
     expect(merged.map((item) => item.id)).toEqual(['booking-one']);
     expect(merged[0]?.state).toBe('refund_pending');
+    expect(merged[0]?.pickupLocation?.note).toBe('Side entrance');
+    expect(merged[0]?.confirmedPickupTime).toBe('09:30');
   });
 
   it('uses preview trips only when no authoritative or leftover legacy records exist', () => {

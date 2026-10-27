@@ -20,7 +20,7 @@ Approval is still soft. Inventory is not locked and the 30-minute payment clock 
 1. Open the approved rental request in the Admin booking concierge desk.
 2. Use the private concierge contact phone shown in the Admin-only request queue.
 3. Call the renter before opening payment.
-4. Confirm the requested vehicle, rental dates, broad service area, and that the renter is ready to proceed to payment now.
+4. Expand **Pickup details**. Confirm the requested vehicle, rental dates, exact meeting point and entrance note. Agree the pickup time on the start date in **Africa/Lagos (WAT)** and use **Confirm pickup time**. This is operational timing only; it does not change rental pricing or reserve inventory. If a historical record says **Pickup not recorded**, do not use the vehicle's area centre as a substitute: obtain and verify the meeting point with the renter before dispatch.
 5. If the renter cannot be reached or is not ready to pay, leave the request in `approved`. Do not start the payment clock.
 6. Only when the renter is ready, press **Open payment window**.
 7. Tell the renter that the payment window is 30 minutes. Do not promise extra customer time based on the system's internal payment-in-flight protection.
@@ -35,7 +35,7 @@ Approval is still soft. Inventory is not locked and the 30-minute payment clock 
 
 ## Privacy
 
-The renter's contact phone is concierge-only operational PII. It is visible to authorized Admin server workflows and is not exposed through owner or renter request projections.
+The renter's contact phone is concierge-only operational PII. It is visible to authorized Admin server workflows and is not exposed through owner or renter request projections. Exact pickup details are available only to the requesting renter and authorized dispatch staff, never through the owner projection. Open directions only when needed for this booking; do not copy private coordinates into general notes or logs. A pickup-time update is audited; confirm any correction with the renter before saving.
 
 ## Deferred automation
 

@@ -797,3 +797,9 @@ export function evaluateBookingLifecycleProgression(
   }
   return null;
 }
+/** Explicit navigation to a confirmed customer pickup, never a vehicle-area centre. */
+export function pickupDirectionsUrl(pickup: { latitude: number; longitude: number }): string | null {
+  if (!Number.isFinite(pickup.latitude) || !Number.isFinite(pickup.longitude)
+    || !isWithinLagosBBox(pickup.latitude, pickup.longitude)) return null;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${pickup.latitude},${pickup.longitude}`)}&travelmode=driving`;
+}

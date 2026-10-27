@@ -66,6 +66,19 @@ export const pickupLocationSnapshotSchema = z.object({
 }).strict();
 export type PickupLocationSnapshot = z.infer<typeof pickupLocationSnapshotSchema>;
 
+/** Local dispatch time on startDate, Africa/Lagos. Does not affect rental pricing. */
+export const confirmedPickupTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
+export const confirmRentalRequestPickupCommandSchema = z.object({
+  schemaVersion: schemaVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+  data: z.object({
+    requestId: boundedIdSchema,
+    expectedVersion: z.number().int().positive(),
+    confirmedPickupTime: confirmedPickupTimeSchema,
+  }).strict(),
+}).strict();
+
 export const createRentalRequestDataSchema = z.object({
   vehicleId: boundedIdSchema,
   startDate: dateOnlySchema,
@@ -141,6 +154,7 @@ export const renterVisibleRentalRequestSchema = z
   .object({
     ...clientProjectionShape,
     pickupLocation: pickupLocationSnapshotSchema.optional(),
+    confirmedPickupTime: confirmedPickupTimeSchema.optional(),
   })
   .strict()
   .superRefine(addProjectionRules);
@@ -158,6 +172,8 @@ export type ListOwnerRentalRequestsResult = z.infer<typeof listOwnerRentalReques
 
 export const listRenterRentalRequestsCommandSchema = z.object({
   schemaVersion: schemaVersionSchema,
+  // Older strict clients must never receive newly added projection fields.
+  includePickupDispatch: z.boolean().optional(),
 }).strict();
 export type ListRenterRentalRequestsCommand = z.infer<typeof listRenterRentalRequestsCommandSchema>;
 

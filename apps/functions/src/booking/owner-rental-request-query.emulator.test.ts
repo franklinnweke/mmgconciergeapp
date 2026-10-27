@@ -66,6 +66,8 @@ describeWithEmulator('owner rental request safe projection', () => {
       renterEmail: 'private@example.com',
       internalNotes: 'VIP customer',
       approvedBy: 'staff-secret',
+      pickupLocation: { displayName: 'Gate', formattedAddress: 'Private customer gate', latitude: 6.45, longitude: 3.43, serviceAreaLabel: 'Ikoyi', note: 'Private entrance' },
+      confirmedPickupTime: '10:30',
     });
     await database.doc('rentalRequests/request-owner-two').set({
       requestId: 'request-owner-two',
@@ -111,6 +113,8 @@ describeWithEmulator('owner rental request safe projection', () => {
       'renterEmail',
       'internalNotes',
       'approvedBy',
+      'pickupLocation',
+      'confirmedPickupTime',
     ]) {
       expect(record).not.toHaveProperty(key);
     }

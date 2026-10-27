@@ -10,7 +10,7 @@ describe('rental request callable privacy boundary', () => {
     expect(callableSource).toContain('export const listRenterRentalRequests = onCall');
     expect(callableSource).toContain('listRenterRentalRequestsCommandSchema.parse(request.data)');
     expect(callableSource).toContain('const renterId = requireVerifiedRenter(request.auth)');
-    expect(callableSource).toContain('new FirestoreRenterRentalRequestQuery().list(renterId)');
+    expect(callableSource).toContain('new FirestoreRenterRentalRequestQuery().list(renterId, command.includePickupDispatch === true)');
   });
 
   it('keeps owner request history behind owner auth and deploys both safe list callables', () => {

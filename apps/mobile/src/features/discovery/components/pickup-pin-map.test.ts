@@ -36,7 +36,9 @@ vi.mock('react-native-maps', () => ({
   __esModule: true,
   default: 'MapView',
   MapView: 'MapView',
+  PROVIDER_GOOGLE: 'google',
 }));
+vi.mock('expo-constants', () => ({ default: { expoConfig: { extra: { googleMapsIosConfigured: true } } } }));
 
 vi.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',

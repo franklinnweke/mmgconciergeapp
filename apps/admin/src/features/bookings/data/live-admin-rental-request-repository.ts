@@ -7,12 +7,16 @@ import {
 import {
   rentalRequestServiceAreaSchema,
   rentalRequestStateSchema,
+  pickupLocationSnapshotSchema,
+  confirmedPickupTimeSchema,
+  type PickupLocationSnapshot,
   type RentalRequestState,
 } from '@mmg/contracts/rental-request';
 import { Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
 import { getAdminApp, getAdminFirestore } from '@/features/auth/server/firebase-admin';
+import { requireStaffCapability } from '@/features/auth/server/session';
 
 // Keep workspace-local Zod values inside this schema. The contracts workspace
 // currently resolves a different Zod major, so imported contract schemas are
@@ -57,6 +61,8 @@ export type AdminRentalRequestRecord = {
   version: number;
   renterTotalKobo: number;
   contactPhone: string | null;
+  pickupLocation?: PickupLocationSnapshot;
+  confirmedPickupTime?: string;
   intentId?: string;
   bookingId?: string;
   holdExpiresAt?: string;
@@ -76,6 +82,9 @@ function reference(value: string): string {
 }
 
 export async function loadDevelopmentRentalRequests(): Promise<AdminRentalRequestSnapshot> {
+  // Guard inside the loader as well as the page: exact pickup never reaches
+  // serialization for an unauthorized server caller.
+  await requireStaffCapability('bookings.manage_requests');
   const firestore = getAdminFirestore();
   const requestSnapshot = await firestore
     .collection('rentalRequests')
@@ -134,6 +143,8 @@ export async function loadDevelopmentRentalRequests(): Promise<AdminRentalReques
     }
 
     const price = authoritativePrice?.success ? authoritativePrice.data : estimatedPrice.data;
+    const pickup = pickupLocationSnapshotSchema.safeParse(data.pickupLocation);
+    const pickupTime = confirmedPickupTimeSchema.safeParse(data.confirmedPickupTime);
     requests.push({
       requestId: data.requestId,
       renterReference: reference(data.renterId),
@@ -147,6 +158,8 @@ export async function loadDevelopmentRentalRequests(): Promise<AdminRentalReques
       version: data.version,
       renterTotalKobo: price.renterTotalKobo,
       contactPhone: contact?.success ? contact.data.contactPhone : null,
+      ...(pickup.success ? { pickupLocation: pickup.data } : {}),
+      ...(pickupTime.success ? { confirmedPickupTime: pickupTime.data } : {}),
       ...(data.intentId ? { intentId: data.intentId } : {}),
       ...(data.bookingId ? { bookingId: data.bookingId } : {}),
       ...(data.holdExpiresAt ? { holdExpiresAt: data.holdExpiresAt.toDate().toISOString() } : {}),

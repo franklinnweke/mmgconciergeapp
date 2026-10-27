@@ -9,7 +9,7 @@ import {
   type RenterVisibleBookingIntent,
   type RenterVehicleSnapshot,
 } from '@mmg/contracts';
-import type { RentalRequestState } from '@mmg/contracts/rental-request';
+import type { PickupLocationSnapshot, RentalRequestState } from '@mmg/contracts/rental-request';
 
 export type RenterTripState =
   | BookingIntentState
@@ -79,6 +79,8 @@ export type RenterTrip = {
   holdExpiresAt?: string;
   bookingId?: string;
   requestVersion?: number;
+  pickupLocation?: PickupLocationSnapshot;
+  confirmedPickupTime?: string;
 };
 
 const legacyState = {

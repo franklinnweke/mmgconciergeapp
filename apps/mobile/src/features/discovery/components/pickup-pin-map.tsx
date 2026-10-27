@@ -1,16 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@mmg/brand';
 import { isWithinLagosBBox } from '@mmg/domain';
+import Constants from 'expo-constants';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Platform,
   StyleProp,
   StyleSheet,
   Text,
   View,
   ViewStyle,
 } from 'react-native';
-import MapView, { type Region } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 
 import { PressableScale } from '@/components/pressable-scale';
 import {
@@ -240,6 +242,14 @@ export function PickupPinMap({
     onReset?.();
   }, [disabled, initialLatitude, initialLongitude, onCoordinatesChange, onReset]);
 
+  // Never overlay Google Places content on an implicit MapKit map. Local builds
+  // without the native Google SDK configuration retain GPS/search selection.
+  if (Platform.OS === 'web' || (Platform.OS === 'ios' && Constants.expoConfig?.extra?.googleMapsIosConfigured !== true)) {
+    return <View style={[styles.container, styles.unavailable, style]}>
+      <Text style={styles.instructionText}>Map preview unavailable. Search or use your location to choose a pickup.</Text>
+    </View>;
+  }
+
   return (
     <View style={[styles.container, style]}>
       {showsInstruction ? (
@@ -272,6 +282,7 @@ export function PickupPinMap({
         style={styles.mapFrame}
       >
         <MapView
+          provider={PROVIDER_GOOGLE}
           customMapStyle={LUXURY_DARK_MAP_STYLE}
           initialRegion={{
             latitude,
@@ -344,6 +355,7 @@ export function PickupPinMap({
 }
 
 const styles = StyleSheet.create({
+  unavailable: { justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
   container: {
     flex: 1,
     position: 'relative',
