@@ -49,6 +49,7 @@
       ],
       "@react-native-firebase/app-check",
       "@react-native-firebase/auth",
+      "@react-native-firebase/crashlytics",
       "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",

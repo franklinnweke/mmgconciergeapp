@@ -1,0 +1,42 @@
+# Starts signed out. Use an existing verified development test account only.
+appId: com.mmgconcierge.app
+name: Verified renter session and sign-out
+---
+- launchApp
+- assertVisible: "Rent a car"
+- assertVisible: "List your car"
+- tapOn: "Sign in"
+- tapOn: "EMAIL"
+- inputText: ${TEST_EMAIL}
+- tapOn: "PASSWORD"
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: auth-submit
+- extendedWaitUntil:
+    visible:
+      id: tab-home
+    timeout: 30000
+- tapOn:
+    id: tab-account
+- extendedWaitUntil:
+    visible: "Profile details"
+    timeout: 15000
+- assertNotVisible: "Failed to load profile"
+- tapOn:
+    id: tab-trips
+- assertVisible: "Trips"
+- tapOn:
+    id: tab-discover
+- tapOn:
+    id: tab-account
+- scrollUntilVisible:
+    element:
+      id: account-sign-out
+    direction: DOWN
+- tapOn:
+    id: account-sign-out
+- extendedWaitUntil:
+    visible: "Rent a car"
+    timeout: 15000
+- assertVisible: "Sign in"

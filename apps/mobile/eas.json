@@ -30,7 +30,8 @@
       "env": {
         "MMG_FIREBASE_ENV": "development",
         "MMG_APNS_ENV": "production",
-        "MMG_DIAGNOSTICS_ENABLED": "true"
+        "MMG_DIAGNOSTICS_ENABLED": "true",
+        "MMG_CRASH_REPORTING_ENABLED": "true"
       }
     },
     "production": {

@@ -1,12 +1,13 @@
 import type { CancelRentalRequestResult } from '@mmg/contracts/cancellation';
-import type {
-  ApproveRentalRequestResult,
-  CreateRentalRequestData,
-  CreateRentalRequestResult,
-  DeclineRentalRequestResult,
-  ListOwnerRentalRequestsResult,
-  ListRenterRentalRequestsResult,
-  ReleaseRentalRequestPaymentHoldResult,
+import {
+  createRentalRequestDataSchema,
+  type ApproveRentalRequestResult,
+  type CreateRentalRequestData,
+  type CreateRentalRequestResult,
+  type DeclineRentalRequestResult,
+  type ListOwnerRentalRequestsResult,
+  type ListRenterRentalRequestsResult,
+  type ReleaseRentalRequestPaymentHoldResult,
 } from '@mmg/contracts/rental-request';
 
 export interface RentalRequestGateway {
@@ -38,14 +39,10 @@ function defaultIdempotencyKeyFactory(): string {
   return `rental_request_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
 }
 
-function fingerprint(data: CreateRentalRequestData): string {
-  return JSON.stringify([
-    data.vehicleId,
-    data.startDate,
-    data.endDate,
-    data.contactPhone,
-    data.serviceAreaLabel,
-  ]);
+export function rentalRequestFingerprint(data: CreateRentalRequestData): string {
+  // Schema parsing normalizes field order/trim behavior and includes the entire
+  // command payload, including coordinates and entrance instructions.
+  return JSON.stringify(createRentalRequestDataSchema.parse(data));
 }
 
 export class RentalRequestSubmissionKey {
@@ -55,7 +52,7 @@ export class RentalRequestSubmissionKey {
   constructor(private readonly createKey: IdempotencyKeyFactory = defaultIdempotencyKeyFactory) {}
 
   forData(data: CreateRentalRequestData): string {
-    const nextFingerprint = fingerprint(data);
+    const nextFingerprint = rentalRequestFingerprint(data);
     if (this.activeFingerprint !== nextFingerprint || !this.activeKey) {
       this.activeFingerprint = nextFingerprint;
       this.activeKey = this.createKey();

@@ -63,6 +63,26 @@ const vehicleSnapshot = {
 };
 
 describe('RentalRequestSubmissionKey', () => {
+  it.each([
+    { latitude: 6.4486 }, { longitude: 3.4386 }, { note: 'Different gate' },
+    { formattedAddress: 'Another entrance, Ikoyi' }, { displayName: 'Side gate' }, { placeId: 'another-place' },
+  ])('rotates for a materially changed pickup %j', (change) => {
+    let count = 0;
+    const manager = new RentalRequestSubmissionKey(() => `rental_request_${++count}`);
+    const original = manager.forData(createData);
+    expect(manager.forData({ ...createData, pickupLocation: { ...createData.pickupLocation, ...change } })).not.toBe(original);
+  });
+
+  it('normalizes property order and whitespace without changing retry identity', () => {
+    const manager = new RentalRequestSubmissionKey(() => Math.random().toString());
+    const original = manager.forData(createData);
+    expect(manager.forData({ ...createData, pickupLocation: {
+      longitude: createData.pickupLocation.longitude, latitude: createData.pickupLocation.latitude,
+      serviceAreaLabel: 'Ikoyi', formattedAddress: ` ${createData.pickupLocation.formattedAddress} `,
+      displayName: createData.pickupLocation.displayName,
+    } })).toBe(original);
+  });
+
   it('reuses a key for an unchanged retry and rotates when contact details change', () => {
     const keys = ['rental_request_key_0001', 'rental_request_key_0002'];
     const manager = new RentalRequestSubmissionKey(() => keys.shift()!);

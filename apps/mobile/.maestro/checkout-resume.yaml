@@ -1,0 +1,30 @@
+# Starts signed in. Select a known request with a test payment still pending.
+# TRIP_ROW is its exact accessibility label, e.g. View Toyota Prado: Dates held.
+# This flow does not open Paystack or make a charge.
+appId: com.mmgconcierge.app
+name: In-flight checkout survives process restart
+---
+- launchApp
+- tapOn:
+    id: tab-trips
+- scrollUntilVisible:
+    element: ${TRIP_ROW}
+    direction: DOWN
+- tapOn: ${TRIP_ROW}
+- extendedWaitUntil:
+    visible: "Check payment status"
+    timeout: 30000
+- assertNotVisible: "Pay securely"
+- stopApp
+- launchApp
+- tapOn:
+    id: tab-trips
+- scrollUntilVisible:
+    element: ${TRIP_ROW}
+    direction: DOWN
+- tapOn: ${TRIP_ROW}
+- extendedWaitUntil:
+    visible: "Check payment status"
+    timeout: 30000
+- assertNotVisible: "Pay securely"
+- assertNotVisible: "Create a new hold"

@@ -47,10 +47,10 @@ export default function RenterTabsLayout() {
         },
       })}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="browse" options={{ title: 'Discover' }} />
-      <Tabs.Screen name="trips" options={{ title: 'Trips' }} />
-      <Tabs.Screen name="account" options={{ title: 'Account' }} />
+      <Tabs.Screen name="index" options={{ title: 'Home', tabBarButtonTestID: 'tab-home' }} />
+      <Tabs.Screen name="browse" options={{ title: 'Discover', tabBarButtonTestID: 'tab-discover' }} />
+      <Tabs.Screen name="trips" options={{ title: 'Trips', tabBarButtonTestID: 'tab-trips' }} />
+      <Tabs.Screen name="account" options={{ title: 'Account', tabBarButtonTestID: 'tab-account' }} />
     </Tabs>
   );
 }

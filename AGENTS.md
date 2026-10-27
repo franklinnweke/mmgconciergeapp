@@ -523,6 +523,9 @@ Agents must never claim tests, deployments, EAS state, Android Studio state, Fir
 
 ## 10. Engineering and security rules
 
+- Mobile request retries use the full schema-normalized command payload, including pickup, to identify an attempt. Persist only its opaque hash and idempotency key per authenticated account, not contact/pickup data. Resume the same unresolved attempt after restart; changed input must not reuse its key.
+- BookingProvider owns request refresh and historical trip-image recovery. Poll only while active, serialize/deduplicate foreground and mutation refreshes, and discard results after session disposal. A reopened checkout reconciles its existing server intent before offering payment; connectivity errors must not unlock a new charge.
+- Native crash collection is off by default. The development TestFlight opt-in additionally checks the actual Firebase app is `mmg-concierge-dev`; application error reporting accepts only fixed categories and sanitized stack positions, never arbitrary messages, identities, command data or signed URLs. Native crash receipt/symbols require physical acceptance; do not infer them from a green JavaScript test suite. Public-production telemetry needs its own release/privacy review.
 - Deny client access by default; critical writes stay server-authoritative.
 - Never log secrets, provider payloads, exact coordinates, bank data, or unnecessary PII.
 - Paystack secrets stay server-side only.

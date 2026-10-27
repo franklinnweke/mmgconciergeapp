@@ -1,0 +1,33 @@
+# Starts signed in as an approved development owner with an existing image.
+# VEHICLE_ID is the test listing ID, not a Storage path or signed URL.
+appId: com.mmgconcierge.app
+name: Private owner preview renders after image load
+---
+- launchApp
+- tapOn:
+    id: tab-account
+- scrollUntilVisible:
+    element: "List a car"
+    direction: DOWN
+- tapOn: "List a car"
+- extendedWaitUntil:
+    visible: "Manage fleet"
+    timeout: 15000
+- tapOn: "Manage fleet"
+- extendedWaitUntil:
+    visible:
+      id: "owner-vehicle-photo-${VEHICLE_ID}"
+    timeout: 30000
+- stopApp
+- launchApp
+- tapOn:
+    id: tab-account
+- scrollUntilVisible:
+    element: "List a car"
+    direction: DOWN
+- tapOn: "List a car"
+- tapOn: "Manage fleet"
+- extendedWaitUntil:
+    visible:
+      id: "owner-vehicle-photo-${VEHICLE_ID}"
+    timeout: 30000

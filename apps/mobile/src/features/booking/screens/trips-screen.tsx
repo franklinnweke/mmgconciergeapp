@@ -1,16 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import type { VehicleSummary } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
-import { Image, type ImageSource } from 'expo-image';
+import { Image } from 'expo-image';
 import { type Href, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
-import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
@@ -31,55 +28,11 @@ function formatDate(value: string) {
   }).format(new Date(`${value}T12:00:00+01:00`));
 }
 
-function snapshotHasCanonicalImage(trip: RenterTrip): boolean {
-  // Trips deliberately does not trust fixture image keys. A persisted public URL
-  // is an immutable booking snapshot; otherwise we resolve the current safe
-  // renter-visible vehicle or render a neutral placeholder.
-  return Boolean(trip.vehicleSnapshot.imageUrl);
-}
-
-function isGenericSnapshotName(value: string): boolean {
-  return value === 'Booked vehicle' || value === 'Requested vehicle';
-}
-
 export default function TripsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { initializing, syncError, trips } = useBookings();
   const groups = groupTripsForDisplay(trips);
-  const discoveryGateway = useMemo(() => createDiscoveryGateway(), []);
-  const [resolvedVehicles, setResolvedVehicles] = useState<Record<string, VehicleSummary | null>>({});
-
-  const unresolvedVehicleIds = useMemo(
-    () => [...new Set(
-      trips
-        .filter((trip) => !snapshotHasCanonicalImage(trip))
-        .map((trip) => trip.vehicleId),
-    )].sort(),
-    [trips],
-  );
-
-  useEffect(() => {
-    if (!unresolvedVehicleIds.length) return;
-    let active = true;
-
-    void Promise.all(
-      unresolvedVehicleIds.map(async (vehicleId) => {
-        try {
-          return [vehicleId, await discoveryGateway.getVehicleById(vehicleId)] as const;
-        } catch {
-          return [vehicleId, null] as const;
-        }
-      }),
-    ).then((entries) => {
-      if (!active) return;
-      setResolvedVehicles((current) => ({ ...current, ...Object.fromEntries(entries) }));
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [discoveryGateway, unresolvedVehicleIds]);
 
   return (
     <View style={styles.screen}>
@@ -113,7 +66,6 @@ export default function TripsScreen() {
                 <View style={styles.tripList}>
                   {section.trips.map((item) => (
                     <TripRow
-                      fallbackVehicle={resolvedVehicles[item.vehicleId] ?? null}
                       key={item.id}
                       trip={item}
                     />
@@ -131,10 +83,8 @@ export default function TripsScreen() {
 }
 
 function TripRow({
-  fallbackVehicle,
   trip,
 }: {
-  fallbackVehicle: VehicleSummary | null;
   trip: RenterTrip;
 }) {
   const router = useRouter();
@@ -143,19 +93,11 @@ function TripRow({
   const attention = trip.group === 'intervention';
   const positive = trip.state === 'confirmed' || trip.state === 'in_progress' || trip.state === 'completed';
 
-  let imageSource: ImageSource | null = null;
-  if (vehicle.imageUrl) {
-    imageSource = resolveVehicleImageSource({ imageUrl: vehicle.imageUrl });
-  } else if (fallbackVehicle) {
-    imageSource = resolveVehicleImageSource(fallbackVehicle);
-  }
-
-  const displayName = isGenericSnapshotName(vehicle.displayName) && fallbackVehicle
-    ? fallbackVehicle.displayName
-    : vehicle.displayName;
-  const areaLabel = vehicle.areaLabel === 'Lagos' && fallbackVehicle
-    ? fallbackVehicle.areaLabel
-    : vehicle.areaLabel;
+  // BookingProvider owns historical image recovery. Never issue a second fetch
+  // here or use a generic fixture key for a customer's actual vehicle.
+  const imageSource = vehicle.imageUrl ? resolveVehicleImageSource({ imageUrl: vehicle.imageUrl }) : null;
+  const displayName = vehicle.displayName;
+  const areaLabel = vehicle.areaLabel;
 
   return (
     <PressableScale
