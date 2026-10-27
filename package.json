@@ -37,7 +37,7 @@
     "firebase:deploy:request-first-functions": "npx -y firebase-tools@latest deploy --project mmg-concierge-dev --only functions:createRentalRequest,functions:approveRentalRequest,functions:declineRentalRequest,functions:releaseRentalRequestPaymentHold,functions:cancelRentalRequest,functions:quoteBookingCancellation,functions:cancelBooking,functions:initializeRentalRequestPayment,functions:listRenterRentalRequests,functions:listOwnerRentalRequests,functions:expireRentalRequestPaymentWindows,functions:resolveRenterCancellations,functions:initializeBookingPayment,functions:paystackWebhook,functions:processPaystackPaymentEvent,functions:reconcilePayment,functions:requestAccountDeletion,functions:searchPickupPlaces,functions:resolvePickupPlace --non-interactive"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "5.0.1",
+    "@firebase/rules-unit-testing": "5.0.2",
     "esbuild": "^0.27.0",
     "firebase": "12.3.0",
     "typescript": "~6.0.3",
