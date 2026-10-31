@@ -1,0 +1,299 @@
+[
+  {
+    "id": "website-toyota-prado",
+    "slug": "toyota-prado",
+    "name": "Toyota Land Cruiser Prado",
+    "brand": "Toyota",
+    "category": "Executive SUV",
+    "tagline": "For airport pickups and a full day of meetings.",
+    "description": "An executive SUV for airport collections, business visits and longer road journeys. Tell us your route and travel plans; we’ll confirm the car and chauffeur arrangements.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 10,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/toyota-prado-nigeria.webp",
+        "alt": "Toyota Land Cruiser Prado exterior reference photograph",
+        "caption": "Exterior reference photograph. Current vehicle photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      },
+      {
+        "id": "reference-1",
+        "referenceUrl": "https://mmgconcierge.com/images/hero-prado-private-arrival.webp",
+        "alt": "Illustration of a black Prado at a tropical arrival court",
+        "caption": "Illustrative Prado scene. This is not a photograph of the available vehicle.",
+        "kind": "illustration",
+        "x": 50,
+        "y": 50
+      },
+      {
+        "id": "reference-2",
+        "referenceUrl": "https://mmgconcierge.com/images/prado-black-exterior.webp",
+        "alt": "Black Toyota Land Cruiser Prado exterior reference photograph",
+        "caption": "Exterior reference photograph. Colour and trim are confirmed with your quote.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Airport · Business · Road journeys"
+  },
+  {
+    "id": "website-lexus-gx-460",
+    "slug": "lexus-gx-460",
+    "name": "Lexus GX 460",
+    "brand": "Lexus",
+    "category": "Luxury SUV",
+    "tagline": "A comfortable companion for a busy itinerary.",
+    "description": "A Lexus SUV for hotel pickups, visiting executives and private occasions. Current photos and seating are confirmed before you book.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 20,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/lexus-gx460-nigeria.webp",
+        "alt": "Lexus GX 460",
+        "caption": "Reference photograph. Current photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Business · Hotels · Private occasions"
+  },
+  {
+    "id": "website-mercedes-benz-s-class",
+    "slug": "mercedes-benz-s-class",
+    "name": "Mercedes-Benz S-Class",
+    "brand": "Mercedes-Benz",
+    "category": "Executive saloon",
+    "tagline": "For the meeting, the evening, and the arrival.",
+    "description": "An executive saloon for corporate appointments, airport transfers and weddings. We’ll confirm the available model and chauffeur details for your plans.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 30,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/mercedes-s-class-nigeria.webp",
+        "alt": "Mercedes-Benz S-Class",
+        "caption": "Reference photograph. Current photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Meetings · Airport · Weddings"
+  },
+  {
+    "id": "website-toyota-land-cruiser",
+    "slug": "toyota-land-cruiser",
+    "name": "Toyota Land Cruiser",
+    "brand": "Toyota",
+    "category": "Executive SUV",
+    "tagline": "For longer journeys and a little more room.",
+    "description": "A full-size SUV for airport collections, business visits and longer itineraries. Your route and group size help us confirm a suitable vehicle.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 40,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/toyota-land-cruiser-reference.webp",
+        "alt": "Toyota Land Cruiser",
+        "caption": "Reference photograph. Current photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Business · Airport · Road journeys"
+  },
+  {
+    "id": "website-lexus-lx-570",
+    "slug": "lexus-lx-570",
+    "name": "Lexus LX 570",
+    "brand": "Lexus",
+    "category": "Luxury SUV",
+    "tagline": "Room to settle in between appointments.",
+    "description": "A full-size Lexus SUV for corporate visits, hotel collections and private occasions. We’ll share current vehicle photos and cabin details before confirmation.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 50,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/lexus-lx570-reference.webp",
+        "alt": "Lexus LX 570",
+        "caption": "Reference photograph. Current photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Corporate visits · Hotels · Events"
+  },
+  {
+    "id": "website-lexus-lx-600",
+    "slug": "lexus-lx-600",
+    "name": "Lexus LX 600",
+    "brand": "Lexus",
+    "category": "Flagship SUV",
+    "tagline": "An understated choice for an important day.",
+    "description": "A flagship Lexus SUV for executive arrivals, business hosting and special occasions. Exact trim, seating and chauffeur terms are confirmed with your quote.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 60,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/lexus-lx600-reference.webp",
+        "alt": "Lexus LX 600",
+        "caption": "Reference photograph. Current photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Executive arrivals · Business hosting · Events"
+  },
+  {
+    "id": "website-mercedes-benz-e-class",
+    "slug": "mercedes-benz-e-class",
+    "name": "Mercedes-Benz E-Class",
+    "brand": "Mercedes-Benz",
+    "category": "Executive saloon",
+    "tagline": "A considered choice for your working day.",
+    "description": "An executive saloon for airport transfers, appointments and a day of meetings. Share your schedule and we’ll confirm the vehicle and driver details.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 70,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/mercedes-e-class-reference.webp",
+        "alt": "Mercedes-Benz E-Class",
+        "caption": "Reference photograph. Current photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Meetings · Airport · Daily itineraries"
+  },
+  {
+    "id": "website-mercedes-benz-gle",
+    "slug": "mercedes-benz-gle",
+    "name": "Mercedes-Benz GLE",
+    "brand": "Mercedes-Benz",
+    "category": "Executive SUV",
+    "tagline": "For business plans and time off.",
+    "description": "A Mercedes-Benz SUV for business travel, hotel pickups and private plans. Let us know your passenger numbers and itinerary when requesting a quote.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 80,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/mercedes-gle-reference.webp",
+        "alt": "Mercedes-Benz GLE",
+        "caption": "Reference photograph. Current photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Business travel · Hotels · Private plans"
+  },
+  {
+    "id": "website-mercedes-benz-g-class",
+    "slug": "mercedes-benz-g-class",
+    "name": "Mercedes-Benz G-Class",
+    "brand": "Mercedes-Benz",
+    "category": "Signature SUV",
+    "tagline": "A distinctive arrival for a special occasion.",
+    "description": "An SUV for weddings, private celebrations and executive arrivals. We’ll confirm the available year, trim, current photos and chauffeur arrangements.",
+    "year": "",
+    "passengers": "Confirmed for your group",
+    "chauffeur": "Arranged with your quote",
+    "order": 90,
+    "coverId": "reference-0",
+    "photos": [
+      {
+        "id": "reference-0",
+        "referenceUrl": "https://mmgconcierge.com/images/mercedes-g-class-reference.webp",
+        "alt": "Mercedes-Benz G-Class",
+        "caption": "Reference photograph. Current photos are available on enquiry.",
+        "kind": "reference",
+        "x": 50,
+        "y": 50
+      }
+    ],
+    "status": "draft",
+    "version": 1,
+    "updatedAt": "2026-10-31T12:00:00.000Z",
+    "publishedAt": null,
+    "publishedVersion": null,
+    "bestSuited": "Weddings · Celebrations · Executive arrivals"
+  }
+]

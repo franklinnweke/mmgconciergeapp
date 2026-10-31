@@ -32,7 +32,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${playfair.variable}`}>{children}</body>
+      {/* Grammar extensions inject body attributes before hydration. Keep this
+          exception on body; nested application mismatches still surface. */}
+      <body suppressHydrationWarning className={`${inter.variable} ${playfair.variable}`}>
+        {children}
+      </body>
     </html>
   );
 }

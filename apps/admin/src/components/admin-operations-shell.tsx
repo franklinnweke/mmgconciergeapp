@@ -2,6 +2,7 @@
 
 import {
   Car,
+  Globe2,
   CreditCard,
   LayoutDashboard,
   LayoutList,
@@ -78,6 +79,7 @@ export function AdminOperationsShell({
         </nav>
 
         <div className="admin-sidebar-footer">
+          {(staffRole === 'super_admin' || staffRole === 'vehicle_admin') && <Link href="/web" className="admin-signout-button"><Globe2 size={15}/><span>Website workspace</span></Link>}
           <div className="admin-environment-note">
             <span className="environment-dot fixture" />
             <span>Development</span>

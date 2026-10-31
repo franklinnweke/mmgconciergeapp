@@ -27,7 +27,9 @@ export type StaffCapability =
   | 'owners.review'
   | 'users.read'
   | 'vehicles.read'
-  | 'vehicles.review';
+  | 'vehicles.review'
+  | 'web.read'
+  | 'web.manage';
 
 /**
  * Booking request management is intentionally narrower than generic booking
@@ -46,9 +48,11 @@ const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
     'users.read',
     'vehicles.read',
     'vehicles.review',
+    'web.read',
+    'web.manage',
   ],
   verification_admin: ['owners.read', 'owners.review'],
-  vehicle_admin: ['vehicles.read', 'vehicles.review'],
+  vehicle_admin: ['vehicles.read', 'vehicles.review', 'web.read', 'web.manage'],
   finance_admin: ['payments.read'],
   support: ['bookings.read', 'bookings.manage_requests'],
   privacy_admin: ['users.read'],
@@ -76,6 +80,7 @@ export const STAFF_DESKS: readonly { href: string; label: string; capability: St
   { href: '/owners', label: 'Owner verification desk', capability: 'owners.read' },
   { href: '/vehicles', label: 'Vehicle moderation desk', capability: 'vehicles.read' },
   { href: '/users', label: 'Platform users', capability: 'users.read' },
+  { href: '/web', label: 'Website fleet', capability: 'web.read' },
 ];
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
