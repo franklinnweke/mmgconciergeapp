@@ -125,6 +125,8 @@ describe('staff capability model', () => {
     'users.read',
     'vehicles.read',
     'vehicles.review',
+    'web.read',
+    'web.manage',
   ];
 
   it('resolves claims into roles and keeps the scalar role as the highest one', () => {
@@ -144,7 +146,7 @@ describe('staff capability model', () => {
 
   it('scopes verification_admin to owners and vehicle_admin to vehicles', () => {
     expect(capabilitiesForRoles(['verification_admin']).sort()).toEqual(['owners.read', 'owners.review']);
-    expect(capabilitiesForRoles(['vehicle_admin']).sort()).toEqual(['vehicles.read', 'vehicles.review']);
+    expect(capabilitiesForRoles(['vehicle_admin']).sort()).toEqual(['vehicles.read', 'vehicles.review', 'web.manage', 'web.read']);
   });
 
   it('grants support only booking visibility and bounded rental-request management', () => {
