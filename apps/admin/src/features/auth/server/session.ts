@@ -29,7 +29,8 @@ export type StaffCapability =
   | 'vehicles.read'
   | 'vehicles.review'
   | 'web.read'
-  | 'web.manage';
+  | 'web.manage'
+  | 'web.subscribers';
 
 /**
  * Booking request management is intentionally narrower than generic booking
@@ -50,6 +51,7 @@ const CAPABILITIES_BY_ROLE: Record<StaffRole, readonly StaffCapability[]> = {
     'vehicles.review',
     'web.read',
     'web.manage',
+    'web.subscribers',
   ],
   verification_admin: ['owners.read', 'owners.review'],
   vehicle_admin: ['vehicles.read', 'vehicles.review', 'web.read', 'web.manage'],
