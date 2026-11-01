@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   CarFront,
   Globe2,
+  Mail,
   LayoutDashboard,
   LogOut,
   PanelLeft,
@@ -16,10 +17,12 @@ export function WebShell({
   children,
   email,
   fixture,
+  newsletter,
 }: {
   children: ReactNode;
   email?: string;
   fixture: boolean;
+  newsletter: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -63,12 +66,26 @@ export function WebShell({
         <nav aria-label="Website navigation">
           <Link
             href="/web"
-            aria-current={pathname.startsWith("/web") ? "page" : undefined}
+            aria-current={
+              !pathname.startsWith("/web/newsletter") ? "page" : undefined
+            }
             onClick={() => setOpen(false)}
           >
             <CarFront size={17} />
             Vehicles<span>01</span>
           </Link>
+          {newsletter && (
+            <Link
+              href="/web/newsletter"
+              aria-current={
+                pathname.startsWith("/web/newsletter") ? "page" : undefined
+              }
+              onClick={() => setOpen(false)}
+            >
+              <Mail size={17} />
+              Newsletter<span>02</span>
+            </Link>
+          )}
         </nav>
         <div className="web-sidebar-bottom">
           <a href={websiteBaseUrl} target="_blank" rel="noreferrer">
