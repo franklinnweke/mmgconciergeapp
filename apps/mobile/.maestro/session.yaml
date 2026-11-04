@@ -5,7 +5,8 @@ name: Verified renter session and sign-out
 - launchApp
 - assertVisible: "Rent a car"
 - assertVisible: "List your car"
-- tapOn: "Sign in"
+- tapOn: "Rent a car"
+- assertVisible: "Renter sign-in"
 - tapOn: "EMAIL"
 - inputText: ${TEST_EMAIL}
 - tapOn: "PASSWORD"
@@ -23,6 +24,7 @@ name: Verified renter session and sign-out
     visible: "Profile details"
     timeout: 15000
 - assertNotVisible: "Failed to load profile"
+- assertNotVisible: "List a car"
 - tapOn:
     id: tab-trips
 - assertVisible: "Trips"
@@ -39,4 +41,4 @@ name: Verified renter session and sign-out
 - extendedWaitUntil:
     visible: "Rent a car"
     timeout: 15000
-- assertVisible: "Sign in"
+- assertVisible: "List your car"

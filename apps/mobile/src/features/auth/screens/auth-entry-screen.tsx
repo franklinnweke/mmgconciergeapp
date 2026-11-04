@@ -24,17 +24,17 @@ import { useAuth } from '@/core/auth/auth-context';
 type Mode = 'sign-in' | 'register';
 
 type AuthEntryScreenProps = {
-  accountType: AccountType | null;
-  initialMode: Mode;
+  accountType: AccountType;
+  onAuthenticate(): void;
   onBack(): void;
 };
 
 const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.jpg');
 
-export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryScreenProps) {
+export function AuthEntryScreen({ accountType, onAuthenticate, onBack }: AuthEntryScreenProps) {
   const insets = useSafeAreaInsets();
   const auth = useAuth();
-  const [mode, setMode] = useState<Mode>(initialMode);
+  const [mode, setMode] = useState<Mode>('sign-in');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,12 +59,12 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
   }, []);
 
 
-  function showSignIn() {
-    if (mode === 'sign-in' || busy) return;
+  function toggleMode() {
+    if (busy) return;
     setError(null);
     setNotice(null);
 
-    setMode('sign-in');
+    setMode(mode === 'sign-in' ? 'register' : 'sign-in');
   }
 
   async function run(action: () => Promise<void>) {
@@ -82,8 +82,8 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
 
   async function handlePrimaryAction() {
     await run(async () => {
+      onAuthenticate();
       if (mode === 'register') {
-        if (!accountType) throw new Error('Choose how you will use MMG before registering.');
         await auth.register({ displayName, email, password }, accountType);
         return;
       }
@@ -93,16 +93,18 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
 
   async function handleAppleSignIn() {
     await run(async () => {
+      onAuthenticate();
       await auth.signInApple(
-        mode === 'register' ? accountType ?? undefined : undefined,
+        mode === 'register' ? accountType : undefined,
       );
     });
   }
 
   async function handleGoogleSignIn() {
     await run(async () => {
+      onAuthenticate();
       await auth.signInGoogle(
-        mode === 'register' ? accountType ?? undefined : undefined,
+        mode === 'register' ? accountType : undefined,
       );
     });
   }
@@ -114,7 +116,8 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
     });
   }
 
-  const title = mode === 'sign-in' ? 'Welcome back.' : 'Create your MMG account.';
+  const viewLabel = accountType === 'owner' ? 'Owner' : 'Renter';
+  const title = mode === 'sign-in' ? `${viewLabel} sign-in` : 'Create your MMG account';
   const googleButtonLabel = mode === 'sign-in' ? 'Sign in with Google' : 'Continue with Google';
   const appleButtonType = mode === 'sign-in'
     ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
@@ -151,7 +154,7 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
               },
             ]}
           >
-            <ScreenHeader onBack={onBack} />
+            <ScreenHeader onBack={busy ? undefined : onBack} />
           </View>
         </View>
 
@@ -258,13 +261,13 @@ export function AuthEntryScreen({ accountType, initialMode, onBack }: AuthEntryS
           <PressableScale
             accessibilityRole="button"
             disabled={busy}
-            onPress={mode === 'register' ? showSignIn : onBack}
+            onPress={toggleMode}
             style={styles.textAction}
           >
             <Text style={styles.textActionLabel}>
               {mode === 'register'
                 ? 'Already have an account? Sign in'
-                : 'New to MMG? Choose how to start'}
+                : 'New to MMG? Create an account'}
             </Text>
           </PressableScale>
         </View>

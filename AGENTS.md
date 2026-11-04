@@ -76,8 +76,8 @@ Production is never a development or test target.
 - Owner processed vehicle photos remain client-denied in Storage. Owner previews use a vehicle-ownership-checked callable that derives only the processed card path and returns an ephemeral five-minute signed URL; never accept client Storage paths, persist preview URLs, or broaden private Storage reads.
 - Only approved, active, discoverable vehicles are renter-visible.
 - Vehicle discovery uses approximate Lagos base-area coordinates, never the exact garage address. If both approximate coordinates are absent, the server may use the listing's explicitly selected canonical Lagos area centre, rounded to the existing discovery precision. This is area-level positioning, not a verified garage pin; never write that centre into private exact-location fields or renter pickup data. Partial/malformed coordinate pairs fail closed; no area fallback is allowed for unknown areas. Approval/activation/publication must satisfy the same renter-detail contract as discovery.
-- Signed-out `Rent a car` versus `List a car` is session intent, not a permanent navigation role.
-- Every verified authenticated MMG account can use the renter experience.
+- Choose `Rent a car` or `List your car` before signing in. The choice locks the mobile view for that session; switching requires signing out and choosing again. Deep links and navigation history cannot change it.
+- Every verified MMG account can choose renter at sign-in. Owner mode is session navigation, not a grant of owner or Admin permissions.
 - Listing vehicles is an additional owner application/capability on the same identity.
 - Firestore `users.accountType` is compatibility metadata. It must not block renter access or force an existing owner into owner-only navigation.
 - A verified renter compatibility account may create and submit its own owner application without mutating `users.accountType`.
@@ -476,8 +476,8 @@ Current auth/UI expectations:
 - Google authentication uses the Firebase-environment-matched OAuth client.
 - Apple authentication uses nonce hashing, Firebase credential exchange, first-login name persistence when supplied, cancellation handling, and Expo's native Apple button.
 - Social sign-in presentation should place Google first and Apple immediately underneath on supported iOS devices.
-- Authenticated verified users land in renter/Home by default regardless of compatibility `accountType`.
-- `List your car` carries owner intent into owner onboarding.
+- A continuing authenticated session restores its selected view from per-account local storage, with renter/Home as the compatibility fallback. A fresh sign-in choice overrides the previous view, regardless of compatibility `accountType`.
+- `List your car` opens owner sign-in and then the owner desk or onboarding; renter Account and owner tools have no cross-view shortcuts.
 - Renter checkout does not use Firebase Phone Auth. Owner onboarding may still do so.
 
 Pre-launch compliance and policy status:

@@ -1,12 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSegments } from 'expo-router';
-import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { recordNavigation } from '../diagnostics/diagnostic-tracker';
 import { useAuth } from './auth-context';
 import {
   parseStoredSessionMode,
-  sessionModeFromSegments,
   sessionModeStorageKey,
   type SessionMode,
 } from './session-intent-domain';
@@ -16,68 +15,58 @@ export type { SessionMode } from './session-intent-domain';
 type SessionIntentContextValue = {
   loading: boolean;
   mode: SessionMode | null;
-  setMode(mode: SessionMode): Promise<void>;
+  prepareSignIn(mode: SessionMode): void;
 };
 
 const SessionIntentContext = createContext<SessionIntentContextValue | null>(null);
 
 export function SessionIntentProvider({ children }: PropsWithChildren) {
-  const { signingOut, user } = useAuth();
+  const { initializing, signingOut, user } = useAuth();
   const segments = useSegments();
-  const uid = user && !signingOut ? user.uid : null;
-  const [loadedUid, setLoadedUid] = useState<string | null>(null);
-  const [storedMode, setStoredMode] = useState<SessionMode | null>(null);
+  const uid = user?.uid ?? null;
+  const pendingMode = useRef<SessionMode | null>(null);
+  const [session, setSession] = useState<{ uid: string; mode: SessionMode } | null>(null);
 
   useEffect(() => {
     recordNavigation(segments.join('/') || '/', segments);
   }, [segments]);
 
-  const loading = Boolean(uid && loadedUid !== uid);
-  const routeMode = sessionModeFromSegments(segments);
-  const mode = uid ? (routeMode ?? (loadedUid === uid ? storedMode : null)) : null;
+  const loading = Boolean(uid && session?.uid !== uid);
+  const mode = uid && !signingOut && session?.uid === uid ? session.mode : null;
 
   useEffect(() => {
-    if (!uid) return undefined;
-
     let active = true;
-    void AsyncStorage.getItem(sessionModeStorageKey(uid))
-      .then((value) => {
-        if (!active) return;
-        setStoredMode(parseStoredSessionMode(value));
-        setLoadedUid(uid);
-      })
-      .catch(() => {
-        if (!active) return;
-        setStoredMode(null);
-        setLoadedUid(uid);
-      });
+    const chosen = pendingMode.current;
+    const restore = async () => {
+      if (!uid) {
+        await Promise.resolve();
+        if (active) setSession(null);
+        return;
+      }
+      const key = sessionModeStorageKey(uid);
+      const saved = chosen ? null : await AsyncStorage.getItem(key).catch(() => null);
+      // Defer committing the choice so an abandoned effect cannot consume it.
+      await Promise.resolve();
+      if (!active) return;
+      pendingMode.current = null;
+      setSession({ uid, mode: chosen ?? parseStoredSessionMode(saved) ?? 'renter' });
+      if (chosen) void AsyncStorage.setItem(key, chosen).catch(() => {});
+    };
+    void restore();
 
     return () => {
       active = false;
     };
   }, [uid]);
 
-  useEffect(() => {
-    if (!uid || loading || signingOut || !routeMode) return;
-    void AsyncStorage.setItem(sessionModeStorageKey(uid), routeMode).catch(() => {
-      // Navigation continues even if the preference cannot be persisted.
-    });
-  }, [loading, routeMode, signingOut, uid]);
-
   const value = useMemo<SessionIntentContextValue>(() => ({
     loading,
     mode,
-    async setMode(nextMode) {
-      setStoredMode(nextMode);
-      if (!uid) return;
-      try {
-        await AsyncStorage.setItem(sessionModeStorageKey(uid), nextMode);
-      } catch {
-        // This preference is not an authorization source, so a local storage
-        // failure should not prevent an explicit renter/owner navigation.
-      }
+    prepareSignIn(nextMode) {
+      // Only signed-out login can select the next session's view.
+      if (!uid && !initializing && !signingOut) pendingMode.current = nextMode;
     },
-  }), [loading, mode, uid]);
+  }), [initializing, loading, mode, signingOut, uid]);
 
   return <SessionIntentContext.Provider value={value}>{children}</SessionIntentContext.Provider>;
 }

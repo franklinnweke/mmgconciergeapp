@@ -77,8 +77,15 @@ describe('Signed-out route resolution', () => {
   it.each([
     '(renter)/_layout.tsx', '(owner)/_layout.tsx', 'booking/review.tsx',
     'vehicle/[vehicleId].tsx', 'trip/[tripId].tsx',
-  ])('%s redirects signed-out users to the distinct public entry', (path) => {
+  ])('%s uses the shared session boundary', (path) => {
     const source = readFileSync(`${repositoryRoot}/apps/mobile/src/app/${path}`, 'utf8');
+    const mode = path.startsWith('(owner)') ? 'owner' : 'renter';
+    expect(source).toContain(`<SessionRouteGuard expected="${mode}">`);
+    expect(source).not.toContain('<Redirect href="/" />');
+  });
+
+  it('redirects signed-out users to the distinct public entry', () => {
+    const source = readFileSync(`${repositoryRoot}/apps/mobile/src/features/auth/components/session-route-guard.tsx`, 'utf8');
     expect(source).toContain('<Redirect href="/auth" />');
     expect(source).not.toContain('<Redirect href="/" />');
   });

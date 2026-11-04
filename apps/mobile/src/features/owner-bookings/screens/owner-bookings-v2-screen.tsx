@@ -98,12 +98,6 @@ export function OwnerBookingsV2Screen() {
   const otherRequests = requests.filter((request) => request.state !== 'requested');
   const bookingGroups = groupOwnerBookings(snapshot.bookings);
 
-  const right = (
-    <PressableScale accessibilityLabel="Back to renter home" accessibilityRole="button" onPress={() => router.replace('/(renter)' as Href)}>
-      <Text style={styles.headerLink}>Renter home</Text>
-    </PressableScale>
-  );
-
   if (signingOut) {
     return <AuthLoadingScreen message="Signing out" />;
   }
@@ -111,7 +105,7 @@ export function OwnerBookingsV2Screen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-        <ScreenHeader onBack={() => router.back()} right={right} showBrand={false} title="Requests & bookings" />
+        <ScreenHeader onBack={() => router.canGoBack() ? router.back() : router.replace('/(owner)' as Href)} showBrand={false} title="Requests & bookings" />
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
@@ -207,7 +201,6 @@ const styles = StyleSheet.create({
   errorText: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
   fixture: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  headerLink: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   retry: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
   row: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 82, paddingVertical: spacing.md },
