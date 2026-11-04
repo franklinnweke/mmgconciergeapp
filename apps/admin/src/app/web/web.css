@@ -1245,3 +1245,32 @@
     color: #708466;
   }
 }
+
+.web-newsletter-note {display:flex;align-items:flex-start;gap:12px;padding:18px 0;border-top:1px solid #dce2d5;border-bottom:1px solid #dce2d5;color:#586c4d;font-size:13px;line-height:1.7;}
+.web-newsletter-note svg {flex-shrink:0;margin-top:2px;}
+.web-subscriber-search {display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.web-subscriber-search .web-search {width:340px;max-width:100%;}
+.web-subscriber-table-wrap {overflow-x:auto;}
+.web-subscriber-table {width:100%;border-collapse:collapse;text-align:left;font-size:13px;}
+.web-subscriber-table th {padding:14px 16px;color:#64725d;font-weight:500;font-size:12px;border-bottom:1px solid #dce2d5;}
+.web-subscriber-table td {padding:18px 16px;border-bottom:1px solid #e5e9e0;vertical-align:top;}
+.web-subscriber-table td:first-child {overflow-wrap:anywhere;min-width:170px;}
+.web-subscriber-table td:nth-child(2) {white-space:nowrap;}
+.web-subscriber-table small {display:block;font-size:11px;color:#64725d;line-height:1.7;margin-top:5px;}
+.web-subscriber-table details {min-width:120px;max-width:260px;}
+.web-subscriber-table summary {cursor:pointer;min-height:44px;}
+.web-subscriber-table details p {font-size:12px;line-height:1.7;}
+.web-subscriber-empty {padding:60px 20px;text-align:center;color:#64725d;}
+.web-subscriber-empty svg {margin:0 auto 20px;}
+.web-subscriber-empty h2 {font-size:22px;color:#254d40;margin-bottom:10px;}
+.web-subscriber-empty p {font-size:14px;line-height:1.7;margin-bottom:18px;}
+.web-subscriber-pagination {display:flex;align-items:center;justify-content:space-between;gap:15px;padding-block:24px;font-size:12px;color:#64725d;}
+.web-subscriber-pagination > div {display:flex;gap:8px;}
+.web-subscriber-dialog {border:1px solid #dce2d5;border-radius:6px;background:#fff;color:#254d40;max-width:460px;width:calc(100% - 40px);padding:28px;margin:auto;}
+.web-subscriber-dialog::backdrop {background:#0b211b70;}
+.web-subscriber-dialog h2 {font-size:24px;margin-bottom:14px;}
+.web-subscriber-dialog p {font-size:14px;line-height:1.8;overflow-wrap:anywhere;}
+.web-subscriber-dialog > div {display:flex;justify-content:flex-end;gap:10px;margin-top:24px;flex-wrap:wrap;}
+.web-sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+.web-subscriber-table button,.web-subscriber-search button,.web-subscriber-pagination button {min-width:44px;min-height:44px;}
+@media(max-width:800px){.web-subscriber-pagination {flex-direction:column;align-items:flex-start;}.web-subscriber-search {width:100%;}.web-subscriber-search .web-search {width:100%;}.web-subscriber-table th,.web-subscriber-table td {padding:12px 8px;}.web-subscriber-table {min-width:560px;}}

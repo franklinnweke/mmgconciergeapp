@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
-import { requireStaffCapability } from "@/features/auth/server/session";
+import {
+  requireStaffCapability,
+  staffSessionHasCapability,
+} from "@/features/auth/server/session";
 import { isWebFixture } from "@/features/web/server/access";
 import { WebShell } from "@/features/web/components/web-shell";
 import "./web.css";
@@ -11,7 +14,11 @@ export const dynamic = "force-dynamic";
 export default async function WebLayout({ children }: { children: ReactNode }) {
   const session = await requireStaffCapability("web.read");
   return (
-    <WebShell email={session.email} fixture={isWebFixture()}>
+    <WebShell
+      email={session.email}
+      fixture={isWebFixture()}
+      newsletter={staffSessionHasCapability(session, "web.subscribers")}
+    >
       {children}
     </WebShell>
   );

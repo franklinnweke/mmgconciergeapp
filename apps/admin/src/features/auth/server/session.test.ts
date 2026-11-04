@@ -127,6 +127,7 @@ describe('staff capability model', () => {
     'vehicles.review',
     'web.read',
     'web.manage',
+    'web.subscribers',
   ];
 
   it('resolves claims into roles and keeps the scalar role as the highest one', () => {
