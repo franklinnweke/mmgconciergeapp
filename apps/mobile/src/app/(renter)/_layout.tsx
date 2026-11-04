@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '@mmg/brand';
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs } from 'expo-router';
 
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { SessionRouteGuard } from '../../features/auth/components/session-route-guard';
 
 const iconNames = {
   account: ['person-outline', 'person'] as const,
@@ -13,44 +12,39 @@ const iconNames = {
 };
 
 export default function RenterTabsLayout() {
-  const { initializing, signingOut, user } = useAuth();
-
-  if (signingOut) return <AuthLoadingScreen message="Signing out" />;
-  if (!initializing && (!user || !user.emailVerified)) {
-    return <Redirect href="/auth" />;
-  }
-
   return (
-    <Tabs
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        sceneStyle: { backgroundColor: colors.black, overflow: 'hidden' },
-        tabBarActiveTintColor: colors.goldStrong,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarHideOnKeyboard: true,
-        tabBarIcon: ({ color, focused, size }) => {
-          const names = iconNames[route.name as keyof typeof iconNames] ?? iconNames.index;
-          return <Ionicons color={color} name={focused ? names[1] : names[0]} size={size} />;
-        },
-        tabBarItemStyle: { paddingTop: 8 },
-        tabBarLabelStyle: {
-          fontFamily: typography.bodyMedium,
-          fontSize: 11,
-          letterSpacing: 0.2,
-          marginTop: 2,
-        },
-        tabBarStyle: {
-          backgroundColor: 'rgba(10, 10, 10, 0.98)',
-          borderTopColor: colors.line,
-          height: 82,
-          paddingBottom: 12,
-        },
-      })}
-    >
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarButtonTestID: 'tab-home' }} />
-      <Tabs.Screen name="browse" options={{ title: 'Discover', tabBarButtonTestID: 'tab-discover' }} />
-      <Tabs.Screen name="trips" options={{ title: 'Trips', tabBarButtonTestID: 'tab-trips' }} />
-      <Tabs.Screen name="account" options={{ title: 'Account', tabBarButtonTestID: 'tab-account' }} />
-    </Tabs>
+    <SessionRouteGuard expected="renter">
+      <Tabs
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          sceneStyle: { backgroundColor: colors.black, overflow: 'hidden' },
+          tabBarActiveTintColor: colors.goldStrong,
+          tabBarInactiveTintColor: colors.muted,
+          tabBarHideOnKeyboard: true,
+          tabBarIcon: ({ color, focused, size }) => {
+            const names = iconNames[route.name as keyof typeof iconNames] ?? iconNames.index;
+            return <Ionicons color={color} name={focused ? names[1] : names[0]} size={size} />;
+          },
+          tabBarItemStyle: { paddingTop: 8 },
+          tabBarLabelStyle: {
+            fontFamily: typography.bodyMedium,
+            fontSize: 11,
+            letterSpacing: 0.2,
+            marginTop: 2,
+          },
+          tabBarStyle: {
+            backgroundColor: 'rgba(10, 10, 10, 0.98)',
+            borderTopColor: colors.line,
+            height: 82,
+            paddingBottom: 12,
+          },
+        })}
+      >
+        <Tabs.Screen name="index" options={{ title: 'Home', tabBarButtonTestID: 'tab-home' }} />
+        <Tabs.Screen name="browse" options={{ title: 'Discover', tabBarButtonTestID: 'tab-discover' }} />
+        <Tabs.Screen name="trips" options={{ title: 'Trips', tabBarButtonTestID: 'tab-trips' }} />
+        <Tabs.Screen name="account" options={{ title: 'Account', tabBarButtonTestID: 'tab-account' }} />
+      </Tabs>
+    </SessionRouteGuard>
   );
 }

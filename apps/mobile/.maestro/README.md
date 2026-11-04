@@ -18,7 +18,7 @@ maestro test -e TRIP_ROW="$MMG_TEST_PENDING_TRIP_LABEL" .maestro/checkout-resume
 
 Supply the exact row accessibility label (`View <vehicle>: <state>`). This opens that existing checkout, stops/relaunches the process, reopens it from Trips and asserts status-checking rather than a new-payment action. It does not initiate payment, alter expiry or synthesize provider truth. If the provider settles the fixture during the test, re-establish the intended precondition rather than weakening the assertions.
 
-For an already signed-in, approved development owner with a pre-existing photo-bearing vehicle visible in Fleet:
+For an approved development owner with a pre-existing photo-bearing vehicle visible in Fleet, sign in through **List your car** first. If currently in the renter view, sign out from Account first:
 
 ```sh
 maestro test -e VEHICLE_ID="$MMG_TEST_VEHICLE_ID" .maestro/owner-preview.yaml

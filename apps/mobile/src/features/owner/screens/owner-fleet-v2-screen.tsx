@@ -35,9 +35,6 @@ export function OwnerFleetV2Screen() {
 
   const listHeader = (
     <View style={styles.utilityRow}>
-      <PressableScale accessibilityRole="button" onPress={() => router.replace('/(renter)' as Href)}>
-        <Text style={styles.utilityLink}>Renter home</Text>
-      </PressableScale>
       <PressableScale accessibilityRole="button" onPress={() => router.push('/(owner)/owner-bookings' as Href)}>
         <Text style={styles.utilityLink}>Requests & bookings</Text>
       </PressableScale>

@@ -72,12 +72,6 @@ export function OwnerDeskV2Screen() {
   const editable = status === 'draft' || status === 'rejected';
   const rejectedIdWasCleared = status === 'rejected' && profile?.governmentId?.status === 'cleared';
 
-  const headerRight = (
-    <PressableScale accessibilityLabel="Back to renter home" accessibilityRole="button" onPress={() => router.replace('/(renter)' as Href)}>
-      <Text style={styles.headerLink}>Renter home</Text>
-    </PressableScale>
-  );
-
   const primary = (() => {
     if (status === 'approved') return { label: 'Manage fleet', route: '/(owner)/fleet' as Href };
     if (status === 'rejected') {
@@ -103,7 +97,7 @@ export function OwnerDeskV2Screen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.header}><ScreenHeader right={headerRight} showBrand={false} title="Owner Desk" /></View>
+      <View style={styles.header}><ScreenHeader showBrand={false} title="Owner Desk" /></View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={styles.center}><ActivityIndicator color={colors.goldStrong} /><Text style={styles.muted}>Loading owner status…</Text></View>
@@ -165,17 +159,17 @@ export function OwnerDeskV2Screen() {
               </PressableScale>
             ) : null}
 
-            <PressableScale
-              disabled={auth.signingOut}
-              onPress={() => {
-                recordBreadcrumb('ui', 'owner_desk_sign_out_pressed');
-                void auth.signOut();
-              }}
-            >
-              <View style={styles.signOut}><Text style={styles.secondaryText}>Sign out</Text></View>
-            </PressableScale>
           </>
         )}
+        <PressableScale
+          accessibilityRole="button"
+          onPress={() => {
+            recordBreadcrumb('ui', 'owner_desk_sign_out_pressed');
+            void auth.signOut();
+          }}
+        >
+          <View style={styles.signOut}><Text style={styles.secondaryText}>Sign out</Text></View>
+        </PressableScale>
       </ScrollView>
     </SafeAreaView>
   );
@@ -208,7 +202,6 @@ const styles = StyleSheet.create({
   feedback: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs, paddingVertical: spacing.md },
   feedbackTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
   header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  headerLink: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.sm },
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },

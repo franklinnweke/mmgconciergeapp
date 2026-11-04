@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppErrorBoundary } from '../../components/error-boundary';
 import { AuthProvider, useAuth } from './auth-context';
+import { SessionIntentProvider } from './session-intent';
 import OwnerLayout from '../../app/(owner)/_layout';
 import RenterLayout from '../../app/(renter)/_layout';
 
@@ -71,6 +72,11 @@ const routerMocks = vi.hoisted(() => ({
   replace: vi.fn(),
   push: vi.fn(),
   back: vi.fn(),
+  savedMode: 'owner' as 'owner' | 'renter',
+}));
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: { getItem: async () => routerMocks.savedMode, setItem: vi.fn() },
 }));
 
 vi.mock('expo-router', () => ({
@@ -160,7 +166,8 @@ describe('Authenticated layout sign-out lifecycle', () => {
   it.each([
     ['owner', OwnerLayout, 'Stack'],
     ['renter', RenterLayout, 'Tabs'],
-  ] as const)('signs out from %s and permits same-user relogin/sign-out', async (_mode, Layout, navigator) => {
+  ] as const)('signs out from %s and permits same-user relogin/sign-out', async (mode, Layout, navigator) => {
+    routerMocks.savedMode = mode;
     await act(async () => {
       renderer = create(
         React.createElement(
@@ -170,7 +177,7 @@ describe('Authenticated layout sign-out lifecycle', () => {
             AuthProvider,
             null,
             React.createElement(AuthCaptor),
-            React.createElement(Layout),
+            React.createElement(SessionIntentProvider, null, React.createElement(Layout)),
           ),
         ),
       );
@@ -233,5 +240,25 @@ describe('Authenticated layout sign-out lifecycle', () => {
     // AppErrorBoundary was not triggered
     expect(renderer!.root.findAll((node) => (node.type as unknown) === 'Text').map((t) => t.props.children))
       .not.toContain("We couldn't display this screen.");
+  });
+
+  it.each([
+    ['owner', RenterLayout, 'Tabs', '/(owner)'],
+    ['renter', OwnerLayout, 'Stack', '/(renter)'],
+  ] as const)('redirects a %s session away from the other view without mounting it', async (mode, Layout, navigator, destination) => {
+    routerMocks.savedMode = mode;
+    await act(async () => {
+      renderer = create(
+        <AuthProvider>
+          <SessionIntentProvider><Layout /></SessionIntentProvider>
+        </AuthProvider>,
+      );
+    });
+    await act(async () => {
+      authMocks.emitAuth(fakeOwnerUser);
+      await flushMicrotasks();
+    });
+    expect(renderer!.root.findAll((node) => (node.type as unknown) === navigator)).toHaveLength(0);
+    expect(routerMocks.replace).toHaveBeenLastCalledWith(destination);
   });
 });

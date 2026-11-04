@@ -13,7 +13,6 @@ const heroImage = require('../../../../assets/images/auth-land-cruiser-black.jpg
 
 type AuthRoleChoiceScreenProps = {
   onChooseRole(accountType: AccountType): void;
-  onSignIn(): void;
 };
 
 const choices = [
@@ -31,7 +30,7 @@ const choices = [
   },
 ];
 
-export function AuthRoleChoiceScreen({ onChooseRole, onSignIn }: AuthRoleChoiceScreenProps) {
+export function AuthRoleChoiceScreen({ onChooseRole }: AuthRoleChoiceScreenProps) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const heroHeight = Math.min(470, Math.max(330, height * 0.54));
@@ -81,11 +80,6 @@ export function AuthRoleChoiceScreen({ onChooseRole, onSignIn }: AuthRoleChoiceS
           ))}
         </View>
 
-        <PressableScale accessibilityRole="button" onPress={onSignIn}>
-          <View style={styles.signInButton}>
-            <Text style={styles.signInText}>Sign in</Text>
-          </View>
-        </PressableScale>
       </View>
     </ScrollView>
   );
@@ -109,6 +103,4 @@ const styles = StyleSheet.create({
   decision: { paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
   hero: { backgroundColor: colors.graphite, justifyContent: 'flex-start' },
   screen: { backgroundColor: colors.black, flex: 1 },
-  signInButton: { alignItems: 'center', justifyContent: 'center', minHeight: 52, marginTop: spacing.md },
-  signInText: { color: colors.gold, fontFamily: typography.bodyMedium, fontSize: 13 },
 });
