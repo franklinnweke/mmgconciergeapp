@@ -59,7 +59,10 @@ export async function listWebVehicles(
           .get()
       ).docs.map((d) => d.data() as WebVehicle);
   return items.sort(
-    (a, b) => a.order - b.order || a.name.localeCompare(b.name),
+    (a, b) =>
+      a.order - b.order ||
+      (a.sortName ?? a.name).localeCompare(b.sortName ?? b.name) ||
+      a.id.localeCompare(b.id),
   );
 }
 export async function getWebVehicle(id: string): Promise<WebVehicle | null> {
@@ -88,7 +91,7 @@ export async function mutateWebVehicle({
   const auditId = randomUUID();
   if (action === "delete")
     throw new WebError("Use the dedicated delete operation.");
-  const apply = (existing: WebVehicle | null) => {
+  const apply = (existing: WebVehicle | null, firstOrder = 0) => {
     if ((existing?.version || 0) !== expectedVersion)
       throw new WebError(
         "This vehicle changed in another session. Refresh before saving again.",
@@ -113,6 +116,9 @@ export async function mutateWebVehicle({
             .replace(/^-|-$/g, "") || "vehicle"
         }-${id.slice(0, 8)}`,
       status,
+      order: existing?.order ?? firstOrder - 1,
+      // Keep the legacy alphabetical tie-break stable when a car is renamed.
+      sortName: existing?.sortName ?? existing?.name ?? content!.name,
       version: expectedVersion + 1,
       updatedAt,
       publishedAt:
@@ -128,7 +134,10 @@ export async function mutateWebVehicle({
   if (isWebFixture()) {
     const state = await fixtureState();
     const index = state.drafts.findIndex((v) => v.id === id);
-    const next = apply(index < 0 ? null : state.drafts[index]);
+    const next = apply(
+      index < 0 ? null : state.drafts[index],
+      Math.min(0, ...state.drafts.map((vehicle) => vehicle.order)),
+    );
     state.drafts = [...state.drafts.filter((v) => v.id !== id), next];
     if (action === "publish")
       state.published = [...state.published.filter((v) => v.id !== id), next];
@@ -141,7 +150,16 @@ export async function mutateWebVehicle({
   const ref = db.collection(DRAFTS).doc(id);
   return db.runTransaction(async (tx) => {
     const old = await tx.get(ref);
-    const next = apply(old.exists ? (old.data() as WebVehicle) : null);
+    // Reading the fleet in this transaction serializes concurrent additions.
+    const fleet = old.exists ? null : await tx.get(db.collection(DRAFTS));
+    const firstOrder = Math.min(
+      0,
+      ...(fleet?.docs.map((doc) => (doc.data() as WebVehicle).order) ?? []),
+    );
+    const next = apply(
+      old.exists ? (old.data() as WebVehicle) : null,
+      firstOrder,
+    );
     if (content || action === "publish") {
       const mediaIds = [
         ...new Set(next.photos.flatMap((p) => (p.mediaId ? [p.mediaId] : []))),

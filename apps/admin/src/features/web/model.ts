@@ -28,6 +28,7 @@ export type WebVehicle = WebVehicleContent & {
   slug: string;
   status: WebStatus;
   version: number;
+  sortName?: string;
   updatedAt: string;
   publishedAt: string | null;
   publishedVersion: number | null;
@@ -80,12 +81,8 @@ export function validateContent(raw: unknown): WebVehicleContent {
     coverId: text(r.coverId, 100),
     order: r.order,
   };
-  if (
-    !Number.isInteger(content.order) ||
-    Number(content.order) < 0 ||
-    Number(content.order) > 9999
-  )
-    throw new WebError("Display order must be a number from 0 to 9999.");
+  if (!Number.isSafeInteger(content.order))
+    throw new WebError("Invalid vehicle display position.");
   if (content.year && !/^(19|20)\d{2}$/.test(content.year))
     throw new WebError("Enter a four-digit model year, or leave it blank.");
   if (!Array.isArray(r.photos) || r.photos.length > 10)

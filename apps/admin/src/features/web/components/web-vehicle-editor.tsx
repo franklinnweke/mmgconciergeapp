@@ -402,28 +402,19 @@ export function WebVehicleEditor({ id }: { id?: string }) {
                 onChange={(e) => edit("description", e.target.value)}
               />
             </label>
-            <div className="web-field-pair">
-              <label>
-                Passenger information
-                <Input
-                  value={content.passengers}
-                  maxLength={100}
-                  placeholder="Confirmed for your group"
-                  onChange={(e) => edit("passengers", e.target.value)}
-                />
-              </label>
-              <label>
-                Display order
-                <Input
-                  type="number"
-                  min={0}
-                  max={9999}
-                  value={content.order}
-                  onChange={(e) => edit("order", Number(e.target.value))}
-                />
-                <small>Lower numbers appear first.</small>
-              </label>
-            </div>
+            <label>
+              Passenger information
+              <Input
+                value={content.passengers}
+                maxLength={100}
+                placeholder="Confirmed for your group"
+                onChange={(e) => edit("passengers", e.target.value)}
+              />
+            </label>
+            <p className="web-section-description">
+              New cars appear first. Editing a car or its photos keeps its
+              position.
+            </p>
             <label>
               Best suited to
               <Input
