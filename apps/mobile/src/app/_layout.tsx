@@ -9,8 +9,8 @@ import {
   PlayfairDisplay_500Medium_Italic,
   useFonts as usePlayfairFonts,
 } from '@expo-google-fonts/playfair-display';
-import { colors } from '@mmg/brand';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { darkThemeColors, lightThemeColors } from '@mmg/brand';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -21,6 +21,7 @@ import { initializeNativeAppCheck } from '@/core/firebase/app-check';
 import { initializeCrashReporting } from '@/core/diagnostics/crash-reporting';
 import { AppErrorBoundary, ErrorBoundary } from '@/components/error-boundary';
 import { BookingProvider } from '@/features/booking/booking-context';
+import { ThemeProvider as AppThemeProvider, useTheme } from '../core/theme';
 
 import 'react-native-reanimated';
 
@@ -33,18 +34,51 @@ void initializeNativeAppCheck().catch(() => {
   // downgrade or bypass App Check when native initialization fails.
 });
 
-const mmgNavigationTheme = {
+const mmgDarkNavigationTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: colors.black,
-    border: colors.line,
-    card: colors.graphite,
-    notification: colors.goldStrong,
-    primary: colors.gold,
-    text: colors.ivory,
+    background: darkThemeColors.canvas,
+    border: darkThemeColors.border,
+    card: darkThemeColors.surface,
+    notification: darkThemeColors.primaryStrong,
+    primary: darkThemeColors.primary,
+    text: darkThemeColors.textPrimary,
   },
 };
+
+const mmgLightNavigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: lightThemeColors.canvas,
+    border: lightThemeColors.border,
+    card: lightThemeColors.surface,
+    notification: lightThemeColors.primaryStrong,
+    primary: lightThemeColors.primary,
+    text: lightThemeColors.textPrimary,
+  },
+};
+
+function RootLayoutContent() {
+  const { colors, isDark } = useTheme();
+  const navigationTheme = isDark ? mmgDarkNavigationTheme : mmgLightNavigationTheme;
+
+  return (
+    <NavigationThemeProvider value={navigationTheme}>
+      <AppErrorBoundary>
+        <AuthProvider>
+          <SessionIntentProvider>
+            <BookingProvider>
+              <StatusBar style={isDark ? 'light' : 'dark'} />
+              <Stack screenOptions={{ contentStyle: { backgroundColor: colors.canvas }, headerShown: false }} />
+            </BookingProvider>
+          </SessionIntentProvider>
+        </AuthProvider>
+      </AppErrorBoundary>
+    </NavigationThemeProvider>
+  );
+}
 
 export default function RootLayout() {
   const [interLoaded, interError] = useInterFonts({
@@ -70,17 +104,8 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={mmgNavigationTheme}>
-      <AppErrorBoundary>
-        <AuthProvider>
-          <SessionIntentProvider>
-            <BookingProvider>
-              <StatusBar style="light" />
-              <Stack screenOptions={{ contentStyle: { backgroundColor: colors.black }, headerShown: false }} />
-            </BookingProvider>
-          </SessionIntentProvider>
-        </AuthProvider>
-      </AppErrorBoundary>
-    </ThemeProvider>
+    <AppThemeProvider>
+      <RootLayoutContent />
+    </AppThemeProvider>
   );
 }

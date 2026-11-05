@@ -1,19 +1,136 @@
-export const colors = {
-  black: '#040404',
+export type ThemeMode = 'system' | 'light' | 'dark';
+
+export interface ThemeColors {
+  // Surfaces & Backgrounds
+  canvas: string;
+  surface: string;
+  surfaceRaised: string;
+  surfaceInput: string;
+
+  // Typography & Content
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  textInverse: string;
+
+  // Lines & Borders
+  border: string;
+  borderStrong: string;
+  line: string;
+  lineStrong: string;
+
+  // Brand Accent & Primaries
+  primary: string;
+  primaryStrong: string;
+  primaryContrast: string;
+  gold: string;
+  goldStrong: string;
+
+  // Buttons & Interactive
+  buttonPrimaryBg: string;
+  buttonPrimaryText: string;
+  buttonSecondaryBg: string;
+  buttonSecondaryText: string;
+  buttonSecondaryBorder: string;
+
+  // Semantics & Overlays
+  success: string;
+  danger: string;
+  warning: string;
+  scrim: string;
+
+  // Legacy & Heritage Primitives
+  black: string;
+  graphite: string;
+  graphiteRaised: string;
+  ivory: string;
+  silver: string;
+  muted: string;
+}
+
+export const darkThemeColors: ThemeColors = {
   canvas: '#080807',
+  surface: '#151515',
+  surfaceRaised: '#1D1D1D',
+  surfaceInput: '#151515',
+
+  textPrimary: '#F7F1E7',
+  textSecondary: '#E5E2DC',
+  textMuted: '#B4AEA4',
+  textInverse: '#080807',
+
+  border: 'rgba(247, 241, 231, 0.12)',
+  borderStrong: 'rgba(247, 241, 231, 0.22)',
+  line: 'rgba(247, 241, 231, 0.12)',
+  lineStrong: 'rgba(247, 241, 231, 0.22)',
+
+  primary: '#C9A646',
+  primaryStrong: '#E3C365',
+  primaryContrast: '#040404',
+  gold: '#C9A646',
+  goldStrong: '#E3C365',
+
+  buttonPrimaryBg: '#F7F1E7',
+  buttonPrimaryText: '#040404',
+  buttonSecondaryBg: 'transparent',
+  buttonSecondaryText: '#F7F1E7',
+  buttonSecondaryBorder: 'rgba(247, 241, 231, 0.22)',
+
+  success: '#8FAF82',
+  danger: '#D18578',
+  warning: '#E6A23C',
+  scrim: 'rgba(4, 4, 4, 0.62)',
+
+  black: '#040404',
   graphite: '#151515',
   graphiteRaised: '#1D1D1D',
   ivory: '#F7F1E7',
   silver: '#E5E2DC',
   muted: '#B4AEA4',
-  gold: '#C9A646',
-  goldStrong: '#E3C365',
-  line: 'rgba(247, 241, 231, 0.12)',
-  lineStrong: 'rgba(247, 241, 231, 0.22)',
-  scrim: 'rgba(4, 4, 4, 0.62)',
-  success: '#8FAF82',
-  danger: '#D18578',
-} as const;
+};
+
+export const lightThemeColors: ThemeColors = {
+  canvas: '#F7F5F0',
+  surface: '#FFFFFF',
+  surfaceRaised: '#EFECE6',
+  surfaceInput: '#EAE6DE',
+
+  textPrimary: '#141412',
+  textSecondary: '#4A4742',
+  textMuted: '#767169',
+  textInverse: '#F7F5F0',
+
+  border: 'rgba(20, 20, 18, 0.08)',
+  borderStrong: 'rgba(20, 20, 18, 0.16)',
+  line: 'rgba(20, 20, 18, 0.08)',
+  lineStrong: 'rgba(20, 20, 18, 0.16)',
+
+  primary: '#B88E28',
+  primaryStrong: '#96731B',
+  primaryContrast: '#FFFFFF',
+  gold: '#B88E28',
+  goldStrong: '#96731B',
+
+  buttonPrimaryBg: '#141412',
+  buttonPrimaryText: '#F7F5F0',
+  buttonSecondaryBg: '#FFFFFF',
+  buttonSecondaryText: '#141412',
+  buttonSecondaryBorder: 'rgba(20, 20, 18, 0.16)',
+
+  success: '#2E7D32',
+  danger: '#C0392B',
+  warning: '#B7791F',
+  scrim: 'rgba(0, 0, 0, 0.45)',
+
+  black: '#040404',
+  graphite: '#FFFFFF',
+  graphiteRaised: '#EFECE6',
+  ivory: '#141412',
+  silver: '#4A4742',
+  muted: '#767169',
+};
+
+export const colors: ThemeColors = darkThemeColors;
 
 export const spacing = {
   xxs: 4,

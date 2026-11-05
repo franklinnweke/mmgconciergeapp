@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography } from '@mmg/brand';
+import { typography } from '@mmg/brand';
 import { Tabs } from 'expo-router';
 
+import { useTheme } from '../../core/theme';
 import { SessionRouteGuard } from '../../features/auth/components/session-route-guard';
 
 const iconNames = {
@@ -12,14 +13,16 @@ const iconNames = {
 };
 
 export default function RenterTabsLayout() {
+  const { colors, isDark } = useTheme();
+
   return (
     <SessionRouteGuard expected="renter">
       <Tabs
         screenOptions={({ route }) => ({
           headerShown: false,
-          sceneStyle: { backgroundColor: colors.black, overflow: 'hidden' },
-          tabBarActiveTintColor: colors.goldStrong,
-          tabBarInactiveTintColor: colors.muted,
+          sceneStyle: { backgroundColor: colors.canvas, overflow: 'hidden' },
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
           tabBarHideOnKeyboard: true,
           tabBarIcon: ({ color, focused, size }) => {
             const names = iconNames[route.name as keyof typeof iconNames] ?? iconNames.index;
@@ -33,8 +36,8 @@ export default function RenterTabsLayout() {
             marginTop: 2,
           },
           tabBarStyle: {
-            backgroundColor: 'rgba(10, 10, 10, 0.98)',
-            borderTopColor: colors.line,
+            backgroundColor: isDark ? 'rgba(10, 10, 10, 0.98)' : colors.surface,
+            borderTopColor: colors.border,
             height: 82,
             paddingBottom: 12,
           },
