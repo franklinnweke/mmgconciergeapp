@@ -1332,7 +1332,7 @@ export const completeRenterProfileDataSchema = z
   .object({
     fullName: z.string().trim().min(2, 'Full name must be at least 2 characters.').max(120),
     phone: nigerianE164PhoneSchema,
-    defaultDeliveryAddress: lagosDeliveryAddressSchema,
+    defaultDeliveryAddress: lagosDeliveryAddressSchema.nullable().optional(),
     acceptedRenterTermsVersion: termsVersionSchema,
     acceptedPrivacyNoticeVersion: termsVersionSchema,
   })
@@ -1357,7 +1357,7 @@ export const completeRenterProfileResultSchema = z
         fullName: z.string().min(2).max(120),
         email: z.string().email(),
         phone: nigerianE164PhoneSchema,
-        defaultDeliveryAddress: lagosDeliveryAddressSchema,
+        defaultDeliveryAddress: lagosDeliveryAddressSchema.nullable().optional(),
         accountStatus: renterProfileStatusSchema,
         profileVersion: z.number().int().positive(),
         updatedAt: isoDateTimeSchema,
@@ -1373,7 +1373,7 @@ export const renterProfileRecordSchema = z
     fullName: z.string().min(2).max(120),
     email: z.string().email(),
     phone: nigerianE164PhoneSchema,
-    defaultDeliveryAddress: lagosDeliveryAddressSchema,
+    defaultDeliveryAddress: lagosDeliveryAddressSchema.nullable().optional(),
     acceptedRenterTermsVersion: termsVersionSchema,
     acceptedPrivacyNoticeVersion: termsVersionSchema,
     accountStatus: renterProfileStatusSchema,

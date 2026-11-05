@@ -281,4 +281,31 @@ describe('parseRenterProfileDocument', () => {
       parseRenterProfileDocument('renter-synth-3', synthDoc3),
     ).not.toThrow();
   });
+
+  it('parses contact-only profile documents where defaultDeliveryAddress is null or omitted', () => {
+    const contactOnlyDoc = {
+      renterId: 'renter-1',
+      fullName: 'Babatunde Adeleke',
+      email: 'renter@example.com',
+      phone: '+2348012345678',
+      defaultDeliveryAddress: null,
+      acceptedRenterTermsVersion: '2026-03-01',
+      acceptedPrivacyNoticeVersion: '2026-03-01',
+      accountStatus: 'active',
+      deletionReason: null,
+      deletionRequestedAt: null,
+      profileVersion: 1,
+      createdAt: '2026-09-01T10:00:00.000Z',
+      updatedAt: '2026-09-15T10:00:00.000Z',
+    };
+
+    const parsed = parseRenterProfileDocument('renter-1', contactOnlyDoc);
+    expect(parsed.defaultDeliveryAddress).toBeNull();
+    expect(parsed.fullName).toBe('Babatunde Adeleke');
+
+    const omittedDoc = { ...contactOnlyDoc };
+    delete (omittedDoc as Record<string, unknown>).defaultDeliveryAddress;
+    const parsedOmitted = parseRenterProfileDocument('renter-1', omittedDoc);
+    expect(parsedOmitted.defaultDeliveryAddress).toBeUndefined();
+  });
 });

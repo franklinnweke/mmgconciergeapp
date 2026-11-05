@@ -170,6 +170,35 @@ describe('WebRenterProfileGateway', () => {
     expect(result.result.accountStatus).toBe('active');
   });
 
+  it('completes renter profile without delivery address for contact-only update', async () => {
+    mockHttpsCallable.mockResolvedValueOnce({
+      data: {
+        requestId: 'req-2',
+        result: {
+          renterId: 'renter-1',
+          fullName: 'Babatunde Adeleke',
+          email: 'renter@example.com',
+          phone: '+2348012345678',
+          defaultDeliveryAddress: null,
+          accountStatus: 'active',
+          profileVersion: 1,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    const result = await gateway.completeProfile({
+      fullName: 'Babatunde Adeleke',
+      phone: '+2348012345678',
+      acceptedRenterTermsVersion: '2026-03-01',
+      acceptedPrivacyNoticeVersion: '2026-03-01',
+    });
+
+    expect(result.result.renterId).toBe('renter-1');
+    expect(result.result.fullName).toBe('Babatunde Adeleke');
+    expect(result.result.defaultDeliveryAddress).toBeNull();
+  });
+
   it('submits deletion request via cloud function', async () => {
     mockHttpsCallable.mockResolvedValueOnce({
       data: {

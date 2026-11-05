@@ -17,6 +17,7 @@ import {
   commandSafeReasonSchema,
   completeOwnerProfileCommandSchema,
   completeOwnerProfileResultSchema,
+  completeRenterProfileDataSchema,
   confirmBookingCommandSchema,
   confirmBookingResultSchema,
   createBookingIntentCommandSchema,
@@ -789,6 +790,46 @@ describe('owner verification contracts and schemas', () => {
         make: 'Toyota',
         model: 'Land Cruiser Prado',
       });
+    });
+  });
+
+  describe('renter profile contracts', () => {
+    it('accepts contact-only saves without defaultDeliveryAddress', () => {
+      const contactOnly = {
+        fullName: 'Folake Solanke',
+        phone: '+2348033334444',
+        acceptedRenterTermsVersion: '2026-03-01',
+        acceptedPrivacyNoticeVersion: '2026-03-01',
+      };
+      expect(() => completeRenterProfileDataSchema.parse(contactOnly)).not.toThrow();
+      const parsed = completeRenterProfileDataSchema.parse(contactOnly);
+      expect(parsed.defaultDeliveryAddress).toBeUndefined();
+    });
+
+    it('accepts explicit null defaultDeliveryAddress', () => {
+      const withNull = {
+        fullName: 'Folake Solanke',
+        phone: '+2348033334444',
+        defaultDeliveryAddress: null,
+        acceptedRenterTermsVersion: '2026-03-01',
+        acceptedPrivacyNoticeVersion: '2026-03-01',
+      };
+      expect(completeRenterProfileDataSchema.parse(withNull).defaultDeliveryAddress).toBeNull();
+    });
+
+    it('accepts full address payload from legacy builds and booking flows', () => {
+      const withAddress = {
+        fullName: 'Folake Solanke',
+        phone: '+2348033334444',
+        defaultDeliveryAddress: {
+          areaLabel: 'Ikoyi',
+          streetAddress: '15 Queens Drive',
+        },
+        acceptedRenterTermsVersion: '2026-03-01',
+        acceptedPrivacyNoticeVersion: '2026-03-01',
+      };
+      const parsed = completeRenterProfileDataSchema.parse(withAddress);
+      expect(parsed.defaultDeliveryAddress?.areaLabel).toBe('Ikoyi');
     });
   });
 });
