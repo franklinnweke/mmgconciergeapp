@@ -15,6 +15,7 @@ import {
   mutateWebVehicle,
   importWebSeed,
   deleteWebVehicle,
+  listWebVehicles,
 } from "./repository";
 const content = {
   ...blankVehicle,
@@ -38,11 +39,17 @@ const content = {
 function ref(path: string) {
   return {
     path,
+    get: async () => ({ docs: collectionDocs(path) }),
     doc: (id: string) => {
       if (!id) throw new Error("Transaction-generated ID");
       return ref(`${path}/${id}`);
     },
   };
+}
+function collectionDocs(path: string) {
+  return [...state.docs.entries()]
+    .filter(([key]) => key.startsWith(`${path}/`))
+    .map(([, value]) => ({ data: () => value }));
 }
 beforeEach(() => {
   state.docs.clear();
@@ -57,6 +64,7 @@ beforeEach(() => {
         get: async (r: { path: string }) => {
           if (written) throw new Error("Read after write");
           return {
+            docs: collectionDocs(r.path),
             exists: state.docs.has(r.path),
             data: () => state.docs.get(r.path),
           };
@@ -90,6 +98,77 @@ beforeEach(() => {
   };
 });
 describe("separate website catalogue transactions", () => {
+  it("keeps legacy positions through renames, photo edits and republication", async () => {
+    for (const [id, name] of [
+      ["first", "Alpha"],
+      ["second", "Bravo"],
+    ]) {
+      const vehicle = {
+        ...content,
+        id,
+        name,
+        slug: id,
+        status: "published",
+        version: 1,
+        order: 10,
+        updatedAt: "2026-01-01",
+        publishedAt: "2026-01-01",
+        publishedVersion: 1,
+      };
+      state.docs.set(`websiteVehicles/${id}`, vehicle);
+      state.docs.set(`websitePublishedVehicles/${id}`, vehicle);
+    }
+    const edited = await mutateWebVehicle({
+      id: "first",
+      content: {
+        ...content,
+        name: "Zulu",
+        order: 999,
+        photos: [{ ...content.photos[0], x: 75 }],
+      },
+      expectedVersion: 1,
+      actor: "staff",
+    });
+    expect(edited.order).toBe(10);
+    expect(edited.photos[0].x).toBe(75);
+    await mutateWebVehicle({
+      id: "first",
+      action: "publish",
+      expectedVersion: edited.version,
+      actor: "staff",
+    });
+    for (const published of [false, true]) {
+      expect((await listWebVehicles(published)).map((v) => v.id)).toEqual([
+        "first",
+        "second",
+      ]);
+    }
+  });
+  it("adds each new car at the top and preserves that position on later saves", async () => {
+    const first = await mutateWebVehicle({
+      id: "first",
+      content,
+      expectedVersion: 0,
+      actor: "staff",
+    });
+    const second = await mutateWebVehicle({
+      id: "second",
+      content,
+      expectedVersion: 0,
+      actor: "staff",
+    });
+    expect(second.order).toBeLessThan(first.order);
+    await mutateWebVehicle({
+      id: "first",
+      content: { ...content, name: "Edited later" },
+      expectedVersion: first.version,
+      actor: "staff",
+    });
+    expect((await listWebVehicles()).map((v) => v.id)).toEqual([
+      "second",
+      "first",
+    ]);
+  });
   it("keeps saved edits private until explicitly published; hiding removes the snapshot", async () => {
     const create = await mutateWebVehicle({
       id: "prado",
