@@ -156,4 +156,91 @@ describe('completeRenterProfileService', () => {
       completeRenterProfileService(badPhoneCommand, actor, repo),
     ).rejects.toThrow();
   });
+
+  it('allows a first-time renter to save contact details without an address', async () => {
+    const repo = new MockRenterRepository();
+    const contactOnlyCommand = {
+      schemaVersion: 1,
+      idempotencyKey: 'idemp-first-time-contact-only',
+      data: {
+        fullName: 'Chidinma Okafor',
+        phone: '+2348023456789',
+        acceptedRenterTermsVersion: '2026-03-01',
+        acceptedPrivacyNoticeVersion: '2026-03-01',
+      },
+    };
+
+    const result = await completeRenterProfileService(contactOnlyCommand, actor, repo);
+    expect(result.result.renterId).toBe('renter-1');
+    expect(result.result.fullName).toBe('Chidinma Okafor');
+    expect(result.result.defaultDeliveryAddress).toBeNull();
+    expect(result.result.profileVersion).toBe(1);
+    expect(result.result.accountStatus).toBe('active');
+
+    const stored = repo.profiles.get('renter-1')!;
+    expect(stored.defaultDeliveryAddress).toBeNull();
+    expect(repo.events[0].details).toEqual({ profileVersion: 1 });
+  });
+
+  it('preserves an existing real address when renter saves without providing one', async () => {
+    const repo = new MockRenterRepository();
+    // First, save with an initial address
+    await completeRenterProfileService(validCommand, actor, repo);
+    expect(repo.profiles.get('renter-1')?.defaultDeliveryAddress?.streetAddress).toBe('15 Queens Drive, Ikoyi');
+
+    // Next, update contact details without passing defaultDeliveryAddress
+    const updateContactOnlyCommand = {
+      schemaVersion: 1,
+      idempotencyKey: 'idemp-update-contact-only',
+      data: {
+        fullName: 'Babatunde Adeleke SAN',
+        phone: '+2348012345678',
+        acceptedRenterTermsVersion: '2026-03-01',
+        acceptedPrivacyNoticeVersion: '2026-03-01',
+      },
+    };
+
+    const result = await completeRenterProfileService(updateContactOnlyCommand, actor, repo);
+    expect(result.result.fullName).toBe('Babatunde Adeleke SAN');
+    expect(result.result.profileVersion).toBe(2);
+    // Real address must be preserved intact!
+    expect(result.result.defaultDeliveryAddress).toEqual({
+      streetAddress: '15 Queens Drive, Ikoyi',
+      areaLabel: 'Ikoyi',
+      landmark: 'Near Federal High Court',
+    });
+
+    const stored = repo.profiles.get('renter-1')!;
+    expect(stored.defaultDeliveryAddress).toEqual({
+      streetAddress: '15 Queens Drive, Ikoyi',
+      areaLabel: 'Ikoyi',
+      landmark: 'Near Federal High Court',
+    });
+  });
+
+  it('allows updating an existing address when explicitly provided', async () => {
+    const repo = new MockRenterRepository();
+    await completeRenterProfileService(validCommand, actor, repo);
+
+    const updateAddressCommand = {
+      schemaVersion: 1,
+      idempotencyKey: 'idemp-update-address',
+      data: {
+        fullName: 'Babatunde Adeleke',
+        phone: '+2348012345678',
+        defaultDeliveryAddress: {
+          streetAddress: '10 Marina Road, Lagos Island',
+          areaLabel: 'Lagos Island',
+        },
+        acceptedRenterTermsVersion: '2026-03-01',
+        acceptedPrivacyNoticeVersion: '2026-03-01',
+      },
+    };
+
+    const result = await completeRenterProfileService(updateAddressCommand, actor, repo);
+    expect(result.result.defaultDeliveryAddress).toEqual({
+      streetAddress: '10 Marina Road, Lagos Island',
+      areaLabel: 'Lagos Island',
+    });
+  });
 });

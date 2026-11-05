@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography } from '@mmg/brand';
-import { type LagosAreaLabel, type RenterProfileRecord } from '@mmg/contracts';
+import { type RenterProfileRecord } from '@mmg/contracts';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
@@ -23,21 +23,6 @@ import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
 import { uploadRenterProfilePhoto } from '../data/renter-profile-photo';
 import { useRenterProfile } from '../hooks/use-renter-profile';
 
-const LAGOS_AREAS: readonly LagosAreaLabel[] = [
-  'Ikoyi',
-  'Victoria Island',
-  'Lekki',
-  'Lekki Phase 1',
-  'Lagos Island',
-  'Banana Island',
-  'Oniru',
-  'Ikeja',
-  'Maryland',
-  'Ajah',
-  'Yaba',
-  'Surulere',
-];
-
 type RenterProfileFormProps = {
   profile: RenterProfileRecord | null;
   userDisplayName?: string | null;
@@ -50,9 +35,6 @@ type RenterProfileFormProps = {
   onSave: (data: {
     fullName: string;
     phone: string;
-    areaLabel: LagosAreaLabel;
-    streetAddress: string;
-    landmark?: string;
   }) => Promise<void>;
   onRequestDeletion: (reason?: string) => Promise<void>;
   onSignOut: () => void;
@@ -74,15 +56,6 @@ function RenterProfileForm({
   const insets = useSafeAreaInsets();
   const [fullName, setFullName] = useState(() => profile?.fullName || userDisplayName || '');
   const [phone, setPhone] = useState(() => profile?.phone || '+234');
-  const [selectedArea, setSelectedArea] = useState<LagosAreaLabel>(
-    () => (profile?.defaultDeliveryAddress?.areaLabel as LagosAreaLabel) || 'Victoria Island',
-  );
-  const [streetAddress, setStreetAddress] = useState(
-    () => profile?.defaultDeliveryAddress?.streetAddress || '',
-  );
-  const [landmark, setLandmark] = useState(
-    () => profile?.defaultDeliveryAddress?.landmark || '',
-  );
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletionReason, setDeletionReason] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -98,18 +71,11 @@ function RenterProfileForm({
       Alert.alert('Complete profile details', 'Enter a valid Nigerian mobile number starting with +234.');
       return;
     }
-    if (streetAddress.trim().length < 5) {
-      Alert.alert('Complete profile details', 'Add a Lagos delivery address before saving these details.');
-      return;
-    }
 
     try {
       await onSave({
         fullName: fullName.trim(),
         phone: phone.trim(),
-        areaLabel: selectedArea,
-        streetAddress: streetAddress.trim(),
-        landmark: landmark.trim() || undefined,
       });
       setSuccessMessage('Profile details saved.');
       setTimeout(() => setSuccessMessage(null), 2500);
@@ -148,7 +114,9 @@ function RenterProfileForm({
               </Text>
             </View>
           )}
+
           <PressableScale
+            accessibilityHint="Upload a new profile photo"
             accessibilityLabel="Change profile photo"
             accessibilityRole="button"
             disabled={isUploadingPhoto}
@@ -159,21 +127,28 @@ function RenterProfileForm({
               {isUploadingPhoto ? (
                 <ActivityIndicator color={colors.ivory} size="small" />
               ) : (
-                <Ionicons color={colors.ivory} name="camera-outline" size={16} />
+                <Ionicons color={colors.ivory} name="camera" size={16} />
               )}
             </View>
           </PressableScale>
         </View>
-        <Text style={styles.name}>{fullName || userDisplayName || 'MMG account'}</Text>
-        <View style={styles.emailRow}>
-          <Ionicons color={colors.success} name="checkmark-circle" size={14} />
-          <Text style={styles.emailText}>{userEmail}</Text>
-        </View>
+
+        <Text style={styles.name}>{fullName || 'MMG Renter'}</Text>
+        {userEmail ? (
+          <View style={styles.emailRow}>
+            <Ionicons color={colors.muted} name="mail-outline" size={14} />
+            <Text style={styles.emailText}>{userEmail}</Text>
+          </View>
+        ) : null}
+
+        <Text style={styles.identityHint}>
+          MMG Concierge uses your contact details to deliver chauffeur services. Renters do not upload government ID.
+        </Text>
       </View>
 
       {successMessage ? (
         <View style={styles.successBanner}>
-          <Ionicons color={colors.success} name="checkmark-circle" size={16} />
+          <Ionicons color={colors.success} name="checkmark-circle-outline" size={16} />
           <Text style={styles.successText}>{successMessage}</Text>
         </View>
       ) : null}
@@ -212,56 +187,6 @@ function RenterProfileForm({
             value={phone}
           />
         </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Default delivery</Text>
-        <Text style={styles.sectionDescription}>Used as a convenient starting point for future chauffeur delivery. You can still choose another location during booking.</Text>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>AREA</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {LAGOS_AREAS.map((area) => {
-              const selected = area === selectedArea;
-              return (
-                <PressableScale
-                  accessibilityLabel={`Select ${area}`}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  key={area}
-                  onPress={() => setSelectedArea(area)}
-                  style={[styles.areaPill, selected && styles.areaPillSelected]}
-                >
-                  <Text style={[styles.areaText, selected && styles.areaTextSelected]}>{area}</Text>
-                </PressableScale>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>STREET ADDRESS</Text>
-          <TextInput
-            editable={!isSaving}
-            onChangeText={setStreetAddress}
-            placeholder="15 Queens Drive, Ikoyi"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            value={streetAddress}
-          />
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>LANDMARK (OPTIONAL)</Text>
-          <TextInput
-            editable={!isSaving}
-            onChangeText={setLandmark}
-            placeholder="Nearby building or landmark"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            value={landmark}
-          />
-        </View>
 
         <PressableScale accessibilityRole="button" disabled={isSaving} onPress={handleSave}>
           <View style={styles.primaryButton}>
@@ -277,9 +202,9 @@ function RenterProfileForm({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
 
-        <View style={styles.accountRow}>
+        <View style={styles.termsRow}>
           <Ionicons color={colors.goldStrong} name="document-text-outline" size={18} />
-          <Text style={styles.accountRowText}>Renter terms & privacy notice</Text>
+          <Text style={styles.termsRowText}>Renter terms & privacy notice</Text>
           <Ionicons color={colors.success} name="checkmark-circle" size={17} />
         </View>
 
@@ -318,20 +243,39 @@ function RenterProfileForm({
               This requests permanent deletion and anonymization of your renter profile and contact records. Active rentals must complete first.
             </Text>
             <TextInput
+              editable={!isSaving}
               multiline
               numberOfLines={3}
               onChangeText={setDeletionReason}
-              placeholder="Reason (optional)"
+              placeholder="Tell us why you are leaving (optional)"
               placeholderTextColor={colors.muted}
               style={styles.modalInput}
               value={deletionReason}
             />
             <View style={styles.modalActions}>
-              <PressableScale onPress={() => setDeleteModalVisible(false)} style={styles.modalAction}>
-                <View style={styles.modalCancel}><Text style={styles.modalCancelText}>Cancel</Text></View>
+              <PressableScale
+                accessibilityRole="button"
+                disabled={isSaving}
+                onPress={() => setDeleteModalVisible(false)}
+                style={styles.modalAction}
+              >
+                <View style={styles.modalCancel}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </View>
               </PressableScale>
-              <PressableScale onPress={handleConfirmDeletion} style={styles.modalAction}>
-                <View style={styles.modalConfirm}><Text style={styles.modalConfirmText}>Request deletion</Text></View>
+              <PressableScale
+                accessibilityRole="button"
+                disabled={isSaving}
+                onPress={() => void handleConfirmDeletion()}
+                style={styles.modalAction}
+              >
+                <View style={styles.modalConfirm}>
+                  {isSaving ? (
+                    <ActivityIndicator color={colors.ivory} size="small" />
+                  ) : (
+                    <Text style={styles.modalConfirmText}>Confirm deletion</Text>
+                  )}
+                </View>
               </PressableScale>
             </View>
           </View>
@@ -343,33 +287,49 @@ function RenterProfileForm({
 
 export function RenterProfileScreen() {
   const { refreshUser, signOut, signingOut, user } = useAuth();
-  const { profile, isLoading, isSaving, errorMessage, saveProfile, requestDeletion } = useRenterProfile();
+  const {
+    errorMessage,
+    isLoading,
+    isSaving,
+    profile,
+    refresh,
+    requestDeletion,
+    saveProfile,
+  } = useRenterProfile();
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const handleChangePhoto = async () => {
     if (!user?.uid) return;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Photo access needed', 'Allow photo-library access to choose a profile picture.');
+      Alert.alert(
+        'Photo access needed',
+        'Allow photo-library access to choose a profile picture.',
+      );
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const pickerRes = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [1, 1],
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,
     });
-    if (result.canceled || !result.assets[0]) return;
 
-    const asset = result.assets[0];
+    if (pickerRes.canceled || !pickerRes.assets?.[0]) return;
+
+    const asset = pickerRes.assets[0];
     const contentType = asset.mimeType || 'image/jpeg';
     setIsUploadingPhoto(true);
     try {
       await uploadRenterProfilePhoto(user.uid, asset.uri, contentType);
       await refreshUser();
+      await refresh();
     } catch (error) {
-      Alert.alert('Could not update photo', error instanceof Error ? error.message : 'Try again.');
+      Alert.alert(
+        'Could not update photo',
+        error instanceof Error ? error.message : 'Try again.',
+      );
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -378,18 +338,10 @@ export function RenterProfileScreen() {
   const handleSave = async (data: {
     fullName: string;
     phone: string;
-    areaLabel: LagosAreaLabel;
-    streetAddress: string;
-    landmark?: string;
   }) => {
     await saveProfile({
       fullName: data.fullName,
       phone: data.phone,
-      defaultDeliveryAddress: {
-        areaLabel: data.areaLabel,
-        streetAddress: data.streetAddress,
-        landmark: data.landmark,
-      },
       acceptedRenterTermsVersion: '2026-03-01',
       acceptedPrivacyNoticeVersion: '2026-03-01',
     });
@@ -436,13 +388,9 @@ export function RenterProfileScreen() {
   );
 }
 
+export default RenterProfileScreen;
+
 const styles = StyleSheet.create({
-  accountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 48, paddingVertical: spacing.sm },
-  accountRowText: { color: colors.ivory, flex: 1, fontFamily: typography.bodyMedium, fontSize: 14 },
-  areaPill: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: 1, marginRight: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  areaPillSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
-  areaText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
-  areaTextSelected: { color: colors.black },
   avatarFallback: { alignItems: 'center', backgroundColor: colors.graphite, height: '100%', justifyContent: 'center', width: '100%' },
   avatarImage: { height: '100%', width: '100%' },
   avatarShell: { borderColor: colors.lineStrong, borderRadius: 48, borderWidth: 1, height: 88, overflow: 'visible', position: 'relative', width: 88 },
@@ -483,9 +431,10 @@ const styles = StyleSheet.create({
   secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.button, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 50 },
   secondaryButtonText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
   section: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.md, paddingTop: spacing.lg },
-  sectionDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
   sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
   successBanner: { alignItems: 'center', backgroundColor: 'rgba(46,204,113,0.10)', flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   successText: { color: colors.success, fontFamily: typography.bodyMedium, fontSize: 13 },
+  termsRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 48, paddingVertical: spacing.sm },
+  termsRowText: { color: colors.ivory, flex: 1, fontFamily: typography.bodyMedium, fontSize: 14 },
   topBar: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
 });

@@ -75,12 +75,17 @@ export async function completeRenterProfileService(
     const profileVersion = existing ? existing.profileVersion + 1 : 1;
     const createdAt = existing ? existing.createdAt : nowIso;
 
+    const defaultDeliveryAddress =
+      data.defaultDeliveryAddress !== undefined
+        ? data.defaultDeliveryAddress
+        : (existing?.defaultDeliveryAddress ?? null);
+
     const profileRecord: RenterProfileRecord = {
       renterId: actor.uid,
       fullName: data.fullName,
       email: actor.email,
       phone: data.phone,
-      defaultDeliveryAddress: data.defaultDeliveryAddress,
+      defaultDeliveryAddress,
       acceptedRenterTermsVersion: data.acceptedRenterTermsVersion,
       acceptedPrivacyNoticeVersion: data.acceptedPrivacyNoticeVersion,
       accountStatus: 'active',
@@ -105,7 +110,7 @@ export async function completeRenterProfileService(
       occurredAt: now,
       details: {
         profileVersion,
-        areaLabel: data.defaultDeliveryAddress.areaLabel,
+        ...(defaultDeliveryAddress?.areaLabel ? { areaLabel: defaultDeliveryAddress.areaLabel } : {}),
       },
     });
 

@@ -51,7 +51,7 @@ const renterProfileSchema = z.object({
   renterId: z.string().min(1).max(128).optional(),
   email: emailAddressSchema,
   phone: z.string().trim().min(7).max(32),
-  defaultDeliveryAddress: z.object({}).passthrough(),
+  defaultDeliveryAddress: z.object({}).passthrough().nullable().optional(),
   accountStatus: z.literal('active'),
 }).passthrough();
 
