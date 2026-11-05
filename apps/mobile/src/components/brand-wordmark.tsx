@@ -1,6 +1,7 @@
-import { colors, typography } from '@mmg/brand';
+import { typography } from '@mmg/brand';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useTheme } from '../core/theme';
 import { BrandLogo } from './brand-logo';
 
 type BrandWordmarkProps = {
@@ -14,14 +15,16 @@ export function BrandWordmark({
   condensed = false,
   withLogo = false,
 }: BrandWordmarkProps) {
+  const { colors } = useTheme();
+
   return (
     <View accessibilityLabel="MMG Concierge" style={styles.row}>
       {withLogo ? <BrandLogo size={compact ? 24 : 28} /> : null}
-      <Text style={[styles.mmg, compact && styles.mmgCompact]}>MMG</Text>
+      <Text style={[styles.mmg, { color: colors.textPrimary }, compact && styles.mmgCompact]}>MMG</Text>
       {!condensed ? (
         <>
-          <View style={styles.rule} />
-          <Text style={styles.concierge}>CONCIERGE</Text>
+          <View style={[styles.rule, { backgroundColor: colors.primary }]} />
+          <Text style={[styles.concierge, { color: colors.textPrimary }]}>CONCIERGE</Text>
         </>
       ) : null}
     </View>
@@ -30,13 +33,11 @@ export function BrandWordmark({
 
 const styles = StyleSheet.create({
   concierge: {
-    color: colors.ivory,
     fontFamily: typography.bodyMedium,
     fontSize: 11,
     letterSpacing: 2.4,
   },
   mmg: {
-    color: colors.ivory,
     fontFamily: typography.display,
     fontSize: 23,
     letterSpacing: 0.8,
@@ -50,7 +51,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   rule: {
-    backgroundColor: colors.gold,
     height: 18,
     width: 1,
   },

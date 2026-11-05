@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography } from '@mmg/brand';
 import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { useTheme } from '../core/theme';
 import { BrandWordmark } from './brand-wordmark';
 import { PressableScale } from './pressable-scale';
 import { shouldCondenseScreenHeader } from './screen-header-layout';
@@ -25,6 +26,7 @@ export function ScreenHeader({
   style,
   title,
 }: ScreenHeaderProps) {
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const shouldShowBrand = showBrand ?? !onBack;
   const condensed = shouldCondenseScreenHeader({
@@ -43,13 +45,21 @@ export function ScreenHeader({
             onPress={onBack}
             style={styles.backPressable}
           >
-            <View style={styles.backButton}>
-              <Ionicons color={colors.ivory} name="arrow-back" size={20} />
+            <View
+              style={[
+                styles.backButton,
+                {
+                  backgroundColor: isDark ? 'rgba(21,21,21,0.84)' : colors.surface,
+                  borderColor: colors.borderStrong,
+                },
+              ]}
+            >
+              <Ionicons color={colors.textPrimary} name="arrow-back" size={20} />
             </View>
           </PressableScale>
         ) : null}
         {title ? (
-          <Text numberOfLines={1} style={styles.title}>{title}</Text>
+          <Text numberOfLines={1} style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
         ) : shouldShowBrand ? (
           <BrandWordmark compact condensed={condensed} withLogo />
         ) : null}
@@ -62,8 +72,6 @@ export function ScreenHeader({
 const styles = StyleSheet.create({
   backButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(21,21,21,0.84)',
-    borderColor: colors.lineStrong,
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
     height: 44,
@@ -93,7 +101,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   title: {
-    color: colors.ivory,
     flexShrink: 1,
     fontFamily: typography.bodySemiBold,
     fontSize: 17,
