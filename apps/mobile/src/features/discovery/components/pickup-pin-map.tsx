@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '@mmg/brand';
+import { spacing, typography, type ThemeColors } from '@mmg/brand';
 import { isWithinLagosBBox } from '@mmg/domain';
 import Constants from 'expo-constants';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,6 +15,7 @@ import {
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import {
   calculateDistanceMeters,
   clampToArrivalPerimeter,
@@ -89,6 +90,8 @@ export function PickupPinMap({
   showsUserLocation = false,
   style,
 }: PickupPinMapProps) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const mapRef = useRef<MapView>(null);
   const lastReportedCoords = useRef<{ lat: number; lng: number }>({ lat: latitude, lng: longitude });
   const isProgrammaticMove = useRef(false);
@@ -354,67 +357,68 @@ export function PickupPinMap({
   );
 }
 
-const styles = StyleSheet.create({
-  unavailable: { justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
-  container: {
-    flex: 1,
-    position: 'relative',
-  },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  instructionText: {
-    color: colors.silver,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 11,
-    minWidth: 0,
-  },
-  mapFrame: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.graphite,
-    overflow: 'hidden',
-  },
-  mapScrim: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(4, 4, 4, 0.02)',
-  },
-  pinAnchor: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pinPositionedAnchor: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
-  pinDot: {
-    backgroundColor: 'rgba(212, 175, 55, 0.4)',
-    borderRadius: 3,
-    height: 6,
-    position: 'absolute',
-    top: 0,
-    width: 6,
-  },
-  pinHead: {
-    // Aligns the tip of the 34px icon with the anchor point
-    marginTop: -32,
-  },
-  resetButton: {
-    flexShrink: 0,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-  resetText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodyMedium,
-    fontSize: 11,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    unavailable: { justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+    container: {
+      flex: 1,
+      position: 'relative',
+    },
+    headerRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+    },
+    instructionText: {
+      color: colors.textSecondary,
+      flex: 1,
+      fontFamily: typography.body,
+      fontSize: 11,
+      minWidth: 0,
+    },
+    mapFrame: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: colors.surface,
+      overflow: 'hidden',
+    },
+    mapScrim: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: 'rgba(4, 4, 4, 0.02)',
+    },
+    pinAnchor: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pinPositionedAnchor: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      left: 0,
+      position: 'absolute',
+      right: 0,
+    },
+    pinDot: {
+      backgroundColor: 'rgba(212, 175, 55, 0.4)',
+      borderRadius: 3,
+      height: 6,
+      position: 'absolute',
+      top: 0,
+      width: 6,
+    },
+    pinHead: {
+      // Aligns the tip of the 34px icon with the anchor point
+      marginTop: -32,
+    },
+    resetButton: {
+      flexShrink: 0,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.xs,
+    },
+    resetText: {
+      color: colors.goldStrong,
+      fontFamily: typography.bodyMedium,
+      fontSize: 11,
+    },
+  });

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   formatAppleDisplayName,
+  hasAppleProvider,
   isAppleSignInCancellation,
+  requireAppleAuthorizationCode,
   requireAppleIdentityToken,
 } from './apple-sign-in-domain';
 
@@ -23,5 +25,17 @@ describe('Apple sign-in domain helpers', () => {
   it('requires an Apple identity token before Firebase credential exchange', () => {
     expect(requireAppleIdentityToken('signed-token')).toBe('signed-token');
     expect(() => requireAppleIdentityToken(null)).toThrow('Apple did not return an identity token');
+  });
+
+  it('validates Apple authorization codes for token revocation', () => {
+    expect(requireAppleAuthorizationCode(' auth-code-123 ')).toBe('auth-code-123');
+    expect(() => requireAppleAuthorizationCode('')).toThrow('Apple did not return an authorization code');
+    expect(() => requireAppleAuthorizationCode(null)).toThrow('Apple did not return an authorization code');
+  });
+
+  it('detects whether a Firebase user has an apple.com provider linked', () => {
+    expect(hasAppleProvider([{ providerId: 'password' }, { providerId: 'apple.com' }])).toBe(true);
+    expect(hasAppleProvider([{ providerId: 'google.com' }])).toBe(false);
+    expect(hasAppleProvider(null)).toBe(false);
   });
 });

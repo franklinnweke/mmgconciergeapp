@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,6 +23,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { calculateDistanceMeters } from '../domain/arrival-perimeter';
 import { type PickupLocation, deriveLagosAreaLabel } from '../domain/pickup-location';
 import {
@@ -58,6 +59,8 @@ export function PickupLocationSheet({
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
 
   const [mode, setMode] = useState<PickupSheetMode>(() =>
     resolveInitialMode(Boolean(selectedLocation)),
@@ -469,6 +472,7 @@ export function PickupLocationSheet({
                   accessibilityLabel="Search Lagos address or landmark"
                   autoCorrect={false}
                   clearButtonMode="while-editing"
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   onBlur={() => {
                     if (!query.trim()) {
                       setMode('search_idle');
@@ -482,7 +486,7 @@ export function PickupLocationSheet({
                     setMode('search_focused');
                   }}
                   placeholder="Search Lagos address or landmark..."
-                  placeholderTextColor={colors.muted}
+                  placeholderTextColor={colors.textMuted}
                   ref={searchInputRef}
                   style={styles.searchInput}
                   value={query}
@@ -576,343 +580,344 @@ export function PickupLocationSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  areaTag: {
-    backgroundColor: 'rgba(212, 175, 55, 0.12)',
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexShrink: 0,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-  },
-  areaTagText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodyMedium,
-    fontSize: 10,
-    letterSpacing: 0.3,
-  },
-  attributionContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-  },
-  attributionText: {
-    color: '#FFFFFF',
-    fontFamily: typography.body,
-    fontSize: 12,
-  },
-  changeButton: {
-    justifyContent: 'center',
-    minHeight: 32,
-    paddingHorizontal: spacing.xs,
-  },
-  changeButtonText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-  },
-  clearSearch: {
-    flexShrink: 0,
-    padding: spacing.xs,
-  },
-  confirmButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    height: 52,
-    justifyContent: 'center',
-    marginTop: spacing.md,
-  },
-  confirmButtonText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  confirmContentContainer: {
-    gap: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  confirmedAddress: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  confirmedBadgeRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-  },
-  confirmedCard: {
-    borderBottomColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: spacing.md,
-    paddingTop: spacing.xs,
-  },
-  confirmedTitle: {
-    color: colors.ivory,
-    flex: 1,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-    minWidth: 0,
-  },
-  currentLocationCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  currentLocationIcon: {
-    alignItems: 'center',
-    flexShrink: 0,
-    height: 28,
-    justifyContent: 'center',
-    width: 28,
-  },
-  currentLocationAction: {
-    borderBottomColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: spacing.xs,
-    width: '100%',
-  },
-  currentLocationRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 44,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-    width: '100%',
-  },
-  currentLocationTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  dragHandle: {
-    alignSelf: 'center',
-    backgroundColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    height: 4,
-    width: 36,
-  },
-  dragHandleZone: {
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.xs,
-    width: '100%',
-  },
-  emptyResultsBox: {
-    paddingVertical: spacing.xl,
-  },
-  emptyResultsText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    textAlign: 'center',
-  },
-  errorBox: {
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(239,68,68,0.08)',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-  },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-    lineHeight: 18,
-    minWidth: 0,
-  },
-  floatingCloseButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(20, 20, 20, 0.85)',
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
-  floatingControls: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    left: spacing.lg,
-    position: 'absolute',
-    right: spacing.lg,
-    zIndex: 10,
-  },
-  floatingResetButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(20, 20, 20, 0.85)',
-    borderColor: colors.goldStrong,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    height: 38,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  floatingResetText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  headerTitleGroup: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: spacing.sm,
-  },
-  itemCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  itemName: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-    lineHeight: 19,
-  },
-  itemNameActive: {
-    color: colors.goldStrong,
-  },
-  itemRow: {
-    alignItems: 'center',
-    borderBottomColor: colors.line,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-  itemRowActive: {
-    borderBottomColor: colors.goldStrong,
-  },
-  itemSub: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    lineHeight: 17,
-    marginTop: 2,
-  },
-  list: {
-    paddingBottom: spacing.sm,
-  },
-  mapHint: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    lineHeight: 17,
-    marginTop: spacing.xs,
-  },
-  panelScroll: {
-    flex: 1,
-  },
-  panel: {
-    backgroundColor: colors.canvas,
-    borderTopColor: colors.lineStrong,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    borderTopWidth: 1,
-    bottom: 0,
-    elevation: 20,
-    left: 0,
-    paddingHorizontal: spacing.lg,
-    position: 'absolute',
-    right: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-  },
-  root: {
-    ...StyleSheet.absoluteFill,
-  },
-  searchBody: {
-    flex: 1,
-  },
-  searchBusy: {
-    flexShrink: 0,
-    marginLeft: spacing.xs,
-  },
-  searchContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    marginBottom: spacing.xs,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.md,
-  },
-  searchIcon: {
-    flexShrink: 0,
-    marginRight: spacing.sm,
-  },
-  searchInput: {
-    color: colors.ivory,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    height: 44,
-    minWidth: 0,
-  },
-  sectionHeaderRow: {
-    marginBottom: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  sectionHeaderTitle: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-    letterSpacing: 0.2,
-  },
-  serviceAreaNotice: {
-    alignItems: 'flex-start',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-  },
-  serviceAreaNoticeText: {
-    color: colors.silver,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-    lineHeight: 18,
-    minWidth: 0,
-  },
-  subtitle: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.lg,
-    letterSpacing: -0.3,
-  },
-});
+const createStyles = ({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) =>
+  StyleSheet.create({
+    areaTag: {
+      backgroundColor: 'rgba(212, 175, 55, 0.12)',
+      borderColor: 'rgba(212, 175, 55, 0.3)',
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexShrink: 0,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 2,
+    },
+    areaTagText: {
+      color: colors.goldStrong,
+      fontFamily: typography.bodyMedium,
+      fontSize: 10,
+      letterSpacing: 0.3,
+    },
+    attributionContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+    },
+    attributionText: {
+      color: isDark ? '#FFFFFF' : colors.textPrimary,
+      fontFamily: typography.body,
+      fontSize: 12,
+    },
+    changeButton: {
+      justifyContent: 'center',
+      minHeight: 32,
+      paddingHorizontal: spacing.xs,
+    },
+    changeButtonText: {
+      color: colors.goldStrong,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.xs,
+    },
+    clearSearch: {
+      flexShrink: 0,
+      padding: spacing.xs,
+    },
+    confirmButton: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      height: 52,
+      justifyContent: 'center',
+      marginTop: spacing.md,
+    },
+    confirmButtonText: {
+      color: colors.primaryContrast,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.sm,
+    },
+    confirmContentContainer: {
+      gap: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    confirmedAddress: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.xs,
+      lineHeight: 18,
+      marginTop: 4,
+    },
+    confirmedBadgeRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+    },
+    confirmedCard: {
+      borderBottomColor: colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingBottom: spacing.md,
+      paddingTop: spacing.xs,
+    },
+    confirmedTitle: {
+      color: colors.textPrimary,
+      flex: 1,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.base,
+      minWidth: 0,
+    },
+    currentLocationCopy: {
+      flex: 1,
+      minWidth: 0,
+    },
+    currentLocationIcon: {
+      alignItems: 'center',
+      flexShrink: 0,
+      height: 28,
+      justifyContent: 'center',
+      width: 28,
+    },
+    currentLocationAction: {
+      borderBottomColor: colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      marginBottom: spacing.xs,
+      width: '100%',
+    },
+    currentLocationRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      minHeight: 44,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.xs,
+      width: '100%',
+    },
+    currentLocationTitle: {
+      color: colors.textPrimary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.sm,
+    },
+    dragHandle: {
+      alignSelf: 'center',
+      backgroundColor: colors.borderStrong,
+      borderRadius: radii.pill,
+      height: 4,
+      width: 36,
+    },
+    dragHandleZone: {
+      paddingBottom: spacing.sm,
+      paddingTop: spacing.xs,
+      width: '100%',
+    },
+    emptyResultsBox: {
+      paddingVertical: spacing.xl,
+    },
+    emptyResultsText: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.xs,
+      textAlign: 'center',
+    },
+    errorBox: {
+      alignItems: 'flex-start',
+      backgroundColor: 'rgba(239,68,68,0.08)',
+      borderColor: colors.danger,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+      padding: spacing.md,
+    },
+    errorText: {
+      color: colors.danger,
+      flex: 1,
+      fontFamily: typography.bodyMedium,
+      fontSize: fontSizes.xs,
+      lineHeight: 18,
+      minWidth: 0,
+    },
+    floatingCloseButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      height: 38,
+      justifyContent: 'center',
+      width: 38,
+    },
+    floatingControls: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      left: spacing.lg,
+      position: 'absolute',
+      right: spacing.lg,
+      zIndex: 10,
+    },
+    floatingResetButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.goldStrong,
+      borderRadius: radii.button,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: spacing.xs,
+      height: 38,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+    },
+    floatingResetText: {
+      color: colors.goldStrong,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.xs,
+    },
+    header: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+    },
+    headerTitleGroup: {
+      flex: 1,
+      minWidth: 0,
+      paddingRight: spacing.sm,
+    },
+    itemCopy: {
+      flex: 1,
+      minWidth: 0,
+    },
+    itemName: {
+      color: colors.textPrimary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.sm,
+      lineHeight: 19,
+    },
+    itemNameActive: {
+      color: colors.goldStrong,
+    },
+    itemRow: {
+      alignItems: 'center',
+      borderBottomColor: colors.border,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      minHeight: 48,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.xs,
+    },
+    itemRowActive: {
+      borderBottomColor: colors.goldStrong,
+    },
+    itemSub: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.xs,
+      lineHeight: 17,
+      marginTop: 2,
+    },
+    list: {
+      paddingBottom: spacing.sm,
+    },
+    mapHint: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.xs,
+      lineHeight: 17,
+      marginTop: spacing.xs,
+    },
+    panelScroll: {
+      flex: 1,
+    },
+    panel: {
+      backgroundColor: colors.canvas,
+      borderTopColor: colors.borderStrong,
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
+      borderTopWidth: 1,
+      bottom: 0,
+      elevation: 20,
+      left: 0,
+      paddingHorizontal: spacing.lg,
+      position: 'absolute',
+      right: 0,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+    },
+    root: {
+      ...StyleSheet.absoluteFill,
+    },
+    searchBody: {
+      flex: 1,
+    },
+    searchBusy: {
+      flexShrink: 0,
+      marginLeft: spacing.xs,
+    },
+    searchContainer: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      flexDirection: 'row',
+      marginBottom: spacing.xs,
+      marginTop: spacing.xs,
+      paddingHorizontal: spacing.md,
+    },
+    searchIcon: {
+      flexShrink: 0,
+      marginRight: spacing.sm,
+    },
+    searchInput: {
+      color: colors.textPrimary,
+      flex: 1,
+      fontFamily: typography.body,
+      fontSize: fontSizes.sm,
+      height: 44,
+      minWidth: 0,
+    },
+    sectionHeaderRow: {
+      marginBottom: spacing.xs,
+      marginTop: spacing.xs,
+    },
+    sectionHeaderTitle: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyMedium,
+      fontSize: fontSizes.xs,
+      letterSpacing: 0.2,
+    },
+    serviceAreaNotice: {
+      alignItems: 'flex-start',
+      backgroundColor: colors.surface,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+      padding: spacing.md,
+    },
+    serviceAreaNoticeText: {
+      color: colors.textSecondary,
+      flex: 1,
+      fontFamily: typography.bodyMedium,
+      fontSize: fontSizes.xs,
+      lineHeight: 18,
+      minWidth: 0,
+    },
+    subtitle: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.xs,
+      lineHeight: 18,
+      marginTop: 2,
+    },
+    title: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: fontSizes.lg,
+      letterSpacing: -0.3,
+    },
+  });

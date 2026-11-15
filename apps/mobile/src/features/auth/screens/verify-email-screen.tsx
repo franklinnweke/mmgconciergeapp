@@ -1,15 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
-import { PressableScale } from '@/components/pressable-scale';
-import { useAuth } from '@/core/auth/auth-context';
+import { BrandWordmark } from '../../../components/brand-wordmark';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 export function VerifyEmailScreen() {
   const auth = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [busyAction, setBusyAction] = useState<'refresh' | 'resend' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export function VerifyEmailScreen() {
         <PressableScale accessibilityRole="button" onPress={() => void run('refresh')} style={styles.fullWidth}>
           <View style={styles.primaryButton}>
             {busyAction === 'refresh' ? (
-              <ActivityIndicator color={colors.black} />
+              <ActivityIndicator color={colors.primaryContrast} />
             ) : (
               <Text style={styles.primaryText}>I’ve verified my email</Text>
             )}
@@ -57,7 +60,7 @@ export function VerifyEmailScreen() {
         <PressableScale accessibilityRole="button" onPress={() => void run('resend')} style={styles.fullWidth}>
           <View style={styles.secondaryButton}>
             {busyAction === 'resend' ? (
-              <ActivityIndicator color={colors.ivory} />
+              <ActivityIndicator color={colors.textPrimary} />
             ) : (
               <Text style={styles.secondaryText}>Send another link</Text>
             )}
@@ -71,79 +74,81 @@ export function VerifyEmailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  body: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 15,
-    lineHeight: 24,
-    maxWidth: 340,
-    textAlign: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.md,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  email: { color: colors.ivory, fontFamily: typography.bodyMedium },
-  fullWidth: { alignSelf: 'stretch' },
-  iconFrame: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 72,
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-    width: 72,
-  },
-  message: {
-    color: colors.silver,
-    fontFamily: typography.body,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    minHeight: 56,
-  },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  screen: { backgroundColor: colors.black, flex: 1, paddingHorizontal: spacing.lg },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.button,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    minHeight: 54,
-  },
-  secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
-  signOut: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-    paddingBottom: spacing.lg,
-    textAlign: 'center',
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 40,
-    letterSpacing: -0.8,
-    lineHeight: 46,
-    textAlign: 'center',
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: spacing.sm,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    body: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: 15,
+      lineHeight: 24,
+      maxWidth: 340,
+      textAlign: 'center',
+    },
+    content: {
+      alignItems: 'center',
+      flex: 1,
+      gap: spacing.md,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    email: { color: colors.textPrimary, fontFamily: typography.bodyMedium },
+    fullWidth: { alignSelf: 'stretch' },
+    iconFrame: {
+      alignItems: 'center',
+      borderColor: colors.borderStrong,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      height: 72,
+      justifyContent: 'center',
+      marginBottom: spacing.sm,
+      width: 72,
+    },
+    message: {
+      color: colors.textSecondary,
+      fontFamily: typography.body,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: 'center',
+    },
+    primaryButton: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      justifyContent: 'center',
+      marginTop: spacing.md,
+      minHeight: 56,
+    },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    screen: { backgroundColor: colors.canvas, flex: 1, paddingHorizontal: spacing.lg },
+    secondaryButton: {
+      alignItems: 'center',
+      backgroundColor: colors.buttonSecondaryBg,
+      borderColor: colors.buttonSecondaryBorder,
+      borderRadius: radii.button,
+      borderWidth: StyleSheet.hairlineWidth,
+      justifyContent: 'center',
+      minHeight: 54,
+    },
+    secondaryText: { color: colors.textPrimary, fontFamily: typography.bodyMedium, fontSize: 14 },
+    signOut: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyMedium,
+      fontSize: 12,
+      paddingBottom: spacing.lg,
+      textAlign: 'center',
+    },
+    title: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: 40,
+      letterSpacing: -0.8,
+      lineHeight: 46,
+      textAlign: 'center',
+    },
+    topBar: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingTop: spacing.sm,
+    },
+  });

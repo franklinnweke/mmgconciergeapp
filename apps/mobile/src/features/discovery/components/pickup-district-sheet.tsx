@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 export type PickupDistrictSheetProps = {
   visible: boolean;
@@ -57,6 +58,8 @@ export function PickupDistrictSheet({
   onClose,
 }: PickupDistrictSheetProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
 
   return (
     <Modal
@@ -116,7 +119,7 @@ export function PickupDistrictSheet({
                   <View style={[styles.itemRow, isSelected && styles.itemRowActive]}>
                     <View style={[styles.itemIcon, isSelected && styles.itemIconActive]}>
                       <Ionicons
-                        color={isSelected ? colors.black : colors.goldStrong}
+                        color={isSelected ? colors.primaryContrast : colors.goldStrong}
                         name={item.icon}
                         size={20}
                       />
@@ -130,7 +133,7 @@ export function PickupDistrictSheet({
                     {isSelected ? (
                       <Ionicons color={colors.goldStrong} name="checkmark-circle" size={20} />
                     ) : (
-                      <Ionicons color={colors.muted} name="chevron-forward" size={16} />
+                      <Ionicons color={colors.textMuted} name="chevron-forward" size={16} />
                     )}
                   </View>
                 </PressableScale>
@@ -143,108 +146,109 @@ export function PickupDistrictSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  closeButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  eyebrow: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 1.2,
-  },
-  handle: {
-    alignSelf: 'center',
-    backgroundColor: colors.lineStrong,
-    borderRadius: 2,
-    height: 4,
-    marginBottom: spacing.md,
-    width: 36,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  headerTitleGroup: {
-    flex: 1,
-  },
-  itemCopy: {
-    flex: 1,
-  },
-  itemIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  itemIconActive: {
-    backgroundColor: colors.goldStrong,
-    borderColor: colors.goldStrong,
-  },
-  itemName: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-  },
-  itemNameActive: {
-    color: colors.goldStrong,
-  },
-  itemRow: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 64,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  itemRowActive: {
-    borderColor: colors.goldStrong,
-  },
-  itemSub: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    marginTop: 2,
-  },
-  list: {
-    gap: spacing.xs,
-  },
-  overlay: {
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.canvas,
-    borderTopColor: colors.lineStrong,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    borderTopWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.xl,
-    letterSpacing: -0.3,
-    marginTop: 2,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    closeButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceRaised,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
+    },
+    eyebrow: {
+      color: colors.goldStrong,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.xs,
+      letterSpacing: 1.2,
+    },
+    handle: {
+      alignSelf: 'center',
+      backgroundColor: colors.borderStrong,
+      borderRadius: 2,
+      height: 4,
+      marginBottom: spacing.md,
+      width: 36,
+    },
+    header: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    headerTitleGroup: {
+      flex: 1,
+    },
+    itemCopy: {
+      flex: 1,
+    },
+    itemIcon: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceRaised,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      height: 40,
+      justifyContent: 'center',
+      width: 40,
+    },
+    itemIconActive: {
+      backgroundColor: colors.goldStrong,
+      borderColor: colors.goldStrong,
+    },
+    itemName: {
+      color: colors.textPrimary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.base,
+    },
+    itemNameActive: {
+      color: colors.goldStrong,
+    },
+    itemRow: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.md,
+      minHeight: 64,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    itemRowActive: {
+      borderColor: colors.goldStrong,
+    },
+    itemSub: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.xs,
+      marginTop: 2,
+    },
+    list: {
+      gap: spacing.xs,
+    },
+    overlay: {
+      backgroundColor: colors.scrim,
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: colors.canvas,
+      borderTopColor: colors.borderStrong,
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
+      borderTopWidth: 1,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+    },
+    title: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: fontSizes.xl,
+      letterSpacing: -0.3,
+      marginTop: 2,
+    },
+  });

@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '@mmg/brand';
+import { spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { AccountType } from '@mmg/contracts';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
-import { PressableScale } from '@/components/pressable-scale';
+import { BrandWordmark } from '../../../components/brand-wordmark';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 const heroImage = require('../../../../assets/images/auth-land-cruiser-black.jpg');
 
@@ -33,6 +34,8 @@ const choices = [
 export function AuthRoleChoiceScreen({ onChooseRole }: AuthRoleChoiceScreenProps) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const heroHeight = Math.min(470, Math.max(330, height * 0.54));
 
   return (
@@ -51,7 +54,11 @@ export function AuthRoleChoiceScreen({ onChooseRole }: AuthRoleChoiceScreenProps
           style={StyleSheet.absoluteFill}
         />
         <LinearGradient
-          colors={['rgba(4,4,4,0.72)', 'rgba(4,4,4,0.04)', colors.black]}
+          colors={
+            isDark
+              ? ['rgba(4,4,4,0.72)', 'rgba(4,4,4,0.04)', colors.canvas]
+              : ['rgba(247,245,240,0.82)', 'rgba(247,245,240,0.08)', colors.canvas]
+          }
           locations={[0, 0.58, 1]}
           style={StyleSheet.absoluteFill}
         />
@@ -85,22 +92,23 @@ export function AuthRoleChoiceScreen({ onChooseRole }: AuthRoleChoiceScreenProps
   );
 }
 
-const styles = StyleSheet.create({
-  brand: { paddingHorizontal: spacing.lg },
-  choice: {
-    alignItems: 'center',
-    borderBottomColor: colors.lineStrong,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 64,
-    paddingVertical: spacing.sm,
-  },
-  choiceCopy: { flex: 1, gap: spacing.xxs },
-  choiceLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  choiceList: { marginTop: spacing.md },
-  content: { backgroundColor: colors.black, flexGrow: 1 },
-  decision: { paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
-  hero: { backgroundColor: colors.graphite, justifyContent: 'flex-start' },
-  screen: { backgroundColor: colors.black, flex: 1 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    brand: { paddingHorizontal: spacing.lg },
+    choice: {
+      alignItems: 'center',
+      borderBottomColor: colors.borderStrong,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.md,
+      minHeight: 64,
+      paddingVertical: spacing.sm,
+    },
+    choiceCopy: { flex: 1, gap: spacing.xxs },
+    choiceLabel: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: 16 },
+    choiceList: { marginTop: spacing.md },
+    content: { backgroundColor: colors.canvas, flexGrow: 1 },
+    decision: { paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
+    hero: { backgroundColor: colors.surface, justifyContent: 'flex-start' },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+  });

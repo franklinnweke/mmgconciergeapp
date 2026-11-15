@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type {
   GovernmentIdKind,
   OwnerVisibleProfile,
@@ -16,9 +16,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
@@ -33,6 +34,8 @@ import { useOwnerIdUpload } from '../domain/owner-id-upload-context';
 export function OwnerSubmitScreen() {
   const auth = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const params = useLocalSearchParams<{
     uploadId?: string;
     documentKind?: GovernmentIdKind;
@@ -254,10 +257,10 @@ export function OwnerSubmitScreen() {
           >
             <View style={styles.primaryButton}>
               {submitting ? (
-                <ActivityIndicator color={colors.black} size="small" />
+                <ActivityIndicator color={colors.primaryContrast} size="small" />
               ) : isUploading ? (
                 <View style={styles.buttonUploadingRow}>
-                  <ActivityIndicator color={colors.black} size="small" />
+                  <ActivityIndicator color={colors.primaryContrast} size="small" />
                   <Text style={styles.primaryText}>Uploading identification…</Text>
                 </View>
               ) : (
@@ -271,36 +274,37 @@ export function OwnerSubmitScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  badgeRow: { alignItems: 'center', flexDirection: 'row', gap: 4 },
-  badgeText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  buttonUploadingRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
-  cardHeader: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.md, textTransform: 'uppercase' },
-  disabledAction: { opacity: 0.5 },
-  errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginBottom: spacing.lg },
-  lastSummaryRow: { borderBottomWidth: 0 },
-  phoneValue: { color: colors.goldStrong, fontFamily: 'monospace' },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  retryButtonText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, marginTop: 4 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  statusAction: { marginTop: spacing.md },
-  statusNotice: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginTop: spacing.xl, paddingBottom: spacing.lg },
-  statusNoticeText: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  submitAction: { marginTop: spacing.xl },
-  summaryCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm },
-  summaryLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 13 },
-  summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: spacing.md },
-  summarySubValue: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: 2 },
-  summaryValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, flexShrink: 1, textAlign: 'right' },
-  summaryValueAction: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  summaryValueStack: { alignItems: 'flex-end', flexShrink: 1 },
-  uploadErrorStack: { alignItems: 'flex-end' },
-  uploadErrorText: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 13 },
-  uploadingRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  uploadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 13 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    badgeRow: { alignItems: 'center', flexDirection: 'row', gap: 4 },
+    badgeText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    buttonUploadingRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
+    cardHeader: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.md, textTransform: 'uppercase' },
+    disabledAction: { opacity: 0.5 },
+    errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginBottom: spacing.lg },
+    lastSummaryRow: { borderBottomWidth: 0 },
+    phoneValue: { color: colors.goldStrong, fontFamily: 'monospace' },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    retryButtonText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, marginTop: 4 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    statusAction: { marginTop: spacing.md },
+    statusNotice: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginTop: spacing.xl, paddingBottom: spacing.lg },
+    statusNoticeText: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+    submitAction: { marginTop: spacing.xl },
+    summaryCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm },
+    summaryLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 13 },
+    summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: spacing.md },
+    summarySubValue: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: 2 },
+    summaryValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, flexShrink: 1, textAlign: 'right' },
+    summaryValueAction: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    summaryValueStack: { alignItems: 'flex-end', flexShrink: 1 },
+    uploadErrorStack: { alignItems: 'flex-end' },
+    uploadErrorText: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 13 },
+    uploadingRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+    uploadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 13 },
+  });

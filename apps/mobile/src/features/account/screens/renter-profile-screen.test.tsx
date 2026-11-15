@@ -174,4 +174,32 @@ describe('RenterProfileScreen theme integration', () => {
     expect(modal).toBeDefined();
     expect(modal.props.children.props.style.backgroundColor).toBe(lightThemeColors.scrim);
   });
+
+  it('exposes the Appearance selector (System / Light / Dark) and switches modes', async () => {
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <ThemeProvider>
+          <RenterProfileScreen />
+        </ThemeProvider>,
+      );
+    });
+
+    const root = renderer!.root;
+    const systemOption = root.findByProps({ testID: 'appearance-option-system' });
+    const lightOption = root.findByProps({ testID: 'appearance-option-light' });
+    const darkOption = root.findByProps({ testID: 'appearance-option-dark' });
+
+    expect(darkOption.props.accessibilityState).toEqual({ selected: true });
+    expect(lightOption.props.accessibilityState).toEqual({ selected: false });
+    expect(systemOption.props.accessibilityState).toEqual({ selected: false });
+
+    await act(async () => {
+      lightOption.props.onPress();
+    });
+
+    expect(lightOption.props.accessibilityState).toEqual({ selected: true });
+    const safeArea = root.findByType('SafeAreaView' as any);
+    expect(safeArea.props.style.backgroundColor).toBe(lightThemeColors.canvas);
+  });
 });

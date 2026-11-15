@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { Image } from 'expo-image';
 import { type Href, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -12,15 +12,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
-import { useAuth } from '@/core/auth/auth-context';
-import { useBookings } from '@/features/booking/booking-context';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { LuxuryShimmer } from '../../../components/ui/luxury-shimmer';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { useBookings } from '../../booking/booking-context';
 import {
   firstNameFromDisplayName,
   selectHomeJourney,
-} from '@/features/booking/domain/home-journey';
+} from '../../booking/domain/home-journey';
 
 import {
   ExecutiveBookingDesk,
@@ -57,6 +58,8 @@ export default function DiscoveryHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { trips } = useBookings();
   const { error, isLoading, vehicles } = useFeaturedVehicles();
   const [pickup, setPickup] = useState<PickupLocation | null>(null);
@@ -178,7 +181,7 @@ export default function DiscoveryHomeScreen() {
           </ScrollView>
         ) : featuredVehicles.length === 0 ? (
           <View style={[styles.emptyFeaturedBox, styles.inset]}>
-            <Ionicons color={colors.muted} name="car-outline" size={26} />
+            <Ionicons color={colors.textMuted} name="car-outline" size={26} />
             <Text style={styles.emptyFeaturedTitle}>No cars available right now</Text>
             <Text style={styles.emptyFeaturedSubtitle}>Try another date or check again soon.</Text>
           </View>
@@ -215,46 +218,47 @@ export default function DiscoveryHomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: colors.ivory,
-    borderRadius: radii.pill,
-    height: 40,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    width: 40,
-  },
-  avatarImage: {
-    height: '100%',
-    width: '100%',
-  },
-  avatarPress: { flexShrink: 0, height: 40, width: 40 },
-  avatarText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
-  carousel: { gap: carouselGap, paddingHorizontal: spacing.md },
-  content: { gap: spacing.md, paddingBottom: 116 },
-  emptyFeaturedBox: {
-    borderColor: colors.line,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: spacing.xs,
-    paddingVertical: spacing.xl,
-  },
-  emptyFeaturedSubtitle: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
-  emptyFeaturedTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm, marginTop: spacing.xs },
-  errorBox: {
-    alignItems: 'center',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
-  horizontalClip: { alignSelf: 'stretch', overflow: 'visible', width: '100%' },
-  inset: { marginHorizontal: spacing.md },
-  inventoryHeading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
-  inventoryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
-  screen: { backgroundColor: colors.black, flex: 1, maxWidth: '100%', overflow: 'hidden', width: '100%' },
-  viewAll: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm, paddingVertical: spacing.xs },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    avatar: {
+      alignItems: 'center',
+      backgroundColor: colors.buttonPrimaryBg,
+      borderRadius: radii.pill,
+      height: 40,
+      justifyContent: 'center',
+      overflow: 'hidden',
+      width: 40,
+    },
+    avatarImage: {
+      height: '100%',
+      width: '100%',
+    },
+    avatarPress: { flexShrink: 0, height: 40, width: 40 },
+    avatarText: { color: colors.buttonPrimaryText, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
+    carousel: { gap: carouselGap, paddingHorizontal: spacing.md },
+    content: { gap: spacing.md, paddingBottom: 116 },
+    emptyFeaturedBox: {
+      borderColor: colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      gap: spacing.xs,
+      paddingVertical: spacing.xl,
+    },
+    emptyFeaturedSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs },
+    emptyFeaturedTitle: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm, marginTop: spacing.xs },
+    errorBox: {
+      alignItems: 'center',
+      borderColor: colors.danger,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
+    horizontalClip: { alignSelf: 'stretch', overflow: 'visible', width: '100%' },
+    inset: { marginHorizontal: spacing.md },
+    inventoryHeading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
+    inventoryTitle: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
+    screen: { backgroundColor: colors.canvas, flex: 1, maxWidth: '100%', overflow: 'hidden', width: '100%' },
+    viewAll: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm, paddingVertical: spacing.xs },
+  });

@@ -6,6 +6,7 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   reload,
+  revokeToken,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithCredential,
@@ -31,7 +32,9 @@ import Constants from 'expo-constants';
 
 import {
   formatAppleDisplayName,
+  hasAppleProvider,
   isAppleSignInCancellation,
+  requireAppleAuthorizationCode,
   requireAppleIdentityToken,
 } from './apple-sign-in-domain';
 import { readGoogleWebClientId } from './google-sign-in-config';
@@ -154,6 +157,32 @@ export async function refreshCurrentUser(): Promise<User | null> {
 
 export async function signOutCurrentUser() {
   await Promise.allSettled([GoogleSignin.signOut(), signOut(auth)]);
+}
+
+export type AppleRevokeTokenResult = 'revoked' | 'not-applicable' | 'cancelled';
+
+export async function revokeAppleSignInToken(): Promise<AppleRevokeTokenResult> {
+  const currentUser = auth.currentUser;
+  if (!currentUser || !hasAppleProvider(currentUser.providerData)) {
+    return 'not-applicable';
+  }
+  if (!await AppleAuthentication.isAvailableAsync()) {
+    return 'not-applicable';
+  }
+
+  let appleCredential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    appleCredential = await AppleAuthentication.signInAsync({
+      requestedScopes: [],
+    });
+  } catch (caught: unknown) {
+    if (isAppleSignInCancellation(caught)) return 'cancelled';
+    throw caught;
+  }
+
+  const authorizationCode = requireAppleAuthorizationCode(appleCredential.authorizationCode);
+  await revokeToken(auth, authorizationCode);
+  return 'revoked';
 }
 
 export function getFriendlyAuthError(error: unknown): string {

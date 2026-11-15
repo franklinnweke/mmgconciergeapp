@@ -1,12 +1,13 @@
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { type Href, useRouter } from 'expo-router';
 import { type ReactNode, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 
 type OwnerProfileReadGuardProps = {
@@ -20,6 +21,8 @@ type ReadResult = {
 
 export function OwnerProfileReadGuard({ children }: OwnerProfileReadGuardProps) {
   const { signingOut, user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const router = useRouter();
   const ownerId = user?.uid ?? null;
   const [retryKey, setRetryKey] = useState(0);
@@ -106,78 +109,79 @@ export function OwnerProfileReadGuard({ children }: OwnerProfileReadGuardProps) 
   return children;
 }
 
-const styles = StyleSheet.create({
-  action: {
-    marginTop: spacing.md,
-    width: '100%',
-  },
-  body: {
-    color: colors.silver,
-    fontFamily: typography.body,
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  card: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    padding: spacing.xl,
-    width: '100%',
-  },
-  content: {
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.sm,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  loadingText: {
-    color: colors.silver,
-    fontFamily: typography.body,
-    fontSize: 14,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    justifyContent: 'center',
-    minHeight: 52,
-    width: '100%',
-  },
-  primaryText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-    letterSpacing: 0.5,
-  },
-  screen: {
-    backgroundColor: colors.black,
-    flex: 1,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 52,
-    width: '100%',
-  },
-  secondaryText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-    letterSpacing: 0.5,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 22,
-    letterSpacing: -0.3,
-    textAlign: 'center',
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    action: {
+      marginTop: spacing.md,
+      width: '100%',
+    },
+    body: {
+      color: colors.silver,
+      fontFamily: typography.body,
+      fontSize: 14,
+      lineHeight: 22,
+      marginTop: spacing.sm,
+      textAlign: 'center',
+    },
+    card: {
+      alignItems: 'center',
+      backgroundColor: colors.graphiteRaised,
+      borderColor: colors.lineStrong,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      padding: spacing.xl,
+      width: '100%',
+    },
+    content: {
+      alignItems: 'center',
+      flex: 1,
+      gap: spacing.sm,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    loadingText: {
+      color: colors.silver,
+      fontFamily: typography.body,
+      fontSize: 14,
+    },
+    primaryButton: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      justifyContent: 'center',
+      minHeight: 52,
+      width: '100%',
+    },
+    primaryText: {
+      color: colors.primaryContrast,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 13,
+      letterSpacing: 0.5,
+    },
+    screen: {
+      backgroundColor: colors.canvas,
+      flex: 1,
+    },
+    secondaryButton: {
+      alignItems: 'center',
+      borderColor: colors.lineStrong,
+      borderRadius: radii.button,
+      borderWidth: 1,
+      justifyContent: 'center',
+      minHeight: 52,
+      width: '100%',
+    },
+    secondaryText: {
+      color: colors.ivory,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 13,
+      letterSpacing: 0.5,
+    },
+    title: {
+      color: colors.ivory,
+      fontFamily: typography.display,
+      fontSize: 22,
+      letterSpacing: -0.3,
+      textAlign: 'center',
+    },
+  });

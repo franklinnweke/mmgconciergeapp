@@ -1,4 +1,4 @@
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { LagosAreaLabel } from '@mmg/contracts';
 import { useState } from 'react';
 import {
@@ -10,7 +10,8 @@ import {
   View,
 } from 'react-native';
 
-import { PressableScale } from '@/components/pressable-scale';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 const LAGOS_AREAS: readonly LagosAreaLabel[] = [
   'Ikoyi',
@@ -43,6 +44,8 @@ export function RenterCheckoutProfileCompletion({
   onSubmit: (data: CheckoutProfileData) => Promise<void>;
   verifiedPhone: string;
 }) {
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [fullName, setFullName] = useState(defaultName ?? '');
   const [areaLabel, setAreaLabel] = useState<LagosAreaLabel>('Victoria Island');
   const [streetAddress, setStreetAddress] = useState('');
@@ -88,6 +91,7 @@ export function RenterCheckoutProfileCompletion({
         <Text style={styles.label}>NAME</Text>
         <TextInput
           editable={!busy}
+          keyboardAppearance={isDark ? 'dark' : 'light'}
           onChangeText={setFullName}
           placeholder="Your name"
           placeholderTextColor={colors.muted}
@@ -125,6 +129,7 @@ export function RenterCheckoutProfileCompletion({
         <Text style={styles.label}>STREET ADDRESS</Text>
         <TextInput
           editable={!busy}
+          keyboardAppearance={isDark ? 'dark' : 'light'}
           onChangeText={setStreetAddress}
           placeholder="15 Queens Drive, Ikoyi"
           placeholderTextColor={colors.muted}
@@ -137,6 +142,7 @@ export function RenterCheckoutProfileCompletion({
         <Text style={styles.label}>LANDMARK (OPTIONAL)</Text>
         <TextInput
           editable={!busy}
+          keyboardAppearance={isDark ? 'dark' : 'light'}
           onChangeText={setLandmark}
           placeholder="Nearby building or landmark"
           placeholderTextColor={colors.muted}
@@ -149,7 +155,7 @@ export function RenterCheckoutProfileCompletion({
 
       <PressableScale accessibilityRole="button" disabled={busy} onPress={() => void submit()} style={busy ? styles.disabled : undefined}>
         <View style={styles.button}>
-          {busy ? <ActivityIndicator color={colors.black} size="small" /> : null}
+          {busy ? <ActivityIndicator color={colors.primaryContrast} size="small" /> : null}
           <Text style={styles.buttonText}>{busy ? 'Saving details…' : 'Save and continue to payment'}</Text>
         </View>
       </PressableScale>
@@ -157,22 +163,23 @@ export function RenterCheckoutProfileCompletion({
   );
 }
 
-const styles = StyleSheet.create({
-  areaPill: { borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, marginRight: spacing.xs, minHeight: 38, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  areaPillSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
-  areaScroller: { flexGrow: 0 },
-  areaText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11 },
-  areaTextSelected: { color: colors.black },
-  body: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  button: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.md },
-  buttonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  disabled: { opacity: 0.55 },
-  error: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  field: { gap: spacing.xs, width: '100%' },
-  input: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 46, paddingHorizontal: spacing.md },
-  label: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 0.7 },
-  panel: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, gap: spacing.md, marginTop: spacing.md, padding: spacing.lg },
-  readOnlyField: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.md },
-  readOnlyText: { color: colors.success, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 18, textAlign: 'center' },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    areaPill: { borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, marginRight: spacing.xs, minHeight: 38, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+    areaPillSelected: { backgroundColor: colors.buttonPrimaryBg, borderColor: colors.buttonPrimaryBg },
+    areaScroller: { flexGrow: 0 },
+    areaText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11 },
+    areaTextSelected: { color: colors.buttonPrimaryText },
+    body: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, textAlign: 'center' },
+    button: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.md },
+    buttonText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    disabled: { opacity: 0.55 },
+    error: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 12, lineHeight: 18, textAlign: 'center' },
+    field: { gap: spacing.xs, width: '100%' },
+    input: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 46, paddingHorizontal: spacing.md },
+    label: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 10, letterSpacing: 0.7 },
+    panel: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, gap: spacing.md, marginTop: spacing.md, padding: spacing.lg },
+    readOnlyField: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.md },
+    readOnlyText: { color: colors.success, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    title: { color: colors.ivory, fontFamily: typography.display, fontSize: 18, textAlign: 'center' },
+  });

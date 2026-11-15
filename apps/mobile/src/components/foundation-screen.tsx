@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { Href, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTheme, useThemeStyles } from '../core/theme';
 import { BrandWordmark } from './brand-wordmark';
 import { PressableScale } from './pressable-scale';
 
@@ -25,6 +26,8 @@ export function FoundationScreen({
   title,
 }: FoundationScreenProps) {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -50,7 +53,7 @@ export function FoundationScreen({
         >
           <View style={styles.action}>
             <Text style={styles.actionText}>{action}</Text>
-            <Ionicons color={colors.black} name="arrow-forward" size={18} />
+            <Ionicons color={colors.primaryContrast} name="arrow-forward" size={18} />
           </View>
         </PressableScale>
       </View>
@@ -62,108 +65,109 @@ export function FoundationScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  action: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 54,
-    paddingHorizontal: spacing.lg,
-  },
-  actionShell: {
-    alignSelf: 'stretch',
-    marginTop: spacing.xs,
-  },
-  actionText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 14,
-  },
-  body: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 16,
-    lineHeight: 25,
-    maxWidth: 340,
-    textAlign: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.md,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  eyebrow: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 2.2,
-  },
-  footer: {
-    alignItems: 'center',
-    borderTopColor: colors.line,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    padding: spacing.lg,
-  },
-  footerText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 11,
-  },
-  iconFrame: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 64,
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-    width: 64,
-  },
-  locationPill: {
-    alignItems: 'center',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  locationText: {
-    color: colors.silver,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 9,
-    letterSpacing: 1.4,
-  },
-  onlineDot: {
-    backgroundColor: colors.success,
-    borderRadius: radii.pill,
-    height: 5,
-    width: 5,
-  },
-  safeArea: {
-    backgroundColor: colors.black,
-    flex: 1,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 38,
-    letterSpacing: -0.8,
-    lineHeight: 44,
-    maxWidth: 350,
-    textAlign: 'center',
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    action: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.pill,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'center',
+      minHeight: 54,
+      paddingHorizontal: spacing.lg,
+    },
+    actionShell: {
+      alignSelf: 'stretch',
+      marginTop: spacing.xs,
+    },
+    actionText: {
+      color: colors.primaryContrast,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 14,
+    },
+    body: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: 16,
+      lineHeight: 25,
+      maxWidth: 340,
+      textAlign: 'center',
+    },
+    content: {
+      alignItems: 'center',
+      flex: 1,
+      gap: spacing.md,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    eyebrow: {
+      color: colors.primary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 11,
+      letterSpacing: 2.2,
+    },
+    footer: {
+      alignItems: 'center',
+      borderTopColor: colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      padding: spacing.lg,
+    },
+    footerText: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: 11,
+    },
+    iconFrame: {
+      alignItems: 'center',
+      borderColor: colors.borderStrong,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      height: 64,
+      justifyContent: 'center',
+      marginBottom: spacing.xs,
+      width: 64,
+    },
+    locationPill: {
+      alignItems: 'center',
+      borderColor: colors.border,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    locationText: {
+      color: colors.textSecondary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 9,
+      letterSpacing: 1.4,
+    },
+    onlineDot: {
+      backgroundColor: colors.success,
+      borderRadius: radii.pill,
+      height: 5,
+      width: 5,
+    },
+    safeArea: {
+      backgroundColor: colors.canvas,
+      flex: 1,
+    },
+    title: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: 38,
+      letterSpacing: -0.8,
+      lineHeight: 44,
+      maxWidth: 350,
+      textAlign: 'center',
+    },
+    topBar: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+  });

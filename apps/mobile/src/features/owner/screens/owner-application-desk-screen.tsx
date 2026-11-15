@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { OwnerVisibleProfile } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { recordBreadcrumb } from '@/core/diagnostics/diagnostic-tracker';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { recordBreadcrumb } from '../../../core/diagnostics/diagnostic-tracker';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import {
@@ -23,6 +24,8 @@ import {
 export function OwnerApplicationDeskScreen() {
   const auth = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [draftUpload, setDraftUpload] = useState<LocalUploadedDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,7 +180,7 @@ export function OwnerApplicationDeskScreen() {
                         <Ionicons
                           color={
                             completeness.identityComplete
-                              ? colors.black
+                              ? colors.primaryContrast
                               : completeness.identityUnlocked
                               ? colors.goldStrong
                               : colors.muted
@@ -234,7 +237,7 @@ export function OwnerApplicationDeskScreen() {
                         <Ionicons
                           color={
                             completeness.phoneComplete
-                              ? colors.black
+                              ? colors.primaryContrast
                               : completeness.phoneUnlocked
                               ? colors.goldStrong
                               : colors.muted
@@ -291,7 +294,7 @@ export function OwnerApplicationDeskScreen() {
                         <Ionicons
                           color={
                             completeness.idUploaded
-                              ? colors.black
+                              ? colors.primaryContrast
                               : completeness.idUnlocked
                               ? colors.goldStrong
                               : colors.muted
@@ -351,39 +354,40 @@ export function OwnerApplicationDeskScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginTop: spacing.xxs },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  errorStack: { gap: spacing.md },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  loadingBox: { alignItems: 'center', paddingVertical: spacing.xxl },
-  loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  previewBanner: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.12)', borderBottomColor: colors.lineStrong, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  previewBannerText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1 },
-  primaryAction: { marginTop: spacing.xl },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  reasonBody: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
-  reasonCard: { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, marginVertical: spacing.md, padding: spacing.md },
-  reasonTitle: { color: '#F87171', fontFamily: typography.bodySemiBold, fontSize: 12, marginBottom: 4 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { paddingBottom: spacing.xxl },
-  secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.button, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 52 },
-  secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
-  signOutAction: { marginTop: spacing.md },
-  statusText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.xs },
-  stepCopy: { flex: 1 },
-  stepDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
-  stepIcon: { alignItems: 'center', height: 42, justifyContent: 'center', width: 28 },
-  stepIconComplete: { backgroundColor: colors.goldStrong, borderRadius: radii.pill, width: 28 },
-  stepIconLocked: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radii.pill, width: 28 },
-  stepPressable: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },
-  stepRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
-  stepRowLocked: { opacity: 0.55 },
-  steps: { marginTop: spacing.lg },
-  stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginTop: 2 },
-  stepTitleLocked: { color: colors.silver },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 28, letterSpacing: -0.5, lineHeight: 34, marginBottom: spacing.xs },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    body: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginTop: spacing.xxs },
+    content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+    errorStack: { gap: spacing.md },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    loadingBox: { alignItems: 'center', paddingVertical: spacing.xxl },
+    loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+    previewBanner: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.12)', borderBottomColor: colors.lineStrong, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+    previewBannerText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1 },
+    primaryAction: { marginTop: spacing.xl },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    reasonBody: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
+    reasonCard: { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, marginVertical: spacing.md, padding: spacing.md },
+    reasonTitle: { color: colors.danger, fontFamily: typography.bodySemiBold, fontSize: 12, marginBottom: 4 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    scroll: { paddingBottom: spacing.xxl },
+    secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.button, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 52 },
+    secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
+    signOutAction: { marginTop: spacing.md },
+    statusText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: spacing.xs },
+    stepCopy: { flex: 1 },
+    stepDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
+    stepIcon: { alignItems: 'center', height: 42, justifyContent: 'center', width: 28 },
+    stepIconComplete: { backgroundColor: colors.goldStrong, borderRadius: radii.pill, width: 28 },
+    stepIconLocked: { backgroundColor: colors.graphiteRaised, borderRadius: radii.pill, width: 28 },
+    stepPressable: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },
+    stepRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+    stepRowLocked: { opacity: 0.55 },
+    steps: { marginTop: spacing.lg },
+    stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginTop: 2 },
+    stepTitleLocked: { color: colors.silver },
+    title: { color: colors.ivory, fontFamily: typography.display, fontSize: 28, letterSpacing: -0.5, lineHeight: 34, marginBottom: spacing.xs },
+  });

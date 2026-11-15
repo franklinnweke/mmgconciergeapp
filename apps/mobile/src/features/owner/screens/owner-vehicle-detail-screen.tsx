@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { OwnerVisibleVehicle, VehicleVisibility } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,8 +15,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { OwnerVehicleImage } from '../components/owner-vehicle-image';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
 
@@ -30,6 +31,8 @@ function safeVehicleErrorMessage(error: unknown): string {
 
 export function OwnerVehicleDetailScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [vehicle, setVehicle] = useState<OwnerVisibleVehicle | null>(null);
   const [loading, setLoading] = useState(Boolean(id));
@@ -226,40 +229,41 @@ export function OwnerVehicleDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  availabilityBody: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
-  availabilityCopy: { flex: 1 },
-  availabilityIcon: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderRadius: radii.sm, height: 44, justifyContent: 'center', width: 44 },
-  availabilityRow: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg, minHeight: 72 },
-  availabilityTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  backBtn: { backgroundColor: colors.gold, borderRadius: radii.button, marginTop: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  backBtnText: { color: colors.black, fontFamily: typography.bodySemiBold },
-  content: { paddingBottom: spacing.xxl + 40, paddingHorizontal: spacing.lg },
-  errorBox: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },
-  errorTitle: { color: colors.ivory, fontFamily: typography.body, fontSize: 16, marginTop: spacing.sm },
-  feedbackBody: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
-  feedbackContainer: { backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: radii.sm, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
-  feedbackCopy: { flex: 1 },
-  feedbackHeading: { color: colors.danger, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  gridItem: { width: '45%' },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  heroImageContainer: { backgroundColor: '#1E1E1E', borderRadius: radii.lg, height: 180, marginBottom: spacing.md, overflow: 'hidden' },
-  itemLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  itemVal: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, marginTop: 2 },
-  loadingBox: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
-  policyNotice: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: spacing.sm },
-  rateLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
-  rateRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 4 },
-  rateValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  safeArea: { backgroundColor: colors.black, flex: 1 },
-  sectionCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: spacing.md, paddingBottom: spacing.md },
-  sectionHeader: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1, marginBottom: spacing.sm },
-  statusCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: spacing.md, paddingBottom: spacing.md },
-  statusHeading: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1 },
-  statusRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  statusValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16, marginTop: 2 },
-  toggleGroup: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  toggleText: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    availabilityBody: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
+    availabilityCopy: { flex: 1 },
+    availabilityIcon: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderRadius: radii.sm, height: 44, justifyContent: 'center', width: 44 },
+    availabilityRow: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg, minHeight: 72 },
+    availabilityTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
+    backBtn: { backgroundColor: colors.gold, borderRadius: radii.button, marginTop: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+    backBtnText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold },
+    content: { paddingBottom: spacing.xxl + 40, paddingHorizontal: spacing.lg },
+    errorBox: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },
+    errorTitle: { color: colors.ivory, fontFamily: typography.body, fontSize: 16, marginTop: spacing.sm },
+    feedbackBody: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
+    feedbackContainer: { backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: radii.sm, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
+    feedbackCopy: { flex: 1 },
+    feedbackHeading: { color: colors.danger, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+    gridItem: { width: '45%' },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    heroImageContainer: { backgroundColor: colors.surface, borderRadius: radii.lg, height: 180, marginBottom: spacing.md, overflow: 'hidden' },
+    itemLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
+    itemVal: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, marginTop: 2 },
+    loadingBox: { alignItems: 'center', flex: 1, justifyContent: 'center' },
+    loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
+    policyNotice: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: spacing.sm },
+    rateLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
+    rateRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 4 },
+    rateValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    safeArea: { backgroundColor: colors.canvas, flex: 1 },
+    sectionCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: spacing.md, paddingBottom: spacing.md },
+    sectionHeader: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1, marginBottom: spacing.sm },
+    statusCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: spacing.md, paddingBottom: spacing.md },
+    statusHeading: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1 },
+    statusRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+    statusValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16, marginTop: 2 },
+    toggleGroup: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+    toggleText: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
+  });

@@ -26,3 +26,18 @@ export function requireAppleIdentityToken(identityToken: string | null | undefin
   }
   return identityToken;
 }
+
+export function requireAppleAuthorizationCode(authorizationCode: string | null | undefined): string {
+  const trimmed = authorizationCode?.trim() ?? '';
+  if (!trimmed) {
+    throw new Error('Apple did not return an authorization code to revoke this session.');
+  }
+  return trimmed;
+}
+
+export function hasAppleProvider(
+  providerData: ReadonlyArray<{ providerId?: string | null }> | null | undefined,
+): boolean {
+  if (!Array.isArray(providerData)) return false;
+  return providerData.some((entry) => entry?.providerId === 'apple.com');
+}

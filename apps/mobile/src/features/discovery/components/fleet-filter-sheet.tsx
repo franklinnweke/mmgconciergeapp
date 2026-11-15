@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, layout, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { VehicleCategory } from '@mmg/contracts';
 import { useState } from 'react';
 import {
@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 import { fleetCategories } from '../data/lagos-destinations';
 
@@ -36,6 +37,8 @@ export function FleetFilterSheet({
   visible,
 }: FleetFilterSheetProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory | undefined>(
     currentFilters.category,
   );
@@ -97,7 +100,7 @@ export function FleetFilterSheet({
                     ]}
                   >
                     <Ionicons
-                      color={selectedCategory === undefined ? colors.black : colors.goldStrong}
+                      color={selectedCategory === undefined ? colors.buttonPrimaryText : colors.goldStrong}
                       name="car-sport-outline"
                       size={17}
                     />
@@ -124,7 +127,7 @@ export function FleetFilterSheet({
                     >
                       <View style={[styles.choicePill, isSelected && styles.choicePillActive]}>
                         <Ionicons
-                          color={isSelected ? colors.black : colors.silver}
+                          color={isSelected ? colors.buttonPrimaryText : colors.textSecondary}
                           name={cat.value === 'executive_suv' ? 'shield-outline' : 'business-outline'}
                           size={17}
                         />
@@ -163,7 +166,7 @@ export function FleetFilterSheet({
                     ? `Show ${totalResultsCount} ${totalResultsCount === 1 ? 'car' : 'cars'}`
                     : 'Apply filters'}
                 </Text>
-                <Ionicons color={colors.black} name="arrow-forward" size={17} />
+                <Ionicons color={colors.primaryContrast} name="arrow-forward" size={17} />
               </View>
             </PressableScale>
           </View>
@@ -173,126 +176,127 @@ export function FleetFilterSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  applyButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    justifyContent: 'center',
-    minHeight: layout.primaryButtonHeight,
-  },
-  applyFlex: {
-    flex: 1,
-  },
-  applyText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-  },
-  backdrop: {
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  choicePill: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-  },
-  choicePillActive: {
-    backgroundColor: colors.ivory,
-    borderColor: colors.ivory,
-  },
-  choiceText: {
-    color: colors.silver,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
-  },
-  choiceTextActive: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-  },
-  closeButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderRadius: radii.pill,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  footer: {
-    alignItems: 'center',
-    borderTopColor: colors.line,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: layout.screenGutter,
-    paddingTop: spacing.md,
-  },
-  handle: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    borderRadius: 2,
-    height: 4,
-    width: 36,
-  },
-  handleBar: {
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: layout.screenGutter,
-    paddingVertical: spacing.sm,
-  },
-  optionsGrid: {
-    gap: spacing.xs,
-  },
-  optionFull: {
-    width: '100%',
-  },
-  resetButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: layout.primaryButtonHeight,
-    paddingHorizontal: spacing.md,
-  },
-  resetText: {
-    color: colors.muted,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.base,
-  },
-  scrollContent: {
-    gap: spacing.lg,
-    paddingHorizontal: layout.screenGutter,
-    paddingVertical: spacing.sm,
-  },
-  section: {
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-  },
-  sheet: {
-    backgroundColor: colors.canvas,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    maxHeight: '85%',
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.xl,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    applyButton: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      flexDirection: 'row',
+      gap: spacing.xs,
+      justifyContent: 'center',
+      minHeight: layout.primaryButtonHeight,
+    },
+    applyFlex: {
+      flex: 1,
+    },
+    applyText: {
+      color: colors.primaryContrast,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.base,
+    },
+    backdrop: {
+      backgroundColor: colors.scrim,
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    choicePill: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: radii.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      minHeight: 48,
+      paddingHorizontal: spacing.md,
+    },
+    choicePillActive: {
+      backgroundColor: colors.buttonPrimaryBg,
+      borderColor: colors.buttonPrimaryBg,
+    },
+    choiceText: {
+      color: colors.textSecondary,
+      fontFamily: typography.bodyMedium,
+      fontSize: fontSizes.sm,
+    },
+    choiceTextActive: {
+      color: colors.buttonPrimaryText,
+      fontFamily: typography.bodySemiBold,
+    },
+    closeButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceRaised,
+      borderRadius: radii.pill,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
+    },
+    footer: {
+      alignItems: 'center',
+      borderTopColor: colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.md,
+      paddingHorizontal: layout.screenGutter,
+      paddingTop: spacing.md,
+    },
+    handle: {
+      backgroundColor: colors.borderStrong,
+      borderRadius: 2,
+      height: 4,
+      width: 36,
+    },
+    handleBar: {
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+    },
+    header: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: layout.screenGutter,
+      paddingVertical: spacing.sm,
+    },
+    optionsGrid: {
+      gap: spacing.xs,
+    },
+    optionFull: {
+      width: '100%',
+    },
+    resetButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: layout.primaryButtonHeight,
+      paddingHorizontal: spacing.md,
+    },
+    resetText: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyMedium,
+      fontSize: fontSizes.base,
+    },
+    scrollContent: {
+      gap: spacing.lg,
+      paddingHorizontal: layout.screenGutter,
+      paddingVertical: spacing.sm,
+    },
+    section: {
+      gap: spacing.sm,
+    },
+    sectionTitle: {
+      color: colors.primary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.xs,
+    },
+    sheet: {
+      backgroundColor: colors.canvas,
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
+      maxHeight: '85%',
+    },
+    title: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: fontSizes.xl,
+    },
+  });

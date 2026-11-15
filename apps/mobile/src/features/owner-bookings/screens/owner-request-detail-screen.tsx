@@ -1,4 +1,4 @@
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { OwnerVisibleRentalRequest } from '@mmg/contracts/rental-request';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,10 +14,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
-import { ownerCommandErrorMessage } from '@/features/owner/domain/owner-errors';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { addDaysToDateOnly, formatLagosDateOnly } from '../../discovery/data/lagos-destinations';
+import { ownerCommandErrorMessage } from '../../owner/domain/owner-errors';
 
 import { createOwnerRentalRequestGateway } from '../data/owner-rental-request-gateway';
 import {
@@ -35,6 +36,8 @@ function rangeLabel(startDate: string, endDate: string) {
 export function OwnerRequestDetailScreen() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const gateway = useMemo(() => createOwnerRentalRequestGateway(), []);
   const [request, setRequest] = useState<OwnerVisibleRentalRequest | null>(null);
   const [loading, setLoading] = useState(true);
@@ -161,6 +164,7 @@ export function OwnerRequestDetailScreen() {
           <>
             <TextInput
               accessibilityLabel="Decline reason"
+              keyboardAppearance={isDark ? 'dark' : 'light'}
               multiline
               onChangeText={setReason}
               placeholder="Decline note (optional)"
@@ -170,7 +174,7 @@ export function OwnerRequestDetailScreen() {
             />
             <PressableScale disabled={busy} onPress={() => void act('approve')}>
               <View style={[styles.primaryButton, busy && styles.disabled]}>
-                {busy ? <ActivityIndicator color={colors.black} /> : <Text style={styles.primaryButtonText}>Accept request</Text>}
+                {busy ? <ActivityIndicator color={colors.primaryContrast} /> : <Text style={styles.primaryButtonText}>Accept request</Text>}
               </View>
             </PressableScale>
             <PressableScale disabled={busy} onPress={() => void act('decline')}>
@@ -185,7 +189,8 @@ export function OwnerRequestDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
   center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
   content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   disabled: { opacity: 0.6 },
@@ -196,8 +201,8 @@ const styles = StyleSheet.create({
   label: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
-  primaryButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  safe: { backgroundColor: colors.black, flex: 1 },
+  primaryButtonText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  safe: { backgroundColor: colors.canvas, flex: 1 },
   secondaryButton: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.button, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 48 },
   secondaryButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
   section: { gap: spacing.xs },

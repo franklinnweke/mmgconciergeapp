@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { OwnerVisibleVehicle, VehicleVisibility } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
@@ -7,8 +7,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { OwnerVehicleImage } from '../components/owner-vehicle-image';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
 
@@ -40,6 +41,8 @@ function safeMessage(error: unknown) {
 
 export function OwnerVehicleManagementScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const gateway = useMemo(() => createOwnerFleetGateway(), []);
   const [vehicle, setVehicle] = useState<OwnerVisibleVehicle | null>(null);
@@ -193,6 +196,7 @@ export function OwnerVehicleManagementScreen() {
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -201,27 +205,28 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  actionRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 74, paddingVertical: spacing.md },
-  actionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  body: { color: colors.ivory, fontFamily: typography.body, fontSize: 14, textAlign: 'center' },
-  center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
-  content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  detailLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
-  detailRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48 },
-  detailValue: { color: colors.ivory, flexShrink: 1, fontFamily: typography.bodyMedium, fontSize: 13, textAlign: 'right' },
-  flex: { flex: 1 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  hero: { backgroundColor: colors.graphiteRaised, borderRadius: radii.lg, height: 190, overflow: 'hidden' },
-  link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 14, padding: spacing.sm },
-  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', marginTop: spacing.md, minHeight: 50 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  section: { gap: spacing.xs },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  statusLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17, marginBottom: 3 },
-  statusSection: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: spacing.lg },
-  statusTop: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.md },
-  switchGroup: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    actionRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 74, paddingVertical: spacing.md },
+    actionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
+    body: { color: colors.ivory, fontFamily: typography.body, fontSize: 14, textAlign: 'center' },
+    center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
+    content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    detailLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
+    detailRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48 },
+    detailValue: { color: colors.ivory, flexShrink: 1, fontFamily: typography.bodyMedium, fontSize: 13, textAlign: 'right' },
+    flex: { flex: 1 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    hero: { backgroundColor: colors.graphiteRaised, borderRadius: radii.lg, height: 190, overflow: 'hidden' },
+    link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 14, padding: spacing.sm },
+    muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', marginTop: spacing.md, minHeight: 50 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    section: { gap: spacing.xs },
+    sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+    statusLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17, marginBottom: 3 },
+    statusSection: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: spacing.lg },
+    statusTop: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.md },
+    switchGroup: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  });

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { GovernmentIdKind, OwnerVisibleProfile } from '@mmg/contracts';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,9 +16,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import { canReusePersistedGovernmentId, isNigerianE164, isOwnerApplicationEditable } from '../domain/owner-application';
 import { validateOwnerIdCandidate } from '../domain/owner-id-preflight';
@@ -55,6 +56,8 @@ const DOCUMENT_KINDS: { kind: GovernmentIdKind; label: string; description: stri
 export function OwnerIdScreen() {
   const auth = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [documentKind, setDocumentKind] = useState<GovernmentIdKind>('national_id');
   const [selectedAsset, setSelectedAsset] = useState<{
     uri: string;
@@ -376,46 +379,47 @@ export function OwnerIdScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  captureAction: { flex: 1 },
-  captureButton: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 110, padding: spacing.md },
-  captureButtonText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
-  captureRow: { flexDirection: 'row', gap: spacing.md },
-  cardAction: { marginTop: spacing.md },
-  changeText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  disabledAction: { opacity: 0.5 },
-  documentPhotoTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, marginBottom: spacing.sm, marginTop: spacing.lg },
-  errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  fileName: { color: colors.ivory, fontFamily: typography.body, fontSize: 12 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  kindCopy: { flex: 1 },
-  kindDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: 2 },
-  kindLabel: { color: colors.silver, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  kindLabelActive: { color: colors.goldStrong },
-  kindRow: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xs, padding: spacing.md },
-  kindRowActive: { borderColor: colors.goldStrong },
-  kindsList: { marginBottom: spacing.sm },
-  loadingBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
-  loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 48 },
-  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
-  prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
-  prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  previewContainer: { backgroundColor: '#090A0C', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, overflow: 'hidden' },
-  previewImage: { height: 200, width: '100%' },
-  previewMeta: { alignItems: 'center', backgroundColor: colors.graphiteRaised, flexDirection: 'row', justifyContent: 'space-between', padding: spacing.sm },
-  primaryAction: { marginTop: spacing.xl },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  privacyBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.08)', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
-  privacyText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  radio: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: 10, borderWidth: 1.5, height: 20, justifyContent: 'center', width: 20 },
-  radioActive: { borderColor: colors.goldStrong },
-  radioDot: { backgroundColor: colors.goldStrong, borderRadius: 5, height: 10, width: 10 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, marginBottom: spacing.sm },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    captureAction: { flex: 1 },
+    captureButton: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 110, padding: spacing.md },
+    captureButtonText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
+    captureRow: { flexDirection: 'row', gap: spacing.md },
+    cardAction: { marginTop: spacing.md },
+    changeText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    disabledAction: { opacity: 0.5 },
+    documentPhotoTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, marginBottom: spacing.sm, marginTop: spacing.lg },
+    errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
+    fileName: { color: colors.ivory, fontFamily: typography.body, fontSize: 12 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    kindCopy: { flex: 1 },
+    kindDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 11, marginTop: 2 },
+    kindLabel: { color: colors.silver, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    kindLabelActive: { color: colors.goldStrong },
+    kindRow: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xs, padding: spacing.md },
+    kindRowActive: { borderColor: colors.goldStrong },
+    kindsList: { marginBottom: spacing.sm },
+    loadingBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
+    loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+    prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+    prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 48 },
+    prerequisiteButtonText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
+    prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
+    prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+    previewContainer: { backgroundColor: colors.surface, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, overflow: 'hidden' },
+    previewImage: { height: 200, width: '100%' },
+    previewMeta: { alignItems: 'center', backgroundColor: colors.graphiteRaised, flexDirection: 'row', justifyContent: 'space-between', padding: spacing.sm },
+    primaryAction: { marginTop: spacing.xl },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    privacyBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.08)', borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
+    privacyText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    radio: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: 10, borderWidth: 1.5, height: 20, justifyContent: 'center', width: 20 },
+    radioActive: { borderColor: colors.goldStrong },
+    radioDot: { backgroundColor: colors.goldStrong, borderRadius: 5, height: 10, width: 10 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13, marginBottom: spacing.sm },
+  });

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import {
   type GovernmentIdKind,
   type OwnerVisibleProfile,
@@ -10,10 +10,11 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationGateway } from '../data/owner-verification-gateway';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
@@ -38,6 +39,8 @@ const DOCUMENT_LABELS: Record<GovernmentIdKind, string> = {
 export function OwnerSubmitV2Screen() {
   const auth = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const upload = useOwnerIdUpload();
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(Boolean(auth.user?.uid));
@@ -182,7 +185,7 @@ export function OwnerSubmitV2Screen() {
           <View style={styles.notice}><Text style={styles.muted}>This application is no longer editable. Return to Owner Desk for its current status.</Text><PressableScale onPress={() => router.replace('/(owner)' as Href)}><Text style={styles.link}>Return to Owner Desk</Text></PressableScale></View>
         ) : (
           <PressableScale disabled={!canSubmit || submitting} onPress={() => void submit()} style={!canSubmit || submitting ? styles.disabled : undefined}>
-            <View style={styles.primaryButton}>{submitting ? <ActivityIndicator color={colors.black} /> : <Text style={styles.primaryText}>Submit application</Text>}</View>
+            <View style={styles.primaryButton}>{submitting ? <ActivityIndicator color={colors.primaryContrast} /> : <Text style={styles.primaryText}>Submit application</Text>}</View>
           </PressableScale>
         )}
       </ScrollView>
@@ -191,6 +194,7 @@ export function OwnerSubmitV2Screen() {
 }
 
 function SummaryRow({ label, value, onEdit }: { label: string; value: string; onEdit?: () => void }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.row}>
       <View style={styles.flex}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{value}</Text></View>
@@ -199,22 +203,23 @@ function SummaryRow({ label, value, onEdit }: { label: string; value: string; on
   );
 }
 
-const styles = StyleSheet.create({
-  center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
-  content: { gap: 0, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  disabled: { opacity: 0.5 },
-  error: { color: colors.danger, fontFamily: typography.body, fontSize: 13, lineHeight: 19, paddingVertical: spacing.sm },
-  flex: { flex: 1, gap: 3 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  inline: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, paddingBottom: spacing.lg },
-  label: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
-  link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.sm },
-  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  notice: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, paddingTop: spacing.lg },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', marginTop: spacing.xl, minHeight: 52 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  row: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 72, paddingVertical: spacing.md },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  value: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, lineHeight: 18 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
+    content: { gap: 0, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    disabled: { opacity: 0.5 },
+    error: { color: colors.danger, fontFamily: typography.body, fontSize: 13, lineHeight: 19, paddingVertical: spacing.sm },
+    flex: { flex: 1, gap: 3 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    inline: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+    intro: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, paddingBottom: spacing.lg },
+    label: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
+    link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.sm },
+    muted: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
+    notice: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, paddingTop: spacing.lg },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', marginTop: spacing.xl, minHeight: 52 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    row: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 72, paddingVertical: spacing.md },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    value: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, lineHeight: 18 },
+  });

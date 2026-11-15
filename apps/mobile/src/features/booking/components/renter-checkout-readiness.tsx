@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,19 +10,20 @@ import {
   View,
 } from 'react-native';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { useAuth } from '@/core/auth/auth-context';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useAuth } from '../../../core/auth/auth-context';
 import {
   isNigerianE164,
   normalizeNigerianPhone,
-} from '@/core/auth/phone-verification-domain';
+} from '../../../core/auth/phone-verification-domain';
 import {
   confirmPhoneVerification,
   requestPhoneVerification,
   type PhoneVerificationSession,
-} from '@/core/auth/phone-verification';
-import { safeProviderError } from '@/core/errors/safe-provider-error';
-import { useRenterProfile } from '@/features/account/hooks/use-renter-profile';
+} from '../../../core/auth/phone-verification';
+import { safeProviderError } from '../../../core/errors/safe-provider-error';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { useRenterProfile } from '../../account/hooks/use-renter-profile';
 
 import { RenterCheckoutProfileCompletion } from './renter-checkout-profile-completion';
 import { RenterPaymentCheckout } from './renter-payment-checkout';
@@ -41,6 +42,8 @@ export function RenterCheckoutReadiness({
   onViewTrips,
 }: RenterCheckoutReadinessProps) {
   const auth = useAuth();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { profile, isLoading, saveProfile } = useRenterProfile();
   const [userTypedPhone, setUserTypedPhone] = useState<string | null>(null);
   const [code, setCode] = useState('');
@@ -147,6 +150,7 @@ export function RenterCheckoutReadiness({
           <>
             <TextInput
               accessibilityLabel="SMS verification code"
+              keyboardAppearance={isDark ? 'dark' : 'light'}
               keyboardType="number-pad"
               maxLength={6}
               onChangeText={setCode}
@@ -168,6 +172,7 @@ export function RenterCheckoutReadiness({
           <>
             <TextInput
               accessibilityLabel="Nigerian mobile number"
+              keyboardAppearance={isDark ? 'dark' : 'light'}
               keyboardType="phone-pad"
               onChangeText={setUserTypedPhone}
               placeholder="0801 234 5678"
@@ -261,6 +266,7 @@ function PrimaryButton({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <PressableScale accessibilityRole="button" disabled={disabled} onPress={onPress} style={disabled ? styles.disabled : undefined}>
       <View style={styles.button}>
@@ -271,6 +277,8 @@ function PrimaryButton({
 }
 
 function LoadingPanel({ title, body }: { title: string; body: string }) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.panel}>
       <ActivityIndicator color={colors.goldStrong} />
@@ -280,16 +288,17 @@ function LoadingPanel({ title, body }: { title: string; body: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 19, textAlign: 'center' },
-  button: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
-  buttonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  codeInput: { fontFamily: typography.bodySemiBold, fontSize: 18, letterSpacing: 5, textAlign: 'center' },
-  disabled: { opacity: 0.5 },
-  error: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  helper: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  input: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md, width: '100%' },
-  panel: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, gap: spacing.md, marginTop: spacing.md, padding: spacing.lg },
-  textAction: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12, paddingVertical: spacing.xs },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 18, textAlign: 'center' },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    body: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 19, textAlign: 'center' },
+    button: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
+    buttonText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    codeInput: { fontFamily: typography.bodySemiBold, fontSize: 18, letterSpacing: 5, textAlign: 'center' },
+    disabled: { opacity: 0.5 },
+    error: { color: colors.danger, fontFamily: typography.bodyMedium, fontSize: 12, lineHeight: 18, textAlign: 'center' },
+    helper: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, textAlign: 'center' },
+    input: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md, width: '100%' },
+    panel: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, gap: spacing.md, marginTop: spacing.md, padding: spacing.lg },
+    textAction: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12, paddingVertical: spacing.xs },
+    title: { color: colors.ivory, fontFamily: typography.display, fontSize: 18, textAlign: 'center' },
+  });

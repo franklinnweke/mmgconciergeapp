@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { type OwnerVisibleProfile } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -14,10 +14,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
 import {
   createOwnerVerificationGateway,
   type PhoneConfirmationSession,
@@ -34,6 +35,8 @@ import { ownerCommandErrorMessage } from '../domain/owner-errors';
 export function OwnerPhoneScreen() {
   const auth = useAuth();
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [phoneInput, setPhoneInput] = useState(
     auth.user?.phoneNumber ? auth.user.phoneNumber.replace('+234', '0') : '',
   );
@@ -245,6 +248,7 @@ export function OwnerPhoneScreen() {
                 </View>
                 <TextInput
                   editable={!isWeb && !session}
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   keyboardType="phone-pad"
                   onChangeText={setPhoneInput}
                   placeholder="0801 234 5678"
@@ -262,7 +266,7 @@ export function OwnerPhoneScreen() {
               >
                 <View style={styles.primaryButton}>
                   {loading ? (
-                    <ActivityIndicator color={colors.black} size="small" />
+                    <ActivityIndicator color={colors.primaryContrast} size="small" />
                   ) : (
                     <Text style={styles.primaryText}>Send verification code</Text>
                   )}
@@ -273,6 +277,7 @@ export function OwnerPhoneScreen() {
                 <Text style={styles.label}>Enter 6-Digit SMS Code</Text>
                 <TextInput
                   editable={!isWeb}
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   keyboardType="number-pad"
                   maxLength={6}
                   onChangeText={setCode}
@@ -288,7 +293,7 @@ export function OwnerPhoneScreen() {
                 >
                   <View style={styles.primaryButton}>
                     {loading ? (
-                      <ActivityIndicator color={colors.black} size="small" />
+                      <ActivityIndicator color={colors.primaryContrast} size="small" />
                     ) : (
                       <Text style={styles.primaryText}>Verify and continue</Text>
                     )}
@@ -313,45 +318,46 @@ export function OwnerPhoneScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  cardAction: { marginTop: spacing.md },
-  codeInput: { fontFamily: typography.bodySemiBold, fontSize: 20, letterSpacing: 6, textAlign: 'center' },
-  codeSection: { marginTop: spacing.lg },
-  countdownText: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
-  countryPill: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, justifyContent: 'center', paddingHorizontal: spacing.md },
-  countryPillText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
-  disabledAction: { opacity: 0.5 },
-  errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  fieldGroup: { marginBottom: spacing.md },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
-  label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
-  loadingBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
-  loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  noticeBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.1)', borderColor: 'rgba(200,157,70,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  noticeText: { color: colors.goldStrong, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  phoneInput: { flex: 1 },
-  phoneInputRow: { flexDirection: 'row', gap: spacing.xs },
-  primaryAction: { marginTop: spacing.lg },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 48 },
-  prerequisiteButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
-  prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
-  prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  resendRow: { alignItems: 'center', marginTop: spacing.md },
-  resendText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  verifiedCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: spacing.lg },
-  verifiedNote: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.xs },
-  verifiedPhone: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 18, marginTop: 4 },
-  verifiedTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15, marginTop: spacing.xs },
-  verifyAction: { marginTop: spacing.md },
-  webBanner: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.12)', borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.sm },
-  webBannerText: { color: colors.goldStrong, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 11 },
-  webDisabled: { opacity: 0.6 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    cardAction: { marginTop: spacing.md },
+    codeInput: { fontFamily: typography.bodySemiBold, fontSize: 20, letterSpacing: 6, textAlign: 'center' },
+    codeSection: { marginTop: spacing.lg },
+    countdownText: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
+    countryPill: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, justifyContent: 'center', paddingHorizontal: spacing.md },
+    countryPillText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
+    disabledAction: { opacity: 0.5 },
+    errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
+    fieldGroup: { marginBottom: spacing.md },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
+    label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
+    loadingBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
+    loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+    noticeBox: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.1)', borderColor: 'rgba(200,157,70,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
+    noticeText: { color: colors.goldStrong, flex: 1, fontFamily: typography.body, fontSize: 13 },
+    phoneInput: { flex: 1 },
+    phoneInputRow: { flexDirection: 'row', gap: spacing.xs },
+    primaryAction: { marginTop: spacing.lg },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    prerequisiteBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+    prerequisiteButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 48 },
+    prerequisiteButtonText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    prerequisiteCard: { backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.md, borderWidth: 1, padding: spacing.lg },
+    prerequisiteHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
+    prerequisiteTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+    resendRow: { alignItems: 'center', marginTop: spacing.md },
+    resendText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    verifiedCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: spacing.lg },
+    verifiedNote: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.xs },
+    verifiedPhone: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 18, marginTop: 4 },
+    verifiedTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15, marginTop: spacing.xs },
+    verifyAction: { marginTop: spacing.md },
+    webBanner: { alignItems: 'center', backgroundColor: 'rgba(200,157,70,0.12)', borderColor: colors.lineStrong, borderRadius: radii.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.sm },
+    webBannerText: { color: colors.goldStrong, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 11 },
+    webDisabled: { opacity: 0.6 },
+  });

@@ -1,9 +1,10 @@
-import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { tripStateCopy, type RenterTrip } from '@/features/booking/domain/renter-trip';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useThemeStyles } from '../../../core/theme';
+import { tripStateCopy, type RenterTrip } from '../../booking/domain/renter-trip';
 
 import { resolveVehicleImageSource } from '../data/vehicle-images';
 
@@ -22,6 +23,7 @@ function formatDate(value: string) {
 }
 
 export function LiveJourneyCard({ onPress, trip }: LiveJourneyCardProps) {
+  const styles = useThemeStyles(createStyles);
   const copy = tripStateCopy(trip.state);
   const vehicle = trip.vehicleSnapshot;
   const image = resolveVehicleImageSource(vehicle);
@@ -53,57 +55,58 @@ export function LiveJourneyCard({ onPress, trip }: LiveJourneyCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 88,
-    padding: spacing.sm,
-  },
-  cardAttention: {
-    borderColor: 'rgba(209,133,120,0.45)',
-  },
-  copy: { flex: 1, minWidth: 0 },
-  dates: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    marginTop: 2,
-  },
-  dot: {
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.pill,
-    height: 6,
-    width: 6,
-  },
-  dotAttention: { backgroundColor: colors.danger },
-  image: {
-    borderRadius: radii.sm,
-    height: 64,
-    width: 64,
-  },
-  name: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-    marginTop: 4,
-  },
-  pill: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  pillAttention: {},
-  pillText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    letterSpacing: 0.6,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    card: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      minHeight: 88,
+      padding: spacing.sm,
+    },
+    cardAttention: {
+      borderColor: colors.danger,
+    },
+    copy: { flex: 1, minWidth: 0 },
+    dates: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.sm,
+      marginTop: 2,
+    },
+    dot: {
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.pill,
+      height: 6,
+      width: 6,
+    },
+    dotAttention: { backgroundColor: colors.danger },
+    image: {
+      borderRadius: radii.sm,
+      height: 64,
+      width: 64,
+    },
+    name: {
+      color: colors.textPrimary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.base,
+      marginTop: 4,
+    },
+    pill: {
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      gap: 6,
+    },
+    pillAttention: {},
+    pillText: {
+      color: colors.goldStrong,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.xs,
+      letterSpacing: 0.6,
+    },
+  });

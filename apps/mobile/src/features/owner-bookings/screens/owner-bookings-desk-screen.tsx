@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '@mmg/brand';
+import { spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { OwnerVisibleRentalRequest } from '@mmg/contracts/rental-request';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { useRouter } from 'expo-router';
@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
-import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
+import { addDaysToDateOnly, formatLagosDateOnly } from '../../discovery/data/lagos-destinations';
 import {
   createOwnerBookingRepository,
   type OwnerBookingSnapshot,
@@ -37,6 +38,8 @@ function rangeLabel(startDate: string, endDate: string) {
 export function OwnerBookingsDeskScreen() {
   const router = useRouter();
   const { signingOut, user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const repository = useMemo(() => createOwnerBookingRepository(), []);
   const requestGateway = useMemo(() => createOwnerRentalRequestGateway(), []);
   const [requests, setRequests] = useState<OwnerVisibleRentalRequest[]>([]);
@@ -229,7 +232,8 @@ export function OwnerBookingsDeskScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
   center: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
   content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   empty: { alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.xl },
@@ -244,7 +248,7 @@ const styles = StyleSheet.create({
   retryText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
   row: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 76, paddingVertical: spacing.md },
   rowBody: { flex: 1, gap: 4 },
-  safe: { backgroundColor: colors.black, flex: 1 },
+  safe: { backgroundColor: colors.canvas, flex: 1 },
   section: { gap: spacing.xs },
   sectionCount: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
   sectionHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs },

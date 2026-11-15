@@ -1,4 +1,4 @@
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { OwnerVisibleBooking } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
-import { ownerCommandErrorMessage } from '@/features/owner/domain/owner-errors';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { addDaysToDateOnly, formatLagosDateOnly } from '../../discovery/data/lagos-destinations';
+import { ownerCommandErrorMessage } from '../../owner/domain/owner-errors';
 import { createOwnerBookingGateway } from '../data/owner-booking-gateway';
 import { createOwnerBookingRepository } from '../data/owner-booking-repository';
 import {
@@ -41,6 +42,8 @@ export function OwnerBookingDetailScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const repository = useMemo(() => createOwnerBookingRepository(), []);
   const gateway = useMemo(() => createOwnerBookingGateway(), []);
   const [booking, setBooking] = useState<OwnerVisibleBooking | null>(null);
@@ -188,7 +191,7 @@ export function OwnerBookingDetailScreen() {
 
             <PressableScale disabled={busy} onPress={() => void act('confirm')}>
               <View style={[styles.primaryButton, busy && styles.disabled]}>
-                {busy ? <ActivityIndicator color={colors.black} size="small" /> : <Text style={styles.primaryButtonText}>Confirm booking</Text>}
+                {busy ? <ActivityIndicator color={colors.buttonPrimaryText} size="small" /> : <Text style={styles.primaryButtonText}>Confirm booking</Text>}
               </View>
             </PressableScale>
 
@@ -196,6 +199,7 @@ export function OwnerBookingDetailScreen() {
               accessibilityLabel="Decline reason"
               accessibilityHint="Enter 10 to 500 characters"
               editable={!busy}
+              keyboardAppearance={isDark ? 'dark' : 'light'}
               maxLength={500}
               multiline
               onChangeText={setReason}
@@ -229,6 +233,7 @@ export function OwnerBookingDetailScreen() {
 }
 
 function SummaryRow({ label, value, emphasized = false }: { label: string; value: string; emphasized?: boolean }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.summaryRow}>
       <Text style={styles.summaryLabel}>{label}</Text>
@@ -237,7 +242,8 @@ function SummaryRow({ label, value, emphasized = false }: { label: string; value
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
   actions: { gap: spacing.md },
   center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
   content: { gap: spacing.xl, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
@@ -252,9 +258,9 @@ const styles = StyleSheet.create({
   intro: { gap: spacing.xs },
   muted: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.button, justifyContent: 'center', minHeight: 50, paddingHorizontal: spacing.lg },
-  primaryButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  primaryButtonText: { color: colors.buttonPrimaryText, fontFamily: typography.bodySemiBold, fontSize: 14 },
   retryText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  safe: { backgroundColor: colors.black, flex: 1 },
+  safe: { backgroundColor: colors.canvas, flex: 1 },
   secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.button, borderWidth: 1, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg },
   secondaryButtonText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
   section: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm, paddingTop: spacing.lg },

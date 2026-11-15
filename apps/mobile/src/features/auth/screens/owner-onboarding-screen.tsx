@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
@@ -7,10 +7,11 @@ import { useEffect, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandWordmark } from '@/components/brand-wordmark';
-import { PressableScale } from '@/components/pressable-scale';
-import { useReducedMotion } from '@/components/use-reduced-motion';
-import { useAuth } from '@/core/auth/auth-context';
+import { BrandWordmark } from '../../../components/brand-wordmark';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useReducedMotion } from '../../../components/use-reduced-motion';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 const heroImage = require('../../../../assets/images/fleet/prado-250-obsidian-hero.png');
 const steps = [
@@ -24,6 +25,8 @@ export function OwnerOnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -40,7 +43,11 @@ export function OwnerOnboardingScreen() {
         <View style={styles.hero}>
           <Image contentFit="cover" source={heroImage} style={StyleSheet.absoluteFill} />
           <LinearGradient
-            colors={['rgba(4,4,4,0.18)', 'rgba(4,4,4,0.45)', colors.black]}
+            colors={
+              isDark
+                ? ['rgba(4,4,4,0.18)', 'rgba(4,4,4,0.45)', colors.canvas]
+                : ['rgba(247,245,240,0.78)', 'rgba(247,245,240,0.32)', colors.canvas]
+            }
             style={StyleSheet.absoluteFill}
           />
           <View
@@ -74,7 +81,7 @@ export function OwnerOnboardingScreen() {
           <PressableScale onPress={() => router.push('/(owner)' as Href)}>
             <View style={styles.primaryButton}>
               <Text style={styles.primaryText}>OPEN OWNER APPLICATION</Text>
-              <Ionicons color={colors.black} name="arrow-forward" size={18} />
+              <Ionicons color={colors.primaryContrast} name="arrow-forward" size={18} />
             </View>
           </PressableScale>
 
@@ -89,23 +96,24 @@ export function OwnerOnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { color: colors.muted, fontFamily: typography.body, fontSize: 15, lineHeight: 24 },
-  brandRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
-  content: { paddingHorizontal: spacing.lg },
-  hero: { height: 250 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { paddingBottom: spacing.xl },
-  scrollView: { flex: 1 },
-  secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.button, borderWidth: 1, justifyContent: 'center', minHeight: 54 },
-  secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
-  stepCopy: { flex: 1 },
-  stepDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: spacing.xxs },
-  stepIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 46, justifyContent: 'center', width: 46 },
-  stepRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
-  stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15, marginTop: 2 },
-  steps: { marginTop: spacing.lg },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 40, letterSpacing: -0.8, lineHeight: 46, marginBottom: spacing.sm, marginTop: spacing.sm },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    body: { color: colors.textMuted, fontFamily: typography.body, fontSize: 15, lineHeight: 24 },
+    brandRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+    content: { paddingHorizontal: spacing.lg },
+    hero: { height: 250 },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    scroll: { paddingBottom: spacing.xl },
+    scrollView: { flex: 1 },
+    secondaryButton: { alignItems: 'center', backgroundColor: colors.buttonSecondaryBg, borderColor: colors.buttonSecondaryBorder, borderRadius: radii.button, borderWidth: 1, justifyContent: 'center', minHeight: 54 },
+    secondaryText: { color: colors.textPrimary, fontFamily: typography.bodyMedium, fontSize: 14 },
+    stepCopy: { flex: 1 },
+    stepDescription: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: spacing.xxs },
+    stepIcon: { alignItems: 'center', borderColor: colors.borderStrong, borderRadius: radii.pill, borderWidth: 1, height: 46, justifyContent: 'center', width: 46 },
+    stepRow: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+    stepTitle: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: 15, marginTop: 2 },
+    steps: { marginTop: spacing.lg },
+    title: { color: colors.textPrimary, fontFamily: typography.display, fontSize: 40, letterSpacing: -0.8, lineHeight: 46, marginBottom: spacing.sm, marginTop: spacing.sm },
+  });
