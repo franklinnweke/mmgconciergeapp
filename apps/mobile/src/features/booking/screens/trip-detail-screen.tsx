@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { BookingCancellationQuote } from '@mmg/contracts/cancellation';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
@@ -9,10 +9,11 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { safeProviderError } from '@/core/errors/safe-provider-error';
-import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { safeProviderError } from '../../../core/errors/safe-provider-error';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { resolveVehicleImageSource } from '../../discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
 import { RenterPaymentCheckout } from '../components/renter-payment-checkout';
@@ -82,6 +83,8 @@ export default function TripDetailScreen({
 }: TripDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { initializing, refreshRentalRequests, syncError, syncState, trips } = useBookings();
   const [session, dispatch] = useReducer(reduceRenterTripActionSession, initialRenterTripActionSession);
   const [cancellationQuote, setCancellationQuote] = useState<BookingCancellationQuote | null>(null);
@@ -316,7 +319,7 @@ export default function TripDetailScreen({
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
             <Image accessibilityLabel={vehicle.displayName} contentFit="cover" source={vehicleImage} style={StyleSheet.absoluteFill} />
-            <LinearGradient colors={['rgba(4,4,4,.42)', 'transparent', colors.black]} locations={[0, .46, 1]} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={['rgba(4,4,4,.42)', 'transparent', colors.canvas]} locations={[0, .46, 1]} style={StyleSheet.absoluteFill} />
             <ScreenHeader
               backAccessibilityLabel="Back to trips"
               onBack={() => router.back()}
@@ -364,7 +367,7 @@ export default function TripDetailScreen({
                             step.status === 'current' && styles.timelineDotCurrent,
                           ]}
                         >
-                          {step.status === 'complete' ? <Ionicons color={colors.black} name="checkmark" size={11} /> : null}
+                          {step.status === 'complete' ? <Ionicons color={colors.primaryContrast} name="checkmark" size={11} /> : null}
                         </View>
                         {index < timeline.length - 1 ? <View style={styles.timelineLine} /> : null}
                       </View>
@@ -567,6 +570,7 @@ export default function TripDetailScreen({
 }
 
 function DatePoint({ label, value }: { label: string; value: string }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.datePoint}>
       <Text style={styles.dateLabel}>{label}</Text>
@@ -576,6 +580,7 @@ function DatePoint({ label, value }: { label: string; value: string }) {
 }
 
 function SectionTitle({ label }: { label: string }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.sectionTitle}>
       <Text style={styles.sectionLabel}>{label}</Text>
@@ -585,6 +590,7 @@ function SectionTitle({ label }: { label: string }) {
 }
 
 function PriceRow({ label, value }: { label: string; value: string }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.priceRow}>
       <Text style={styles.priceLabel}>{label}</Text>
@@ -608,6 +614,8 @@ function ActionButton({
   onPress: () => void;
   secondary?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   return (
     <PressableScale
       accessibilityLabel={label}
@@ -621,76 +629,77 @@ function ActionButton({
         <Text style={[styles.actionText, secondary && styles.actionTextSecondary]}>
           {loading ? 'Sending…' : label}
         </Text>
-        <Ionicons color={secondary ? colors.ivory : colors.black} name={icon} size={17} />
+        <Ionicons color={secondary ? colors.ivory : colors.primaryContrast} name={icon} size={17} />
       </View>
     </PressableScale>
   );
 }
 
-const styles = StyleSheet.create({
-  actionButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderColor: colors.goldStrong, borderRadius: radii.button, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: spacing.lg },
-  actionButtonDisabled: { opacity: 0.62 },
-  actionButtonSecondary: { backgroundColor: 'transparent', borderColor: colors.lineStrong },
-  actionText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  actionTextSecondary: { color: colors.ivory },
-  actionWrapper: { minHeight: 44 },
-  actions: { gap: spacing.sm, marginTop: spacing.xl },
-  body: { paddingBottom: 120, paddingHorizontal: spacing.lg },
-  cancellationFacts: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.md },
-  centeredBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 21, marginTop: spacing.md, textAlign: 'center' },
-  centeredContent: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl },
-  centeredEyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.4, marginTop: spacing.lg },
-  centeredTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 31, lineHeight: 38, marginTop: spacing.sm, textAlign: 'center' },
-  confirmActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
-  confirmBody: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: spacing.sm },
-  confirmCard: { backgroundColor: colors.graphiteRaised, borderColor: 'rgba(209,133,120,.36)', borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, marginTop: spacing.xl, padding: spacing.lg },
-  confirmTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 22 },
-  content: { backgroundColor: colors.black },
-  dateCard: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xl, paddingVertical: spacing.lg },
-  dateDivider: { alignItems: 'center', flex: .45, minWidth: 36 },
-  dateLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  datePoint: { flex: 1, minWidth: 120 },
-  dateValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12, lineHeight: 18, marginTop: 5 },
-  flex: { flex: 1 },
-  goldButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, minHeight: 52, paddingHorizontal: spacing.lg },
-  goldButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  hero: { height: 405, justifyContent: 'space-between', position: 'relative' },
-  heroCopy: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  heroTop: { paddingHorizontal: spacing.lg },
-  loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
-  missingIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 58, justifyContent: 'center', width: 58 },
-  notice: { alignItems: 'flex-start', backgroundColor: 'rgba(227,195,101,.08)', borderColor: 'rgba(227,195,101,.28)', borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, padding: spacing.md },
-  noticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 18 },
-  offlineNotice: { alignItems: 'center', backgroundColor: 'rgba(227,195,101,.08)', borderColor: 'rgba(227,195,101,.28)', borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, padding: spacing.md },
-  offlineNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
-  priceCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.md },
-  priceLabel: { color: colors.muted, flexShrink: 1, fontFamily: typography.body, fontSize: 12, paddingRight: spacing.md },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
-  priceRule: { backgroundColor: colors.lineStrong, height: StyleSheet.hairlineWidth, marginVertical: spacing.xs },
-  priceTotal: { color: colors.goldStrong, fontFamily: typography.display, fontSize: 25 },
-  priceTotalLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  priceTotalRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between', paddingTop: spacing.md },
-  priceValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  sectionLine: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
-  sectionTitle: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg, marginTop: spacing.xxl },
-  stateHeader: { paddingHorizontal: spacing.lg },
-  subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 21, marginTop: spacing.sm },
-  terminalNote: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, paddingTop: spacing.lg },
-  terminalText: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 11 },
-  timeline: { gap: 0 },
-  timelineCopy: { flex: 1, paddingBottom: spacing.lg },
-  timelineDetail: { color: colors.muted, fontFamily: typography.body, fontSize: 11, lineHeight: 18, marginTop: 4 },
-  timelineDot: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 22, justifyContent: 'center', width: 22 },
-  timelineDotComplete: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
-  timelineDotCurrent: { borderColor: colors.goldStrong, borderWidth: 2 },
-  timelineLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  timelineLine: { backgroundColor: colors.lineStrong, flex: 1, marginVertical: 4, width: StyleSheet.hairlineWidth },
-  timelineRail: { alignItems: 'center', marginRight: spacing.md },
-  timelineRow: { flexDirection: 'row', minHeight: 70 },
-  timelineUpcoming: { color: colors.muted },
-  title: { color: colors.ivory, fontFamily: typography.display, fontSize: 33, letterSpacing: -.5, lineHeight: 40, marginTop: spacing.sm },
-  vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: spacing.xs },
-  vehicleName: { color: colors.ivory, fontFamily: typography.display, fontSize: 35, lineHeight: 41 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    actionButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderColor: colors.goldStrong, borderRadius: radii.button, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: spacing.lg },
+    actionButtonDisabled: { opacity: 0.62 },
+    actionButtonSecondary: { backgroundColor: 'transparent', borderColor: colors.lineStrong },
+    actionText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    actionTextSecondary: { color: colors.ivory },
+    actionWrapper: { minHeight: 44 },
+    actions: { gap: spacing.sm, marginTop: spacing.xl },
+    body: { paddingBottom: 120, paddingHorizontal: spacing.lg },
+    cancellationFacts: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.md },
+    centeredBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 21, marginTop: spacing.md, textAlign: 'center' },
+    centeredContent: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl },
+    centeredEyebrow: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1.4, marginTop: spacing.lg },
+    centeredTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 31, lineHeight: 38, marginTop: spacing.sm, textAlign: 'center' },
+    confirmActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
+    confirmBody: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: spacing.sm },
+    confirmCard: { backgroundColor: colors.graphiteRaised, borderColor: 'rgba(209,133,120,.36)', borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, marginTop: spacing.xl, padding: spacing.lg },
+    confirmTitle: { color: colors.ivory, fontFamily: typography.display, fontSize: 22 },
+    content: { backgroundColor: colors.canvas },
+    dateCard: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xl, paddingVertical: spacing.lg },
+    dateDivider: { alignItems: 'center', flex: .45, minWidth: 36 },
+    dateLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    datePoint: { flex: 1, minWidth: 120 },
+    dateValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12, lineHeight: 18, marginTop: 5 },
+    flex: { flex: 1 },
+    goldButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, minHeight: 52, paddingHorizontal: spacing.lg },
+    goldButtonText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    hero: { height: 405, justifyContent: 'space-between', position: 'relative' },
+    heroCopy: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    heroTop: { paddingHorizontal: spacing.lg },
+    loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
+    missingIcon: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 58, justifyContent: 'center', width: 58 },
+    notice: { alignItems: 'flex-start', backgroundColor: 'rgba(227,195,101,.08)', borderColor: 'rgba(227,195,101,.28)', borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, padding: spacing.md },
+    noticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 18 },
+    offlineNotice: { alignItems: 'center', backgroundColor: 'rgba(227,195,101,.08)', borderColor: 'rgba(227,195,101,.28)', borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, padding: spacing.md },
+    offlineNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
+    priceCard: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.md },
+    priceLabel: { color: colors.muted, flexShrink: 1, fontFamily: typography.body, fontSize: 12, paddingRight: spacing.md },
+    priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
+    priceRule: { backgroundColor: colors.lineStrong, height: StyleSheet.hairlineWidth, marginVertical: spacing.xs },
+    priceTotal: { color: colors.goldStrong, fontFamily: typography.display, fontSize: 25 },
+    priceTotalLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    priceTotalRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between', paddingTop: spacing.md },
+    priceValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    sectionLabel: { color: colors.gold, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    sectionLine: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
+    sectionTitle: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg, marginTop: spacing.xxl },
+    stateHeader: { paddingHorizontal: spacing.lg },
+    subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 21, marginTop: spacing.sm },
+    terminalNote: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, paddingTop: spacing.lg },
+    terminalText: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 11 },
+    timeline: { gap: 0 },
+    timelineCopy: { flex: 1, paddingBottom: spacing.lg },
+    timelineDetail: { color: colors.muted, fontFamily: typography.body, fontSize: 11, lineHeight: 18, marginTop: 4 },
+    timelineDot: { alignItems: 'center', backgroundColor: colors.graphiteRaised, borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: 1, height: 22, justifyContent: 'center', width: 22 },
+    timelineDotComplete: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
+    timelineDotCurrent: { borderColor: colors.goldStrong, borderWidth: 2 },
+    timelineLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    timelineLine: { backgroundColor: colors.lineStrong, flex: 1, marginVertical: 4, width: StyleSheet.hairlineWidth },
+    timelineRail: { alignItems: 'center', marginRight: spacing.md },
+    timelineRow: { flexDirection: 'row', minHeight: 70 },
+    timelineUpcoming: { color: colors.muted },
+    title: { color: colors.ivory, fontFamily: typography.display, fontSize: 33, letterSpacing: -.5, lineHeight: 40, marginTop: spacing.sm },
+    vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: spacing.xs },
+    vehicleName: { color: colors.ivory, fontFamily: typography.display, fontSize: 35, lineHeight: 41 },
+  });

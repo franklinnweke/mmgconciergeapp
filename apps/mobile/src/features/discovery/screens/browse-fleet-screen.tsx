@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, layout, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { VehicleCategory } from '@mmg/contracts';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -12,9 +12,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { LuxuryShimmer } from '@/components/ui/luxury-shimmer';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { LuxuryShimmer } from '../../../components/ui/luxury-shimmer';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 import { BrowseVehicleCard } from '../components/browse-vehicle-card';
 import {
@@ -36,6 +37,8 @@ import { useVehicleSearch } from '../hooks/use-vehicle-search';
 export default function BrowseFleetScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const params = useLocalSearchParams<{
     pickup?: string | string[];
     area?: string | string[];
@@ -127,9 +130,10 @@ export default function BrowseFleetScreen() {
             <TextInput
               accessibilityLabel="Search vehicles"
               autoCapitalize="words"
+              keyboardAppearance={isDark ? 'dark' : 'light'}
               onChangeText={setQuery}
               placeholder="Search cars"
-              placeholderTextColor="rgba(180,174,164,0.68)"
+              placeholderTextColor={colors.textMuted}
               returnKeyType="search"
               style={styles.searchInput}
               value={query}
@@ -141,7 +145,7 @@ export default function BrowseFleetScreen() {
                 onPress={() => setQuery('')}
               >
                 <View style={styles.clearSearch}>
-                  <Ionicons color={colors.muted} name="close" size={16} />
+                  <Ionicons color={colors.textMuted} name="close" size={16} />
                 </View>
               </PressableScale>
             ) : null}
@@ -155,7 +159,7 @@ export default function BrowseFleetScreen() {
           >
             <View style={[styles.filterButton, category !== undefined && styles.filterButtonActive]}>
               <Ionicons
-                color={category !== undefined ? colors.black : colors.ivory}
+                color={category !== undefined ? colors.buttonPrimaryText : colors.textPrimary}
                 name="options-outline"
                 size={18}
               />
@@ -251,161 +255,162 @@ export default function BrowseFleetScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  clearSearch: {
-    padding: spacing.xs,
-  },
-  content: {
-    backgroundColor: colors.black,
-    gap: spacing.md,
-    paddingBottom: 120,
-    paddingHorizontal: layout.screenGutter,
-  },
-  contextRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-  },
-  contextText: {
-    color: colors.silver,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.xs,
-  },
-  clearFilterText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.xs,
-    marginLeft: spacing.sm,
-  },
-  emptyAction: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    minHeight: layout.primaryButtonHeight,
-    paddingHorizontal: spacing.xl,
-  },
-  emptyActionText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  emptyBody: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    lineHeight: 20,
-    maxWidth: 280,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
-  },
-  emptyTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.xl,
-  },
-  errorBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(209,133,120,0.12)',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  errorText: {
-    color: colors.danger,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.sm,
-  },
-  filterButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 7,
-    justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: spacing.md,
-  },
-  filterButtonActive: {
-    backgroundColor: colors.ivory,
-    borderColor: colors.ivory,
-  },
-  filterButtonText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.sm,
-  },
-  filterButtonTextActive: {
-    color: colors.black,
-  },
-  resultsHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    paddingTop: spacing.xs,
-  },
-  resultsList: {
-    gap: spacing.xl,
-    marginTop: spacing.sm,
-  },
-  resultsTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.base,
-  },
-  screen: {
-    backgroundColor: colors.black,
-    flex: 1,
-  },
-  searchBox: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 50,
-    paddingHorizontal: spacing.md,
-  },
-  searchFilterRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  searchInput: {
-    color: colors.ivory,
-    flex: 1,
-    fontFamily: typography.bodyMedium,
-    fontSize: fontSizes.base,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.display,
-    letterSpacing: -0.6,
-    marginTop: 4,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    clearSearch: {
+      padding: spacing.xs,
+    },
+    content: {
+      backgroundColor: colors.canvas,
+      gap: spacing.md,
+      paddingBottom: 120,
+      paddingHorizontal: layout.screenGutter,
+    },
+    contextRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.xs,
+    },
+    contextText: {
+      color: colors.textSecondary,
+      flex: 1,
+      fontFamily: typography.bodyMedium,
+      fontSize: fontSizes.xs,
+    },
+    clearFilterText: {
+      color: colors.goldStrong,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.xs,
+      marginLeft: spacing.sm,
+    },
+    emptyAction: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      justifyContent: 'center',
+      marginTop: spacing.md,
+      minHeight: layout.primaryButtonHeight,
+      paddingHorizontal: spacing.xl,
+    },
+    emptyActionText: {
+      color: colors.primaryContrast,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.sm,
+    },
+    emptyBody: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.sm,
+      lineHeight: 20,
+      maxWidth: 280,
+      marginTop: spacing.xs,
+      textAlign: 'center',
+    },
+    emptyState: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      gap: spacing.xs,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.xxl,
+    },
+    emptyTitle: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: fontSizes.xl,
+    },
+    errorBox: {
+      alignItems: 'center',
+      backgroundColor: 'rgba(209,133,120,0.12)',
+      borderColor: colors.danger,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    errorText: {
+      color: colors.danger,
+      flex: 1,
+      fontFamily: typography.bodyMedium,
+      fontSize: fontSizes.sm,
+    },
+    filterButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: 7,
+      justifyContent: 'center',
+      minHeight: 50,
+      paddingHorizontal: spacing.md,
+    },
+    filterButtonActive: {
+      backgroundColor: colors.buttonPrimaryBg,
+      borderColor: colors.buttonPrimaryBg,
+    },
+    filterButtonText: {
+      color: colors.textPrimary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.sm,
+    },
+    filterButtonTextActive: {
+      color: colors.buttonPrimaryText,
+    },
+    resultsHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing.md,
+      paddingTop: spacing.xs,
+    },
+    resultsList: {
+      gap: spacing.xl,
+      marginTop: spacing.sm,
+    },
+    resultsTitle: {
+      color: colors.textPrimary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.base,
+    },
+    screen: {
+      backgroundColor: colors.canvas,
+      flex: 1,
+    },
+    searchBox: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+      flex: 1,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      minHeight: 50,
+      paddingHorizontal: spacing.md,
+    },
+    searchFilterRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    searchInput: {
+      color: colors.textPrimary,
+      flex: 1,
+      fontFamily: typography.bodyMedium,
+      fontSize: fontSizes.base,
+    },
+    title: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: fontSizes.display,
+      letterSpacing: -0.6,
+      marginTop: 4,
+    },
+  });

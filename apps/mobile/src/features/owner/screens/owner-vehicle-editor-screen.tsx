@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import {
   LAGOS_AREA_LABELS,
   MAX_OWNER_DAILY_RATE_KOBO,
@@ -31,9 +31,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
 import {
   createOwnerVehicleEditorGateway,
@@ -93,6 +94,8 @@ export function OwnerVehicleEditorScreen() {
   const router = useRouter();
   const { vehicleId: routeVehicleId } = useLocalSearchParams<{ vehicleId?: string }>();
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const fleetGateway = useMemo(() => createOwnerFleetGateway(), []);
   const editorGateway = useMemo(() => createOwnerVehicleEditorGateway(), []);
 
@@ -509,6 +512,7 @@ export function OwnerVehicleEditorScreen() {
                 <Text style={styles.moneyPrefix}>₦</Text>
                 <TextInput
                   editable={!busy}
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   keyboardType="number-pad"
                   onChangeText={(value) => setDailyRateNaira(value.replace(/\D/g, ''))}
                   placeholder="350000"
@@ -538,6 +542,7 @@ export function OwnerVehicleEditorScreen() {
               <Text style={styles.label}>Description</Text>
               <TextInput
                 editable={!busy}
+                keyboardAppearance={isDark ? 'dark' : 'light'}
                 maxLength={2000}
                 multiline
                 onChangeText={setDescription}
@@ -573,7 +578,7 @@ export function OwnerVehicleEditorScreen() {
                     <View key={`${photo.uri}-${index}`} style={styles.photoTile}>
                       <Image contentFit="cover" source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} />
                       <PressableScale accessibilityLabel={`Remove photo ${index + 1}`} disabled={busy} onPress={() => setPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))} style={styles.removePhoto}>
-                        <Ionicons color={colors.ivory} name="close" size={14} />
+                        <Ionicons color="#F7F1E7" name="close" size={14} />
                       </PressableScale>
                     </View>
                   ))}
@@ -609,7 +614,7 @@ export function OwnerVehicleEditorScreen() {
             style={[styles.primaryAction, busy && styles.disabled]}
           >
             <View style={styles.primaryButton}>
-              {busy ? <ActivityIndicator color={colors.black} /> : <Text style={styles.primaryText}>{step === 6 ? 'Submit for review' : 'Save and continue'}</Text>}
+              {busy ? <ActivityIndicator color={colors.primaryContrast} /> : <Text style={styles.primaryText}>{step === 6 ? 'Submit for review' : 'Save and continue'}</Text>}
             </View>
           </PressableScale>
         </ScrollView>
@@ -650,15 +655,18 @@ type FieldProps = {
 };
 
 function Field({ label, ...props }: FieldProps) {
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput {...props} placeholderTextColor={colors.muted} style={styles.input} />
+      <TextInput {...props} keyboardAppearance={isDark ? 'dark' : 'light'} placeholderTextColor={colors.muted} style={styles.input} />
     </View>
   );
 }
 
 function ChoiceRow({ options, selected, onSelect }: { options: readonly (readonly [string, string])[]; selected: string; onSelect(value: string): void }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.choiceRow}>
       {options.map(([value, label]) => {
@@ -674,6 +682,7 @@ function ChoiceRow({ options, selected, onSelect }: { options: readonly (readonl
 }
 
 function SummaryRow({ label, value, onEdit, disabled = false }: { label: string; value: string; onEdit(): void; disabled?: boolean }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.summaryRow}>
       <View style={styles.flex}><Text style={styles.label}>{label}</Text><Text numberOfLines={2} style={styles.summaryValue}>{value}</Text></View>
@@ -682,61 +691,62 @@ function SummaryRow({ label, value, onEdit, disabled = false }: { label: string;
   );
 }
 
-const styles = StyleSheet.create({
-  center: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
-  choice: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flex: 1, minHeight: 42, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  choiceRow: { flexDirection: 'row', gap: spacing.sm },
-  choiceSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
-  choiceText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
-  choiceTextSelected: { color: colors.black },
-  content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  disabled: { opacity: 0.55 },
-  editText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  error: { color: colors.danger, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
-  feature: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  featureSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
-  featureText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
-  featureTextSelected: { color: colors.black },
-  featureWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  field: { gap: 6 },
-  flex: { flex: 1 },
-  header: { gap: spacing.xs, paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  helper: { color: colors.muted, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
-  input: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
-  modalBackdrop: { backgroundColor: 'rgba(0,0,0,0.62)', flex: 1, justifyContent: 'flex-end' },
-  modalHandle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 3, marginBottom: spacing.md, width: 36 },
-  modalOption: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  modalOptionSelected: { backgroundColor: 'rgba(255,255,255,0.04)' },
-  modalOptionText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 14 },
-  modalOptionTextSelected: { color: colors.ivory, fontFamily: typography.bodySemiBold },
-  modalSheet: { backgroundColor: colors.graphite, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18, marginBottom: spacing.sm },
-  moneyField: { color: colors.ivory, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 22, paddingVertical: spacing.sm },
-  moneyInput: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
-  moneyPrefix: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 22 },
-  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  notice: { alignItems: 'flex-start', backgroundColor: 'rgba(227,195,101,0.08)', flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  noticeText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  photoFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  photoPicker: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.lg, borderStyle: 'dashed', borderWidth: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 128, padding: spacing.lg },
-  photoPickerText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  photoTile: { backgroundColor: colors.graphite, borderRadius: radii.md, height: 100, overflow: 'hidden', width: '30%' },
-  primaryAction: { marginTop: spacing.sm },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  progressRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  removePhoto: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.68)', borderRadius: radii.pill, height: 26, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 26 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  section: { gap: spacing.md },
-  selector: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.md },
-  selectorText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
-  stepText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' },
-  subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 64, paddingVertical: spacing.sm },
-  summaryValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, lineHeight: 18 },
-  textArea: { minHeight: 120, textAlignVertical: 'top' },
-  title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 22 },
-  twoColumns: { flexDirection: 'row', gap: spacing.sm },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    center: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
+    choice: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, flex: 1, minHeight: 42, justifyContent: 'center', paddingHorizontal: spacing.sm },
+    choiceRow: { flexDirection: 'row', gap: spacing.sm },
+    choiceSelected: { backgroundColor: colors.buttonPrimaryBg, borderColor: colors.buttonPrimaryBg },
+    choiceText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
+    choiceTextSelected: { color: colors.buttonPrimaryText },
+    content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    disabled: { opacity: 0.55 },
+    editText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    error: { color: colors.danger, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
+    feature: { borderColor: colors.line, borderRadius: radii.pill, borderWidth: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+    featureSelected: { backgroundColor: colors.buttonPrimaryBg, borderColor: colors.buttonPrimaryBg },
+    featureText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
+    featureTextSelected: { color: colors.buttonPrimaryText },
+    featureWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    field: { gap: 6 },
+    flex: { flex: 1 },
+    header: { gap: spacing.xs, paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    helper: { color: colors.muted, fontFamily: typography.body, fontSize: 11, lineHeight: 17 },
+    input: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+    label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12 },
+    modalBackdrop: { backgroundColor: colors.scrim, flex: 1, justifyContent: 'flex-end' },
+    modalHandle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: 2, height: 3, marginBottom: spacing.md, width: 36 },
+    modalOption: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },
+    modalOptionSelected: { backgroundColor: colors.surfaceRaised },
+    modalOptionText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 14 },
+    modalOptionTextSelected: { color: colors.ivory, fontFamily: typography.bodySemiBold },
+    modalSheet: { backgroundColor: colors.graphite, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18, marginBottom: spacing.sm },
+    moneyField: { color: colors.ivory, flex: 1, fontFamily: typography.bodySemiBold, fontSize: 22, paddingVertical: spacing.sm },
+    moneyInput: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
+    moneyPrefix: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 22 },
+    muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    notice: { alignItems: 'flex-start', backgroundColor: 'rgba(227,195,101,0.08)', flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+    noticeText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    photoFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+    photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    photoPicker: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.lg, borderStyle: 'dashed', borderWidth: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 128, padding: spacing.lg },
+    photoPickerText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    photoTile: { backgroundColor: colors.graphite, borderRadius: radii.md, height: 100, overflow: 'hidden', width: '30%' },
+    primaryAction: { marginTop: spacing.sm },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    progressRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+    removePhoto: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.68)', borderRadius: radii.pill, height: 26, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 26 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    section: { gap: spacing.md },
+    selector: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.md },
+    selectorText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 14 },
+    stepText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' },
+    subtitle: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+    summaryRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 64, paddingVertical: spacing.sm },
+    summaryValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, lineHeight: 18 },
+    textArea: { minHeight: 120, textAlignVertical: 'top' },
+    title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 22 },
+    twoColumns: { flexDirection: 'row', gap: spacing.sm },
+  });

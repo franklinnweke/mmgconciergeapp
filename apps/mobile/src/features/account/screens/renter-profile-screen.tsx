@@ -55,7 +55,7 @@ function RenterProfileForm({
   onSignOut,
 }: RenterProfileFormProps) {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, mode, setMode } = useTheme();
   const styles = useProfileStyles();
   const [fullName, setFullName] = useState(() => profile?.fullName || userDisplayName || '');
   const [phone, setPhone] = useState(() => profile?.phone || '+234');
@@ -202,6 +202,37 @@ function RenterProfileForm({
             )}
           </View>
         </PressableScale>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <View style={styles.appearanceRow}>
+          {(
+            [
+              { key: 'system', label: 'System' },
+              { key: 'light', label: 'Light' },
+              { key: 'dark', label: 'Dark' },
+            ] as const
+          ).map((item) => {
+            const active = mode === item.key;
+            return (
+              <PressableScale
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                key={item.key}
+                onPress={() => void setMode(item.key)}
+                style={styles.appearanceOptionPressable}
+                testID={`appearance-option-${item.key}`}
+              >
+                <View style={[styles.appearanceOption, active && styles.appearanceOptionActive]}>
+                  <Text style={[styles.appearanceOptionText, active && styles.appearanceOptionTextActive]}>
+                    {item.label}
+                  </Text>
+                </View>
+              </PressableScale>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -401,6 +432,33 @@ export default RenterProfileScreen;
 function useProfileStyles() {
   return useThemeStyles(({ colors, isDark }) =>
     StyleSheet.create({
+      appearanceOption: {
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        borderColor: colors.border,
+        borderRadius: radii.button,
+        borderWidth: 1,
+        justifyContent: 'center',
+        minHeight: 42,
+      },
+      appearanceOptionActive: {
+        backgroundColor: colors.buttonPrimaryBg,
+        borderColor: colors.buttonPrimaryBg,
+      },
+      appearanceOptionPressable: { flex: 1 },
+      appearanceOptionText: {
+        color: colors.textSecondary,
+        fontFamily: typography.bodyMedium,
+        fontSize: 13,
+      },
+      appearanceOptionTextActive: {
+        color: colors.buttonPrimaryText,
+        fontFamily: typography.bodySemiBold,
+      },
+      appearanceRow: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+      },
       avatarFallback: {
         alignItems: 'center',
         backgroundColor: colors.surfaceRaised,

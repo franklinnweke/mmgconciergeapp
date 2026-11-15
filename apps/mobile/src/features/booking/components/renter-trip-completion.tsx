@@ -1,8 +1,9 @@
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '@/components/pressable-scale';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
+import { useThemeStyles } from '../../../core/theme';
 import { createRenterCompletionGateway, type RenterCompletionGateway } from '../data/renter-completion-gateway';
 
 export function RenterTripCompletion({ bookingId, disabled, gateway, onCompleted }: {
@@ -11,6 +12,7 @@ export function RenterTripCompletion({ bookingId, disabled, gateway, onCompleted
   gateway?: RenterCompletionGateway;
   onCompleted(): Promise<void>;
 }) {
+  const styles = useThemeStyles(createStyles);
   const service = useMemo(() => gateway ?? createRenterCompletionGateway(), [gateway]);
   const inFlight = useRef(false);
   const completionVerified = useRef(false);
@@ -61,10 +63,11 @@ export function RenterTripCompletion({ bookingId, disabled, gateway, onCompleted
     </View>
   );
 }
-const styles = StyleSheet.create({
-  section: { marginTop: spacing.lg },
-  button: { minHeight: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, paddingHorizontal: spacing.lg },
-  disabled: { opacity: 0.6 },
-  label: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  notice: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    section: { marginTop: spacing.lg },
+    button: { minHeight: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, paddingHorizontal: spacing.lg },
+    disabled: { opacity: 0.6 },
+    label: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    notice: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
+  });

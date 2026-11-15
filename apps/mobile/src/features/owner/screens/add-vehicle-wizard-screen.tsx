@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import {
   LAGOS_AREA_LABELS,
   LagosAreaLabel,
@@ -29,7 +29,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { createOwnerFleetGateway } from '../data/owner-fleet-gateway';
 import {
   validateVehiclePhotoCandidate,
@@ -56,6 +57,8 @@ export const mapVehicleError = mapVehicleListingError;
 
 export function AddVehicleWizardScreen() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const gateway = useMemo(() => createOwnerFleetGateway(), []);
 
   const [step, setStep] = useState<WizardStep>(1);
@@ -346,7 +349,7 @@ export function AddVehicleWizardScreen() {
                   style={[styles.pill, category === 'executive_suv' && styles.pillSelected]}
                 >
                   <Ionicons
-                    color={category === 'executive_suv' ? colors.black : colors.ivory}
+                    color={category === 'executive_suv' ? colors.primaryContrast : colors.ivory}
                     name="car-sport"
                     size={16}
                   />
@@ -361,7 +364,7 @@ export function AddVehicleWizardScreen() {
                   style={[styles.pill, category === 'executive_sedan' && styles.pillSelected]}
                 >
                   <Ionicons
-                    color={category === 'executive_sedan' ? colors.black : colors.ivory}
+                    color={category === 'executive_sedan' ? colors.primaryContrast : colors.ivory}
                     name="car"
                     size={16}
                   />
@@ -373,6 +376,7 @@ export function AddVehicleWizardScreen() {
 
               <Text style={styles.fieldLabel}>MAKE</Text>
               <TextInput
+                keyboardAppearance={isDark ? 'dark' : 'light'}
                 onChangeText={setMake}
                 placeholder="e.g. Toyota, Mercedes-Benz, Lexus"
                 placeholderTextColor={colors.muted}
@@ -382,6 +386,7 @@ export function AddVehicleWizardScreen() {
 
               <Text style={styles.fieldLabel}>MODEL</Text>
               <TextInput
+                keyboardAppearance={isDark ? 'dark' : 'light'}
                 onChangeText={setModel}
                 placeholder="e.g. Land Cruiser Prado, S-Class, LX600"
                 placeholderTextColor={colors.muted}
@@ -393,6 +398,7 @@ export function AddVehicleWizardScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>YEAR ({MIN_VEHICLE_YEAR}–2026)</Text>
                   <TextInput
+                    keyboardAppearance={isDark ? 'dark' : 'light'}
                     keyboardType="number-pad"
                     maxLength={4}
                     onChangeText={setYear}
@@ -405,6 +411,7 @@ export function AddVehicleWizardScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>PASSENGER SEATS (2–8)</Text>
                   <TextInput
+                    keyboardAppearance={isDark ? 'dark' : 'light'}
                     keyboardType="number-pad"
                     maxLength={1}
                     onChangeText={setSeats}
@@ -418,6 +425,7 @@ export function AddVehicleWizardScreen() {
 
               <Text style={styles.fieldLabel}>EXTERIOR COLOUR</Text>
               <TextInput
+                keyboardAppearance={isDark ? 'dark' : 'light'}
                 onChangeText={setColour}
                 placeholder="e.g. Obsidian Black, Pearl White, Deep Navy"
                 placeholderTextColor={colors.muted}
@@ -490,6 +498,7 @@ export function AddVehicleWizardScreen() {
 
               <Text style={styles.fieldLabel}>GARAGE STREET ADDRESS</Text>
               <TextInput
+                keyboardAppearance={isDark ? 'dark' : 'light'}
                 onChangeText={setStreetAddress}
                 placeholder="e.g. 15 Alexander Avenue, Ikoyi, Lagos"
                 placeholderTextColor={colors.muted}
@@ -503,6 +512,7 @@ export function AddVehicleWizardScreen() {
               <Text style={styles.fieldLabel}>NIGERIAN REGISTRATION PLATE</Text>
               <TextInput
                 autoCapitalize="characters"
+                keyboardAppearance={isDark ? 'dark' : 'light'}
                 onChangeText={setPlate}
                 placeholder="e.g. ABC-123XY"
                 placeholderTextColor={colors.muted}
@@ -524,6 +534,7 @@ export function AddVehicleWizardScreen() {
               <View style={styles.currencyInputContainer}>
                 <Text style={styles.currencyPrefix}>₦</Text>
                 <TextInput
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                   keyboardType="number-pad"
                   onChangeText={(val) => setDailyRateNaira(val.replace(/[^0-9]/g, ''))}
                   placeholder="350,000"
@@ -563,7 +574,7 @@ export function AddVehicleWizardScreen() {
                       style={[styles.featurePill, selected && styles.featurePillSelected]}
                     >
                       <Ionicons
-                        color={selected ? colors.black : colors.muted}
+                        color={selected ? colors.primaryContrast : colors.muted}
                         name={selected ? 'checkmark-circle' : 'add-circle-outline'}
                         size={16}
                       />
@@ -577,6 +588,7 @@ export function AddVehicleWizardScreen() {
 
               <Text style={styles.fieldLabel}>DESCRIPTION (MIN 40 CHARS)</Text>
               <TextInput
+                keyboardAppearance={isDark ? 'dark' : 'light'}
                 multiline
                 numberOfLines={4}
                 onChangeText={setDescription}
@@ -618,7 +630,7 @@ export function AddVehicleWizardScreen() {
                         </View>
                       )}
                       <PressableScale onPress={() => removePhoto(idx)} style={styles.removePhotoBadge}>
-                        <Ionicons color={colors.ivory} name="close" size={14} />
+                        <Ionicons color="#F7F1E7" name="close" size={14} />
                       </PressableScale>
                     </View>
                   ))}
@@ -685,7 +697,7 @@ export function AddVehicleWizardScreen() {
                 style={[styles.primaryButton, submitting && { opacity: 0.6 }]}
               >
                 {submitting ? (
-                  <ActivityIndicator color={colors.black} size="small" />
+                  <ActivityIndicator color={colors.primaryContrast} size="small" />
                 ) : (
                   <Text style={styles.primaryButtonText}>SUBMIT FOR REVIEW</Text>
                 )}
@@ -698,7 +710,8 @@ export function AddVehicleWizardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
   backButton: {
     padding: spacing.xs,
   },
@@ -803,7 +816,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   featureTextSelected: {
-    color: colors.black,
+    color: colors.primaryContrast,
     fontFamily: typography.bodySemiBold,
   },
   fieldLabel: {
@@ -905,7 +918,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   pillTextSelected: {
-    color: colors.black,
+    color: colors.primaryContrast,
     fontFamily: typography.bodySemiBold,
   },
   primaryButton: {
@@ -918,7 +931,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   primaryButtonText: {
-    color: colors.black,
+    color: colors.primaryContrast,
     fontFamily: typography.bodySemiBold,
     fontSize: 13,
     letterSpacing: 1.2,
@@ -933,7 +946,7 @@ const styles = StyleSheet.create({
     top: 4,
   },
   primaryCoverText: {
-    color: colors.black,
+    color: colors.primaryContrast,
     fontFamily: typography.bodySemiBold,
     fontSize: 11,
   },
@@ -974,7 +987,7 @@ const styles = StyleSheet.create({
     top: 4,
   },
   safeArea: {
-    backgroundColor: colors.black,
+    backgroundColor: colors.canvas,
     flex: 1,
   },
   stepContainer: {

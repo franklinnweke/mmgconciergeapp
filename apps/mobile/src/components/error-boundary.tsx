@@ -1,4 +1,4 @@
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import React, { Component, useState, type ErrorInfo, type ReactNode } from 'react';
 import {
   Platform,
@@ -20,6 +20,7 @@ import {
   type DiagnosticSnapshot,
 } from '../core/diagnostics/diagnostic-tracker';
 import { reportUnexpectedMobileError } from '../core/diagnostics/crash-reporting';
+import { useThemeStyles } from '../core/theme';
 
 export type ErrorBoundaryProps = {
   children?: ReactNode;
@@ -120,6 +121,7 @@ function RecoveryFallback({
   retry: () => void;
 }) {
   const diagnosticEnabled = isDiagnosticModeEnabled();
+  const styles = useThemeStyles(createStyles);
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared'>('idle');
 
   if (!diagnosticEnabled || !error) {
@@ -255,147 +257,148 @@ function RecoveryFallback({
 
 const monospaceFont = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
-const styles = StyleSheet.create({
-  body: {
-    color: colors.silver,
-    fontFamily: typography.body,
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  card: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    padding: spacing.xl,
-    width: '100%',
-  },
-  codeText: {
-    color: colors.silver,
-    fontFamily: monospaceFont,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  content: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  diagnosticBadge: {
-    backgroundColor: '#7F1D1D',
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  diagnosticBadgeText: {
-    color: '#FCA5A5',
-    fontFamily: typography.bodySemiBold,
-    fontSize: 10,
-    letterSpacing: 0.5,
-  },
-  diagnosticCard: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    marginTop: spacing.lg,
-    padding: spacing.lg,
-    width: '100%',
-  },
-  diagnosticHeader: {
-    alignItems: 'flex-start',
-    marginBottom: spacing.xs,
-  },
-  diagnosticIncidentId: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 14,
-    marginTop: spacing.xs,
-  },
-  diagnosticMeta: {
-    color: colors.silver,
-    fontFamily: typography.body,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  errorSection: {
-    backgroundColor: colors.black,
-    borderColor: '#991B1B',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    marginTop: spacing.md,
-    padding: spacing.md,
-  },
-  errorTitle: {
-    color: '#F87171',
-    fontFamily: monospaceFont,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    justifyContent: 'center',
-    minHeight: 52,
-    width: '100%',
-  },
-  primaryText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-    letterSpacing: 0.5,
-  },
-  screen: {
-    backgroundColor: colors.black,
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-  },
-  secondaryDiagnosticButton: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 48,
-    width: '100%',
-  },
-  secondaryDiagnosticText: {
-    color: colors.gold,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 12,
-    letterSpacing: 0.5,
-  },
-  sectionLabel: {
-    color: colors.silver,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    marginBottom: spacing.xs,
-    textTransform: 'uppercase',
-  },
-  stackScrollView: {
-    backgroundColor: colors.black,
-    borderRadius: radii.sm,
-    maxHeight: 160,
-    padding: spacing.sm,
-  },
-  stackSection: {
-    marginTop: spacing.md,
-  },
-  title: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 22,
-    letterSpacing: -0.3,
-    textAlign: 'center',
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    body: {
+      color: colors.textSecondary,
+      fontFamily: typography.body,
+      fontSize: 14,
+      lineHeight: 22,
+      marginTop: spacing.sm,
+      textAlign: 'center',
+    },
+    card: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceRaised,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      padding: spacing.xl,
+      width: '100%',
+    },
+    codeText: {
+      color: colors.textSecondary,
+      fontFamily: monospaceFont,
+      fontSize: 11,
+      lineHeight: 16,
+    },
+    content: {
+      alignItems: 'center',
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    diagnosticBadge: {
+      backgroundColor: '#7F1D1D',
+      borderRadius: radii.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+    },
+    diagnosticBadgeText: {
+      color: '#FCA5A5',
+      fontFamily: typography.bodySemiBold,
+      fontSize: 10,
+      letterSpacing: 0.5,
+    },
+    diagnosticCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      marginTop: spacing.lg,
+      padding: spacing.lg,
+      width: '100%',
+    },
+    diagnosticHeader: {
+      alignItems: 'flex-start',
+      marginBottom: spacing.xs,
+    },
+    diagnosticIncidentId: {
+      color: colors.textPrimary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 14,
+      marginTop: spacing.xs,
+    },
+    diagnosticMeta: {
+      color: colors.textSecondary,
+      fontFamily: typography.body,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    errorSection: {
+      backgroundColor: colors.canvas,
+      borderColor: '#991B1B',
+      borderRadius: radii.md,
+      borderWidth: 1,
+      marginTop: spacing.md,
+      padding: spacing.md,
+    },
+    errorTitle: {
+      color: colors.danger,
+      fontFamily: monospaceFont,
+      fontSize: 12,
+      lineHeight: 18,
+    },
+    primaryButton: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      flexDirection: 'row',
+      gap: spacing.xs,
+      justifyContent: 'center',
+      minHeight: 52,
+      width: '100%',
+    },
+    primaryText: {
+      color: colors.primaryContrast,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 13,
+      letterSpacing: 0.5,
+    },
+    screen: {
+      backgroundColor: colors.canvas,
+      flex: 1,
+    },
+    scrollContent: {
+      padding: spacing.lg,
+    },
+    secondaryDiagnosticButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceRaised,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.button,
+      borderWidth: 1,
+      justifyContent: 'center',
+      minHeight: 48,
+      width: '100%',
+    },
+    secondaryDiagnosticText: {
+      color: colors.primary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 12,
+      letterSpacing: 0.5,
+    },
+    sectionLabel: {
+      color: colors.textSecondary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 11,
+      marginBottom: spacing.xs,
+      textTransform: 'uppercase',
+    },
+    stackScrollView: {
+      backgroundColor: colors.canvas,
+      borderRadius: radii.sm,
+      maxHeight: 160,
+      padding: spacing.sm,
+    },
+    stackSection: {
+      marginTop: spacing.md,
+    },
+    title: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: 22,
+      letterSpacing: -0.3,
+      textAlign: 'center',
+    },
+  });

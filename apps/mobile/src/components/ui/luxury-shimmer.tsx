@@ -1,5 +1,7 @@
-import { colors, radii } from '@mmg/brand';
+import { radii } from '@mmg/brand';
 import { DimensionValue, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+
+import { useTheme } from '../../core/theme';
 
 export type LuxuryShimmerProps = {
   borderRadius?: number;
@@ -12,9 +14,18 @@ export type LuxuryShimmerProps = {
 export function LuxuryShimmer({
   borderRadius = radii.md, height, style, width = '100%',
 }: LuxuryShimmerProps) {
-  return <View style={[styles.placeholder, { borderRadius, height, width }, style]} />;
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.placeholder,
+        { backgroundColor: colors.surfaceRaised, borderRadius, height, width },
+        style,
+      ]}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
-  placeholder: { backgroundColor: colors.graphite, overflow: 'hidden' },
+  placeholder: { overflow: 'hidden' },
 });

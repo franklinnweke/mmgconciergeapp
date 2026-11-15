@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import * as WebBrowser from 'expo-web-browser';
 import {
   useCallback,
@@ -15,6 +15,7 @@ import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-nativ
 import { PressableScale } from '@/components/pressable-scale';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { reportUnexpectedMobileError } from '../../../core/diagnostics/crash-reporting';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 import {
   createPaymentCheckoutGateway,
@@ -59,6 +60,8 @@ export function RenterPaymentCheckout({
   onRestartHold,
   onViewTrips,
 }: RenterPaymentCheckoutProps) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const gateway = useMemo(() => createPaymentCheckoutGateway(), []);
   const keys = useRef(new PaymentCheckoutSubmissionKeys());
   const checkoutWasOpened = useRef(false);
@@ -339,6 +342,7 @@ export function RenterPaymentCheckout({
 }
 
 function ActionButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <PressableScale accessibilityLabel={label} accessibilityRole="button" onPress={onPress}>
       <View style={styles.button}>
@@ -359,6 +363,7 @@ function SecondaryActionButton({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <PressableScale
       accessibilityLabel={label}
@@ -386,6 +391,8 @@ function StatusCard({
   title: string;
   tone: 'success' | 'warning';
 }) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const toneColor = tone === 'success' ? colors.success : colors.goldStrong;
   return (
     <View accessibilityLiveRegion="polite" style={[styles.panel, { borderColor: toneColor }]}>
@@ -396,105 +403,106 @@ function StatusCard({
   );
 }
 
-const styles = StyleSheet.create({
-  bodyText: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  button: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    minHeight: 46,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  buttonText: {
-    color: colors.black,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-    letterSpacing: 0.4,
-  },
-  errorText: {
-    color: colors.danger,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  headingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  panel: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing.md,
-    marginTop: spacing.md,
-    padding: spacing.lg,
-  },
-  panelTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 18,
-    textAlign: 'center',
-  },
-  releaseActions: {
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  releaseBody: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'left',
-  },
-  releaseConfirmation: {
-    alignSelf: 'stretch',
-    borderTopColor: colors.line,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    marginTop: spacing.sm,
-    paddingTop: spacing.md,
-  },
-  releaseTitle: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 13,
-    marginBottom: spacing.xs,
-  },
-  secondaryActionWrapper: {
-    minHeight: 44,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.button,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-  },
-  secondaryButtonDestructive: {
-    borderColor: 'rgba(209,133,120,.5)',
-  },
-  secondaryButtonDisabled: {
-    opacity: 0.58,
-  },
-  secondaryButtonText: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 12,
-  },
-  secondaryButtonTextDestructive: {
-    color: colors.danger,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    bodyText: {
+      color: colors.muted,
+      fontFamily: typography.body,
+      fontSize: 13,
+      lineHeight: 19,
+      textAlign: 'center',
+    },
+    button: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      minHeight: 46,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    buttonText: {
+      color: colors.primaryContrast,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 13,
+      letterSpacing: 0.4,
+    },
+    errorText: {
+      color: colors.danger,
+      fontFamily: typography.bodyMedium,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: 'center',
+    },
+    headingRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    panel: {
+      alignItems: 'center',
+      backgroundColor: colors.graphite,
+      borderColor: colors.lineStrong,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      gap: spacing.md,
+      marginTop: spacing.md,
+      padding: spacing.lg,
+    },
+    panelTitle: {
+      color: colors.ivory,
+      fontFamily: typography.display,
+      fontSize: 18,
+      textAlign: 'center',
+    },
+    releaseActions: {
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    releaseBody: {
+      color: colors.muted,
+      fontFamily: typography.body,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: 'left',
+    },
+    releaseConfirmation: {
+      alignSelf: 'stretch',
+      borderTopColor: colors.line,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      marginTop: spacing.sm,
+      paddingTop: spacing.md,
+    },
+    releaseTitle: {
+      color: colors.ivory,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 13,
+      marginBottom: spacing.xs,
+    },
+    secondaryActionWrapper: {
+      minHeight: 44,
+    },
+    secondaryButton: {
+      alignItems: 'center',
+      borderColor: colors.lineStrong,
+      borderRadius: radii.button,
+      borderWidth: StyleSheet.hairlineWidth,
+      justifyContent: 'center',
+      minHeight: 44,
+      paddingHorizontal: spacing.lg,
+    },
+    secondaryButtonDestructive: {
+      borderColor: 'rgba(209,133,120,.5)',
+    },
+    secondaryButtonDisabled: {
+      opacity: 0.58,
+    },
+    secondaryButtonText: {
+      color: colors.ivory,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 12,
+    },
+    secondaryButtonTextDestructive: {
+      color: colors.danger,
+    },
+  });

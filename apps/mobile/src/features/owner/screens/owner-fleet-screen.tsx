@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { OwnerVisibleVehicle, VehicleModerationStatus } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { useRouter } from 'expo-router';
@@ -13,12 +13,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { OwnerVehicleImage } from '../components/owner-vehicle-image';
 import { useOwnerFleet } from '../hooks/use-owner-fleet';
 
-function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) {
+function statusBadgeConfig(status: VehicleModerationStatus, visibility: string, colors: ThemeColors) {
   switch (status) {
     case 'approved':
       if (visibility === 'active') {
@@ -56,6 +57,8 @@ function statusBadgeConfig(status: VehicleModerationStatus, visibility: string) 
 
 export function OwnerFleetScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { actionInProgress, loading, syncError, toggleVisibility, vehicles } = useOwnerFleet();
 
   const handleAddVehicle = () => {
@@ -125,7 +128,7 @@ export function OwnerFleetScreen() {
             </View>
           }
           renderItem={({ item }) => {
-            const badge = statusBadgeConfig(item.moderationStatus, item.visibility);
+            const badge = statusBadgeConfig(item.moderationStatus, item.visibility, colors);
             const isToggling = actionInProgress === item.vehicleId;
 
             return (
@@ -206,82 +209,83 @@ export function OwnerFleetScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-  },
-  cardBody: { padding: spacing.md },
-  cardMedia: { backgroundColor: '#1E1E1E', height: 160, width: '100%' },
-  cardTopRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
-  statusText: {
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  vehicleTitleGroup: { flex: 1, marginRight: spacing.sm },
-  emptyButton: {
-    alignItems: 'center',
-    backgroundColor: colors.gold,
-    borderRadius: radii.button,
-    justifyContent: 'center',
-    marginTop: spacing.lg,
-    minHeight: 48,
-    paddingHorizontal: spacing.lg,
-  },
-  emptyButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  emptyCopy: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: spacing.xs, textAlign: 'center' },
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, paddingVertical: spacing.xxl },
-  emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18 },
-  errorBanner: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    borderColor: 'rgba(239,68,68,0.3)',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-    marginHorizontal: spacing.lg,
-    padding: spacing.sm,
-  },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 12 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  headerAction: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  headerActions: { flexDirection: 'row', gap: spacing.xs },
-  listContent: { paddingBottom: spacing.xxl + 40, paddingHorizontal: spacing.lg },
-  loadingContainer: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingVertical: spacing.xxl },
-  loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
-  metaDot: { color: colors.muted },
-  metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
-  metaText: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
-  priceLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
-  priceRow: {
-    alignItems: 'center',
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-  priceValue: { color: colors.ivory, fontFamily: typography.body, fontSize: 15, fontWeight: '700' },
-  rejectionBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: radii.sm, flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, padding: spacing.xs },
-  rejectionText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 11 },
-  safeArea: { backgroundColor: colors.black, flex: 1 },
-  switchLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
-  switchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.graphiteRaised,
+      borderColor: colors.line,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      marginBottom: spacing.md,
+      overflow: 'hidden',
+    },
+    cardBody: { padding: spacing.md },
+    cardMedia: { backgroundColor: colors.surface, height: 160, width: '100%' },
+    cardTopRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
+    statusText: {
+      fontFamily: typography.bodySemiBold,
+      fontSize: 11,
+      marginTop: 2,
+    },
+    vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+    vehicleTitleGroup: { flex: 1, marginRight: spacing.sm },
+    emptyButton: {
+      alignItems: 'center',
+      backgroundColor: colors.gold,
+      borderRadius: radii.button,
+      justifyContent: 'center',
+      marginTop: spacing.lg,
+      minHeight: 48,
+      paddingHorizontal: spacing.lg,
+    },
+    emptyButtonText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    emptyCopy: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: spacing.xs, textAlign: 'center' },
+    emptyState: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, paddingVertical: spacing.xxl },
+    emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18 },
+    errorBanner: {
+      alignItems: 'center',
+      backgroundColor: 'rgba(239,68,68,0.1)',
+      borderColor: 'rgba(239,68,68,0.3)',
+      borderRadius: radii.md,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+      marginHorizontal: spacing.lg,
+      padding: spacing.sm,
+    },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 12 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    headerAction: {
+      alignItems: 'center',
+      borderColor: colors.lineStrong,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
+    },
+    headerActions: { flexDirection: 'row', gap: spacing.xs },
+    listContent: { paddingBottom: spacing.xxl + 40, paddingHorizontal: spacing.lg },
+    loadingContainer: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingVertical: spacing.xxl },
+    loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, marginTop: spacing.sm },
+    metaDot: { color: colors.muted },
+    metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
+    metaText: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
+    priceLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+    priceRow: {
+      alignItems: 'center',
+      borderTopColor: colors.line,
+      borderTopWidth: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm,
+      paddingTop: spacing.xs,
+    },
+    priceValue: { color: colors.ivory, fontFamily: typography.body, fontSize: 15, fontWeight: '700' },
+    rejectionBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: radii.sm, flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, padding: spacing.xs },
+    rejectionText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 11 },
+    safeArea: { backgroundColor: colors.canvas, flex: 1 },
+    switchLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
+    switchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  });

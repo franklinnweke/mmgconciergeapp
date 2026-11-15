@@ -442,6 +442,21 @@ Build 45 was created from the exact checkpoint above:
 - production APNs entitlement enabled (`MMG_APNS_ENV=production`)
 - resolution included: Mobile restraint pass (PR #96: simplified interface copy, removed decorative motion, cleaned up orphaned owner location helper).
 
+Validated Build 48 TestFlight source checkpoint merged to `main`:
+
+`0238423f03b0c279a0cf5081c7ff26b0ee654d04`
+
+Build 48 was created from the exact checkpoint above:
+
+- build number: `48`
+- EAS build ID: `337b4def-07ff-4068-9c49-28815222c0c2`
+- submission ID: `c0b61e75-1221-407c-b60a-4a7ee1ca0253`
+- App Store Connect App ID: `6801330614`
+- development Firebase config selected (`mmg-concierge-dev`)
+- profile: `testflight-development`
+- production APNs entitlement enabled (`MMG_APNS_ENV=production`)
+- resolution included: Pickup GPS/reverse-geocoding & Google Maps iOS configuration (PR #100, #104), request retry & Trips refresh hardening + checkout recovery + Crashlytics development guardrails (PR #101), renter Trip Detail pickup preservation & staff dispatch pickup-time confirmation (PR #106).
+
 Current state:
 - Request-first architecture: merged to `main`
 - Renter release-payment-window action: merged to `main`
@@ -460,12 +475,14 @@ Current state:
 - Renter correctness & privacy transaction ordering (WP3 refinements: upfront reads, targeted idempotency, envelope unification, hydration race, no name gating, truthful terminal states): merged to `main`
 - Non-blocking Owner ID upload and Review & Submit live status coordination: merged to `main`
 - Durable government ID deletion outbox (atomic review transaction creation, unbounded capped-backoff retries, due-job querying preventing starvation, race-proof target revalidation, un-swallowed storage deletion errors, and scheduled worker): merged to `main`
+- Renter Profile contact-only save & legacy delivery address preservation (PR #107): merged to `main`
+- Full Light/Dark theme conversion & Appearance (`System / Light / Dark`) selector across Renter and Owner experiences (with `dark` default preserved and map tiles unchanged): merged to `main`
 - Mobile renter/owner integration: merged to `main`
 - Admin concierge controls & cancellation intervention desk: merged to `main`
 - Main CI: green
 - Production `mmg-concierge`: untouched
 - Firebase development deployment (`mmg-concierge-dev`): deployed. Use Issue #35 and the exact development-CD deployment step for current resource/revision evidence; the historical 19-Function count is no longer current. A feature branch passing tests does not mean its runtime changes have been deployed.
-- Native Build Milestone: Build 45 active on TestFlight (submitted to Apple Connect, processing)
+- Native Build Milestone: Build 48 active on TestFlight (submitted to Apple Connect)
 - Android native validation: in progress on Pixel 7 API 35
 
 Do not call the release complete until Admin is deployed by the VPS/Admin agent and end-to-end human acceptance has been completed on the physical device.

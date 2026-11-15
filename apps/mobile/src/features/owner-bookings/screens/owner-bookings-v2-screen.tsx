@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '@mmg/brand';
+import { spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { OwnerVisibleRentalRequest } from '@mmg/contracts/rental-request';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { type Href, useRouter } from 'expo-router';
@@ -7,11 +7,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
-import { addDaysToDateOnly, formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
+import { addDaysToDateOnly, formatLagosDateOnly } from '../../discovery/data/lagos-destinations';
 import {
   createOwnerBookingRepository,
   type OwnerBookingSnapshot,
@@ -45,6 +46,8 @@ function bookingStateLabel(state: string) {
 export function OwnerBookingsV2Screen() {
   const router = useRouter();
   const { signingOut, user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const repository = useMemo(() => createOwnerBookingRepository(), []);
   const requestGateway = useMemo(() => createOwnerRentalRequestGateway(), []);
   const [requests, setRequests] = useState<OwnerVisibleRentalRequest[]>([]);
@@ -145,6 +148,7 @@ export function OwnerBookingsV2Screen() {
 }
 
 function RequestSection({ title, requests, onOpen }: { title: string; requests: OwnerVisibleRentalRequest[]; onOpen(id: string): void }) {
+  const styles = useThemeStyles(createStyles);
   if (!requests.length) return null;
   return (
     <View style={styles.section}>
@@ -170,6 +174,7 @@ function RequestSection({ title, requests, onOpen }: { title: string; requests: 
 }
 
 function BookingSection({ title, bookings, onOpen }: { title: string; bookings: OwnerBookingSnapshot['bookings']; onOpen(id: string): void }) {
+  const styles = useThemeStyles(createStyles);
   if (!bookings.length) return null;
   return (
     <View style={styles.section}>
@@ -190,7 +195,8 @@ function BookingSection({ title, bookings, onOpen }: { title: string; bookings: 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
   center: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
   content: { gap: spacing.xl, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   count: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
@@ -205,7 +211,7 @@ const styles = StyleSheet.create({
   retry: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13 },
   row: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 82, paddingVertical: spacing.md },
   rowCopy: { flex: 1, gap: 3, minWidth: 0 },
-  screen: { backgroundColor: colors.black, flex: 1 },
+  screen: { backgroundColor: colors.canvas, flex: 1 },
   section: { gap: spacing.xs },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },

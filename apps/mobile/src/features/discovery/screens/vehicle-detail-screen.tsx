@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, layout, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { type VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
@@ -19,9 +19,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { safeProviderError } from '@/core/errors/safe-provider-error';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { safeProviderError } from '../../../core/errors/safe-provider-error';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 import { PickupLocationSheet } from '../components/pickup-location-sheet';
 import { RentalDateSheet } from '../components/rental-date-sheet';
@@ -59,6 +60,8 @@ export default function VehicleDetailScreen({
 }: VehicleDetailScreenProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const gateway = useMemo(() => createDiscoveryGateway(), []);
   const calendarGateway = useMemo(
     () => injectedCalendarGateway ?? createVehicleCalendarGateway(),
@@ -403,52 +406,53 @@ export default function VehicleDetailScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  actionFlex: { flex: 1, maxWidth: 190 },
-  availabilityBody: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, lineHeight: 17, marginTop: 2 },
-  availabilityCopy: { flex: 1, minWidth: 0 },
-  availabilityRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, minHeight: 62, paddingTop: spacing.sm },
-  availabilityTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
-  body: { gap: spacing.xl, paddingHorizontal: layout.screenGutter, paddingTop: spacing.lg },
-  content: { backgroundColor: colors.black },
-  controlHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  counterPill: { backgroundColor: 'rgba(4,4,4,0.68)', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
-  counterText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs },
-  deliveryCopy: { flex: 1, minWidth: 0 },
-  deliveryIcon: { alignItems: 'center', flex: 0, height: 32, justifyContent: 'center', width: 28 },
-  deliveryMeta: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, lineHeight: 17, marginTop: 2 },
-  deliveryRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, minHeight: 68, paddingVertical: spacing.sm },
-  deliveryValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm, lineHeight: 19, marginTop: 2 },
-  disabled: { opacity: 0.45 },
-  editText: { color: colors.goldStrong, flex: 0, fontFamily: typography.bodyMedium, fontSize: fontSizes.xs },
-  gallerySlide: { height: 310, width: SCREEN_WIDTH },
-  hero: { height: 310 },
-  heroHeader: { left: layout.screenGutter, position: 'absolute', right: layout.screenGutter, top: 0 },
-  identityBlock: { gap: 4 },
-  journeyPoint: { flex: 1, gap: 4, minWidth: 0 },
-  journeyPointEnd: { alignItems: 'flex-end' },
-  journeyRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.sm },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: layout.primaryButtonHeight, paddingHorizontal: spacing.lg },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
-  rate: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 24 },
-  rateLine: { alignItems: 'baseline', flexDirection: 'row', marginTop: spacing.xs },
-  rateUnit: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm },
-  rowLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
-  rowValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  section: { gap: spacing.xs },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
-  stateButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.button, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
-  stateButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
-  stateCenter: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', paddingHorizontal: spacing.xl },
-  stateScreen: { backgroundColor: colors.black, flex: 1, paddingHorizontal: layout.screenGutter },
-  stateText: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm, lineHeight: 20, textAlign: 'center' },
-  stateTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
-  stickyBar: { alignItems: 'center', backgroundColor: 'rgba(10,10,10,0.98)', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, bottom: 0, flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', left: 0, paddingHorizontal: layout.screenGutter, paddingTop: spacing.sm, position: 'absolute', right: 0 },
-  stickyCopy: { flexShrink: 1, minWidth: 0 },
-  stickyLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
-  stickyValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base, marginTop: 2 },
-  tripControl: { paddingBottom: spacing.xs },
-  vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.sm },
-  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 26, letterSpacing: -0.5 },
-});
+const createStyles = ({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) =>
+  StyleSheet.create({
+    actionFlex: { flex: 1, maxWidth: 190 },
+    availabilityBody: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs, lineHeight: 17, marginTop: 2 },
+    availabilityCopy: { flex: 1, minWidth: 0 },
+    availabilityRow: { alignItems: 'center', borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, minHeight: 62, paddingTop: spacing.sm },
+    availabilityTitle: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
+    body: { gap: spacing.xl, paddingHorizontal: layout.screenGutter, paddingTop: spacing.lg },
+    content: { backgroundColor: colors.canvas },
+    controlHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+    counterPill: { backgroundColor: 'rgba(4,4,4,0.68)', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
+    counterText: { color: '#F7F1E7', fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs },
+    deliveryCopy: { flex: 1, minWidth: 0 },
+    deliveryIcon: { alignItems: 'center', flex: 0, height: 32, justifyContent: 'center', width: 28 },
+    deliveryMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs, lineHeight: 17, marginTop: 2 },
+    deliveryRow: { alignItems: 'center', borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, minHeight: 68, paddingVertical: spacing.sm },
+    deliveryValue: { color: colors.textPrimary, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm, lineHeight: 19, marginTop: 2 },
+    disabled: { opacity: 0.45 },
+    editText: { color: colors.goldStrong, flex: 0, fontFamily: typography.bodyMedium, fontSize: fontSizes.xs },
+    gallerySlide: { height: 310, width: SCREEN_WIDTH },
+    hero: { height: 310 },
+    heroHeader: { left: layout.screenGutter, position: 'absolute', right: layout.screenGutter, top: 0 },
+    identityBlock: { gap: 4 },
+    journeyPoint: { flex: 1, gap: 4, minWidth: 0 },
+    journeyPointEnd: { alignItems: 'flex-end' },
+    journeyRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.sm },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: layout.primaryButtonHeight, paddingHorizontal: spacing.lg },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
+    rate: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: 24 },
+    rateLine: { alignItems: 'baseline', flexDirection: 'row', marginTop: spacing.xs },
+    rateUnit: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.sm },
+    rowLabel: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs },
+    rowValue: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    section: { gap: spacing.xs },
+    sectionTitle: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
+    stateButton: { alignItems: 'center', backgroundColor: colors.buttonPrimaryBg, borderRadius: radii.button, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
+    stateButtonText: { color: colors.buttonPrimaryText, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
+    stateCenter: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', paddingHorizontal: spacing.xl },
+    stateScreen: { backgroundColor: colors.canvas, flex: 1, paddingHorizontal: layout.screenGutter },
+    stateText: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.sm, lineHeight: 20, textAlign: 'center' },
+    stateTitle: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.lg },
+    stickyBar: { alignItems: 'center', backgroundColor: isDark ? 'rgba(10,10,10,0.98)' : 'rgba(247,245,240,0.96)', borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, bottom: 0, flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', left: 0, paddingHorizontal: layout.screenGutter, paddingTop: spacing.sm, position: 'absolute', right: 0 },
+    stickyCopy: { flexShrink: 1, minWidth: 0 },
+    stickyLabel: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs },
+    stickyValue: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base, marginTop: 2 },
+    tripControl: { paddingBottom: spacing.xs },
+    vehicleMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.sm },
+    vehicleName: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: 26, letterSpacing: -0.5 },
+  });

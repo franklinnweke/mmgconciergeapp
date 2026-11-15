@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors, type ThemeMode } from '@mmg/brand';
 import type { OwnerVisibleProfile } from '@mmg/contracts';
 import { type Href, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { recordBreadcrumb } from '@/core/diagnostics/diagnostic-tracker';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { recordBreadcrumb } from '../../../core/diagnostics/diagnostic-tracker';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
 import { clearDraftUpload, getDraftUpload } from '../data/owner-draft-store';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import {
@@ -19,6 +20,12 @@ import {
   type LocalUploadedDocument,
   type OwnerApplicationStep,
 } from '../domain/owner-application';
+
+const APPEARANCE_OPTIONS: readonly { label: string; value: ThemeMode }[] = [
+  { label: 'System', value: 'system' },
+  { label: 'Light', value: 'light' },
+  { label: 'Dark', value: 'dark' },
+];
 
 function stepRoute(step: OwnerApplicationStep): Href {
   if (step === 'phone') return '/(owner)/phone' as Href;
@@ -30,6 +37,8 @@ function stepRoute(step: OwnerApplicationStep): Href {
 export function OwnerDeskV2Screen() {
   const auth = useAuth();
   const router = useRouter();
+  const { colors, mode, setMode } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [draftUpload, setDraftUpload] = useState<LocalUploadedDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -161,6 +170,31 @@ export function OwnerDeskV2Screen() {
 
           </>
         )}
+        <View style={styles.appearanceSection}>
+          <Text style={styles.appearanceLabel}>Appearance</Text>
+          <View accessibilityRole="radiogroup" style={styles.appearanceSelector}>
+            {APPEARANCE_OPTIONS.map((option) => {
+              const selected = mode === option.value;
+              return (
+                <PressableScale
+                  accessibilityLabel={`${option.label} appearance`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  key={option.value}
+                  onPress={() => void setMode(option.value)}
+                  style={styles.appearanceOptionWrapper}
+                >
+                  <View style={[styles.appearanceOption, selected && styles.appearanceOptionSelected]}>
+                    <Text style={[styles.appearanceOptionText, selected && styles.appearanceOptionTextSelected]}>
+                      {option.label}
+                    </Text>
+                  </View>
+                </PressableScale>
+              );
+            })}
+          </View>
+        </View>
+
         <PressableScale
           accessibilityRole="button"
           onPress={() => {
@@ -176,6 +210,8 @@ export function OwnerDeskV2Screen() {
 }
 
 function StepRow({ complete, label, detail, locked, lockReason, onPress }: { complete: boolean; label: string; detail: string; locked: boolean; lockReason: string | null; onPress(): void }) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   return (
     <PressableScale accessibilityState={{ disabled: locked }} disabled={locked} onPress={onPress}>
       <View style={[styles.step, locked && styles.stepLocked]}>
@@ -193,28 +229,37 @@ function StepRow({ complete, label, detail, locked, lockReason, onPress }: { com
   );
 }
 
-const styles = StyleSheet.create({
-  body: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 21 },
-  center: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
-  content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  eyebrow: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1 },
-  error: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
-  feedback: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs, paddingVertical: spacing.md },
-  feedbackTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.sm },
-  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.button, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 50 },
-  secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
-  signOut: { alignItems: 'center', minHeight: 44, justifyContent: 'center' },
-  step: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 72, paddingVertical: spacing.sm },
-  stepAction: { color: colors.goldStrong, flexShrink: 0, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  stepCopy: { flex: 1, gap: 3, minWidth: 0 },
-  stepLocked: { opacity: 0.6 },
-  stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  steps: { gap: 0 },
-  title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 28 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    appearanceLabel: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    appearanceOption: { alignItems: 'center', borderRadius: radii.sm, justifyContent: 'center', minHeight: 38, paddingHorizontal: spacing.sm },
+    appearanceOptionSelected: { backgroundColor: colors.buttonPrimaryBg },
+    appearanceOptionText: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 12 },
+    appearanceOptionTextSelected: { color: colors.buttonPrimaryText, fontFamily: typography.bodySemiBold },
+    appearanceOptionWrapper: { flex: 1 },
+    appearanceSection: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs, paddingTop: spacing.lg },
+    appearanceSelector: { backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 4, padding: 4 },
+    body: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 21 },
+    center: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
+    content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    eyebrow: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 1 },
+    error: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
+    feedback: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs, paddingVertical: spacing.md },
+    feedbackTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.sm },
+    muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    secondaryButton: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.button, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 50 },
+    secondaryText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
+    signOut: { alignItems: 'center', minHeight: 44, justifyContent: 'center' },
+    step: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 72, paddingVertical: spacing.sm },
+    stepAction: { color: colors.goldStrong, flexShrink: 0, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    stepCopy: { flex: 1, gap: 3, minWidth: 0 },
+    stepLocked: { opacity: 0.6 },
+    stepTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    steps: { gap: 0 },
+    title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 28 },
+  });

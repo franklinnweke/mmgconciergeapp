@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { type LagosAreaLabel, type VehicleSummary } from '@mmg/contracts';
 import { calculateBookingQuote, formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
@@ -8,22 +8,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { normalizeNigerianPhone } from '@/core/auth/phone-verification-domain';
-import { useAuth } from '@/core/auth/auth-context';
-import { safeProviderError } from '@/core/errors/safe-provider-error';
-import { useRenterProfile } from '@/features/account/hooks/use-renter-profile';
-import { createDiscoveryGateway } from '@/features/discovery/data/firestore-discovery-gateway';
-import { formatLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
-import { resolveRentalJourney } from '@/features/discovery/data/rental-journey';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { normalizeNigerianPhone } from '../../../core/auth/phone-verification-domain';
+import { useAuth } from '../../../core/auth/auth-context';
+import { safeProviderError } from '../../../core/errors/safe-provider-error';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { useRenterProfile } from '../../account/hooks/use-renter-profile';
+import { createDiscoveryGateway } from '../../discovery/data/firestore-discovery-gateway';
+import { formatLagosDateOnly } from '../../discovery/data/lagos-destinations';
+import { resolveRentalJourney } from '../../discovery/data/rental-journey';
 import {
   isPickupLocationServiceable,
   parsePickupLocation,
   type PickupLocation,
-} from '@/features/discovery/domain/pickup-location';
-import { PickupLocationSheet } from '@/features/discovery/components/pickup-location-sheet';
-import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
+} from '../../discovery/domain/pickup-location';
+import { PickupLocationSheet } from '../../discovery/components/pickup-location-sheet';
+import { resolveVehicleImageSource } from '../../discovery/data/vehicle-images';
 import type { CreateRentalRequestData } from '@mmg/contracts/rental-request';
 
 import { useBookings } from '../booking-context';
@@ -55,6 +56,8 @@ export default function BookingReviewScreen({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const auth = useAuth();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { profile, saveProfile } = useRenterProfile();
   const bookings = useBookings();
   const refreshRentalRequests = refreshRentalRequestsProp ?? bookings.refreshRentalRequests;
@@ -319,6 +322,7 @@ export default function BookingReviewScreen({
           <TextInput
             accessibilityLabel="Nigerian mobile number"
             autoComplete="tel"
+            keyboardAppearance={isDark ? 'dark' : 'light'}
             keyboardType="phone-pad"
             onChangeText={setPhoneDraft}
             placeholder="0801 234 5678"
@@ -334,6 +338,7 @@ export default function BookingReviewScreen({
             <Text style={styles.sectionTitle}>Renter details</Text>
             <TextInput
               accessibilityLabel="Full name"
+              keyboardAppearance={isDark ? 'dark' : 'light'}
               onChangeText={setNameDraft}
               placeholder="Full name (optional)"
               placeholderTextColor={colors.muted}
@@ -374,7 +379,7 @@ export default function BookingReviewScreen({
           onPress={handleSubmitRequest}
         >
           <View style={[styles.ctaButton, (submitting || !isServiceable) && styles.disabled]}>
-            {submitting ? <ActivityIndicator color={colors.black} size="small" /> : null}
+            {submitting ? <ActivityIndicator color={colors.primaryContrast} size="small" /> : null}
             <Text style={styles.ctaText}>{submitting ? 'Sending request…' : 'Send request'}</Text>
           </View>
         </PressableScale>
@@ -391,6 +396,7 @@ export default function BookingReviewScreen({
 }
 
 function JourneyPoint({ alignEnd, label, value }: { alignEnd?: boolean; label: string; value: string }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={[styles.point, alignEnd && styles.pointEnd]}>
       <Text style={styles.pointLabel}>{label}</Text>
@@ -400,6 +406,7 @@ function JourneyPoint({ alignEnd, label, value }: { alignEnd?: boolean; label: s
 }
 
 function QuoteRow({ label, value }: { label: string; value: string }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.quoteRow}>
       <Text style={styles.quoteLabel}>{label}</Text>
@@ -408,84 +415,85 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
-  ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
-  ctaText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  deliveryAddress: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
-  deliveryCard: {
-    alignItems: 'center',
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  deliveryChangeText: {
-    color: colors.goldStrong,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-  },
-  deliveryCopy: { flex: 1, gap: 2 },
-  deliveryIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  deliveryNote: {
-    color: colors.silver,
-    fontFamily: typography.body,
-    fontSize: 12,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-  deliveryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  disabled: { opacity: 0.6 },
-  errorRow: { alignItems: 'center', borderColor: colors.danger, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },
-  headerInset: { paddingHorizontal: spacing.lg },
-  input: { borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 15, minHeight: 48, paddingHorizontal: spacing.md },
-  journeyRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
-  noteText: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.sm },
-  point: { flex: 1, gap: 3 },
-  pointEnd: { alignItems: 'flex-end' },
-  pointLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  pointValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  quoteLabel: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  quoteRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: 5 },
-  quoteValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, textAlign: 'right' },
-  reassuranceText: {
-    color: colors.silver,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  section: { gap: spacing.xs },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17, marginBottom: spacing.xs },
-  stateButton: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.button, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
-  stateButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  stateCenter: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', paddingHorizontal: spacing.xl },
-  stateScreen: { backgroundColor: colors.black, flex: 1, paddingHorizontal: spacing.lg },
-  stateText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, textAlign: 'center' },
-  stateTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18 },
-  totalLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  totalRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.md },
-  totalValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
-  vehicleCopy: { flex: 1, gap: 4, justifyContent: 'center' },
-  vehicleImage: { borderRadius: radii.sm, height: 76, width: 100 },
-  vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  vehicleRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.lg },
-  warningRow: { alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: colors.danger, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs, padding: spacing.md },
-  warningText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
+    ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
+    ctaText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    deliveryAddress: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
+    deliveryCard: {
+      alignItems: 'center',
+      backgroundColor: colors.graphite,
+      borderColor: colors.line,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.md,
+      padding: spacing.md,
+    },
+    deliveryChangeText: {
+      color: colors.goldStrong,
+      fontFamily: typography.bodyMedium,
+      fontSize: 12,
+    },
+    deliveryCopy: { flex: 1, gap: 2 },
+    deliveryIcon: {
+      alignItems: 'center',
+      backgroundColor: colors.graphiteRaised,
+      borderColor: colors.lineStrong,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      height: 40,
+      justifyContent: 'center',
+      width: 40,
+    },
+    deliveryNote: {
+      color: colors.silver,
+      fontFamily: typography.body,
+      fontSize: 12,
+      fontStyle: 'italic',
+      marginTop: 2,
+    },
+    deliveryTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    disabled: { opacity: 0.6 },
+    errorRow: { alignItems: 'center', borderColor: colors.danger, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },
+    headerInset: { paddingHorizontal: spacing.lg },
+    input: { borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 15, minHeight: 48, paddingHorizontal: spacing.md },
+    journeyRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+    noteText: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: spacing.sm },
+    point: { flex: 1, gap: 3 },
+    pointEnd: { alignItems: 'flex-end' },
+    pointLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
+    pointValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    quoteLabel: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 13 },
+    quoteRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', paddingVertical: 5 },
+    quoteValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, textAlign: 'right' },
+    reassuranceText: {
+      color: colors.silver,
+      fontFamily: typography.bodyMedium,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    section: { gap: spacing.xs },
+    sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17, marginBottom: spacing.xs },
+    stateButton: { alignItems: 'center', backgroundColor: colors.buttonPrimaryBg, borderRadius: radii.button, justifyContent: 'center', minHeight: 46, paddingHorizontal: spacing.lg },
+    stateButtonText: { color: colors.buttonPrimaryText, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    stateCenter: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', paddingHorizontal: spacing.xl },
+    stateScreen: { backgroundColor: colors.canvas, flex: 1, paddingHorizontal: spacing.lg },
+    stateText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, textAlign: 'center' },
+    stateTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18 },
+    totalLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
+    totalRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.md },
+    totalValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
+    vehicleCopy: { flex: 1, gap: 4, justifyContent: 'center' },
+    vehicleImage: { borderRadius: radii.sm, height: 76, width: 100 },
+    vehicleMeta: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
+    vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
+    vehicleRow: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.lg },
+    warningRow: { alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: colors.danger, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs, padding: spacing.md },
+    warningText: { color: colors.danger, flex: 1, fontFamily: typography.bodyMedium, fontSize: 13 },
+  });

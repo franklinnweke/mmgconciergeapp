@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { AccountType } from '@mmg/contracts';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Image } from 'expo-image';
@@ -17,9 +17,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 type Mode = 'sign-in' | 'register';
 
@@ -34,6 +35,8 @@ const heroImage = require('../../../../assets/images/auth-lagos-victoria-island.
 export function AuthEntryScreen({ accountType, onAuthenticate, onBack }: AuthEntryScreenProps) {
   const insets = useSafeAreaInsets();
   const auth = useAuth();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [mode, setMode] = useState<Mode>('sign-in');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -142,7 +145,11 @@ export function AuthEntryScreen({ accountType, onAuthenticate, onBack }: AuthEnt
             style={StyleSheet.absoluteFill}
           />
           <LinearGradient
-            colors={['rgba(4,4,4,0.72)', 'rgba(4,4,4,0.08)', colors.black]}
+            colors={
+              isDark
+                ? ['rgba(4,4,4,0.72)', 'rgba(4,4,4,0.08)', colors.canvas]
+                : ['rgba(247,245,240,0.82)', 'rgba(247,245,240,0.12)', colors.canvas]
+            }
             locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
@@ -206,7 +213,7 @@ export function AuthEntryScreen({ accountType, onAuthenticate, onBack }: AuthEnt
           >
             <View style={[styles.primaryButton, busy && styles.disabledButton]}>
               {busy ? (
-                <ActivityIndicator color={colors.black} />
+                <ActivityIndicator color={colors.primaryContrast} />
               ) : (
                 <Text style={styles.primaryButtonText}>
                   {mode === 'sign-in' ? 'Sign in' : 'Create account'}
@@ -240,7 +247,7 @@ export function AuthEntryScreen({ accountType, onAuthenticate, onBack }: AuthEnt
               onPress={() => void handleGoogleSignIn()}
             >
               <View style={styles.googleButton}>
-                <Ionicons color={colors.ivory} name="logo-google" size={18} />
+                <Ionicons color={colors.textPrimary} name="logo-google" size={18} />
                 <Text style={styles.googleButtonText}>{googleButtonLabel}</Text>
               </View>
             </PressableScale>
@@ -248,7 +255,11 @@ export function AuthEntryScreen({ accountType, onAuthenticate, onBack }: AuthEnt
             {appleSignInAvailable ? (
               <View pointerEvents={busy ? 'none' : 'auto'} style={busy ? styles.disabledButton : undefined}>
                 <AppleAuthentication.AppleAuthenticationButton
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
+                  buttonStyle={
+                    isDark
+                      ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE
+                      : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                  }
                   buttonType={appleButtonType}
                   cornerRadius={radii.button}
                   onPress={() => void handleAppleSignIn()}
@@ -282,15 +293,19 @@ type AuthFieldProps = ComponentProps<typeof TextInput> & {
 };
 
 function AuthField({ icon, label, ...inputProps }: AuthFieldProps) {
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
+
   return (
     <View>
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={styles.fieldShell}>
-        <Ionicons color={colors.muted} name={icon} size={18} />
+        <Ionicons color={colors.textMuted} name={icon} size={18} />
         <TextInput
           accessibilityLabel={label}
-          placeholderTextColor="rgba(180,174,164,0.62)"
-          selectionColor={colors.gold}
+          keyboardAppearance={isDark ? 'dark' : 'light'}
+          placeholderTextColor={colors.textMuted}
+          selectionColor={colors.primary}
           style={styles.fieldInput}
           {...inputProps}
         />
@@ -300,6 +315,9 @@ function AuthField({ icon, label, ...inputProps }: AuthFieldProps) {
 }
 
 function FeedbackMessage({ kind, message }: { kind: 'error' | 'notice'; message: string }) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
+
   return (
     <View style={styles.feedbackRow}>
       <Ionicons
@@ -312,91 +330,93 @@ function FeedbackMessage({ kind, message }: { kind: 'error' | 'notice'; message:
   );
 }
 
-const styles = StyleSheet.create({
-  appleButton: { height: 44, width: '100%' },
-  disabledButton: { opacity: 0.66 },
-  divider: { backgroundColor: colors.line, flex: 1, height: StyleSheet.hairlineWidth },
-  dividerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-  dividerText: {
-    color: colors.muted,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.8,
-  },
-  feedbackRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  feedbackText: {
-    color: colors.silver,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  fieldInput: {
-    color: colors.ivory,
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 15,
-    paddingVertical: 0,
-  },
-  fieldLabel: {
-    color: colors.muted,
-    fontFamily: typography.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1.6,
-    marginBottom: spacing.xs,
-  },
-  fieldShell: {
-    alignItems: 'center',
-    borderBottomColor: colors.lineStrong,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 50,
-  },
-  fields: { gap: spacing.lg },
-  formSection: {
-    backgroundColor: colors.black,
-    gap: spacing.lg,
-    paddingBottom: 44,
-    paddingHorizontal: spacing.lg,
-  },
-  formTitle: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: 34,
-    letterSpacing: -0.7,
-    lineHeight: 40,
-  },
-  googleButton: {
-    alignItems: 'center',
-    borderColor: colors.lineStrong,
-    borderRadius: radii.button,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  googleButtonText: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
-  hero: { backgroundColor: colors.black, height: 260 },
-  heroContent: { paddingHorizontal: spacing.lg },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    justifyContent: 'center',
-    minHeight: 56,
-  },
-  primaryButtonText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scrollContent: { backgroundColor: colors.black, flexGrow: 1 },
-  socialButtons: { gap: spacing.sm },
-  textAction: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  textActionLabel: {
-    color: colors.gold,
-    fontFamily: typography.bodyMedium,
-    fontSize: 12,
-    paddingVertical: spacing.xs,
-    textAlign: 'center',
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    appleButton: { height: 44, width: '100%' },
+    disabledButton: { opacity: 0.66 },
+    divider: { backgroundColor: colors.border, flex: 1, height: StyleSheet.hairlineWidth },
+    dividerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
+    dividerText: {
+      color: colors.textMuted,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 11,
+      letterSpacing: 1.8,
+    },
+    feedbackRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+    feedbackText: {
+      color: colors.textSecondary,
+      flex: 1,
+      fontFamily: typography.body,
+      fontSize: 12,
+      lineHeight: 18,
+    },
+    fieldInput: {
+      color: colors.textPrimary,
+      flex: 1,
+      fontFamily: typography.body,
+      fontSize: 15,
+      paddingVertical: 0,
+    },
+    fieldLabel: {
+      color: colors.textMuted,
+      fontFamily: typography.bodySemiBold,
+      fontSize: 11,
+      letterSpacing: 1.6,
+      marginBottom: spacing.xs,
+    },
+    fieldShell: {
+      alignItems: 'center',
+      borderBottomColor: colors.borderStrong,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      minHeight: 50,
+    },
+    fields: { gap: spacing.lg },
+    formSection: {
+      backgroundColor: colors.canvas,
+      gap: spacing.lg,
+      paddingBottom: 44,
+      paddingHorizontal: spacing.lg,
+    },
+    formTitle: {
+      color: colors.textPrimary,
+      fontFamily: typography.display,
+      fontSize: 34,
+      letterSpacing: -0.7,
+      lineHeight: 40,
+    },
+    googleButton: {
+      alignItems: 'center',
+      backgroundColor: colors.buttonSecondaryBg,
+      borderColor: colors.buttonSecondaryBorder,
+      borderRadius: radii.button,
+      borderWidth: StyleSheet.hairlineWidth,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'center',
+      minHeight: 44,
+    },
+    googleButtonText: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: 17 },
+    hero: { backgroundColor: colors.canvas, height: 260 },
+    heroContent: { paddingHorizontal: spacing.lg },
+    primaryButton: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      justifyContent: 'center',
+      minHeight: 56,
+    },
+    primaryButtonText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    scrollContent: { backgroundColor: colors.canvas, flexGrow: 1 },
+    socialButtons: { gap: spacing.sm },
+    textAction: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+    textActionLabel: {
+      color: colors.primary,
+      fontFamily: typography.bodyMedium,
+      fontSize: 12,
+      paddingVertical: spacing.xs,
+      textAlign: 'center',
+    },
+  });

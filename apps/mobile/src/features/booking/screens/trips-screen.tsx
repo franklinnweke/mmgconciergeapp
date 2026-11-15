@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
 import { type Href, useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale } from '@/components/pressable-scale';
 import { ScreenHeader } from '@/components/screen-header';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { resolveVehicleImageSource } from '@/features/discovery/data/vehicle-images';
 
 import { useBookings } from '../booking-context';
@@ -31,6 +32,8 @@ function formatDate(value: string) {
 export default function TripsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { initializing, syncError, trips } = useBookings();
   const groups = groupTripsForDisplay(trips);
 
@@ -88,6 +91,8 @@ function TripRow({
   trip: RenterTrip;
 }) {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const vehicle = trip.vehicleSnapshot;
   const copy = tripStateCopy(trip.state);
   const attention = trip.group === 'intervention';
@@ -149,6 +154,8 @@ function TripRow({
 }
 
 function EmptyTrips({ onExplore }: { onExplore: () => void }) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.empty}>
       <Ionicons color={colors.muted} name="calendar-outline" size={28} />
@@ -163,34 +170,35 @@ function EmptyTrips({ onExplore }: { onExplore: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  area: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 12 },
-  dateText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 12 },
-  empty: { alignItems: 'flex-start', gap: spacing.sm, paddingTop: spacing.xxl },
-  emptyAction: { alignItems: 'center', backgroundColor: colors.ivory, borderRadius: radii.button, justifyContent: 'center', marginTop: spacing.md, minHeight: 48, paddingHorizontal: spacing.lg },
-  emptyActionText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  emptyBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, maxWidth: 300 },
-  emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
-  legacyLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 10 },
-  loading: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
-  loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
-  metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scrollContent: { gap: spacing.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  section: { gap: spacing.sm },
-  sectionHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  sectionLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  stateText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11 },
-  stateTextAttention: { color: colors.danger },
-  stateTextPositive: { color: colors.success },
-  syncNotice: { alignItems: 'center', backgroundColor: 'rgba(227,195,101,.08)', flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, padding: spacing.md },
-  syncNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  total: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  tripBody: { flex: 1, gap: 6, justifyContent: 'center', minWidth: 0 },
-  tripList: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth },
-  tripRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 118, paddingVertical: spacing.md },
-  vehicleImage: { borderRadius: radii.sm, height: 84, width: 112 },
-  vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  vehiclePlaceholder: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, height: 84, justifyContent: 'center', width: 112 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    area: { color: colors.muted, flex: 1, fontFamily: typography.body, fontSize: 12 },
+    dateText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 12 },
+    empty: { alignItems: 'flex-start', gap: spacing.sm, paddingTop: spacing.xxl },
+    emptyAction: { alignItems: 'center', backgroundColor: colors.buttonPrimaryBg, borderRadius: radii.button, justifyContent: 'center', marginTop: spacing.md, minHeight: 48, paddingHorizontal: spacing.lg },
+    emptyActionText: { color: colors.buttonPrimaryText, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    emptyBody: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, maxWidth: 300 },
+    emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
+    legacyLabel: { color: colors.muted, fontFamily: typography.body, fontSize: 10 },
+    loading: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
+    loadingText: { color: colors.muted, fontFamily: typography.body, fontSize: 13 },
+    metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    scrollContent: { gap: spacing.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    section: { gap: spacing.sm },
+    sectionHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+    sectionLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
+    stateText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 11 },
+    stateTextAttention: { color: colors.danger },
+    stateTextPositive: { color: colors.success },
+    syncNotice: { alignItems: 'center', backgroundColor: 'rgba(227,195,101,.08)', flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, padding: spacing.md },
+    syncNoticeText: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    total: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 12 },
+    tripBody: { flex: 1, gap: 6, justifyContent: 'center', minWidth: 0 },
+    tripList: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth },
+    tripRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 118, paddingVertical: spacing.md },
+    vehicleImage: { borderRadius: radii.sm, height: 84, width: 112 },
+    vehicleName: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
+    vehiclePlaceholder: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, height: 84, justifyContent: 'center', width: 112 },
+  });

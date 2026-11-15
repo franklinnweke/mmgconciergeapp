@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { VehicleSummary } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { Image } from 'expo-image';
@@ -7,7 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { PressableScale } from '@/components/pressable-scale';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 
 import {
   resolveVehicleFallbackImageSource,
@@ -21,6 +22,8 @@ type FeaturedVehicleCardProps = {
 };
 
 export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicleCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const imageIdentity = [
     vehicle.id,
     vehicle.imageUrl,
@@ -42,7 +45,7 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
         <View style={styles.imageFrame}>
           {useFallbackImage && !vehicle.imageKey ? (
             <View style={[StyleSheet.absoluteFill, styles.imageUnavailable]}>
-              <Ionicons color={colors.muted} name="image-outline" size={30} />
+              <Ionicons color={colors.textMuted} name="image-outline" size={30} />
             </View>
           ) : (
             <Image
@@ -82,57 +85,58 @@ export function FeaturedVehicleCard({ onPress, vehicle, width }: FeaturedVehicle
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.graphite,
-    borderColor: colors.line,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
-  footer: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  imageCopy: {
-    bottom: spacing.md,
-    left: spacing.md,
-    position: 'absolute',
-    right: spacing.md,
-  },
-  imageFrame: {
-    backgroundColor: colors.graphiteRaised,
-    height: 214,
-  },
-  imageUnavailable: {
-    alignItems: 'center',
-    backgroundColor: colors.graphiteRaised,
-    justifyContent: 'center',
-  },
-  meta: {
-    color: colors.silver,
-    fontFamily: typography.body,
-    fontSize: fontSizes.sm,
-    marginTop: 4,
-  },
-  name: {
-    color: colors.ivory,
-    fontFamily: typography.display,
-    fontSize: fontSizes.xl,
-    letterSpacing: -0.4,
-  },
-  perDay: {
-    color: colors.muted,
-    fontFamily: typography.body,
-    fontSize: fontSizes.xs,
-    marginTop: 3,
-  },
-  price: {
-    color: colors.ivory,
-    fontFamily: typography.bodySemiBold,
-    fontSize: fontSizes.md,
-  },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      overflow: 'hidden',
+    },
+    footer: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+    },
+    imageCopy: {
+      bottom: spacing.md,
+      left: spacing.md,
+      position: 'absolute',
+      right: spacing.md,
+    },
+    imageFrame: {
+      backgroundColor: colors.surfaceRaised,
+      height: 214,
+    },
+    imageUnavailable: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceRaised,
+      justifyContent: 'center',
+    },
+    meta: {
+      color: '#E5E2DC',
+      fontFamily: typography.body,
+      fontSize: fontSizes.sm,
+      marginTop: 4,
+    },
+    name: {
+      color: '#F7F1E7',
+      fontFamily: typography.display,
+      fontSize: fontSizes.xl,
+      letterSpacing: -0.4,
+    },
+    perDay: {
+      color: colors.textMuted,
+      fontFamily: typography.body,
+      fontSize: fontSizes.xs,
+      marginTop: 3,
+    },
+    price: {
+      color: colors.textPrimary,
+      fontFamily: typography.bodySemiBold,
+      fontSize: fontSizes.md,
+    },
+  });

@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSizes, layout, radii, spacing, typography } from '@mmg/brand';
+import { fontSizes, layout, radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
+import { PressableScale } from '../../../components/pressable-scale';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import { adjustRentalDuration } from '../data/rental-journey';
 import {
   addDaysToDateOnly,
@@ -69,6 +70,8 @@ export function ExecutiveBookingDesk({
 }: ExecutiveBookingDeskProps) {
   const pickup = propPickup ?? (areaLabel ? parsePickupLocation(areaLabel) : null);
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [startOffset, setStartOffset] = useState(0);
   const [durationDays, setDurationDays] = useState(3);
   const [datesOpen, setDatesOpen] = useState(false);
@@ -216,81 +219,82 @@ export function ExecutiveBookingDesk({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFill },
-  container: { gap: spacing.sm, paddingHorizontal: spacing.md },
-  dateChip: {
-    alignItems: 'center',
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    minHeight: 62,
-    minWidth: 86,
-    paddingHorizontal: spacing.sm,
-  },
-  dateChipSelected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
-  datePrimary: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
-  datePrimarySelected: { color: colors.black },
-  dateRail: { gap: spacing.xs, paddingBottom: spacing.lg },
-  dateSecondary: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 3 },
-  dateSecondarySelected: { color: colors.graphiteRaised },
-  doneText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base, padding: spacing.sm },
-  durationChip: {
-    alignItems: 'center',
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    minHeight: 46,
-    minWidth: 46,
-  },
-  durationGrid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  durationText: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
-  editText: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
-  exploreButton: {
-    alignItems: 'center',
-    backgroundColor: colors.goldStrong,
-    borderRadius: radii.button,
-    justifyContent: 'center',
-    minHeight: layout.primaryButtonHeight,
-  },
-  exploreText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
-  modalRoot: { backgroundColor: 'rgba(0,0,0,0.58)', flex: 1, justifyContent: 'flex-end' },
-  pickerLabel: { color: colors.muted, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs, marginBottom: spacing.sm, marginTop: spacing.md },
-  rangeLabel: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs },
-  rangeSummary: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, gap: 3, marginTop: spacing.lg, paddingTop: spacing.md },
-  rangeValue: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
-  rule: { backgroundColor: 'rgba(250,247,239,0.22)', height: 1 },
-  sheet: {
-    backgroundColor: colors.black,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  sheetHandle: { alignSelf: 'center', backgroundColor: colors.lineStrong, borderRadius: radii.pill, height: 4, marginBottom: spacing.md, width: 42 },
-  sheetHeader: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
-  sheetSubtitle: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 4, maxWidth: 270 },
-  sheetTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xl },
-  summaryCopy: { flex: 1, gap: 2, minWidth: 0 },
-  summaryIcon: { alignItems: 'center', height: 46, justifyContent: 'center', width: 36 },
-  summaryLabel: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
-  summaryMeta: { color: colors.muted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 1 },
-  summaryRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 78,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  summaryShell: {
-    backgroundColor: colors.graphite,
-    borderColor: 'rgba(250,247,239,0.28)',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  summaryValue: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm, marginTop: 1 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    backdrop: { ...StyleSheet.absoluteFill },
+    container: { gap: spacing.sm, paddingHorizontal: spacing.md },
+    dateChip: {
+      alignItems: 'center',
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      justifyContent: 'center',
+      minHeight: 62,
+      minWidth: 86,
+      paddingHorizontal: spacing.sm,
+    },
+    dateChipSelected: { backgroundColor: colors.buttonPrimaryBg, borderColor: colors.buttonPrimaryBg },
+    datePrimary: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.sm },
+    datePrimarySelected: { color: colors.buttonPrimaryText },
+    dateRail: { gap: spacing.xs, paddingBottom: spacing.lg },
+    dateSecondary: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 3 },
+    dateSecondarySelected: { color: colors.buttonPrimaryText },
+    doneText: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base, padding: spacing.sm },
+    durationChip: {
+      alignItems: 'center',
+      borderColor: colors.border,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      justifyContent: 'center',
+      minHeight: 46,
+      minWidth: 46,
+    },
+    durationGrid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+    durationText: { color: colors.textSecondary, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
+    editText: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm },
+    exploreButton: {
+      alignItems: 'center',
+      backgroundColor: colors.goldStrong,
+      borderRadius: radii.button,
+      justifyContent: 'center',
+      minHeight: layout.primaryButtonHeight,
+    },
+    exploreText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
+    modalRoot: { backgroundColor: colors.scrim, flex: 1, justifyContent: 'flex-end' },
+    pickerLabel: { color: colors.textMuted, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xs, marginBottom: spacing.sm, marginTop: spacing.md },
+    rangeLabel: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs },
+    rangeSummary: { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, gap: 3, marginTop: spacing.lg, paddingTop: spacing.md },
+    rangeValue: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
+    rule: { backgroundColor: colors.borderStrong, height: 1 },
+    sheet: {
+      backgroundColor: colors.canvas,
+      borderTopLeftRadius: radii.lg,
+      borderTopRightRadius: radii.lg,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+    },
+    sheetHandle: { alignSelf: 'center', backgroundColor: colors.borderStrong, borderRadius: radii.pill, height: 4, marginBottom: spacing.md, width: 42 },
+    sheetHeader: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
+    sheetSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 4, maxWidth: 270 },
+    sheetTitle: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.xl },
+    summaryCopy: { flex: 1, gap: 2, minWidth: 0 },
+    summaryIcon: { alignItems: 'center', height: 46, justifyContent: 'center', width: 36 },
+    summaryLabel: { color: colors.textPrimary, fontFamily: typography.bodySemiBold, fontSize: fontSizes.base },
+    summaryMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: fontSizes.xs, marginTop: 1 },
+    summaryRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      minHeight: 78,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    summaryShell: {
+      backgroundColor: colors.surface,
+      borderColor: colors.borderStrong,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      overflow: 'hidden',
+    },
+    summaryValue: { color: colors.textSecondary, fontFamily: typography.bodyMedium, fontSize: fontSizes.sm, marginTop: 1 },
+  });

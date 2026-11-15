@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import {
   CURRENT_COMMISSION_TERMS_VERSION,
   CURRENT_OWNER_TERMS_VERSION,
@@ -23,10 +23,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
 import {
   COMMISSION_TERMS_SUMMARY,
   OWNER_TERMS_SUMMARY,
@@ -45,6 +46,8 @@ import { ownerCommandErrorMessage } from '../domain/owner-errors';
 export function OwnerIdentityScreen() {
   const auth = useAuth();
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const hydratedOwnerId = useRef<string | null>(null);
 
   const [formState, dispatch] = useReducer(ownerIdentityFormReducer, {
@@ -237,6 +240,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Legal name or registered business</Text>
           <TextInput
+            keyboardAppearance={isDark ? 'dark' : 'light'}
             onChangeText={handleLegalNameChange}
             placeholder="As shown on official Nigerian ID"
             placeholderTextColor={colors.muted}
@@ -279,6 +283,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Street address</Text>
           <TextInput
+            keyboardAppearance={isDark ? 'dark' : 'light'}
             onChangeText={handleLine1Change}
             placeholder="e.g. 14 Admiralty Way"
             placeholderTextColor={colors.muted}
@@ -290,6 +295,7 @@ export function OwnerIdentityScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Address line 2 (optional)</Text>
           <TextInput
+            keyboardAppearance={isDark ? 'dark' : 'light'}
             onChangeText={handleLine2Change}
             placeholder="Suite, building, or unit number"
             placeholderTextColor={colors.muted}
@@ -303,7 +309,7 @@ export function OwnerIdentityScreen() {
 
           <Pressable onPress={handleToggleTerms} style={styles.termsRow}>
             <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
-              {termsAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
+              {termsAccepted ? <Ionicons color={colors.primaryContrast} name="checkmark" size={14} /> : null}
             </View>
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{OWNER_TERMS_SUMMARY.title}</Text>
@@ -313,7 +319,7 @@ export function OwnerIdentityScreen() {
 
           <Pressable onPress={handleToggleCommission} style={styles.termsRow}>
             <View style={[styles.checkbox, commissionAccepted && styles.checkboxActive]}>
-              {commissionAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
+              {commissionAccepted ? <Ionicons color={colors.primaryContrast} name="checkmark" size={14} /> : null}
             </View>
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{COMMISSION_TERMS_SUMMARY.title}</Text>
@@ -323,7 +329,7 @@ export function OwnerIdentityScreen() {
 
           <Pressable onPress={handleTogglePrivacy} style={styles.termsRow}>
             <View style={[styles.checkbox, privacyAccepted && styles.checkboxActive]}>
-              {privacyAccepted ? <Ionicons color={colors.black} name="checkmark" size={14} /> : null}
+              {privacyAccepted ? <Ionicons color={colors.primaryContrast} name="checkmark" size={14} /> : null}
             </View>
             <View style={styles.termsCopy}>
               <Text style={styles.termsTitle}>{PRIVACY_NOTICE_SUMMARY.title}</Text>
@@ -338,7 +344,7 @@ export function OwnerIdentityScreen() {
         >
           <View style={styles.primaryButton}>
             {saving ? (
-              <ActivityIndicator color={colors.black} size="small" />
+              <ActivityIndicator color={colors.primaryContrast} size="small" />
             ) : (
               <Text style={styles.primaryText}>Save and continue</Text>
             )}
@@ -376,44 +382,45 @@ export function OwnerIdentityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  checkbox: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: 4, borderWidth: 1.5, height: 22, justifyContent: 'center', marginTop: 2, width: 22 },
-  checkboxActive: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
-  disabledAction: { opacity: 0.5 },
-  errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  fieldGroup: { marginBottom: spacing.md },
-  flexField: { flex: 1 },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
-  label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
-  loadingBox: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center', padding: spacing.lg },
-  loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  modalContent: { backgroundColor: '#14181F', borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '60%', padding: spacing.lg },
-  modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
-  modalItem: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
-  modalItemText: { color: colors.silver, fontFamily: typography.body, fontSize: 15 },
-  modalItemTextActive: { color: colors.goldStrong, fontFamily: typography.bodySemiBold },
-  modalList: { maxHeight: 300 },
-  modalOverlay: { backgroundColor: 'rgba(0,0,0,0.7)', flex: 1, justifyContent: 'flex-end' },
-  modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
-  pickerButton: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  pickerText: { color: colors.ivory, fontFamily: typography.body, fontSize: 14 },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  readOnlyInput: { alignItems: 'center', backgroundColor: '#0D0F13', flexDirection: 'row', justifyContent: 'space-between' },
-  readOnlyText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
-  saveAction: { marginTop: spacing.xl },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginBottom: spacing.md },
-  statusAction: { marginTop: spacing.md },
-  statusBody: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  statusBox: { flex: 1, justifyContent: 'center', padding: spacing.lg },
-  statusTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18, marginBottom: spacing.xs },
-  termsCopy: { flex: 1 },
-  termsDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
-  termsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
-  termsSection: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.lg },
-  termsTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    checkbox: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: 4, borderWidth: 1.5, height: 22, justifyContent: 'center', marginTop: 2, width: 22 },
+    checkboxActive: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
+    disabledAction: { opacity: 0.5 },
+    errorBox: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, padding: spacing.md },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
+    fieldGroup: { marginBottom: spacing.md },
+    flexField: { flex: 1 },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    input: { backgroundColor: colors.graphiteRaised, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 48, paddingHorizontal: spacing.md },
+    label: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, marginBottom: spacing.xxs },
+    loadingBox: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center', padding: spacing.lg },
+    loadingText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+    modalContent: { backgroundColor: colors.graphiteRaised, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '60%', padding: spacing.lg },
+    modalHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
+    modalItem: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
+    modalItemText: { color: colors.silver, fontFamily: typography.body, fontSize: 15 },
+    modalItemTextActive: { color: colors.goldStrong, fontFamily: typography.bodySemiBold },
+    modalList: { maxHeight: 300 },
+    modalOverlay: { backgroundColor: colors.scrim, flex: 1, justifyContent: 'flex-end' },
+    modalTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 16 },
+    pickerButton: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+    pickerText: { color: colors.ivory, fontFamily: typography.body, fontSize: 14 },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 54 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    readOnlyInput: { alignItems: 'center', backgroundColor: colors.surface, flexDirection: 'row', justifyContent: 'space-between' },
+    readOnlyText: { color: colors.silver, fontFamily: typography.body, fontSize: 14 },
+    saveAction: { marginTop: spacing.xl },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    scroll: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    sectionTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14, marginBottom: spacing.md },
+    statusAction: { marginTop: spacing.md },
+    statusBody: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+    statusBox: { flex: 1, justifyContent: 'center', padding: spacing.lg },
+    statusTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 18, marginBottom: spacing.xs },
+    termsCopy: { flex: 1 },
+    termsDescription: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 2 },
+    termsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+    termsSection: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.lg },
+    termsTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 13 },
+  });

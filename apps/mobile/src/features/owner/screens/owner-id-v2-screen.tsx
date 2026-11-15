@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { GovernmentIdKind, OwnerVisibleProfile } from '@mmg/contracts';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,10 +8,11 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
 import { createOwnerVerificationRepository } from '../data/owner-verification-repository';
 import { computeOwnerIdScreenState } from '../domain/owner-application';
 import { validateOwnerIdCandidate } from '../domain/owner-id-preflight';
@@ -28,6 +29,8 @@ const DOCUMENTS: { kind: GovernmentIdKind; label: string; detail: string }[] = [
 export function OwnerIdV2Screen() {
   const auth = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { startUpload } = useOwnerIdUpload();
   const [profile, setProfile] = useState<OwnerVisibleProfile | null>(null);
   const [loading, setLoading] = useState(Boolean(auth.user?.uid));
@@ -201,31 +204,32 @@ export function OwnerIdV2Screen() {
   );
 }
 
-const styles = StyleSheet.create({
-  blocked: { gap: spacing.md, paddingVertical: spacing.lg },
-  capture: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flex: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 104 },
-  captureRow: { flexDirection: 'row', gap: spacing.md },
-  captureText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
-  center: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
-  content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  disabled: { opacity: 0.5 },
-  documentList: { gap: 0 },
-  documentRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 66, paddingVertical: spacing.sm },
-  documentTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  error: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
-  fileName: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 12 },
-  flex: { flex: 1 },
-  guidance: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, paddingVertical: spacing.xs },
-  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  preview: { borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  previewFooter: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  previewImage: { backgroundColor: colors.graphiteRaised, height: 220, width: '100%' },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  privacy: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md },
-  privacyText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    blocked: { gap: spacing.md, paddingVertical: spacing.lg },
+    capture: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, flex: 1, gap: spacing.xs, justifyContent: 'center', minHeight: 104 },
+    captureRow: { flexDirection: 'row', gap: spacing.md },
+    captureText: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
+    center: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
+    content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    disabled: { opacity: 0.5 },
+    documentList: { gap: 0 },
+    documentRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 66, paddingVertical: spacing.sm },
+    documentTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    error: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
+    fileName: { color: colors.ivory, flex: 1, fontFamily: typography.body, fontSize: 12 },
+    flex: { flex: 1 },
+    guidance: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, paddingVertical: spacing.xs },
+    muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    preview: { borderColor: colors.line, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    previewFooter: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
+    previewImage: { backgroundColor: colors.graphiteRaised, height: 220, width: '100%' },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 52 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    privacy: { alignItems: 'flex-start', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md },
+    privacyText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
+  });

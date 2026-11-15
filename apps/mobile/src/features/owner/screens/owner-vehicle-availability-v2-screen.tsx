@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type {
   AvailabilityBlockReason,
   GetOwnerVehicleCalendarResult,
@@ -11,9 +11,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { addDaysToDateOnly, formatLagosDateOnly, todayLagosDateOnly } from '@/features/discovery/data/lagos-destinations';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { addDaysToDateOnly, formatLagosDateOnly, todayLagosDateOnly } from '../../discovery/data/lagos-destinations';
 import { createOwnerAvailabilityGateway } from '../data/owner-availability-gateway';
 import { isDateInSelection, selectOwnerAvailabilityDate, type AvailabilitySelection } from '../domain/owner-availability-calendar';
 
@@ -46,6 +47,8 @@ function dayLabel(day: OwnerVehicleCalendarDay) {
 
 export function OwnerVehicleAvailabilityV2Screen() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const gateway = useMemo(() => createOwnerAvailabilityGateway(), []);
@@ -260,9 +263,9 @@ export function OwnerVehicleAvailabilityV2Screen() {
                   </PressableScale>
                 );
               })}
-              <TextInput maxLength={500} multiline onChangeText={setNotes} placeholder="Private note (optional)" placeholderTextColor={colors.muted} style={styles.notes} value={notes} />
+              <TextInput keyboardAppearance={isDark ? 'dark' : 'light'} maxLength={500} multiline onChangeText={setNotes} placeholder="Private note (optional)" placeholderTextColor={colors.muted} style={styles.notes} value={notes} />
               <PressableScale disabled={busy} onPress={() => void createBlock()}>
-                <View style={styles.primaryButton}>{busy ? <ActivityIndicator color={colors.black} /> : <Text style={styles.primaryText}>Block selected dates</Text>}</View>
+                <View style={styles.primaryButton}>{busy ? <ActivityIndicator color={colors.primaryContrast} /> : <Text style={styles.primaryText}>Block selected dates</Text>}</View>
               </PressableScale>
             </View>
           ) : null}
@@ -286,44 +289,46 @@ export function OwnerVehicleAvailabilityV2Screen() {
 }
 
 function Legend({ label, color }: { label: string; color: string }) {
+  const styles = useThemeStyles(createStyles);
   return <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: color }]} /><Text style={styles.muted}>{label}</Text></View>;
 }
 
-const styles = StyleSheet.create({
-  blockDates: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
-  blockRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 58, paddingVertical: spacing.sm },
-  blocks: { gap: spacing.sm },
-  center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
-  composer: { gap: spacing.sm },
-  content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  day: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, height: 58, justifyContent: 'center' },
-  dayNumber: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
-  dot: { borderRadius: 4, height: 8, width: 8 },
-  error: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
-  flex: { flex: 1 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  headerAction: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 40, justifyContent: 'center', width: 40 },
-  iconSpace: { height: 11 },
-  intro: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  legendItem: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.xs },
-  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  notes: { borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 13, minHeight: 82, padding: spacing.md, textAlignVertical: 'top' },
-  ownerBlock: { backgroundColor: 'rgba(212,175,55,0.08)' },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 50 },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  reasonRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, minHeight: 60 },
-  reasonTitle: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
-  reserved: { opacity: 0.58 },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  selected: { backgroundColor: colors.ivory, borderColor: colors.ivory },
-  selectedText: { color: colors.black },
-  selection: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
-  selectionLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11 },
-  selectionValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, marginTop: 2 },
-  title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
-  weekday: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 9 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    blockDates: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
+    blockRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, minHeight: 58, paddingVertical: spacing.sm },
+    blocks: { gap: spacing.sm },
+    center: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
+    composer: { gap: spacing.sm },
+    content: { gap: spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    day: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, height: 58, justifyContent: 'center' },
+    dayNumber: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 15 },
+    dot: { borderRadius: 4, height: 8, width: 8 },
+    error: { color: colors.danger, fontFamily: typography.body, fontSize: 13 },
+    flex: { flex: 1 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap' },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    headerAction: { alignItems: 'center', borderColor: colors.line, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 40, justifyContent: 'center', width: 40 },
+    iconSpace: { height: 11 },
+    intro: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
+    legend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+    legendItem: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+    link: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 13, padding: spacing.xs },
+    muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    notes: { borderColor: colors.line, borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, color: colors.ivory, fontFamily: typography.body, fontSize: 13, minHeight: 82, padding: spacing.md, textAlignVertical: 'top' },
+    ownerBlock: { backgroundColor: 'rgba(212,175,55,0.08)' },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 50 },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    reasonRow: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, minHeight: 60 },
+    reasonTitle: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
+    reserved: { opacity: 0.58 },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+    selected: { backgroundColor: colors.buttonPrimaryBg, borderColor: colors.buttonPrimaryBg },
+    selectedText: { color: colors.buttonPrimaryText },
+    selection: { alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.md },
+    selectionLabel: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 11 },
+    selectionValue: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13, marginTop: 2 },
+    title: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
+    weekday: { color: colors.muted, fontFamily: typography.bodyMedium, fontSize: 9 },
+  });

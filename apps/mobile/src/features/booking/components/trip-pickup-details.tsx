@@ -1,12 +1,14 @@
-import { colors, spacing, typography } from '@mmg/brand';
+import { spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { PickupLocationSnapshot } from '@mmg/contracts/rental-request';
 import { pickupDirectionsUrl } from '@mmg/domain';
 import { useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/pressable-scale';
+import { useThemeStyles } from '../../../core/theme';
 
 export function TripPickupDetails({ pickup, time }: { pickup?: PickupLocationSnapshot; time?: string }) {
+  const styles = useThemeStyles(createStyles);
   const [error, setError] = useState(false);
   const url = pickup ? pickupDirectionsUrl(pickup) : null;
   return (
@@ -27,11 +29,12 @@ export function TripPickupDetails({ pickup, time }: { pickup?: PickupLocationSna
   );
 }
 
-const styles = StyleSheet.create({
-  section: { gap: spacing.xs, marginTop: spacing.lg },
-  title: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 16 },
-  text: { color: colors.ivory, fontFamily: typography.body, fontSize: 15, lineHeight: 22 },
-  secondary: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
-  action: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  link: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: 14 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    section: { gap: spacing.xs, marginTop: spacing.lg },
+    title: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 16 },
+    text: { color: colors.ivory, fontFamily: typography.body, fontSize: 15, lineHeight: 22 },
+    secondary: { color: colors.silver, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
+    action: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+    link: { color: colors.goldStrong, fontFamily: typography.bodyMedium, fontSize: 14 },
+  });

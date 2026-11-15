@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type {
   AvailabilityBlockReason,
   GetOwnerVehicleCalendarResult,
@@ -21,13 +21,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useTheme, useThemeStyles } from '../../../core/theme';
 import {
   addDaysToDateOnly,
   formatLagosDateOnly,
   todayLagosDateOnly,
-} from '@/features/discovery/data/lagos-destinations';
+} from '../../discovery/data/lagos-destinations';
 
 import { createOwnerAvailabilityGateway } from '../data/owner-availability-gateway';
 import {
@@ -78,6 +79,8 @@ function safeAvailabilityErrorMessage(error: unknown): string {
 
 export function OwnerVehicleAvailabilityScreen() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { width: viewportWidth } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const gateway = useMemo(() => createOwnerAvailabilityGateway(), []);
@@ -338,6 +341,7 @@ export function OwnerVehicleAvailabilityScreen() {
               </View>
               <TextInput
                 accessibilityLabel="Private availability note"
+                keyboardAppearance={isDark ? 'dark' : 'light'}
                 maxLength={500}
                 multiline
                 onChangeText={setNotes}
@@ -352,7 +356,7 @@ export function OwnerVehicleAvailabilityScreen() {
                 onPress={() => void handleCreateBlock()}
                 style={[styles.primaryButton, submitting && styles.disabledButton]}
               >
-                {submitting ? <ActivityIndicator color={colors.black} /> : null}
+                {submitting ? <ActivityIndicator color={colors.primaryContrast} /> : null}
                 <Text style={styles.primaryButtonText}>BLOCK SELECTED DATES</Text>
               </PressableScale>
             </View>
@@ -390,6 +394,7 @@ export function OwnerVehicleAvailabilityScreen() {
 }
 
 function Legend({ color, label }: { color: string; label: string }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendDot, { backgroundColor: color }]} />
@@ -398,57 +403,58 @@ function Legend({ color, label }: { color: string; label: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  blockCopy: { flex: 1, gap: 3 },
-  blockDateRail: { alignSelf: 'stretch', backgroundColor: colors.goldStrong, width: 3 },
-  blockDates: { color: colors.ivory, fontFamily: typography.body, fontSize: 14, fontWeight: '600' },
-  blockReason: { color: colors.muted, fontFamily: typography.body, fontSize: 12, textTransform: 'capitalize' },
-  blockRow: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 72 },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  centerState: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },
-  clearButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
-  composer: { borderTopColor: colors.graphiteRaised, borderTopWidth: 1, gap: spacing.md, marginTop: spacing.xl, paddingTop: spacing.xl },
-  content: { paddingBottom: 64 },
-  dayButton: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: 'transparent', borderRadius: radii.sm, borderWidth: 1, height: 60, justifyContent: 'center' },
-  dayNumber: { color: colors.ivory, fontFamily: typography.body, fontSize: 16, fontWeight: '700' },
-  disabledButton: { opacity: 0.55 },
-  emptyText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, paddingVertical: spacing.lg },
-  errorBanner: { alignItems: 'center', backgroundColor: 'rgba(209,133,120,0.09)', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
-  errorText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
-  existingSection: { borderTopColor: colors.graphiteRaised, borderTopWidth: 1, marginTop: spacing.xl, paddingTop: spacing.xl },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  headerAction: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 44, justifyContent: 'center', width: 44 },
-  iconSpacer: { height: 11 },
-  intro: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginBottom: spacing.lg },
-  legendDot: { borderRadius: 4, height: 8, width: 8 },
-  legendItem: { alignItems: 'center', flexDirection: 'row', gap: 5 },
-  legendRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
-  legendText: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
-  notesInput: { backgroundColor: colors.graphite, borderColor: colors.graphiteRaised, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 88, padding: spacing.md, textAlignVertical: 'top' },
-  ownerBlockedDay: { borderColor: colors.goldStrong },
-  primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.sm, flexDirection: 'row', gap: spacing.sm, height: 56, justifyContent: 'center' },
-  primaryButtonText: { color: colors.black, fontFamily: typography.body, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  previewNotice: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.7, marginBottom: spacing.lg },
-  reasonCopy: { flex: 1 },
-  reasonDetail: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 2 },
-  reasonLabel: { color: colors.ivory, fontFamily: typography.body, fontSize: 14, fontWeight: '600' },
-  reasonList: { borderTopColor: colors.graphiteRaised, borderTopWidth: 1 },
-  reasonRow: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 66 },
-  removeButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
-  reservedDay: { backgroundColor: colors.graphiteRaised, opacity: 0.58 },
-  retryButton: { backgroundColor: colors.goldStrong, borderRadius: radii.sm, marginTop: spacing.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  retryText: { color: colors.black, fontFamily: typography.body, fontSize: 12, fontWeight: '800' },
-  safeArea: { backgroundColor: colors.canvas, flex: 1 },
-  sectionHeadingRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
-  sectionMeta: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
-  sectionTitle: { color: colors.ivory, fontFamily: typography.body, fontSize: 18, fontWeight: '700' },
-  selectedDay: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
-  selectedDayText: { color: colors.black },
-  selectionCopy: { flex: 1 },
-  selectionLabel: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
-  selectionSummary: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, borderTopColor: colors.graphiteRaised, borderTopWidth: 1, flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, minHeight: 72 },
-  selectionValue: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, marginTop: 4 },
-  stateText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm, textAlign: 'center' },
-  stateTitle: { color: colors.ivory, fontFamily: typography.body, fontSize: 18, fontWeight: '700', marginTop: spacing.md },
-  weekday: { color: colors.muted, fontFamily: typography.body, fontSize: 11, fontWeight: '700' },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    blockCopy: { flex: 1, gap: 3 },
+    blockDateRail: { alignSelf: 'stretch', backgroundColor: colors.goldStrong, width: 3 },
+    blockDates: { color: colors.ivory, fontFamily: typography.body, fontSize: 14, fontWeight: '600' },
+    blockReason: { color: colors.muted, fontFamily: typography.body, fontSize: 12, textTransform: 'capitalize' },
+    blockRow: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 72 },
+    calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+    centerState: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },
+    clearButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
+    composer: { borderTopColor: colors.graphiteRaised, borderTopWidth: 1, gap: spacing.md, marginTop: spacing.xl, paddingTop: spacing.xl },
+    content: { paddingBottom: 64 },
+    dayButton: { alignItems: 'center', backgroundColor: colors.graphite, borderColor: 'transparent', borderRadius: radii.sm, borderWidth: 1, height: 60, justifyContent: 'center' },
+    dayNumber: { color: colors.ivory, fontFamily: typography.body, fontSize: 16, fontWeight: '700' },
+    disabledButton: { opacity: 0.55 },
+    emptyText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, paddingVertical: spacing.lg },
+    errorBanner: { alignItems: 'center', backgroundColor: 'rgba(209,133,120,0.09)', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, padding: spacing.md },
+    errorText: { color: colors.silver, flex: 1, fontFamily: typography.body, fontSize: 13, lineHeight: 19 },
+    existingSection: { borderTopColor: colors.graphiteRaised, borderTopWidth: 1, marginTop: spacing.xl, paddingTop: spacing.xl },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    headerAction: { alignItems: 'center', borderColor: colors.lineStrong, borderRadius: radii.pill, borderWidth: StyleSheet.hairlineWidth, height: 44, justifyContent: 'center', width: 44 },
+    iconSpacer: { height: 11 },
+    intro: { color: colors.muted, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginBottom: spacing.lg },
+    legendDot: { borderRadius: 4, height: 8, width: 8 },
+    legendItem: { alignItems: 'center', flexDirection: 'row', gap: 5 },
+    legendRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+    legendText: { color: colors.muted, fontFamily: typography.body, fontSize: 11 },
+    notesInput: { backgroundColor: colors.graphite, borderColor: colors.graphiteRaised, borderRadius: radii.sm, borderWidth: 1, color: colors.ivory, fontFamily: typography.body, fontSize: 14, minHeight: 88, padding: spacing.md, textAlignVertical: 'top' },
+    ownerBlockedDay: { borderColor: colors.goldStrong },
+    primaryButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.sm, flexDirection: 'row', gap: spacing.sm, height: 56, justifyContent: 'center' },
+    primaryButtonText: { color: colors.primaryContrast, fontFamily: typography.body, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+    previewNotice: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.7, marginBottom: spacing.lg },
+    reasonCopy: { flex: 1 },
+    reasonDetail: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 2 },
+    reasonLabel: { color: colors.ivory, fontFamily: typography.body, fontSize: 14, fontWeight: '600' },
+    reasonList: { borderTopColor: colors.graphiteRaised, borderTopWidth: 1 },
+    reasonRow: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 66 },
+    removeButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
+    reservedDay: { backgroundColor: colors.graphiteRaised, opacity: 0.58 },
+    retryButton: { backgroundColor: colors.goldStrong, borderRadius: radii.sm, marginTop: spacing.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+    retryText: { color: colors.primaryContrast, fontFamily: typography.body, fontSize: 12, fontWeight: '800' },
+    safeArea: { backgroundColor: colors.canvas, flex: 1 },
+    sectionHeadingRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
+    sectionMeta: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
+    sectionTitle: { color: colors.ivory, fontFamily: typography.body, fontSize: 18, fontWeight: '700' },
+    selectedDay: { backgroundColor: colors.goldStrong, borderColor: colors.goldStrong },
+    selectedDayText: { color: colors.primaryContrast },
+    selectionCopy: { flex: 1 },
+    selectionLabel: { color: colors.goldStrong, fontFamily: typography.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+    selectionSummary: { alignItems: 'center', borderBottomColor: colors.graphiteRaised, borderBottomWidth: 1, borderTopColor: colors.graphiteRaised, borderTopWidth: 1, flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, minHeight: 72 },
+    selectionValue: { color: colors.ivory, fontFamily: typography.body, fontSize: 13, marginTop: 4 },
+    stateText: { color: colors.muted, fontFamily: typography.body, fontSize: 13, lineHeight: 20, marginTop: spacing.sm, textAlign: 'center' },
+    stateTitle: { color: colors.ivory, fontFamily: typography.body, fontSize: 18, fontWeight: '700', marginTop: spacing.md },
+    weekday: { color: colors.muted, fontFamily: typography.body, fontSize: 11, fontWeight: '700' },
+  });

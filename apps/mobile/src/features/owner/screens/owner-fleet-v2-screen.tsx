@@ -1,19 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, typography } from '@mmg/brand';
+import { radii, spacing, typography, type ThemeColors } from '@mmg/brand';
 import type { OwnerVisibleVehicle, VehicleModerationStatus } from '@mmg/contracts';
 import { formatNairaFromKobo } from '@mmg/domain';
 import { type Href, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PressableScale } from '@/components/pressable-scale';
-import { ScreenHeader } from '@/components/screen-header';
-import { useAuth } from '@/core/auth/auth-context';
-import { AuthLoadingScreen } from '@/features/auth/screens/auth-loading-screen';
+import { PressableScale } from '../../../components/pressable-scale';
+import { ScreenHeader } from '../../../components/screen-header';
+import { useAuth } from '../../../core/auth/auth-context';
+import { useTheme, useThemeStyles } from '../../../core/theme';
+import { AuthLoadingScreen } from '../../auth/screens/auth-loading-screen';
 import { OwnerVehicleImage } from '../components/owner-vehicle-image';
 import { useOwnerFleet } from '../hooks/use-owner-fleet';
 
-function statusPresentation(status: VehicleModerationStatus, visibility: string) {
+function statusPresentation(status: VehicleModerationStatus, visibility: string, colors: ThemeColors) {
   if (status === 'approved' && visibility === 'active') return { label: 'Live', color: colors.success ?? '#10B981' };
   if (status === 'approved') return { label: 'Approved · paused', color: colors.muted };
   if (status === 'pending_review') return { label: 'Under review', color: '#60A5FA' };
@@ -25,6 +26,8 @@ function statusPresentation(status: VehicleModerationStatus, visibility: string)
 export function OwnerFleetV2Screen() {
   const router = useRouter();
   const { signingOut } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const { actionInProgress, loading, syncError, toggleVisibility, vehicles } = useOwnerFleet();
 
   const right = (
@@ -97,7 +100,9 @@ function VehicleRow({
   onOpen(): void;
   onToggle(): void;
 }) {
-  const status = statusPresentation(item.moderationStatus, item.visibility);
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
+  const status = statusPresentation(item.moderationStatus, item.visibility, colors);
   return (
     <View style={styles.card}>
       <PressableScale accessibilityLabel={`Open ${item.displayName}`} accessibilityRole="button" onPress={onOpen}>
@@ -138,30 +143,31 @@ function VehicleRow({
   );
 }
 
-const styles = StyleSheet.create({
-  card: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: spacing.lg, paddingBottom: spacing.lg },
-  cardBody: { gap: 3, paddingTop: spacing.sm },
-  center: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
-  empty: { gap: spacing.md, paddingVertical: spacing.xxl },
-  emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
-  errorBanner: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.08)', flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, padding: spacing.md },
-  errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
-  feedback: { color: colors.danger, fontFamily: typography.body, fontSize: 12, lineHeight: 17, marginTop: spacing.xs },
-  header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  headerLink: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
-  list: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  media: { backgroundColor: colors.graphiteRaised, borderRadius: radii.md, height: 164, overflow: 'hidden' },
-  meta: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 2 },
-  muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  name: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
-  primaryButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg },
-  primaryText: { color: colors.black, fontFamily: typography.bodySemiBold, fontSize: 13 },
-  rate: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  rateRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm },
-  screen: { backgroundColor: colors.black, flex: 1 },
-  status: { fontFamily: typography.bodySemiBold, fontSize: 12 },
-  utilityLink: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, paddingVertical: spacing.sm },
-  utilityRow: { flexDirection: 'row', gap: spacing.lg, paddingBottom: spacing.md },
-  visibilityRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.md },
-  visibilityTitle: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
-});
+const createStyles = ({ colors }: { colors: ThemeColors }) =>
+  StyleSheet.create({
+    card: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: spacing.lg, paddingBottom: spacing.lg },
+    cardBody: { gap: 3, paddingTop: spacing.sm },
+    center: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
+    empty: { gap: spacing.md, paddingVertical: spacing.xxl },
+    emptyTitle: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 20 },
+    errorBanner: { alignItems: 'center', backgroundColor: 'rgba(239,68,68,0.08)', flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, padding: spacing.md },
+    errorText: { color: colors.danger, flex: 1, fontFamily: typography.body, fontSize: 13 },
+    feedback: { color: colors.danger, fontFamily: typography.body, fontSize: 12, lineHeight: 17, marginTop: spacing.xs },
+    header: { paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    headerLink: { color: colors.goldStrong, fontFamily: typography.bodySemiBold, fontSize: 12, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
+    list: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+    media: { backgroundColor: colors.graphiteRaised, borderRadius: radii.md, height: 164, overflow: 'hidden' },
+    meta: { color: colors.muted, fontFamily: typography.body, fontSize: 12, marginTop: 2 },
+    muted: { color: colors.muted, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+    name: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 17 },
+    primaryButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.goldStrong, borderRadius: radii.button, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg },
+    primaryText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 13 },
+    rate: { color: colors.ivory, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    rateRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm },
+    screen: { backgroundColor: colors.canvas, flex: 1 },
+    status: { fontFamily: typography.bodySemiBold, fontSize: 12 },
+    utilityLink: { color: colors.silver, fontFamily: typography.bodyMedium, fontSize: 12, paddingVertical: spacing.sm },
+    utilityRow: { flexDirection: 'row', gap: spacing.lg, paddingBottom: spacing.md },
+    visibilityRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.md },
+    visibilityTitle: { color: colors.ivory, fontFamily: typography.bodyMedium, fontSize: 13 },
+  });
