@@ -28,6 +28,7 @@ import { resolveVehicleImageSource } from '../../discovery/data/vehicle-images';
 import type { CreateRentalRequestData } from '@mmg/contracts/rental-request';
 
 import { useBookings } from '../booking-context';
+import { checkoutCtaColors } from '../components/checkout-cta-colors';
 import {
   createRentalRequestGateway,
   type RentalRequestGateway,
@@ -374,12 +375,14 @@ export default function BookingReviewScreen({
         ) : null}
 
         <PressableScale
+          accessibilityRole="button"
           disabled={submitting || !isServiceable}
           haptic
           onPress={handleSubmitRequest}
+          testID="booking-review-submit"
         >
           <View style={[styles.ctaButton, (submitting || !isServiceable) && styles.disabled]}>
-            {submitting ? <ActivityIndicator color={colors.primaryContrast} size="small" /> : null}
+            {submitting ? <ActivityIndicator color={checkoutCtaColors(colors).foreground} size="small" /> : null}
             <Text style={styles.ctaText}>{submitting ? 'Sending request…' : 'Send request'}</Text>
           </View>
         </PressableScale>
@@ -418,8 +421,8 @@ function QuoteRow({ label, value }: { label: string; value: string }) {
 const createStyles = ({ colors }: { colors: ThemeColors }) =>
   StyleSheet.create({
     content: { gap: spacing.lg, paddingHorizontal: spacing.lg },
-    ctaButton: { alignItems: 'center', backgroundColor: colors.goldStrong, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
-    ctaText: { color: colors.primaryContrast, fontFamily: typography.bodySemiBold, fontSize: 14 },
+    ctaButton: { alignItems: 'center', backgroundColor: checkoutCtaColors(colors).background, borderRadius: radii.button, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 54, paddingHorizontal: spacing.lg },
+    ctaText: { color: checkoutCtaColors(colors).foreground, fontFamily: typography.bodySemiBold, fontSize: 14 },
     deliveryAddress: { color: colors.muted, fontFamily: typography.body, fontSize: 12 },
     deliveryCard: {
       alignItems: 'center',

@@ -2,6 +2,8 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RenterPaymentCheckout } from './renter-payment-checkout';
+import { ThemeProvider } from '../../../core/theme';
+import { contrastRatio, darkThemeColors, lightThemeColors } from '@mmg/brand';
 import type { ReconcilePaymentResult } from '@mmg/contracts/payment';
 
 const mocks = vi.hoisted(() => ({ initialize: vi.fn(), reconcile: vi.fn(), browser: vi.fn(), foreground: null as null | ((state: string) => void) }));
@@ -13,7 +15,9 @@ vi.mock('expo-web-browser', () => ({ openAuthSessionAsync: mocks.browser }));
 vi.mock('react-native', () => ({
   ActivityIndicator: 'ActivityIndicator', View: 'View', Text: 'Text', StyleSheet: { create: (value: unknown) => value },
   AppState: { addEventListener: (_name: string, listener: (state: string) => void) => { mocks.foreground = listener; return { remove: () => { mocks.foreground = null; } }; } },
+  useColorScheme: () => 'light',
 }));
+vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem: vi.fn(async () => null), setItem: vi.fn(async () => {}) } }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 vi.mock('@/components/pressable-scale', () => ({ PressableScale: 'button' }));
 vi.mock('@/core/errors/safe-provider-error', () => ({ safeProviderError: (_error: unknown, fallback: string) => fallback }));
@@ -58,5 +62,15 @@ describe('trusted checkout recovery after process death', () => {
     await mount({ onViewTrips }); await act(async () => { tree!.unmount(); tree = undefined; });
     await act(async () => { resolve({ ...pending, result: { ...pending.result, valueDeliveryOutcome: 'confirmed' } }); });
     expect(onViewTrips).not.toHaveBeenCalled();
+  });
+  it.each(['light', 'dark'] as const)('renders the Pay securely CTA at WCAG AA contrast in %s mode', async (mode) => {
+    mocks.reconcile.mockRejectedValueOnce({ code: 'functions/not-found' });
+    await act(async () => { tree = create(<ThemeProvider initialMode={mode}><RenterPaymentCheckout holdExpiresAt={new Date(Date.now() + 600_000).toISOString()} intentId="intent-one" mode="request_first" onRestartHold={vi.fn()} onViewTrips={vi.fn()} /></ThemeProvider>); });
+    const pay = button('Pay securely')!;
+    const surface = pay.findByType('View' as never);
+    const label = pay.findByType('Text' as never);
+    const expected = mode === 'light' ? lightThemeColors : darkThemeColors;
+    expect(surface.props.style.backgroundColor).toBe(expected.goldStrong);
+    expect(contrastRatio(label.props.style.color, surface.props.style.backgroundColor)).toBeGreaterThanOrEqual(4.5);
   });
 });

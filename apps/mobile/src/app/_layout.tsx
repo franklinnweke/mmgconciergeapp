@@ -15,12 +15,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
-import { AuthProvider } from '@/core/auth/auth-context';
-import { SessionIntentProvider } from '@/core/auth/session-intent';
-import { initializeNativeAppCheck } from '@/core/firebase/app-check';
-import { initializeCrashReporting } from '@/core/diagnostics/crash-reporting';
-import { AppErrorBoundary, ErrorBoundary } from '@/components/error-boundary';
-import { BookingProvider } from '@/features/booking/booking-context';
+import { AuthProvider } from '../core/auth/auth-context';
+import { SessionIntentProvider } from '../core/auth/session-intent';
+import { initializeNativeAppCheck } from '../core/firebase/app-check';
+import { initializeCrashReporting } from '../core/diagnostics/crash-reporting';
+import { AppErrorBoundary, ErrorBoundary } from '../components/error-boundary';
+import { BookingProvider } from '../features/booking/booking-context';
 import { ThemeProvider as AppThemeProvider, useTheme } from '../core/theme';
 
 import 'react-native-reanimated';
@@ -81,6 +81,20 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
+  return (
+    <AppThemeProvider>
+      <RootLayoutGate />
+    </AppThemeProvider>
+  );
+}
+
+/**
+ * Keeps the native splash up until fonts AND the persisted theme preference are
+ * resolved, so a saved Light/System choice never paints a dark first frame.
+ * The theme provider falls back to dark if storage fails or stalls.
+ */
+function RootLayoutGate() {
+  const { isHydrated: themeReady } = useTheme();
   const [interLoaded, interError] = useInterFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -91,21 +105,18 @@ export default function RootLayout() {
     PlayfairDisplay_500Medium_Italic,
   });
 
-  const fontsLoaded = interLoaded && playfairLoaded;
+  const fontsReady = (interLoaded && playfairLoaded) || Boolean(interError) || Boolean(playfairError);
+  const ready = fontsReady && themeReady;
 
   useEffect(() => {
-    if (fontsLoaded || interError || playfairError) {
+    if (ready) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, interError, playfairError]);
+  }, [ready]);
 
-  if (!fontsLoaded && !interError && !playfairError) {
+  if (!ready) {
     return null;
   }
 
-  return (
-    <AppThemeProvider>
-      <RootLayoutContent />
-    </AppThemeProvider>
-  );
+  return <RootLayoutContent />;
 }
