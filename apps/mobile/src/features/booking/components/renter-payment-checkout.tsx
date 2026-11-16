@@ -16,6 +16,7 @@ import { PressableScale } from '@/components/pressable-scale';
 import { safeProviderError } from '@/core/errors/safe-provider-error';
 import { reportUnexpectedMobileError } from '../../../core/diagnostics/crash-reporting';
 import { useTheme, useThemeStyles } from '../../../core/theme';
+import { checkoutCtaColors } from './checkout-cta-colors';
 
 import {
   createPaymentCheckoutGateway,
@@ -414,7 +415,7 @@ const createStyles = ({ colors }: { colors: ThemeColors }) =>
     },
     button: {
       alignItems: 'center',
-      backgroundColor: colors.goldStrong,
+      backgroundColor: checkoutCtaColors(colors).background,
       borderRadius: radii.button,
       minHeight: 46,
       justifyContent: 'center',
@@ -422,7 +423,7 @@ const createStyles = ({ colors }: { colors: ThemeColors }) =>
       paddingVertical: spacing.sm,
     },
     buttonText: {
-      color: colors.primaryContrast,
+      color: checkoutCtaColors(colors).foreground,
       fontFamily: typography.bodySemiBold,
       fontSize: 13,
       letterSpacing: 0.4,

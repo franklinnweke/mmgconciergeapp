@@ -4,6 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  THEME_HYDRATION_TIMEOUT_MS,
   THEME_STORAGE_KEY,
   ThemeProvider,
   useTheme,
@@ -205,5 +206,97 @@ describe('ThemeProvider and useTheme', () => {
       background: lightThemeColors.canvas,
       text: lightThemeColors.textPrimary,
     });
+  });
+
+  it('tracks isHydrated across saved Light preference restoration without flashing dark after hydration', async () => {
+    let resolveStorage!: (value: string | null) => void;
+    mocks.getItem.mockImplementationOnce(
+      () => new Promise<string | null>((resolve) => {
+        resolveStorage = resolve;
+      }),
+    );
+
+    let captured: ReturnType<typeof useTheme> | null = null;
+    function TestComponent() {
+      captured = useTheme();
+      return React.createElement('View', null);
+    }
+
+    await act(async () => {
+      create(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>,
+      );
+    });
+
+    expect(captured!.isHydrated).toBe(false);
+    expect(captured!.theme).toBe('dark');
+
+    await act(async () => {
+      resolveStorage('light');
+      await Promise.resolve();
+    });
+
+    expect(captured!.isHydrated).toBe(true);
+    expect(captured!.mode).toBe('light');
+    expect(captured!.theme).toBe('light');
+    expect(captured!.colors).toEqual(lightThemeColors);
+  });
+
+  it('falls back cleanly to dark mode and marks isHydrated when storage fails', async () => {
+    mocks.getItem.mockRejectedValueOnce(new Error('storage failure'));
+
+    let captured: ReturnType<typeof useTheme> | null = null;
+    function TestComponent() {
+      captured = useTheme();
+      return React.createElement('View', null);
+    }
+
+    await act(async () => {
+      create(
+        <ThemeProvider>
+          <TestComponent />
+        </ThemeProvider>,
+      );
+    });
+
+    expect(captured!.isHydrated).toBe(true);
+    expect(captured!.mode).toBe('dark');
+    expect(captured!.theme).toBe('dark');
+    expect(captured!.colors).toEqual(darkThemeColors);
+  });
+
+  it('falls back to dark mode and unblocks splash if storage stalls past THEME_HYDRATION_TIMEOUT_MS', async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.getItem.mockImplementationOnce(() => new Promise<string | null>(() => {}));
+
+      let captured: ReturnType<typeof useTheme> | null = null;
+      function TestComponent() {
+        captured = useTheme();
+        return React.createElement('View', null);
+      }
+
+      await act(async () => {
+        create(
+          <ThemeProvider>
+            <TestComponent />
+          </ThemeProvider>,
+        );
+      });
+
+      expect(captured!.isHydrated).toBe(false);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(THEME_HYDRATION_TIMEOUT_MS);
+      });
+
+      expect(captured!.isHydrated).toBe(true);
+      expect(captured!.theme).toBe('dark');
+      expect(captured!.colors).toEqual(darkThemeColors);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -97,7 +97,7 @@ export const lightThemeColors: ThemeColors = {
 
   textPrimary: '#141412',
   textSecondary: '#4A4742',
-  textMuted: '#767169',
+  textMuted: '#6E6961',
   textInverse: '#F7F5F0',
 
   border: 'rgba(20, 20, 18, 0.08)',
@@ -105,11 +105,14 @@ export const lightThemeColors: ThemeColors = {
   line: 'rgba(20, 20, 18, 0.08)',
   lineStrong: 'rgba(20, 20, 18, 0.16)',
 
-  primary: '#B88E28',
-  primaryStrong: '#96731B',
+  // Light accents must carry white button text and act as text on light surfaces
+  // at WCAG AA normal-text contrast (>= 4.5:1). #856515 is ~5.4:1 on white and
+  // ~5.0:1 on the light canvas; the previous #96731B was ~4.4:1 / ~4.0:1.
+  primary: '#856515',
+  primaryStrong: '#856515',
   primaryContrast: '#FFFFFF',
-  gold: '#B88E28',
-  goldStrong: '#96731B',
+  gold: '#856515',
+  goldStrong: '#856515',
 
   buttonPrimaryBg: '#141412',
   buttonPrimaryText: '#F7F5F0',
@@ -127,10 +130,27 @@ export const lightThemeColors: ThemeColors = {
   graphiteRaised: '#EFECE6',
   ivory: '#141412',
   silver: '#4A4742',
-  muted: '#767169',
+  muted: '#6E6961',
 };
 
 export const colors: ThemeColors = darkThemeColors;
+
+function relativeLuminance(hex: string): number {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match) throw new Error(`contrastRatio requires an opaque #RRGGBB colour, received ${hex}`);
+  const [r, g, b] = [0, 2, 4].map((offset) => {
+    const channel = parseInt(match[1].slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG 2.x contrast ratio between two opaque #RRGGBB colours. */
+export function contrastRatio(foreground: string, background: string): number {
+  const a = relativeLuminance(foreground);
+  const b = relativeLuminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
 
 export const spacing = {
   xxs: 4,

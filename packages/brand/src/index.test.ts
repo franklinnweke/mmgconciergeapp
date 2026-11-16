@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colors, darkThemeColors, lightThemeColors, type ThemeColors } from './index';
+import { colors, contrastRatio, darkThemeColors, lightThemeColors, type ThemeColors } from './index';
 
 describe('@mmg/brand theme tokens', () => {
   it('preserves existing colors object identity with darkThemeColors as default', () => {
@@ -85,5 +85,30 @@ describe('@mmg/brand theme tokens', () => {
     expect(darkThemeColors.buttonPrimaryText).toBe('#040404');
     expect(lightThemeColors.buttonPrimaryBg).toBe('#141412');
     expect(lightThemeColors.buttonPrimaryText).toBe('#F7F5F0');
+  });
+
+  it('computes WCAG contrast ratios for opaque colours', () => {
+    expect(contrastRatio('#FFFFFF', '#000000')).toBeCloseTo(21, 5);
+    expect(contrastRatio('#FFFFFF', '#96731B')).toBeLessThan(4.5);
+    expect(() => contrastRatio('rgba(0,0,0,0.5)', '#FFFFFF')).toThrow();
+  });
+
+  it.each([
+    ['dark', darkThemeColors],
+    ['light', lightThemeColors],
+  ] as const)('keeps critical %s-mode pairings at WCAG AA normal-text contrast', (_name, theme) => {
+    const AA = 4.5;
+    // Gold action buttons (checkout CTAs, Paystack, owner accept) use primaryContrast text.
+    for (const accent of [theme.goldStrong, theme.gold, theme.primaryStrong, theme.primary]) {
+      expect(contrastRatio(theme.primaryContrast, accent)).toBeGreaterThanOrEqual(AA);
+    }
+    expect(contrastRatio(theme.buttonPrimaryText, theme.buttonPrimaryBg)).toBeGreaterThanOrEqual(AA);
+    expect(contrastRatio(theme.buttonSecondaryText, theme.canvas)).toBeGreaterThanOrEqual(AA);
+    // Gold used as link/label text on the main surfaces.
+    for (const surface of [theme.canvas, theme.surface]) {
+      expect(contrastRatio(theme.goldStrong, surface)).toBeGreaterThanOrEqual(AA);
+      expect(contrastRatio(theme.textPrimary, surface)).toBeGreaterThanOrEqual(AA);
+      expect(contrastRatio(theme.textMuted, surface)).toBeGreaterThanOrEqual(AA);
+    }
   });
 });

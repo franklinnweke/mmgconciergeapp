@@ -1,4 +1,5 @@
 export {
+  THEME_HYDRATION_TIMEOUT_MS,
   THEME_STORAGE_KEY,
   ThemeContext,
   ThemeProvider,
